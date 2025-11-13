@@ -1,0 +1,66 @@
+<resources>
+    <string name="app_name">GoUTE</string>
+    <string name="slogan">Đặt vé xe khách nhanh chóng</string>
+    <string name="content_description_splash_logo">GoUTE App Logo</string>
+    <string name="content_description_footer">Footer decoration</string>
+
+    <!-- General -->
+    <string name="home">Trang chủ</string>
+    <string name="search_trips">Tìm tuyến xe</string>
+    <string name="my_tickets">Vé của tôi</string>
+    <string name="favorites">Yêu thích</string>
+    <string name="notifications">Thông báo</string>
+    <string name="account">Tài khoản</string>
+    <string name="from">Từ</string>
+    <string name="to">Đến</string>
+    <string name="departure_date">Ngày đi</string>
+    <string name="search">Tìm kiếm</string>
+    <string name="popular_trips">Tuyến phổ biến</string>
+    <string name="promotions">Ưu đãi nổi bật</string>
+    <string name="reviews">Khách hàng nói gì</string>
+    <string name="select_seat">Chọn ghế</string>
+    <string name="pickup_dropoff">Điểm đón/trả</string>
+    <string name="passenger_info">Thông tin hành khách</string>
+    <string name="payment">Thanh toán</string>
+    <string name="continue_button">Tiếp tục</string>
+    <string name="pay">Thanh toán</string>
+
+    <!-- Authentication -->
+    <string name="login_required">Yêu cầu đăng nhập</string>
+    <string name="login">Đăng nhập</string>
+    <string name="register">Đăng ký</string>
+    <string name="email">Email</string>
+    <string name="password">Mật khẩu</string>
+    <string name="confirm_password">Xác nhận mật khẩu</string>
+    <string name="forgot_password">Quên mật khẩu?</string>
+    <string name="password_recovery">Đặt lại mật khẩu</string>
+    <string name="recover_password">Quên mật khẩu</string>
+    <string name="full_name">Họ và tên</string>
+    <string name="phone_number">Số điện thoại</string>
+    <string name="signup_prompt">Chưa có tài khoản? </string>
+    <string name="signup_link">Đăng ký ▸</string>
+    <string name="login_prompt">Đã có tài khoản? </string>
+    <string name="login_link">Đăng nhập ▸</string>
+    <string name="login_subtitle">Nhập email và mật khẩu của bạn</string>
+    <string name="remember_me">Ghi nhớ đăng nhập</string>
+    <string name="register_subtitle">Tạo tài khoản mới của bạn</string>
+    <string name="create_account">Tạo tài khoản</string>
+    <string name="reset_password_title">Đặt lại mật khẩu</string>
+    <string name="reset_password_instruction">Vui lòng nhập mật khẩu mới cho tài khoản của bạn.</string>
+    <string name="new_password_hint">Mật khẩu mới</string>
+    <string name="confirm_new_password_hint">Nhập lại mật khẩu mới</string>
+    <string name="confirm">Xác nhận</string>
+    <string name="back_button">Back</string>
+
+
+    <!-- Guest Home -->
+    <string name="origin_hint">Nơi xuất phát</string>
+    <string name="destination_hint">Bạn muốn đến đâu?</string>
+    <string name="return_trip">Khứ hồi</string>
+    <string name="popular_routes">Tuyến đường phổ biến</string>
+    <string name="featured_promotions">Ưu đãi nổi bật</string>
+    <string name="customer_reviews">Đánh giá từ khách hàng</string>
+    <string name="content_description_origin_icon">Origin Icon</string>
+    <string name="content_description_destination_icon">Destination Icon</string>
+
+</resources>

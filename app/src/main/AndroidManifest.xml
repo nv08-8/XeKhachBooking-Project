@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application
+        android:allowBackup="true"
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:label="@string/app_name"
+        android:icon="@drawable/ic_goute_logo"
+        android:roundIcon="@drawable/ic_goute_logo"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.XeKhachBooking">
+        <activity
+            android:name=".activity.SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.App.Starting">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".MainActivity" />
+        <activity android:name=".activity.GuestHomeActivity" />
+        <activity android:name=".activity.GuestAccountActivity" />
+        <activity android:name=".activity.OtpVerificationActivity" />
+        <activity android:name=".activity.ResetPasswordActivity" />
+        <activity android:name=".activity.TripListActivity" />
+        <activity android:name=".activity.SeatSelectionActivity" />
+        <activity android:name=".activity.PickupDropoffActivity" />
+        <activity android:name=".activity.PassengerInfoActivity" />
+        <activity android:name=".activity.PaymentActivity" />
+        <activity android:name=".activity.LoginActivity" />
+        <activity android:name=".activity.RegisterActivity" />
+        <activity android:name=".activity.ForgotPasswordActivity" />
+    </application>
+
+</manifest>
