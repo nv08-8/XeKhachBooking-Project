@@ -15,7 +15,9 @@ app.use("/api/auth", authRoutes);
 app.get("/", (req, res) => res.send("GoUTE API is running 🚍"));
 
 // Server start
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server started at http://localhost:${PORT}`);
+const PORT = process.env.PORT || 8080;
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("Server started on port", PORT);
 });
+

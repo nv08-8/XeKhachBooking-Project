@@ -10,28 +10,28 @@ import retrofit2.http.POST;
 import vn.hcmute.busbooking.model.Trip;
 
 public interface ApiService {
-    @GET("trips")
+
+    @GET("api/trips")
     Call<List<Trip>> getTrips();
 
-    @POST("auth/register")
+    @POST("api/auth/register")
     Call<Map<String, Object>> register(@Body Map<String, String> body);
 
-    @POST("auth/login")
+    @POST("api/auth/login")
     Call<Map<String, Object>> login(@Body Map<String, String> body);
 
-    @POST("auth/forgot-password")
+    @POST("api/auth/forgot-password")
     Call<Map<String, Object>> forgotPassword(@Body Map<String, String> body);
 
-    @POST("auth/send-otp")
+    @POST("api/auth/send-otp")
     Call<Map<String, Object>> sendOtp(@Body Map<String, String> body);
 
-    @POST("auth/verify-otp")
+    @POST("api/auth/verify-otp")
     Call<Map<String, Object>> verifyOtp(@Body Map<String, String> body);
 
-    @POST("auth/reset-password")
+    @POST("api/auth/reset-password")
     Call<Map<String, Object>> resetPassword(@Body Map<String, String> body);
 
-    @POST("auth/finish-register")
+    @POST("api/auth/finish-register")
     Call<Map<String, Object>> finishRegister(@Body Map<String, String> body);
-
 }

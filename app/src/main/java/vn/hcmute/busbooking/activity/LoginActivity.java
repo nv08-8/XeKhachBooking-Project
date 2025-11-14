@@ -75,7 +75,14 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
 
+                Log.e("STATUS", response.code() + "");
+                try {
+                    Log.e("ERROR_BODY", response.errorBody() != null ? response.errorBody().string() : "null");
+                } catch (java.io.IOException e) {
+                    e.printStackTrace();
+                }
                 Log.e("LOGIN_BODY", String.valueOf(response.body()));
+
 
                 if (!response.isSuccessful() || response.body() == null) {
                     Toast.makeText(LoginActivity.this, "Đăng nhập thất bại", Toast.LENGTH_SHORT).show();
