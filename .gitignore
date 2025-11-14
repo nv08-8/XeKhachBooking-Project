@@ -14,3 +14,7 @@
 .cxx
 local.properties
 .idea/
+
+# Backend API
+backend_api/.env
+backend_api/node_modules/
