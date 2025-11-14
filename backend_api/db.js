@@ -5,13 +5,14 @@ const pool = mysql.createPool({
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
+  port: process.env.DB_PORT,  
 });
 
 pool.getConnection((err, conn) => {
   if (err) {
-    console.error("❌ MySQL connect error:", err.message);
+    console.error("❌ MySQL connect error:", err);
   } else {
-    console.log("✅ Connected to MySQL!");
+    console.log("✅ Connected to Railway MySQL!");
     conn.release();
   }
 });
