@@ -82,9 +82,10 @@ public class RegisterActivity extends AppCompatActivity {
                 if (response.isSuccessful()) {
 
                     Intent intent = new Intent(RegisterActivity.this, OtpVerificationActivity.class);
-                    intent.putExtra("name", fullName);
-                    intent.putExtra("email", email);
-                    intent.putExtra("password", password);
+                    intent.putExtra("user_name", fullName);
+                    intent.putExtra("user_email", email);
+                    intent.putExtra("user_password", password);
+                    intent.putExtra("context", "register");
                     startActivity(intent);
 
                 } else {
