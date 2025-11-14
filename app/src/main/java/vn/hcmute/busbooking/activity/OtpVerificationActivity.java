@@ -127,8 +127,10 @@ public class OtpVerificationActivity extends AppCompatActivity {
         registerBody.put("name", userName);
         registerBody.put("email", userEmail);
         registerBody.put("password", userPassword);
+        // TODO: Add phone field to registration form. Using email as placeholder for now since phone is required by backend.
+        registerBody.put("phone", userEmail);
 
-        apiService.register(registerBody).enqueue(new Callback<Map<String, Object>>() {
+        apiService.finishRegister(registerBody).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 if (response.isSuccessful()) {
