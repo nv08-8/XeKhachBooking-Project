@@ -17,12 +17,6 @@ router.post("/send-otp", (req, res) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000);
 
-    const sendOtpEmailInBackground = () => {
-        sendEmail(email, "Mã OTP đăng ký", `Mã OTP của bạn là: ${otp}`)
-            .then(() => console.log(`Đã gửi email OTP đến ${email}`))
-            .catch((err) => console.error(`Gửi email thất bại cho ${email}:`, err));
-    };
-
     db.query("SELECT * FROM users WHERE email=?", [email], (err, rows) => {
         if (err) return res.status(500).json({ message: err.message });
 
@@ -32,8 +26,10 @@ router.post("/send-otp", (req, res) => {
                 [email, otp],
                 (err2) => {
                     if (err2) return res.status(500).json({ message: err2.message });
+
                     res.json({ message: "OTP đã được gửi đến email!" });
-                    sendOtpEmailInBackground();
+                    sendEmail(email, "Mã OTP đăng ký", `Mã OTP của bạn là: ${otp}`)
+                        .catch(emailErr => console.error("Gửi email thất bại:", emailErr));
                 }
             );
         } else {
@@ -41,15 +37,15 @@ router.post("/send-otp", (req, res) => {
             if (user.status === "active") {
                 return res.status(400).json({ message: "Email đã tồn tại!" });
             }
-
-            // Nếu pending → cập nhật OTP mới
             db.query(
                 "UPDATE users SET otp_code=?, status='pending' WHERE email=?",
                 [otp, email],
                 (err3) => {
                     if (err3) return res.status(500).json({ message: err3.message });
+
                     res.json({ message: "OTP đã được gửi đến email!" });
-                    sendOtpEmailInBackground();
+                    sendEmail(email, "Mã OTP đăng ký", `Mã OTP của bạn là: ${otp}`)
+                        .catch(emailErr => console.error("Gửi email thất bại:", emailErr));
                 }
             );
         }
@@ -67,12 +63,8 @@ router.post("/verify-otp", (req, res) => {
         "SELECT * FROM users WHERE email=? AND otp_code=?",
         [email, otp],
         (err, rows) => {
-            if (err) {
-                return res.status(500).json({ success: false, message: err.message });
-            }
-            if (rows.length === 0)
-                return res.status(400).json({ success: false, message: "OTP sai!" });
-
+            if (err) return res.status(500).json({ success: false, message: err.message });
+            if (rows.length === 0) return res.status(400).json({ success: false, message: "OTP sai!" });
             return res.json({ success: true, message: "OTP hợp lệ!" });
         }
     );
@@ -80,7 +72,7 @@ router.post("/verify-otp", (req, res) => {
 
 
 /* ============================================================
-    3. FINISH REGISTER - ĐÃ SỬA
+    3. FINISH REGISTER - ĐÃ SỬA LỖI
    ============================================================ */
 
 router.post("/finish-register", async (req, res) => {
@@ -89,8 +81,17 @@ router.post("/finish-register", async (req, res) => {
     if (!name || !phone || !email || !password)
         return res.status(400).json({ message: "Thiếu thông tin!" });
 
-    db.query("SELECT * FROM users WHERE sdt=? AND status='active'", [phone], async (err, phoneRows) => {
-        if (err) return res.status(500).json({ message: err.message });
+    // Chuyển đổi SĐT từ string sang number
+    const phoneNumberAsInt = parseInt(phone);
+    if (isNaN(phoneNumberAsInt)) {
+        return res.status(400).json({ message: "Số điện thoại không hợp lệ." });
+    }
+
+    db.query("SELECT * FROM users WHERE sdt=? AND status='active'", [phoneNumberAsInt], async (err, phoneRows) => {
+        if (err) {
+            console.error("Lỗi kiểm tra SĐT:", err);
+            return res.status(500).json({ message: "Lỗi phía server." });
+        }
 
         if (phoneRows.length > 0) {
             return res.status(400).json({ message: "Số điện thoại đã được sử dụng!" });
@@ -100,12 +101,13 @@ router.post("/finish-register", async (req, res) => {
 
         db.query(
             "UPDATE users SET name=?, sdt=?, password=?, otp_code=NULL, status='active' WHERE email=?",
-            [name, phone, hashed, email],
+            [name, phoneNumberAsInt, hashed, email], // Sử dụng SĐT đã chuyển đổi
             (err2) => {
                 if (err2) {
-                    console.error("Lỗi khi hoàn tất đăng ký:", err2);
-                    return res.status(500).json({ message: "Lỗi khi cập nhật database." });
+                    console.error("Lỗi cập nhật user:", err2);
+                    return res.status(500).json({ message: "Lỗi khi tạo tài khoản." });
                 }
+
                 return res.json({ message: "Tạo tài khoản thành công!" });
             }
         );
@@ -139,6 +141,7 @@ router.post("/login", (req, res) => {
                 return res.status(401).json({ message: "Sai email hoặc mật khẩu!" });
 
             delete user.password;
+
             return res.json({
                 message: "Đăng nhập thành công!",
                 user
@@ -147,13 +150,13 @@ router.post("/login", (req, res) => {
     );
 });
 
-
 /* ============================================================
-    5. FORGOT PASSWORD
+    5. FORGOT PASSWORD → SEND OTP
    ============================================================ */
 
 router.post("/forgot-password", (req, res) => {
     const { email } = req.body;
+
     const otp = Math.floor(100000 + Math.random() * 900000);
 
     db.query(
@@ -173,13 +176,13 @@ router.post("/forgot-password", (req, res) => {
     );
 });
 
-
 /* ============================================================
     6. RESET PASSWORD
    ============================================================ */
 
 router.post("/reset-password", async (req, res) => {
     const { email, newPassword } = req.body;
+
     const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
     db.query(
@@ -187,6 +190,7 @@ router.post("/reset-password", async (req, res) => {
         [hashed, email],
         (err) => {
             if (err) return res.status(500).json({ message: err.message });
+
             res.json({ success: true, message: "Đặt lại mật khẩu thành công!" });
         }
     );
