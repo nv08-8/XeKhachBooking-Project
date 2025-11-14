@@ -4,12 +4,15 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.Html;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,7 +26,7 @@ import vn.hcmute.busbooking.api.ApiService;
 
 public class RegisterActivity extends AppCompatActivity {
 
-    private EditText edtFullName, edtEmail, edtPassword, edtConfirmPassword;
+    private EditText edtFullName, edtPhoneNumber, edtEmail, edtPassword, edtConfirmPassword;
     private Button btnRegister;
     private TextView tvLogin;
     private ApiService apiService;
@@ -34,6 +37,7 @@ public class RegisterActivity extends AppCompatActivity {
         setContentView(R.layout.activity_register);
 
         edtFullName = findViewById(R.id.edtFullName);
+        edtPhoneNumber = findViewById(R.id.edtPhoneNumber);
         edtEmail = findViewById(R.id.edtEmail);
         edtPassword = findViewById(R.id.edtPassword);
         edtConfirmPassword = findViewById(R.id.edtConfirmPassword);
@@ -58,11 +62,12 @@ public class RegisterActivity extends AppCompatActivity {
 
     private void requestOtpForRegistration() {
         String fullName = edtFullName.getText().toString().trim();
+        String phoneNumber = edtPhoneNumber.getText().toString().trim();
         String email = edtEmail.getText().toString().trim();
         String password = edtPassword.getText().toString().trim();
         String confirmPassword = edtConfirmPassword.getText().toString().trim();
 
-        if (fullName.isEmpty() || email.isEmpty() || password.isEmpty()) {
+        if (fullName.isEmpty() || phoneNumber.isEmpty() || email.isEmpty() || password.isEmpty()) {
             Toast.makeText(this, "Vui lòng điền đầy đủ thông tin", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -72,7 +77,6 @@ public class RegisterActivity extends AppCompatActivity {
             return;
         }
 
-        // Step 1: Request OTP for the given email
         Map<String, String> body = new HashMap<>();
         body.put("email", email);
 
@@ -80,22 +84,33 @@ public class RegisterActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 if (response.isSuccessful()) {
-
                     Intent intent = new Intent(RegisterActivity.this, OtpVerificationActivity.class);
-                    intent.putExtra("user_name", fullName);
-                    intent.putExtra("user_email", email);
-                    intent.putExtra("user_password", password);
+                    intent.putExtra("name", fullName);
+                    intent.putExtra("phone", phoneNumber);
+                    intent.putExtra("email", email);
+                    intent.putExtra("password", password);
                     intent.putExtra("context", "register");
                     startActivity(intent);
-
                 } else {
-                    Toast.makeText(RegisterActivity.this, "Không gửi được OTP!", Toast.LENGTH_SHORT).show();
+                    try {
+                        if (response.errorBody() != null) {
+                            JSONObject errorObj = new JSONObject(response.errorBody().string());
+                            String errorMessage = errorObj.optString("message", "Không gửi được OTP!");
+                            Toast.makeText(RegisterActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                        } else {
+                            Toast.makeText(RegisterActivity.this, "Không gửi được OTP!", Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (Exception e) {
+                        Toast.makeText(RegisterActivity.this, "Có lỗi xảy ra khi xử lý phản hồi.", Toast.LENGTH_SHORT).show();
+                    }
                 }
             }
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                Toast.makeText(RegisterActivity.this, "Lỗi kết nối!", Toast.LENGTH_SHORT).show();
+                String errorMessage = (t.getMessage() != null) ? t.getMessage() : "Lỗi mạng không xác định";
+                Toast.makeText(RegisterActivity.this, "Lỗi kết nối: " + errorMessage, Toast.LENGTH_LONG).show();
+                Log.e("RegisterApiError", "onFailure: " + t.toString());
             }
         });
     }
