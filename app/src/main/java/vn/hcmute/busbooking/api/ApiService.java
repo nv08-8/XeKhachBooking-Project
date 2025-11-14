@@ -14,8 +14,8 @@ public interface ApiService {
     @GET("api/trips")
     Call<List<Trip>> getTrips();
 
-    @POST("api/auth/register")
-    Call<Map<String, Object>> register(@Body Map<String, String> body);
+    @POST("api/auth/finish-register")
+    Call<Map<String, Object>> finishRegister(@Body Map<String, String> body);
 
     @POST("api/auth/login")
     Call<Map<String, Object>> login(@Body Map<String, String> body);
@@ -31,7 +31,4 @@ public interface ApiService {
 
     @POST("api/auth/reset-password")
     Call<Map<String, Object>> resetPassword(@Body Map<String, String> body);
-
-    @POST("api/auth/finish-register")
-    Call<Map<String, Object>> finishRegister(@Body Map<String, String> body);
 }
