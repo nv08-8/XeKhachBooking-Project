@@ -29,7 +29,7 @@ public class AccountFragment extends Fragment {
 
         if (sessionManager.getUserId() != null) {
             // User is logged in
-            view = inflater.inflate(R.layout.fragment_account_user, container, false);
+            view = inflater.inflate(R.layout.activity_user_account, container, false);
             TextView tvUserName = view.findViewById(R.id.tvUserName);
             String userName = sessionManager.getUserName();
             if (userName != null) {
@@ -38,7 +38,7 @@ public class AccountFragment extends Fragment {
             // You can add a logout button and other user-specific functionality here
         } else {
             // User is a guest
-            view = inflater.inflate(R.layout.fragment_account_user, container, false);
+            view = inflater.inflate(R.layout.activity_user_account, container, false);
             Button btnLogin = view.findViewById(R.id.btnLogin);
             Button btnRegister = view.findViewById(R.id.btnRegister);
 
