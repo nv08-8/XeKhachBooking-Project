@@ -4,12 +4,14 @@ const cors = require("cors");
 const app = express();
 const db = require("./db");
 const authRoutes = require("./routes/authRoutes");
+const tripRoutes = require("./routes/tripRoutes"); // Import trip routes
 
 app.use(express.json());
 app.use(cors());
 
 // Gắn router
 app.use("/api/auth", authRoutes);
+app.use("/api/trips", tripRoutes); // Gắn trip routes
 
 // Test endpoint
 app.get("/", (req, res) => res.send("GoUTE API is running 🚍"));
