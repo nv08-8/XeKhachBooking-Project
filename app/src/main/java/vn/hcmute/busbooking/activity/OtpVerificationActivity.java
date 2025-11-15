@@ -2,6 +2,7 @@ package vn.hcmute.busbooking.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -10,6 +11,8 @@ import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+
+import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,7 +31,8 @@ public class OtpVerificationActivity extends AppCompatActivity {
     private TextView tvResendOtp;
     private ImageView ivBack;
 
-    private String userEmail, userName, userPassword, verificationContext;
+    // Đổi tên biến để nhất quán
+    private String email, phone, name, password, context;
 
     private ApiService apiService;
 
@@ -45,20 +49,22 @@ public class OtpVerificationActivity extends AppCompatActivity {
         apiService = ApiClient.getClient().create(ApiService.class);
 
         Intent intent = getIntent();
-        userEmail = intent.getStringExtra("user_email"); // FIXED: Using the correct key "user_email"
-        verificationContext = intent.getStringExtra("context");
+        // SỬA: Dùng đúng key đã gửi từ RegisterActivity
+        email = intent.getStringExtra("email");
+        phone = intent.getStringExtra("phone");
+        name = intent.getStringExtra("name");
+        password = intent.getStringExtra("password");
+        context = intent.getStringExtra("context");
 
-        if (userEmail == null || verificationContext == null) {
+        if (email == null || context == null) {
             Toast.makeText(this, "Lỗi: Không nhận được email hoặc context.", Toast.LENGTH_LONG).show();
             finish();
             return;
         }
 
-        if ("register".equals(verificationContext)) {
-            userName = intent.getStringExtra("user_name");
-            userPassword = intent.getStringExtra("user_password");
-            if (userName == null || userPassword == null) {
-                Toast.makeText(this, "Thiếu thông tin đăng ký!", Toast.LENGTH_SHORT).show();
+        if ("register".equals(context)) {
+            if (name == null || password == null || phone == null) {
+                Toast.makeText(this, "Lỗi: Thiếu thông tin đăng ký. Vui lòng thử lại từ đầu.", Toast.LENGTH_LONG).show();
                 finish();
                 return;
             }
@@ -77,38 +83,23 @@ public class OtpVerificationActivity extends AppCompatActivity {
         }
 
         Map<String, String> body = new HashMap<>();
-        body.put("email", userEmail);
+        body.put("email", email);
         body.put("otp", otp);
 
         apiService.verifyOtp(body).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                // LOG THÊM
-                android.util.Log.d("OTP_DEBUG", "code=" + response.code() + ", body=" + response.body());
+                if (response.isSuccessful() && response.body() != null && (Boolean) response.body().get("success")) {
+                    Toast.makeText(OtpVerificationActivity.this, "Xác thực OTP thành công!", Toast.LENGTH_SHORT).show();
 
-                if (response.isSuccessful() && response.body() != null) {
-                    Object successObj = response.body().get("success");
-                    android.util.Log.d("OTP_DEBUG", "successObj=" + successObj + " (" +
-                            (successObj == null ? "null" : successObj.getClass().getName()) + ")");
-
-                    Boolean isSuccess = successObj instanceof Boolean
-                            ? (Boolean) successObj
-                            : null;
-
-                    if (isSuccess != null && isSuccess) {
-                        Toast.makeText(OtpVerificationActivity.this, "Xác thực OTP thành công!", Toast.LENGTH_SHORT).show();
-
-                        if ("register".equals(verificationContext)) {
-                            completeRegistration();
-                        } else if ("forgot_password".equals(verificationContext)) {
-                            Intent intent = new Intent(OtpVerificationActivity.this, ResetPasswordActivity.class);
-                            intent.putExtra("user_email", userEmail);
-                            intent.putExtra("otp", otp);
-                            startActivity(intent);
-                            finish();
-                        }
-                    } else {
-                        Toast.makeText(OtpVerificationActivity.this, "Mã OTP không hợp lệ hoặc đã hết hạn", Toast.LENGTH_SHORT).show();
+                    if ("register".equals(context)) {
+                        completeRegistration();
+                    } else if ("forgot_password".equals(context)) {
+                        Intent intent = new Intent(OtpVerificationActivity.this, ResetPasswordActivity.class);
+                        intent.putExtra("email", email);
+                        intent.putExtra("otp", otp);
+                        startActivity(intent);
+                        finish();
                     }
                 } else {
                     Toast.makeText(OtpVerificationActivity.this, "Mã OTP không hợp lệ hoặc đã hết hạn", Toast.LENGTH_SHORT).show();
@@ -123,12 +114,18 @@ public class OtpVerificationActivity extends AppCompatActivity {
     }
 
     private void completeRegistration() {
-        Map<String, String> registerBody = new HashMap<>();
-        registerBody.put("name", userName);
-        registerBody.put("email", userEmail);
-        registerBody.put("password", userPassword);
+        if (name == null || password == null || phone == null || email == null) {
+            Toast.makeText(this, "Không thể hoàn tất đăng ký do thiếu thông tin.", Toast.LENGTH_LONG).show();
+            return;
+        }
 
-        apiService.register(registerBody).enqueue(new Callback<Map<String, Object>>() {
+        Map<String, String> registerBody = new HashMap<>();
+        registerBody.put("name", name);
+        registerBody.put("email", email);
+        registerBody.put("phone", phone);
+        registerBody.put("password", password);
+
+        apiService.finishRegister(registerBody).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 if (response.isSuccessful()) {
@@ -137,7 +134,17 @@ public class OtpVerificationActivity extends AppCompatActivity {
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                     startActivity(intent);
                 } else {
-                    Toast.makeText(OtpVerificationActivity.this, "Đăng ký thất bại. Vui lòng thử lại.", Toast.LENGTH_LONG).show();
+                    try {
+                        if (response.errorBody() != null) {
+                            JSONObject errorObj = new JSONObject(response.errorBody().string());
+                            String errorMessage = errorObj.optString("message", "Đăng ký thất bại. Vui lòng thử lại.");
+                            Toast.makeText(OtpVerificationActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                        } else {
+                            Toast.makeText(OtpVerificationActivity.this, "Đăng ký thất bại. Vui lòng thử lại.", Toast.LENGTH_LONG).show();
+                        }
+                    } catch (Exception e) {
+                        Toast.makeText(OtpVerificationActivity.this, "Có lỗi xảy ra khi xử lý phản hồi.", Toast.LENGTH_SHORT).show();
+                    }
                 }
             }
 
@@ -150,9 +157,9 @@ public class OtpVerificationActivity extends AppCompatActivity {
 
     private void resendOtp() {
         Map<String, String> body = new HashMap<>();
-        body.put("email", userEmail);
+        body.put("email", email);
 
-        apiService.forgotPassword(body).enqueue(new Callback<Map<String, Object>>() {
+        apiService.sendOtp(body).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 if (response.isSuccessful()) {
