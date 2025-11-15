@@ -1,5 +1,7 @@
 package vn.hcmute.busbooking.adapter;
 
+import android.content.Context;
+import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -7,10 +9,16 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.TimeZone;
 
 import vn.hcmute.busbooking.R;
 
@@ -18,6 +26,7 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
 
     private List<Map<String, Object>> bookings;
     private OnCancelListener cancelListener;
+    private Context context;
 
     public interface OnCancelListener {
         void onCancel(Map<String, Object> booking);
@@ -31,7 +40,8 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
     @NonNull
     @Override
     public BookingViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
+        this.context = parent.getContext();
+        View view = LayoutInflater.from(context)
                 .inflate(R.layout.item_booking, parent, false);
         return new BookingViewHolder(view);
     }
@@ -44,23 +54,30 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
         String destination = (String) booking.get("destination");
         String seatLabel = (String) booking.get("seat_label");
         String status = (String) booking.get("status");
-        String departureTime = (String) booking.get("departure_time");
+        String departureTimeStr = (String) booking.get("departure_time");
         Object priceObj = booking.get("price_paid");
 
-        int price = 0;
+        // Format Price
+        double price = 0;
         if (priceObj instanceof Double) {
-            price = ((Double) priceObj).intValue();
+            price = (Double) priceObj;
         } else if (priceObj instanceof Integer) {
-            price = (Integer) priceObj;
+            price = ((Integer) priceObj).doubleValue();
         }
 
+        // Set Route and Seat
         holder.tvRoute.setText(origin + " → " + destination);
         holder.tvSeat.setText("Ghế: " + seatLabel);
-        holder.tvStatus.setText("Trạng thái: " + getStatusText(status));
-        holder.tvDeparture.setText("Khởi hành: " + (departureTime != null ? departureTime : "N/A"));
-        holder.tvPrice.setText(String.format("%,d VNĐ", price));
+        holder.tvPrice.setText(String.format(Locale.GERMANY, "%,.0fđ", price));
 
-        // Show cancel button only for confirmed/pending bookings
+        // Format and set Departure Time
+        holder.tvDeparture.setText(formatDateTime(departureTimeStr));
+
+        // Set Status and its background color
+        holder.tvStatus.setText(getStatusText(status));
+        updateStatusBackground(holder.tvStatus, status);
+
+        // Show/Hide Cancel Button
         if ("confirmed".equals(status) || "pending".equals(status)) {
             holder.btnCancel.setVisibility(View.VISIBLE);
             holder.btnCancel.setOnClickListener(v -> {
@@ -71,6 +88,41 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
         } else {
             holder.btnCancel.setVisibility(View.GONE);
         }
+    }
+
+    private String formatDateTime(String isoString) {
+        if (isoString == null) return "N/A";
+        try {
+            SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
+            isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+            Date date = isoFormat.parse(isoString);
+
+            SimpleDateFormat displayFormat = new SimpleDateFormat("HH:mm - dd/MM/yyyy", Locale.getDefault());
+            return displayFormat.format(date);
+        } catch (ParseException e) {
+            return isoString; // fallback to raw string
+        }
+    }
+
+    private void updateStatusBackground(TextView textView, String status) {
+        int colorResId;
+        switch (status) {
+            case "confirmed":
+                colorResId = R.color.colorPrimary;
+                break;
+            case "cancelled":
+            case "refunded":
+                colorResId = R.color.colorError;
+                break;
+            case "pending":
+                colorResId = R.color.colorAccent;
+                break;
+            default:
+                colorResId = R.color.textSecondary;
+                break;
+        }
+        GradientDrawable background = (GradientDrawable) textView.getBackground();
+        background.setColor(ContextCompat.getColor(context, colorResId));
     }
 
     @Override
@@ -108,4 +160,3 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
         }
     }
 }
-

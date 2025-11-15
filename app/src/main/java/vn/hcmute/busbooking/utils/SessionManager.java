@@ -62,6 +62,11 @@ public class SessionManager {
         return prefs.getString(KEY_EMAIL, null);
     }
 
+    public boolean isLoggedIn() {
+        // A user is considered logged in if their user ID is saved.
+        return getUserId() != null;
+    }
+
     public void clearSession() {
         prefs.edit().clear().apply();
     }

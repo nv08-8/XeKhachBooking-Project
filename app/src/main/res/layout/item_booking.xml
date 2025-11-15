@@ -1,73 +1,96 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
-    app:cardCornerRadius="8dp"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="8dp"
+    app:cardCornerRadius="12dp"
     app:cardElevation="4dp">
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:padding="16dp">
 
         <TextView
             android:id="@+id/tvRoute"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="TP. HCM → Đà Nẵng"
+            android:layout_marginEnd="8dp"
+            android:textColor="@color/textPrimary"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="@android:color/black" />
-
-        <TextView
-            android:id="@+id/tvSeat"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Ghế: A1"
-            android:textSize="14sp"
-            android:layout_marginTop="4dp" />
+            app:layout_constraintEnd_toStartOf="@+id/tvPrice"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="Sài Gòn → Nha Trang" />
 
         <TextView
             android:id="@+id/tvDeparture"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Khởi hành: 2025-11-20 07:00"
+            android:layout_marginTop="4dp"
+            android:drawablePadding="4dp"
+            android:gravity="center_vertical"
+            android:textColor="@color/textSecondary"
             android:textSize="14sp"
-            android:layout_marginTop="4dp" />
+            app:drawableStartCompat="@drawable/ic_time"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tvRoute"
+            tools:text="08:00 - 16/05/2024" />
+
+        <TextView
+            android:id="@+id/tvSeat"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:drawablePadding="4dp"
+            android:gravity="center_vertical"
+            android:textColor="@color/textSecondary"
+            android:textSize="14sp"
+            app:drawableStartCompat="@drawable/ic_seat"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tvDeparture"
+            tools:text="Ghế: A1" />
 
         <TextView
             android:id="@+id/tvPrice"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="450,000 VNĐ"
-            android:textSize="16sp"
+            android:textColor="@color/colorPrimary"
+            android:textSize="20sp"
             android:textStyle="bold"
-            android:textColor="#4CAF50"
-            android:layout_marginTop="4dp" />
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/tvRoute"
+            tools:text="350.000đ" />
 
         <TextView
             android:id="@+id/tvStatus"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Trạng thái: Đã xác nhận"
-            android:textSize="14sp"
-            android:textColor="#FF9800"
-            android:layout_marginTop="4dp" />
+            android:layout_marginTop="8dp"
+            android:background="@drawable/status_background"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp"
+            android:textColor="@android:color/white"
+            android:textSize="12sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tvSeat"
+            tools:text="Đã xác nhận" />
 
         <Button
             android:id="@+id/btnCancel"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Hủy vé"
-            android:layout_gravity="end"
-            android:layout_marginTop="8dp"
-            android:backgroundTint="#F44336"
-            android:textColor="@android:color/white" />
+            android:textColor="@color/colorError"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tvPrice" />
 
-    </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.cardview.widget.CardView>
-

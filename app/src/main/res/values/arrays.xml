@@ -24,7 +24,6 @@
     <string-array name="time_filters">
         <item>Giờ đi</item>
         <item>Sáng</item>
-        <item>Trưa</item>
         <item>Chiều</item>
         <item>Tối</item>
     </string-array>

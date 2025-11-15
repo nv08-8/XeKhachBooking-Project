@@ -125,15 +125,24 @@ public class TripListActivity extends AppCompatActivity {
     }
 
     private boolean checkPriceFilter(Trip trip) {
-        String selectedFilter = spinnerPriceFilter.getSelectedItem().toString();
-        if (selectedFilter.contains("Tất cả")) return true;
-
+        // Using position is more robust than matching strings.
+        int selectedPosition = spinnerPriceFilter.getSelectedItemPosition();
         double price = trip.getPrice();
-        if (selectedFilter.contains("Dưới 200k")) return price < 200000;
-        if (selectedFilter.contains("200k - 400k")) return price >= 200000 && price <= 400000;
-        if (selectedFilter.contains("Trên 400k")) return price > 400000;
 
-        return true;
+        // These positions are an assumption based on the UI.
+        // Please adjust the values if the filter array is different.
+        switch (selectedPosition) {
+            case 0: // Position 0 is assumed to be "All" or "Giá"
+                return true;
+            case 1: // Position 1 is assumed to be "Dưới 100.000đ" based on screenshot
+                return price < 100000;
+            case 2: // Position 2 is assumed to be "100.000đ - 200.000đ"
+                return price >= 100000 && price <= 200000;
+            case 3: // Position 3 is assumed to be "Trên 200.000đ"
+                 return price > 200000;
+            default:
+                return true;
+        }
     }
 
     private boolean checkSeatTypeFilter(Trip trip) {
@@ -142,7 +151,7 @@ public class TripListActivity extends AppCompatActivity {
 
     private boolean checkTimeFilter(Trip trip) {
         String selectedFilter = spinnerTimeFilter.getSelectedItem().toString();
-        if (selectedFilter.contains("Tất cả")) return true;
+        if (selectedFilter.contains("Giờ đi")) return true;
 
         String departureTime = trip.getDepartureTime();
         if (departureTime == null) return false;

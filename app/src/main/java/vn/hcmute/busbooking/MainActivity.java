@@ -13,8 +13,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import vn.hcmute.busbooking.activity.GuestAccountActivity;
-import vn.hcmute.busbooking.activity.GuestHomeActivity;
 import vn.hcmute.busbooking.activity.LoginActivity;
+import vn.hcmute.busbooking.activity.MyBookingsActivity;
 import vn.hcmute.busbooking.activity.TripListActivity;
 import vn.hcmute.busbooking.activity.UserAccountActivity;
 import vn.hcmute.busbooking.utils.SessionManager;
@@ -62,17 +62,21 @@ public class MainActivity extends AppCompatActivity {
         bottomNav.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
 
-            if (itemId == R.id.nav_search) {
+            if (itemId == R.id.nav_home) {
                 // Already on the home screen, do nothing
                 return true;
+            } else if (itemId == R.id.nav_tickets) { // Correct ID
+                if (sessionManager.isLoggedIn()) {
+                    startActivity(new Intent(this, MyBookingsActivity.class));
+                } else {
+                    startActivity(new Intent(this, LoginActivity.class));
+                }
+                return true;
             } else if (itemId == R.id.nav_account) {
-                 String userName = sessionManager.getUserName();
-                 if (userName != null && !userName.equalsIgnoreCase("null")) {
-                     Intent intent = new Intent(MainActivity.this, UserAccountActivity.class);
-                     startActivity(intent);
+                 if (sessionManager.isLoggedIn()) {
+                     startActivity(new Intent(this, UserAccountActivity.class));
                  } else {
-                     Intent intent = new Intent(MainActivity.this, GuestAccountActivity.class);
-                     startActivity(intent);
+                     startActivity(new Intent(this, GuestAccountActivity.class));
                  }
                  return true;
             } else {
@@ -83,19 +87,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateUI() {
-        String userName = sessionManager.getUserName();
-        // Check if user is logged in (userName is not null and not "null")
-        if (userName != null && !userName.equalsIgnoreCase("null")) {
+        if (sessionManager.isLoggedIn()) {
             // User is logged in
-            tvWelcome.setText("Xin chào, " + userName + "!");
+            tvWelcome.setText("Xin chào, " + sessionManager.getUserName() + "!");
             tvLogin.setText("Đăng xuất");
             tvLogin.setOnClickListener(v -> {
                 // Perform logout
                 sessionManager.logout();
                 Toast.makeText(this, "Đã đăng xuất", Toast.LENGTH_SHORT).show();
 
-                // Go to GuestHomeActivity
-                Intent intent = new Intent(MainActivity.this, GuestHomeActivity.class);
+                // Restart MainActivity to show guest UI
+                Intent intent = new Intent(MainActivity.this, MainActivity.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 startActivity(intent);
                 finish();

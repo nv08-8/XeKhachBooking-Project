@@ -4,6 +4,7 @@
     <color name="colorPrimary">#4D8DFF</color> <!-- Main Blue -->
     <color name="colorPrimaryDark">#3A7AE0</color> <!-- Darker Blue -->
     <color name="colorAccent">#FACC15</color> <!-- Yellow Accent -->
+    <color name="colorError">#D32F2F</color> <!-- Red for errors/cancel -->
 
     <!-- Harmonious Background Gradient -->
     <color name="gradientStart">#EBF7FF</color> <!-- Very Soft Blue/Cyan -->

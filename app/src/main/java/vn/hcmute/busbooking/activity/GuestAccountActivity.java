@@ -4,7 +4,10 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Button;
 import androidx.appcompat.app.AppCompatActivity;
+
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+
+import vn.hcmute.busbooking.MainActivity;
 import vn.hcmute.busbooking.R;
 
 public class GuestAccountActivity extends AppCompatActivity {
@@ -22,7 +25,6 @@ public class GuestAccountActivity extends AppCompatActivity {
         btnRegister = findViewById(R.id.btnRegister);
 
         // Set the selected item
-        // Check intent to see which item to select
         int selectedItemId = getIntent().getIntExtra("SELECTED_ITEM", R.id.nav_account);
         bottomNav.setSelectedItemId(selectedItemId);
 
@@ -31,11 +33,16 @@ public class GuestAccountActivity extends AppCompatActivity {
         bottomNav.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
             if (itemId == R.id.nav_home) {
-                startActivity(new Intent(getApplicationContext(), GuestHomeActivity.class));
+                // Always go to MainActivity, which handles guest/user state
+                startActivity(new Intent(getApplicationContext(), MainActivity.class));
                 overridePendingTransition(0, 0);
                 finish();
                 return true;
-            } else if (itemId == R.id.nav_account || itemId == R.id.nav_tickets) {
+            } else if (itemId == R.id.nav_tickets) { // Correct ID
+                // Guest users must log in to see their bookings
+                startActivity(new Intent(this, LoginActivity.class));
+                return true;
+            } else if (itemId == R.id.nav_account) {
                 // Already on this screen, do nothing
                 return true;
             }
