@@ -33,6 +33,10 @@
         <activity android:name=".activity.LoginActivity" />
         <activity android:name=".activity.RegisterActivity" />
         <activity android:name=".activity.ForgotPasswordActivity" />
+        <activity android:name=".activity.PaymentActivity" />
+        <activity android:name=".activity.BookingDetailActivity" />
+        <activity android:name=".activity.EditProfileActivity" />
+        <activity android:name=".activity.ChangePasswordActivity" />
     </application>
 
 </manifest>

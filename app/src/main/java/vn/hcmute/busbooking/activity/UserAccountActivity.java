@@ -17,8 +17,10 @@ import vn.hcmute.busbooking.utils.SessionManager;
 
 public class UserAccountActivity extends AppCompatActivity {
 
+    private static final int EDIT_PROFILE_REQUEST = 1;
+
     private TextView tvUserName, tvUserEmail;
-    private Button btnLogout, btnMyBookings; // Add btnMyBookings
+    private Button btnLogout, btnMyBookings, btnEditProfile, btnChangePassword;
     private SessionManager sessionManager;
 
     @Override
@@ -71,5 +73,19 @@ public class UserAccountActivity extends AppCompatActivity {
                 return false;
             }
         });
+    }
+
+    private void loadUserInfo() {
+        tvUserName.setText(sessionManager.getUserName());
+        tvUserEmail.setText(sessionManager.getUserEmail());
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == EDIT_PROFILE_REQUEST && resultCode == RESULT_OK) {
+            // Reload user info after edit
+            loadUserInfo();
+        }
     }
 }

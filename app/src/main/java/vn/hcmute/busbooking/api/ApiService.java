@@ -65,4 +65,22 @@ public interface ApiService {
     // Meta locations
     @GET("api/meta/locations")
     Call<Map<String, Object>> getMetaLocations();
+
+    // Payment
+    @POST("api/bookings/{id}/payment")
+    Call<Map<String, Object>> confirmPayment(@Path("id") int bookingId, @Body Map<String, String> body);
+
+    // Booking details
+    @GET("api/bookings/{id}")
+    Call<Map<String, Object>> getBookingDetails(@Path("id") int bookingId);
+
+    // User profile
+    @GET("api/auth/user/{id}")
+    Call<Map<String, Object>> getUserInfo(@Path("id") int userId);
+
+    @PUT("api/auth/user/{id}")
+    Call<Map<String, Object>> updateUserInfo(@Path("id") int userId, @Body Map<String, String> body);
+
+    @POST("api/auth/change-password")
+    Call<Map<String, Object>> changePassword(@Body Map<String, Object> body);
 }

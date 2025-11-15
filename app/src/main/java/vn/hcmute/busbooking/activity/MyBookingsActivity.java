@@ -1,5 +1,6 @@
 package vn.hcmute.busbooking.activity;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -49,9 +50,26 @@ public class MyBookingsActivity extends AppCompatActivity {
 
         rvBookings.setLayoutManager(new LinearLayoutManager(this));
         bookingAdapter = new BookingAdapter(new ArrayList<>(), this::onCancelBooking);
+        bookingAdapter.setOnItemClickListener(this::onBookingClick);
         rvBookings.setAdapter(bookingAdapter);
 
         loadMyBookings();
+    }
+
+    private void onBookingClick(Map<String, Object> booking) {
+        Object idObj = booking.get("id");
+        if (idObj == null) return;
+
+        int bookingId = 0;
+        if (idObj instanceof Double) {
+            bookingId = ((Double) idObj).intValue();
+        } else if (idObj instanceof Integer) {
+            bookingId = (Integer) idObj;
+        }
+
+        Intent intent = new Intent(this, BookingDetailActivity.class);
+        intent.putExtra("booking_id", bookingId);
+        startActivity(intent);
     }
 
     private void loadMyBookings() {
