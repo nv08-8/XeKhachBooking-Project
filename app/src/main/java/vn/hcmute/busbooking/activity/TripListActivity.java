@@ -137,12 +137,7 @@ public class TripListActivity extends AppCompatActivity {
     }
 
     private boolean checkSeatTypeFilter(Trip trip) {
-        String selectedFilter = spinnerSeatTypeFilter.getSelectedItem().toString();
-        if (selectedFilter.contains("Tất cả")) return true;
-
-        String seatType = trip.getBusType();
-        if (seatType == null) return false;
-        return selectedFilter.contains(seatType);
+        return true; // tắt filter vì chưa có dữ liệu loại ghế
     }
 
     private boolean checkTimeFilter(Trip trip) {
@@ -153,11 +148,16 @@ public class TripListActivity extends AppCompatActivity {
         if (departureTime == null) return false;
 
         try {
-            int hour = Integer.parseInt(departureTime.split(":")[0]);
+            // Parse ISO datetime
+            String iso = departureTime;
+            int hour = Integer.parseInt(iso.substring(11, 13)); // HH
+
             if (selectedFilter.contains("Sáng")) return hour >= 6 && hour < 12;
             if (selectedFilter.contains("Chiều")) return hour >= 12 && hour < 18;
             if (selectedFilter.contains("Tối")) return hour >= 18 && hour < 24;
-        } catch (NumberFormatException e) {
+
+        } catch (Exception e) {
+            Log.e(TAG, "Lỗi parse giờ: " + departureTime);
             return false;
         }
 

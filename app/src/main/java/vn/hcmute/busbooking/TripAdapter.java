@@ -44,9 +44,29 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
     @Override
     public void onBindViewHolder(@NonNull TripViewHolder holder, int position) {
         Trip trip = tripList.get(position);
+
+        // 1. Route
         holder.txtRoute.setText(trip.getFromLocation() + " → " + trip.getToLocation());
-        holder.txtDeparture.setText("Khởi hành: " + trip.getDepartureTime() + " | Đến: " + trip.getArrivalTime());
-        holder.txtPrice.setText(String.format("Giá: %d ₫ | %s", trip.getPrice(), trip.getBusType()));
+
+        // 2. Price
+        holder.txtPrice.setText(String.format("%.0f ₫", trip.getPrice()));
+
+        // 3. Departure Time
+        String departureTime = trip.getDepartureTime();
+        if (departureTime != null && departureTime.length() > 16) {
+            // Extract HH:mm from ISO format (e.g., 2025-11-15T08:00:00.000Z)
+            String time = departureTime.substring(11, 16);
+            holder.txtDeparture.setText("Khởi hành: " + time);
+        } else {
+            holder.txtDeparture.setText("Khởi hành: N/A");
+        }
+
+        // 4. Available Seats
+        if (trip.getSeatsAvailable() != null) {
+            holder.txtAvailableSeats.setText("Còn " + trip.getSeatsAvailable() + " chỗ");
+        } else {
+            holder.txtAvailableSeats.setText("");
+        }
 
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {
@@ -61,13 +81,14 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
     }
 
     public static class TripViewHolder extends RecyclerView.ViewHolder {
-        TextView txtRoute, txtDeparture, txtPrice;
+        TextView txtRoute, txtDeparture, txtPrice, txtAvailableSeats;
 
         public TripViewHolder(@NonNull View itemView) {
             super(itemView);
             txtRoute = itemView.findViewById(R.id.txtRoute);
             txtDeparture = itemView.findViewById(R.id.txtDeparture);
             txtPrice = itemView.findViewById(R.id.txtPrice);
+            txtAvailableSeats = itemView.findViewById(R.id.txtAvailableSeats);
         }
     }
 }
