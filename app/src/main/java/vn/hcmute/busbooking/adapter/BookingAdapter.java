@@ -26,24 +26,15 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
 
     private List<Map<String, Object>> bookings;
     private OnCancelListener cancelListener;
-    private OnItemClickListener itemClickListener;
     private Context context;
 
     public interface OnCancelListener {
         void onCancel(Map<String, Object> booking);
     }
 
-    public interface OnItemClickListener {
-        void onItemClick(Map<String, Object> booking);
-    }
-
     public BookingAdapter(List<Map<String, Object>> bookings, OnCancelListener listener) {
         this.bookings = bookings;
         this.cancelListener = listener;
-    }
-
-    public void setOnItemClickListener(OnItemClickListener listener) {
-        this.itemClickListener = listener;
     }
 
     @NonNull
@@ -97,13 +88,6 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
         } else {
             holder.btnCancel.setVisibility(View.GONE);
         }
-
-        // Set item click listener for viewing details
-        holder.itemView.setOnClickListener(v -> {
-            if (itemClickListener != null) {
-                itemClickListener.onItemClick(booking);
-            }
-        });
     }
 
     private String formatDateTime(String isoString) {

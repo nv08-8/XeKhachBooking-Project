@@ -13,8 +13,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -71,13 +75,27 @@ public class TripListActivity extends AppCompatActivity {
         });
 
         apiService = ApiClient.getClient().create(ApiService.class);
-        fetchTrips(from, to);
+        fetchTrips(from, to, date);
 
         setupFilters();
     }
 
-    private void fetchTrips(String from, String to) {
-        apiService.getTrips(from, to).enqueue(new Callback<List<Trip>>() {
+    private void fetchTrips(String from, String to, String date) {
+        String apiDate = "";
+        if (!"Hôm nay".equals(date)) {
+            try {
+                SimpleDateFormat fromUser = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+                SimpleDateFormat forApi = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                Date parsedDate = fromUser.parse(date);
+                if (parsedDate != null) {
+                    apiDate = forApi.format(parsedDate);
+                }
+            } catch (ParseException e) {
+                Log.e(TAG, "Could not parse date: " + date, e);
+            }
+        }
+
+        apiService.getTrips(from, to, apiDate).enqueue(new Callback<List<Trip>>() {
             @Override
             public void onResponse(Call<List<Trip>> call, Response<List<Trip>> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -125,28 +143,20 @@ public class TripListActivity extends AppCompatActivity {
     }
 
     private boolean checkPriceFilter(Trip trip) {
-        // Using position is more robust than matching strings.
         int selectedPosition = spinnerPriceFilter.getSelectedItemPosition();
         double price = trip.getPrice();
 
-        // These positions are an assumption based on the UI.
-        // Please adjust the values if the filter array is different.
         switch (selectedPosition) {
-            case 0: // Position 0 is assumed to be "All" or "Giá"
-                return true;
-            case 1: // Position 1 is assumed to be "Dưới 100.000đ" based on screenshot
-                return price < 100000;
-            case 2: // Position 2 is assumed to be "100.000đ - 200.000đ"
-                return price >= 100000 && price <= 200000;
-            case 3: // Position 3 is assumed to be "Trên 200.000đ"
-                 return price > 200000;
-            default:
-                return true;
+            case 0: return true;
+            case 1: return price < 100000;
+            case 2: return price >= 100000 && price <= 200000;
+            case 3: return price > 200000;
+            default: return true;
         }
     }
 
     private boolean checkSeatTypeFilter(Trip trip) {
-        return true; // tắt filter vì chưa có dữ liệu loại ghế
+        return true;
     }
 
     private boolean checkTimeFilter(Trip trip) {
@@ -157,9 +167,8 @@ public class TripListActivity extends AppCompatActivity {
         if (departureTime == null) return false;
 
         try {
-            // Parse ISO datetime
             String iso = departureTime;
-            int hour = Integer.parseInt(iso.substring(11, 13)); // HH
+            int hour = Integer.parseInt(iso.substring(11, 13));
 
             if (selectedFilter.contains("Sáng")) return hour >= 6 && hour < 12;
             if (selectedFilter.contains("Chiều")) return hour >= 12 && hour < 18;
