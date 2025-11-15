@@ -196,4 +196,112 @@ router.post("/reset-password", async (req, res) => {
     );
 });
 
+/* ============================================================
+    7. GET USER INFO
+   ============================================================ */
+
+router.get("/user/:id", (req, res) => {
+    const { id } = req.params;
+
+    db.query(
+        "SELECT id, name, email, sdt, status FROM users WHERE id=? AND status='active'",
+        [id],
+        (err, rows) => {
+            if (err) return res.status(500).json({ message: err.message });
+            if (rows.length === 0) return res.status(404).json({ message: "User not found" });
+            res.json(rows[0]);
+        }
+    );
+});
+
+/* ============================================================
+    8. UPDATE USER INFO
+   ============================================================ */
+
+router.put("/user/:id", async (req, res) => {
+    const { id } = req.params;
+    const { name, phone, email } = req.body;
+
+    if (!name || !phone || !email) {
+        return res.status(400).json({ message: "Thiếu thông tin!" });
+    }
+
+    const phoneNumberAsInt = parseInt(phone);
+    if (isNaN(phoneNumberAsInt)) {
+        return res.status(400).json({ message: "Số điện thoại không hợp lệ." });
+    }
+
+    // Check if phone is already used by another user
+    db.query(
+        "SELECT id FROM users WHERE sdt=? AND id!=? AND status='active'",
+        [phoneNumberAsInt, id],
+        (err, rows) => {
+            if (err) return res.status(500).json({ message: err.message });
+
+            if (rows.length > 0) {
+                return res.status(400).json({ message: "Số điện thoại đã được sử dụng!" });
+            }
+
+            // Check if email is already used by another user
+            db.query(
+                "SELECT id FROM users WHERE email=? AND id!=? AND status='active'",
+                [email, id],
+                (err2, rows2) => {
+                    if (err2) return res.status(500).json({ message: err2.message });
+
+                    if (rows2.length > 0) {
+                        return res.status(400).json({ message: "Email đã được sử dụng!" });
+                    }
+
+                    // Update user info
+                    db.query(
+                        "UPDATE users SET name=?, sdt=?, email=? WHERE id=? AND status='active'",
+                        [name, phoneNumberAsInt, email, id],
+                        (err3) => {
+                            if (err3) return res.status(500).json({ message: err3.message });
+                            res.json({ message: "Cập nhật thông tin thành công!" });
+                        }
+                    );
+                }
+            );
+        }
+    );
+});
+
+/* ============================================================
+    9. CHANGE PASSWORD
+   ============================================================ */
+
+router.post("/change-password", async (req, res) => {
+    const { userId, oldPassword, newPassword } = req.body;
+
+    if (!userId || !oldPassword || !newPassword) {
+        return res.status(400).json({ message: "Thiếu thông tin!" });
+    }
+
+    db.query(
+        "SELECT password FROM users WHERE id=? AND status='active'",
+        [userId],
+        async (err, rows) => {
+            if (err) return res.status(500).json({ message: err.message });
+            if (rows.length === 0) return res.status(404).json({ message: "User not found" });
+
+            const isMatch = await bcrypt.compare(oldPassword, rows[0].password);
+            if (!isMatch) {
+                return res.status(401).json({ message: "Mật khẩu cũ không đúng!" });
+            }
+
+            const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
+            db.query(
+                "UPDATE users SET password=? WHERE id=?",
+                [hashed, userId],
+                (err2) => {
+                    if (err2) return res.status(500).json({ message: err2.message });
+                    res.json({ message: "Đổi mật khẩu thành công!" });
+                }
+            );
+        }
+    );
+});
+
 module.exports = router;
