@@ -115,6 +115,20 @@
                 android:drawableTint="@color/textHint"/>
 
             <EditText
+                android:id="@+id/edtPhoneNumber"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/edittext_bg"
+                android:drawableStart="@drawable/ic_phone"
+                android:drawablePadding="12dp"
+                android:hint="@string/phone_number"
+                android:inputType="phone"
+                android:autofillHints="phone"
+                android:paddingHorizontal="16dp"
+                android:drawableTint="@color/textHint"/>
+
+            <EditText
                 android:id="@+id/edtEmail"
                 android:layout_width="match_parent"
                 android:layout_height="50dp"
