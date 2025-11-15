@@ -8,7 +8,7 @@ const db = require("../db");
        - Query: route_id, origin, destination, date, status, page, page_size
    ============================================================ */
 
-router.get("/", (req, res) => {
+router.get("/trips", (req, res) => {
   const { route_id, origin, destination, date, status } = req.query;
   const page = Math.max(parseInt(req.query.page || "1", 10), 1);
   const pageSize = Math.min(Math.max(parseInt(req.query.page_size || "50", 10), 1), 200);
