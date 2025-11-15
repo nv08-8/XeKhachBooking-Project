@@ -28,14 +28,14 @@ public class SplashActivity extends AppCompatActivity {
 
         // Chờ 2 giây rồi chuyển sang màn hình chính hoặc màn hình khách
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            String token = sessionManager.getToken();
+            Integer userId = sessionManager.getUserId();
 
             Intent intent;
-            if (token != null && !token.isEmpty()) {
-                // User has a token, go to MainActivity
+            if (userId != null) {
+                // User is logged in, go to MainActivity
                 intent = new Intent(SplashActivity.this, MainActivity.class);
             } else {
-                // No token, go to GuestHomeActivity
+                // No user logged in, go to GuestHomeActivity
                 intent = new Intent(SplashActivity.this, GuestHomeActivity.class);
             }
             startActivity(intent);

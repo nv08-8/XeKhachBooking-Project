@@ -10,11 +10,11 @@ public class Trip implements Parcelable {
     @SerializedName("id")
     private int id;
 
-    @SerializedName("from_location")
-    private String fromLocation;
+    @SerializedName("route_id")
+    private Integer routeId;
 
-    @SerializedName("to_location")
-    private String toLocation;
+    @SerializedName("operator")
+    private String operator;
 
     @SerializedName("departure_time")
     private String departureTime;
@@ -23,40 +23,55 @@ public class Trip implements Parcelable {
     private String arrivalTime;
 
     @SerializedName("price")
-    private int price;
+    private double price;
 
-    @SerializedName("bus_type")
-    private String busType;
+    @SerializedName("seats_total")
+    private Integer seatsTotal;
 
-    public Trip(int id, String fromLocation, String toLocation, String departureTime, String arrivalTime, int price, String busType) {
-        this.id = id;
-        this.fromLocation = fromLocation;
-        this.toLocation = toLocation;
-        this.departureTime = departureTime;
-        this.arrivalTime = arrivalTime;
-        this.price = price;
-        this.busType = busType;
-    }
+    @SerializedName("seats_available")
+    private Integer seatsAvailable;
+
+    @SerializedName("status")
+    private String status;
+
+    @SerializedName("origin")
+    private String origin;
+
+    @SerializedName("destination")
+    private String destination;
+
+    public Trip() {}
 
     protected Trip(Parcel in) {
         id = in.readInt();
-        fromLocation = in.readString();
-        toLocation = in.readString();
+        int readRouteId = in.readInt();
+        routeId = readRouteId == -1 ? null : readRouteId;
+        operator = in.readString();
         departureTime = in.readString();
         arrivalTime = in.readString();
-        price = in.readInt();
-        busType = in.readString();
+        price = in.readDouble();
+        int readSeatsTotal = in.readInt();
+        seatsTotal = readSeatsTotal == -1 ? null : readSeatsTotal;
+        int readSeatsAvailable = in.readInt();
+        seatsAvailable = readSeatsAvailable == -1 ? null : readSeatsAvailable;
+        status = in.readString();
+        origin = in.readString();
+        destination = in.readString();
     }
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeInt(id);
-        dest.writeString(fromLocation);
-        dest.writeString(toLocation);
+        if (routeId == null) { dest.writeInt(-1); } else { dest.writeInt(routeId); }
+        dest.writeString(operator);
         dest.writeString(departureTime);
         dest.writeString(arrivalTime);
-        dest.writeInt(price);
-        dest.writeString(busType);
+        dest.writeDouble(price);
+        if (seatsTotal == null) { dest.writeInt(-1); } else { dest.writeInt(seatsTotal); }
+        if (seatsAvailable == null) { dest.writeInt(-1); } else { dest.writeInt(seatsAvailable); }
+        dest.writeString(status);
+        dest.writeString(origin);
+        dest.writeString(destination);
     }
 
     @Override
@@ -76,59 +91,23 @@ public class Trip implements Parcelable {
         }
     };
 
-    public int getId() {
-        return id;
-    }
+    public int getId() { return id; }
+    public Integer getRouteId() { return routeId; }
+    public String getOperator() { return operator; }
+    public String getDepartureTime() { return departureTime; }
+    public String getArrivalTime() { return arrivalTime; }
+    public double getPrice() { return price; }
+    public Integer getSeatsTotal() { return seatsTotal; }
+    public Integer getSeatsAvailable() { return seatsAvailable; }
+    public String getStatus() { return status; }
+    public String getOrigin() { return origin; }
+    public String getDestination() { return destination; }
 
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public String getFromLocation() {
-        return fromLocation;
-    }
-
-    public void setFromLocation(String fromLocation) {
-        this.fromLocation = fromLocation;
-    }
-
-    public String getToLocation() {
-        return toLocation;
-    }
-
-    public void setToLocation(String toLocation) {
-        this.toLocation = toLocation;
-    }
-
-    public String getDepartureTime() {
-        return departureTime;
-    }
-
-    public void setDepartureTime(String departureTime) {
-        this.departureTime = departureTime;
-    }
-
-    public String getArrivalTime() {
-        return arrivalTime;
-    }
-
-    public void setArrivalTime(String arrivalTime) {
-        this.arrivalTime = arrivalTime;
-    }
-
-    public int getPrice() {
-        return price;
-    }
-
-    public void setPrice(int price) {
-        this.price = price;
-    }
-
-    public String getBusType() {
-        return busType;
-    }
-
-    public void setBusType(String busType) {
-        this.busType = busType;
-    }
+    // Backward-compatible helpers for older UI code
+    public String getFromLocation() { return origin; }
+    public void setFromLocation(String val) { this.origin = val; }
+    public String getToLocation() { return destination; }
+    public void setToLocation(String val) { this.destination = val; }
+    public String getBusType() { return operator; }
+    public void setBusType(String val) { this.operator = val; }
 }

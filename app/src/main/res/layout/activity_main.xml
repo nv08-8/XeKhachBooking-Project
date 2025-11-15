@@ -222,6 +222,24 @@
         app:layout_constraintTop_toBottomOf="@id/searchCardView"
         app:layout_constraintWidth_max="600dp" />
 
+    <!-- Promotion Banner -->
+    <TextView
+        android:id="@+id/tvPromoBanner"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="12dp"
+        android:background="#FFF3E0"
+        android:padding="12dp"
+        android:text="🎉 Khuyến mãi đặc biệt"
+        android:textColor="#E65100"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btnSearchTrips"
+        app:layout_constraintWidth_max="600dp" />
 
     <!-- Main Content -->
     <androidx.core.widget.NestedScrollView
@@ -229,7 +247,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/btnSearchTrips"
+        app:layout_constraintTop_toBottomOf="@id/tvPromoBanner"
         app:layout_constraintBottom_toTopOf="@id/bottom_navigation">
 
         <LinearLayout

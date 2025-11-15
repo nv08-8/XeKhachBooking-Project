@@ -15,7 +15,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -50,9 +49,13 @@ public class TripListActivity extends AppCompatActivity {
         rvTrips = findViewById(R.id.rvTrips);
 
         // Get data from intent
-        String from = getIntent().getStringExtra("from");
-        String to = getIntent().getStringExtra("to");
+        String from = getIntent().getStringExtra("origin");
+        String to = getIntent().getStringExtra("destination");
         String date = getIntent().getStringExtra("date");
+
+        if (from == null) from = "";
+        if (to == null) to = "";
+        if (date == null) date = "Hôm nay";
 
         tvRoute.setText(from + " → " + to);
         tvDate.setText("Ngày: " + date);
@@ -74,13 +77,11 @@ public class TripListActivity extends AppCompatActivity {
     }
 
     private void fetchTrips(String from, String to) {
-        apiService.getTrips().enqueue(new Callback<List<Trip>>() {
+        apiService.getTrips(from, to).enqueue(new Callback<List<Trip>>() {
             @Override
             public void onResponse(Call<List<Trip>> call, Response<List<Trip>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    allTrips = response.body().stream()
-                            .filter(trip -> trip.getFromLocation().equalsIgnoreCase(from) && trip.getToLocation().equalsIgnoreCase(to))
-                            .collect(Collectors.toList());
+                    allTrips = response.body();
                     applyFilters();
                     Log.d(TAG, "Trips loaded: " + allTrips.size());
                 } else {
@@ -127,7 +128,7 @@ public class TripListActivity extends AppCompatActivity {
         String selectedFilter = spinnerPriceFilter.getSelectedItem().toString();
         if (selectedFilter.contains("Tất cả")) return true;
 
-        int price = trip.getPrice();
+        double price = trip.getPrice();
         if (selectedFilter.contains("Dưới 200k")) return price < 200000;
         if (selectedFilter.contains("200k - 400k")) return price >= 200000 && price <= 400000;
         if (selectedFilter.contains("Trên 400k")) return price > 400000;
@@ -140,6 +141,7 @@ public class TripListActivity extends AppCompatActivity {
         if (selectedFilter.contains("Tất cả")) return true;
 
         String seatType = trip.getBusType();
+        if (seatType == null) return false;
         return selectedFilter.contains(seatType);
     }
 
@@ -148,11 +150,16 @@ public class TripListActivity extends AppCompatActivity {
         if (selectedFilter.contains("Tất cả")) return true;
 
         String departureTime = trip.getDepartureTime();
-        int hour = Integer.parseInt(departureTime.split(":")[0]);
+        if (departureTime == null) return false;
 
-        if (selectedFilter.contains("Sáng")) return hour >= 6 && hour < 12;
-        if (selectedFilter.contains("Chiều")) return hour >= 12 && hour < 18;
-        if (selectedFilter.contains("Tối")) return hour >= 18 && hour < 24;
+        try {
+            int hour = Integer.parseInt(departureTime.split(":")[0]);
+            if (selectedFilter.contains("Sáng")) return hour >= 6 && hour < 12;
+            if (selectedFilter.contains("Chiều")) return hour >= 12 && hour < 18;
+            if (selectedFilter.contains("Tối")) return hour >= 18 && hour < 24;
+        } catch (NumberFormatException e) {
+            return false;
+        }
 
         return true;
     }

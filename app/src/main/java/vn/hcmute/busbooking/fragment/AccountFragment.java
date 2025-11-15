@@ -15,6 +15,7 @@ import androidx.fragment.app.Fragment;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.activity.LoginActivity;
 import vn.hcmute.busbooking.activity.RegisterActivity;
+import vn.hcmute.busbooking.activity.MyBookingsActivity;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class AccountFragment extends Fragment {
@@ -24,35 +25,46 @@ public class AccountFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        sessionManager = new SessionManager(getContext());
-        View view;
+        sessionManager = new SessionManager(requireContext());
 
         if (sessionManager.getUserId() != null) {
-            // User is logged in
-            view = inflater.inflate(R.layout.activity_user_account, container, false);
+            // Logged in: show user account
+            View view = inflater.inflate(R.layout.activity_user_account, container, false);
+
             TextView tvUserName = view.findViewById(R.id.tvUserName);
+            TextView tvUserEmail = view.findViewById(R.id.tvUserEmail);
+            Button btnLogout = view.findViewById(R.id.btnLogout);
+            Button btnMyBookings = view.findViewById(R.id.btnMyBookings);
+
             String userName = sessionManager.getUserName();
-            if (userName != null) {
-                tvUserName.setText("Xin chào, " + userName);
+            String userEmail = sessionManager.getUserEmail();
+            if (userName != null) tvUserName.setText("Xin chào, " + userName);
+            if (userEmail != null) tvUserEmail.setText(userEmail);
+
+            if (btnMyBookings != null) {
+                btnMyBookings.setOnClickListener(v -> {
+                    Intent intent = new Intent(getActivity(), MyBookingsActivity.class);
+                    startActivity(intent);
+                });
             }
-            // You can add a logout button and other user-specific functionality here
+
+            btnLogout.setOnClickListener(v -> {
+                sessionManager.clearSession();
+                requireActivity().recreate(); // refresh to guest view
+            });
+
+            return view;
         } else {
-            // User is a guest
-            view = inflater.inflate(R.layout.activity_user_account, container, false);
+            // Guest: show login/register actions
+            View view = inflater.inflate(R.layout.activity_guest_account, container, false);
+
             Button btnLogin = view.findViewById(R.id.btnLogin);
             Button btnRegister = view.findViewById(R.id.btnRegister);
 
-            btnLogin.setOnClickListener(v -> {
-                Intent intent = new Intent(getActivity(), LoginActivity.class);
-                startActivity(intent);
-            });
+            btnLogin.setOnClickListener(v -> startActivity(new Intent(getActivity(), LoginActivity.class)));
+            btnRegister.setOnClickListener(v -> startActivity(new Intent(getActivity(), RegisterActivity.class)));
 
-            btnRegister.setOnClickListener(v -> {
-                Intent intent = new Intent(getActivity(), RegisterActivity.class);
-                startActivity(intent);
-            });
+            return view;
         }
-
-        return view;
     }
 }

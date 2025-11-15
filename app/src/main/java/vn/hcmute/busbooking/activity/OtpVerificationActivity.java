@@ -2,7 +2,6 @@ package vn.hcmute.busbooking.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -89,8 +88,10 @@ public class OtpVerificationActivity extends AppCompatActivity {
         apiService.verifyOtp(body).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                if (response.isSuccessful() && response.body() != null && (Boolean) response.body().get("success")) {
-                    Toast.makeText(OtpVerificationActivity.this, "Xác thực OTP thành công!", Toast.LENGTH_SHORT).show();
+                if (response.isSuccessful() && response.body() != null) {
+                    Object successObj = response.body().get("success");
+                    if (Boolean.TRUE.equals(successObj)) {
+                        Toast.makeText(OtpVerificationActivity.this, "Xác thực OTP thành công!", Toast.LENGTH_SHORT).show();
 
                     if ("register".equals(context)) {
                         completeRegistration();
@@ -100,6 +101,9 @@ public class OtpVerificationActivity extends AppCompatActivity {
                         intent.putExtra("otp", otp);
                         startActivity(intent);
                         finish();
+                    }
+                    } else {
+                        Toast.makeText(OtpVerificationActivity.this, "Mã OTP không hợp lệ hoặc đã hết hạn", Toast.LENGTH_SHORT).show();
                     }
                 } else {
                     Toast.makeText(OtpVerificationActivity.this, "Mã OTP không hợp lệ hoặc đã hết hạn", Toast.LENGTH_SHORT).show();

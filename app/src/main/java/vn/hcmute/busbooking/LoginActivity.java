@@ -65,21 +65,24 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    Boolean isSuccess = (Boolean) response.body().get("success");
-                    if (isSuccess != null && isSuccess) {
-                        String token = (String) response.body().get("token");
-                        if (token != null) {
-                            sessionManager.saveToken(token);
-                            Toast.makeText(LoginActivity.this, "Đăng nhập thành công", Toast.LENGTH_SHORT).show();
+                    Map<String, Object> res = response.body();
+                    String message = (String) res.get("message");
+
+                    // Backend returns {message: "Đăng nhập thành công!", user: {...}}
+                    if (message != null && message.contains("thành công")) {
+                        Map<String, Object> user = (Map<String, Object>) res.get("user");
+                        if (user != null) {
+                            // Save user session
+                            sessionManager.saveUser(user);
+                            Toast.makeText(LoginActivity.this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
                             Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                             startActivity(intent);
                             finish();
                         } else {
-                            Toast.makeText(LoginActivity.this, "Lỗi: Không nhận được token.", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(LoginActivity.this, "Lỗi: Không nhận được thông tin người dùng", Toast.LENGTH_SHORT).show();
                         }
                     } else {
-                        String message = (String) response.body().get("message");
                         Toast.makeText(LoginActivity.this, "Sai tài khoản hoặc mật khẩu", Toast.LENGTH_SHORT).show();
                     }
                 } else {
