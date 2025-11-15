@@ -1,5 +1,6 @@
 package vn.hcmute.busbooking;
 
+import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.ArrayAdapter;
@@ -12,6 +13,10 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Locale;
+
 import vn.hcmute.busbooking.activity.GuestAccountActivity;
 import vn.hcmute.busbooking.activity.LoginActivity;
 import vn.hcmute.busbooking.activity.MyBookingsActivity;
@@ -23,8 +28,9 @@ public class MainActivity extends AppCompatActivity {
 
     private AutoCompleteTextView etOrigin, etDestination;
     private Button btnSearchTrips;
-    private TextView tvWelcome, tvLogin;
+    private TextView tvWelcome, tvLogin, tvDate; // Added tvDate
     private SessionManager sessionManager;
+    private Calendar selectedDate = Calendar.getInstance(); // To store the selected date
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,24 +43,32 @@ public class MainActivity extends AppCompatActivity {
         btnSearchTrips = findViewById(R.id.btnSearchTrips);
         tvWelcome = findViewById(R.id.tvWelcome);
         tvLogin = findViewById(R.id.tvLogin);
+        tvDate = findViewById(R.id.tvDate); // Find tvDate
         sessionManager = new SessionManager(this);
 
         // Update UI based on login status
         updateUI();
+        updateDateLabel();
 
         // Setup AutoCompleteTextViews
-        String[] locations = {"TP.HCM", "Hà Nội", "Đà Nẵng", "Đà Lạt", "Nha Trang", "Buôn Ma Thuột"};
+        String[] locations = {"TP.HCM", "Ha Noi", "Da Nang", "Da Lat", "Nha Trang", "Buon Ma Thuot", "Quy Nhon", "Can Tho", "Vung Tau", "Hue", "Quang Binh", "Thanh Hoa", "Hai Phong"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, locations);
         etOrigin.setAdapter(adapter);
         etDestination.setAdapter(adapter);
 
+        // Date Picker setup
+        tvDate.setOnClickListener(v -> showDatePickerDialog());
+
         btnSearchTrips.setOnClickListener(v -> {
             String from = etOrigin.getText().toString();
             String to = etDestination.getText().toString();
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+            String date = sdf.format(selectedDate.getTime());
 
             Intent intent = new Intent(MainActivity.this, TripListActivity.class);
             intent.putExtra("origin", from);
             intent.putExtra("destination", to);
+            intent.putExtra("date", date);
             startActivity(intent);
         });
 
@@ -84,6 +98,26 @@ public class MainActivity extends AppCompatActivity {
                 return false;
             }
         });
+    }
+
+    private void showDatePickerDialog() {
+        DatePickerDialog.OnDateSetListener dateSetListener = (view, year, month, dayOfMonth) -> {
+            selectedDate.set(Calendar.YEAR, year);
+            selectedDate.set(Calendar.MONTH, month);
+            selectedDate.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+            updateDateLabel();
+        };
+
+        new DatePickerDialog(MainActivity.this,
+                dateSetListener,
+                selectedDate.get(Calendar.YEAR),
+                selectedDate.get(Calendar.MONTH),
+                selectedDate.get(Calendar.DAY_OF_MONTH)).show();
+    }
+
+    private void updateDateLabel() {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+        tvDate.setText(sdf.format(selectedDate.getTime()));
     }
 
     private void updateUI() {

@@ -14,7 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Map; // Added this import
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -23,6 +23,7 @@ import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.adapter.BookingAdapter;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
+import vn.hcmute.busbooking.model.Booking;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class MyBookingsActivity extends AppCompatActivity {
@@ -65,12 +66,12 @@ public class MyBookingsActivity extends AppCompatActivity {
         progressBar.setVisibility(View.VISIBLE);
         tvEmptyState.setVisibility(View.GONE);
 
-        apiService.getMyBookings(userId).enqueue(new Callback<List<Map<String, Object>>>() {
+        apiService.getMyBookings(userId).enqueue(new Callback<List<Booking>>() {
             @Override
-            public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
+            public void onResponse(Call<List<Booking>> call, Response<List<Booking>> response) {
                 progressBar.setVisibility(View.GONE);
                 if (response.isSuccessful() && response.body() != null) {
-                    List<Map<String, Object>> bookings = response.body();
+                    List<Booking> bookings = response.body();
                     if (bookings.isEmpty()) {
                         tvEmptyState.setVisibility(View.VISIBLE);
                         tvEmptyState.setText("Bạn chưa có vé nào");
@@ -86,7 +87,7 @@ public class MyBookingsActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
+            public void onFailure(Call<List<Booking>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
                 tvEmptyState.setVisibility(View.VISIBLE);
                 tvEmptyState.setText("Lỗi kết nối: " + t.getMessage());
@@ -95,12 +96,9 @@ public class MyBookingsActivity extends AppCompatActivity {
         });
     }
 
-    private void onCancelBooking(Map<String, Object> booking) {
-        Object idObj = booking.get("id");
-        if (idObj == null) return;
-
-        int bookingId = idObj instanceof Double ? ((Double) idObj).intValue() : (Integer) idObj;
-        String status = (String) booking.get("status");
+    private void onCancelBooking(Booking booking) {
+        int bookingId = booking.getId();
+        String status = booking.getStatus();
 
         if (!"confirmed".equals(status) && !"pending".equals(status)) {
             Toast.makeText(this, "Không thể hủy vé này", Toast.LENGTH_SHORT).show();
@@ -140,4 +138,3 @@ public class MyBookingsActivity extends AppCompatActivity {
         });
     }
 }
-
