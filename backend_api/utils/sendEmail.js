@@ -1,19 +1,21 @@
 const sgMail = require("@sendgrid/mail");
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-async function sendEmail(to, otp) {
+async function sendEmail(to, subject, text) {
     try {
         const msg = {
             to,
-            from: process.env.SENDGRID_FROM,
-            templateId: process.env.SENDGRID_TEMPLATE_ID,
-            dynamic_template_data: {
-                otp
-            }
+            from: {
+                email: process.env.SENDGRID_FROM,
+                name: "GoUTE Ticket System"  // thêm tên sẽ tăng uy tín email
+            },
+            subject,
+            text,
+            html: `<p>${text}</p>`,     // có HTML sẽ ít bị đánh spam hơn
         };
 
-        await sgMail.send(msg);
-        console.log("📧 OTP sent!");
+        const response = await sgMail.send(msg);
+        console.log("📧 Email sent!", response[0].statusCode);
     } catch (error) {
         console.error("❌ SendGrid Error:", error.response?.body || error);
     }
