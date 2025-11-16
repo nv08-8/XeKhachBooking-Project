@@ -17,24 +17,33 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.TimeZone;
 
 import vn.hcmute.busbooking.R;
+import vn.hcmute.busbooking.model.Booking;
 
 public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingViewHolder> {
 
-    private List<Map<String, Object>> bookings;
+    private List<Booking> bookings;
     private OnCancelListener cancelListener;
+    private OnItemClickListener itemClickListener;
     private Context context;
 
     public interface OnCancelListener {
-        void onCancel(Map<String, Object> booking);
+        void onCancel(Booking booking);
     }
 
-    public BookingAdapter(List<Map<String, Object>> bookings, OnCancelListener listener) {
+    public interface OnItemClickListener {
+        void onItemClick(Booking booking);
+    }
+
+    public BookingAdapter(List<Booking> bookings, OnCancelListener listener) {
         this.bookings = bookings;
         this.cancelListener = listener;
+    }
+
+    public void setOnItemClickListener(OnItemClickListener listener) {
+        this.itemClickListener = listener;
     }
 
     @NonNull
@@ -48,36 +57,24 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
 
     @Override
     public void onBindViewHolder(@NonNull BookingViewHolder holder, int position) {
-        Map<String, Object> booking = bookings.get(position);
+        Booking booking = bookings.get(position);
 
-        String origin = (String) booking.get("origin");
-        String destination = (String) booking.get("destination");
-        String seatLabel = (String) booking.get("seat_label");
-        String status = (String) booking.get("status");
-        String departureTimeStr = (String) booking.get("departure_time");
-        Object priceObj = booking.get("price_paid");
+        String origin = booking.getOrigin();
+        String destination = booking.getDestination();
+        String seatLabel = booking.getSeat_label();
+        String status = booking.getStatus();
+        String departureTimeStr = booking.getDeparture_time();
+        int price = booking.getPrice_paid();
 
-        // Format Price
-        double price = 0;
-        if (priceObj instanceof Double) {
-            price = (Double) priceObj;
-        } else if (priceObj instanceof Integer) {
-            price = ((Integer) priceObj).doubleValue();
-        }
-
-        // Set Route and Seat
         holder.tvRoute.setText(origin + " → " + destination);
         holder.tvSeat.setText("Ghế: " + seatLabel);
-        holder.tvPrice.setText(String.format(Locale.GERMANY, "%,.0fđ", price));
+        holder.tvPrice.setText(String.format(Locale.GERMANY, "%,.0fđ", (double) price));
 
-        // Format and set Departure Time
         holder.tvDeparture.setText(formatDateTime(departureTimeStr));
 
-        // Set Status and its background color
         holder.tvStatus.setText(getStatusText(status));
         updateStatusBackground(holder.tvStatus, status);
 
-        // Show/Hide Cancel Button
         if ("confirmed".equals(status) || "pending".equals(status)) {
             holder.btnCancel.setVisibility(View.VISIBLE);
             holder.btnCancel.setOnClickListener(v -> {
@@ -88,6 +85,12 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
         } else {
             holder.btnCancel.setVisibility(View.GONE);
         }
+
+        holder.itemView.setOnClickListener(v -> {
+            if (itemClickListener != null) {
+                itemClickListener.onItemClick(booking);
+            }
+        });
     }
 
     private String formatDateTime(String isoString) {
@@ -130,7 +133,7 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
         return bookings.size();
     }
 
-    public void updateBookings(List<Map<String, Object>> newBookings) {
+    public void updateBookings(List<Booking> newBookings) {
         this.bookings = newBookings;
         notifyDataSetChanged();
     }

@@ -5,17 +5,15 @@ import java.util.Map;
 import retrofit2.Call;
 import retrofit2.http.*;
 
-import vn.hcmute.busbooking.model.Booking;
 import vn.hcmute.busbooking.model.Trip;
+import vn.hcmute.busbooking.model.Booking; // Added
 
 public interface ApiService {
 
     @GET("api/trips")
-    Call<List<Trip>> getTrips(
-            @Query("origin") String origin,
-            @Query("destination") String destination,
-            @Query("date") String date
-    );
+    Call<List<Trip>> getTrips(@Query("origin") String origin,
+                              @Query("destination") String destination,
+                              @Query("date") String date); // Added date param
 
     @GET("api/routes")
     Call<List<Map<String, Object>>> getRoutes(
@@ -34,7 +32,7 @@ public interface ApiService {
     Call<Map<String, Object>> createBooking(@Body Map<String, Object> body);
 
     @GET("api/bookings/my")
-    Call<List<Booking>> getMyBookings(@Query("user_id") int userId);
+    Call<List<Booking>> getMyBookings(@Query("user_id") int userId); // Changed to List<Booking>
 
     @POST("api/bookings/{id}/cancel")
     Call<Map<String, Object>> cancelBooking(@Path("id") int bookingId);

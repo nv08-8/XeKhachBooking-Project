@@ -15,7 +15,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map; // Added this import
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -57,17 +56,8 @@ public class MyBookingsActivity extends AppCompatActivity {
         loadMyBookings();
     }
 
-    private void onBookingClick(Map<String, Object> booking) {
-        Object idObj = booking.get("id");
-        if (idObj == null) return;
-
-        int bookingId = 0;
-        if (idObj instanceof Double) {
-            bookingId = ((Double) idObj).intValue();
-        } else if (idObj instanceof Integer) {
-            bookingId = (Integer) idObj;
-        }
-
+    private void onBookingClick(Booking booking) {
+        int bookingId = booking.getId();
         Intent intent = new Intent(this, BookingDetailActivity.class);
         intent.putExtra("booking_id", bookingId);
         startActivity(intent);
@@ -134,9 +124,9 @@ public class MyBookingsActivity extends AppCompatActivity {
     private void cancelBooking(int bookingId) {
         progressBar.setVisibility(View.VISIBLE);
 
-        apiService.cancelBooking(bookingId).enqueue(new Callback<Map<String, Object>>() {
+        apiService.cancelBooking(bookingId).enqueue(new retrofit2.Callback<java.util.Map<String, Object>>() {
             @Override
-            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+            public void onResponse(Call<java.util.Map<String, Object>> call, Response<java.util.Map<String, Object>> response) {
                 progressBar.setVisibility(View.GONE);
                 if (response.isSuccessful()) {
                     Toast.makeText(MyBookingsActivity.this, "Đã hủy vé thành công", Toast.LENGTH_SHORT).show();
@@ -148,7 +138,7 @@ public class MyBookingsActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+            public void onFailure(Call<java.util.Map<String, Object>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
                 Toast.makeText(MyBookingsActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                 Log.e(TAG, "Cancel error", t);
