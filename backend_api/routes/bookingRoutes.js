@@ -228,7 +228,7 @@ router.post("/bookings/:id/payment", (req, res) => {
 router.get("/bookings/:id", (req, res) => {
   const { id } = req.params;
   const sql = `
-    SELECT b.*,
+    SELECT b.id, b.user_id, b.trip_id, b.seat_label, b.price_paid, b.status, b.created_at, b.payment_method, b.payment_time, b.qr_code,
            t.departure_time, t.arrival_time, t.operator, t.bus_type,
            r.origin, r.destination, r.distance_km AS distance, r.duration_min AS duration
     FROM bookings b
