@@ -50,8 +50,25 @@ public class SessionManager {
     }
 
     public Integer getUserId() {
-        int id = prefs.getInt(KEY_ID, -1);
-        return id == -1 ? null : id;
+        // Handle both String and Int for backward compatibility
+        try {
+            int id = prefs.getInt(KEY_ID, -1);
+            return id == -1 ? null : id;
+        } catch (ClassCastException e) {
+            // If stored as String (old version), parse it
+            String idStr = prefs.getString(KEY_ID, null);
+            if (idStr != null) {
+                try {
+                    int id = Integer.parseInt(idStr);
+                    // Migrate to Int storage
+                    prefs.edit().putInt(KEY_ID, id).apply();
+                    return id;
+                } catch (NumberFormatException ex) {
+                    return null;
+                }
+            }
+            return null;
+        }
     }
 
     public String getUserName() {

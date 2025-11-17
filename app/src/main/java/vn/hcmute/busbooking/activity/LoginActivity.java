@@ -2,9 +2,12 @@ package vn.hcmute.busbooking.activity;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Html;
 import android.widget.Button;
 import android.widget.EditText;
@@ -31,6 +34,7 @@ public class LoginActivity extends AppCompatActivity {
     private TextView tvForgot, tvRegister;
     private ApiService apiService;
     private SessionManager sessionManager;
+    private ProgressDialog progressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,6 +63,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void doLogin() {
+        Log.d("LOGIN", "doLogin() called");
         String email = edtEmail.getText().toString().trim();
         String password = edtPassword.getText().toString().trim();
 
@@ -67,38 +72,56 @@ public class LoginActivity extends AppCompatActivity {
             return;
         }
 
+        btnLogin.setEnabled(false);
+
+        // Show progress dialog
+        progressDialog = new ProgressDialog(this);
+        progressDialog.setMessage("Đang đăng nhập...\n(Lần đầu có thể chậm do server đang khởi động)");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        // Show a toast after 15 seconds to let user know we're still waiting
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            if (progressDialog != null && progressDialog.isShowing()) {
+                Toast.makeText(LoginActivity.this, "Server đang khởi động, vui lòng đợi...", Toast.LENGTH_LONG).show();
+            }
+        }, 15000);
+
         Map<String, String> body = new HashMap<>();
         body.put("email", email);
         body.put("password", password);
 
+        long startTime = System.currentTimeMillis();
+        Log.d("LOGIN", "Request started at: " + startTime);
+
         apiService.login(body).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                long elapsed = System.currentTimeMillis() - startTime;
+                Log.d("LOGIN", "Response received after " + elapsed + "ms, code=" + response.code());
 
-                Log.e("STATUS", response.code() + "");
-                try {
-                    Log.e("ERROR_BODY", response.errorBody() != null ? response.errorBody().string() : "null");
-                } catch (java.io.IOException e) {
-                    e.printStackTrace();
-                }
-                Log.e("LOGIN_BODY", String.valueOf(response.body()));
-
+                dismissProgress();
+                btnLogin.setEnabled(true);
 
                 if (!response.isSuccessful() || response.body() == null) {
-                    Toast.makeText(LoginActivity.this, "Đăng nhập thất bại", Toast.LENGTH_SHORT).show();
+                    String err = null;
+                    try {
+                        err = response.errorBody() != null ? response.errorBody().string() : "null";
+                    } catch (Exception e) {
+                        Log.e("LOGIN", "error reading errorBody", e);
+                    }
+                    Log.e("LOGIN_ERROR_BODY", String.valueOf(err));
+                    Toast.makeText(LoginActivity.this, "Đăng nhập thất bại (code: " + response.code() + ")", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
                 Map<String, Object> res = response.body();
+                Log.d("LOGIN_BODY", String.valueOf(res));
 
-                // BE trả "message=Đăng nhập thành công!"
                 Object msg = res.get("message");
                 if (msg != null && msg.toString().contains("Đăng nhập thành công")) {
 
-                    // Lấy user object trong Java Map
                     Map<String, Object> user = (Map<String, Object>) res.get("user");
-
-                    // Lưu user vào session (hoặc token tự tạo)
                     sessionManager.saveUser(user);
 
                     Toast.makeText(LoginActivity.this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
@@ -114,9 +137,36 @@ public class LoginActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                Toast.makeText(LoginActivity.this, "Không thể kết nối máy chủ", Toast.LENGTH_SHORT).show();
-                Log.e("LOGIN_ERROR", t.getMessage(), t);
+                long elapsed = System.currentTimeMillis() - startTime;
+                Log.e("LOGIN_ERROR", "Request failed after " + elapsed + "ms: " + t.getMessage(), t);
+
+                dismissProgress();
+                btnLogin.setEnabled(true);
+
+                String errorMsg = "Không thể kết nối máy chủ";
+                if (t.getMessage() != null) {
+                    if (t.getMessage().contains("timeout") || t.getMessage().contains("timed out")) {
+                        errorMsg = "Server không phản hồi trong 45s.\n\nĐề xuất:\n1. Mở trình duyệt và truy cập:\nhttps://refreshing-respect-production.up.railway.app/\n2. Đợi trang load xong (đánh thức server)\n3. Quay lại app và thử đăng nhập lại";
+                    } else if (t.getMessage().contains("Unable to resolve host")) {
+                        errorMsg = "Không thể kết nối: Kiểm tra mạng internet";
+                    } else {
+                        errorMsg = "Lỗi kết nối: " + t.getMessage();
+                    }
+                }
+                Toast.makeText(LoginActivity.this, errorMsg, Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+    private void dismissProgress() {
+        if (progressDialog != null && progressDialog.isShowing()) {
+            progressDialog.dismiss();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        dismissProgress();
+        super.onDestroy();
     }
 }
