@@ -81,13 +81,13 @@ router.post("/finish-register", async (req, res) => {
     if (!name || !phone || !email || !password)
         return res.status(400).json({ message: "Thiếu thông tin!" });
 
-    // Chuyển đổi SĐT từ string sang number
-    const phoneNumberAsInt = parseInt(phone);
-    if (isNaN(phoneNumberAsInt)) {
+    // Validate phone number format (keep as string to preserve leading zero)
+    const phoneStr = phone.toString().trim();
+    if (!/^\d{9,11}$/.test(phoneStr)) {
         return res.status(400).json({ message: "Số điện thoại không hợp lệ." });
     }
 
-    db.query("SELECT * FROM users WHERE sdt=? AND status='active'", [phoneNumberAsInt], async (err, phoneRows) => {
+    db.query("SELECT * FROM users WHERE sdt=? AND status='active'", [phoneStr], async (err, phoneRows) => {
         if (err) {
             console.error("Lỗi kiểm tra SĐT:", err);
             return res.status(500).json({ message: "Lỗi phía server." });
@@ -101,7 +101,7 @@ router.post("/finish-register", async (req, res) => {
 
         db.query(
             "UPDATE users SET name=?, sdt=?, password=?, otp_code=NULL, status='active' WHERE email=?",
-            [name, phoneNumberAsInt, hashed, email], // Sử dụng SĐT đã chuyển đổi
+            [name, phoneStr, hashed, email], // Store phone as string to keep leading zero
             (err2) => {
                 if (err2) {
                     console.error("Lỗi cập nhật user:", err2);
@@ -215,53 +215,37 @@ router.get("/user/:id", (req, res) => {
 });
 
 /* ============================================================
-    8. UPDATE USER INFO
+    8. CHANGE PASSWORD (for app - using email)
    ============================================================ */
 
-router.put("/user/:id", async (req, res) => {
-    const { id } = req.params;
-    const { name, phone, email } = req.body;
+router.post("/change-password", async (req, res) => {
+    const { email, currentPassword, newPassword } = req.body;
 
-    if (!name || !phone || !email) {
-        return res.status(400).json({ message: "Thiếu thông tin!" });
+    if (!email || !currentPassword || !newPassword) {
+        return res.status(400).json({ success: false, message: "Thiếu thông tin!" });
     }
 
-    const phoneNumberAsInt = parseInt(phone);
-    if (isNaN(phoneNumberAsInt)) {
-        return res.status(400).json({ message: "Số điện thoại không hợp lệ." });
-    }
-
-    // Check if phone is already used by another user
     db.query(
-        "SELECT id FROM users WHERE sdt=? AND id!=? AND status='active'",
-        [phoneNumberAsInt, id],
-        (err, rows) => {
-            if (err) return res.status(500).json({ message: err.message });
+        "SELECT id, password FROM users WHERE email=? AND status='active'",
+        [email],
+        async (err, rows) => {
+            if (err) return res.status(500).json({ success: false, message: err.message });
+            if (rows.length === 0) return res.status(404).json({ success: false, message: "User not found" });
 
-            if (rows.length > 0) {
-                return res.status(400).json({ message: "Số điện thoại đã được sử dụng!" });
+            const user = rows[0];
+            const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+            if (!isMatch) {
+                return res.status(401).json({ success: false, message: "Mật khẩu hiện tại không đúng!" });
             }
 
-            // Check if email is already used by another user
+            const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
             db.query(
-                "SELECT id FROM users WHERE email=? AND id!=? AND status='active'",
-                [email, id],
-                (err2, rows2) => {
-                    if (err2) return res.status(500).json({ message: err2.message });
-
-                    if (rows2.length > 0) {
-                        return res.status(400).json({ message: "Email đã được sử dụng!" });
-                    }
-
-                    // Update user info
-                    db.query(
-                        "UPDATE users SET name=?, sdt=?, email=? WHERE id=? AND status='active'",
-                        [name, phoneNumberAsInt, email, id],
-                        (err3) => {
-                            if (err3) return res.status(500).json({ message: err3.message });
-                            res.json({ message: "Cập nhật thông tin thành công!" });
-                        }
-                    );
+                "UPDATE users SET password=? WHERE id=?",
+                [hashed, user.id],
+                (err2) => {
+                    if (err2) return res.status(500).json({ success: false, message: err2.message });
+                    res.json({ success: true, message: "Đổi mật khẩu thành công!" });
                 }
             );
         }
@@ -269,39 +253,63 @@ router.put("/user/:id", async (req, res) => {
 });
 
 /* ============================================================
-    9. CHANGE PASSWORD
+    9. UPDATE USER PROFILE (Only name and phone)
    ============================================================ */
 
-router.post("/change-password", async (req, res) => {
-    const { userId, oldPassword, newPassword } = req.body;
+router.put("/user/:id", async (req, res) => {
+    const { id } = req.params;
+    const { name, sdt } = req.body;
 
-    if (!userId || !oldPassword || !newPassword) {
-        return res.status(400).json({ message: "Thiếu thông tin!" });
+    if (!name && !sdt) {
+        return res.status(400).json({ success: false, message: "Không có thông tin để cập nhật!" });
     }
 
-    db.query(
-        "SELECT password FROM users WHERE id=? AND status='active'",
-        [userId],
-        async (err, rows) => {
-            if (err) return res.status(500).json({ message: err.message });
-            if (rows.length === 0) return res.status(404).json({ message: "User not found" });
+    let updateFields = [];
+    let updateValues = [];
 
-            const isMatch = await bcrypt.compare(oldPassword, rows[0].password);
-            if (!isMatch) {
-                return res.status(401).json({ message: "Mật khẩu cũ không đúng!" });
-            }
+    if (name) {
+        updateFields.push("name=?");
+        updateValues.push(name);
+    }
 
-            const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    if (sdt) {
+        // Validate phone number format (keep as string to preserve leading zero)
+        const phoneStr = sdt.toString().trim();
+        if (!/^\d{9,11}$/.test(phoneStr)) {
+            return res.status(400).json({ success: false, message: "Số điện thoại không hợp lệ." });
+        }
+
+        // Check if phone is already used by another user
+        const checkPhone = await new Promise((resolve, reject) => {
             db.query(
-                "UPDATE users SET password=? WHERE id=?",
-                [hashed, userId],
-                (err2) => {
-                    if (err2) return res.status(500).json({ message: err2.message });
-                    res.json({ message: "Đổi mật khẩu thành công!" });
+                "SELECT id FROM users WHERE sdt=? AND id!=? AND status='active'",
+                [phoneStr, id],
+                (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows);
                 }
             );
+        });
+
+        if (checkPhone.length > 0) {
+            return res.status(400).json({ success: false, message: "Số điện thoại đã được sử dụng!" });
         }
-    );
+
+        updateFields.push("sdt=?");
+        updateValues.push(phoneStr);
+    }
+
+    updateValues.push(id);
+
+    const sql = `UPDATE users SET ${updateFields.join(", ")} WHERE id=? AND status='active'`;
+
+    db.query(sql, updateValues, (err, result) => {
+        if (err) return res.status(500).json({ success: false, message: err.message });
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+        res.json({ success: true, message: "Cập nhật thông tin thành công!" });
+    });
 });
 
 module.exports = router;

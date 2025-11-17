@@ -147,8 +147,8 @@ router.get("/bookings/my", (req, res) => {
   if (!user_id) return res.status(400).json({ message: "Missing user_id" });
   const sql = `
     SELECT b.id, b.seat_label, b.status, b.price_paid, b.created_at, b.payment_method, b.qr_code,
-           t.departure_time, t.arrival_time, t.operator,
-           r.origin, r.destination
+           t.departure_time, t.arrival_time, t.operator, t.bus_type,
+           r.origin, r.destination, r.distance_km AS distance, r.duration_min AS duration
     FROM bookings b
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
@@ -230,7 +230,7 @@ router.get("/bookings/:id", (req, res) => {
   const sql = `
     SELECT b.*,
            t.departure_time, t.arrival_time, t.operator, t.bus_type,
-           r.origin, r.destination, r.distance, r.duration
+           r.origin, r.destination, r.distance_km AS distance, r.duration_min AS duration
     FROM bookings b
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
