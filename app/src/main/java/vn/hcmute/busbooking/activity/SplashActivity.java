@@ -28,14 +28,21 @@ public class SplashActivity extends AppCompatActivity {
 
         // Chờ 2 giây rồi chuyển sang màn hình chính hoặc màn hình khách
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            Integer userId = sessionManager.getUserId();
-
             Intent intent;
-            if (userId != null) {
-                // User is logged in, go to MainActivity
-                intent = new Intent(SplashActivity.this, MainActivity.class);
-            } else {
-                // No user logged in, go to GuestHomeActivity
+            try {
+                Integer userId = sessionManager.getUserId();
+
+                if (userId != null) {
+                    // User is logged in, go to MainActivity
+                    intent = new Intent(SplashActivity.this, MainActivity.class);
+                } else {
+                    // No user logged in, go to GuestHomeActivity
+                    intent = new Intent(SplashActivity.this, GuestHomeActivity.class);
+                }
+            } catch (Exception e) {
+                // If session data is corrupted, clear it and go to guest mode
+                android.util.Log.e("SplashActivity", "Error reading session, clearing...", e);
+                sessionManager.clearSession();
                 intent = new Intent(SplashActivity.this, GuestHomeActivity.class);
             }
             startActivity(intent);

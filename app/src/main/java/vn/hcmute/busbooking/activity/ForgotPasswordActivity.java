@@ -54,28 +54,79 @@ public class ForgotPasswordActivity extends AppCompatActivity {
             return;
         }
 
+        btnResetPassword.setEnabled(false);
         Map<String, String> body = new HashMap<>();
         body.put("email", email);
 
         apiService.forgotPassword(body).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                if (response.isSuccessful()) {
-                    Toast.makeText(ForgotPasswordActivity.this, "Yêu cầu đã được gửi. Vui lòng kiểm tra email.", Toast.LENGTH_LONG).show();
+                btnResetPassword.setEnabled(true);
 
-                    Intent intent = new Intent(ForgotPasswordActivity.this, OtpVerificationActivity.class);
-                    intent.putExtra("user_email", email);
-                    intent.putExtra("context", "forgot_password");
-                    startActivity(intent);
-                    finish(); // Close this activity to prevent it from reappearing
+                android.util.Log.d("FORGOT_PASSWORD", "Response code: " + response.code());
+
+                if (response.isSuccessful() && response.body() != null) {
+                    Map<String, Object> res = response.body();
+                    android.util.Log.d("FORGOT_PASSWORD", "Response body: " + res.toString());
+
+                    // Check success field in response
+                    Object successObj = res.get("success");
+                    boolean success = successObj != null && (Boolean) successObj;
+
+                    if (success) {
+                        android.util.Log.d("FORGOT_PASSWORD", "Success! Navigating to OTP screen...");
+                        android.util.Log.d("FORGOT_PASSWORD", "Email: " + email);
+
+                        Toast.makeText(ForgotPasswordActivity.this, "OTP đã được gửi đến email. Vui lòng kiểm tra hộp thư.", Toast.LENGTH_LONG).show();
+
+                        Intent intent = new Intent(ForgotPasswordActivity.this, OtpVerificationActivity.class);
+                        intent.putExtra("user_email", email);
+                        intent.putExtra("context", "forgot_password");
+
+                        android.util.Log.d("FORGOT_PASSWORD", "Intent created with extras: user_email=" + email + ", context=forgot_password");
+
+                        try {
+                            startActivity(intent);
+                            android.util.Log.d("FORGOT_PASSWORD", "startActivity() called successfully");
+                        } catch (Exception e) {
+                            android.util.Log.e("FORGOT_PASSWORD", "Error starting activity", e);
+                            Toast.makeText(ForgotPasswordActivity.this, "Lỗi khi chuyển màn hình: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                            return;
+                        }
+
+                        // Small delay before finish to ensure activity transition
+                        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                            android.util.Log.d("FORGOT_PASSWORD", "Finishing ForgotPasswordActivity");
+                            finish();
+                        }, 100);
+                    } else {
+                        String message = res.get("message") != null ? res.get("message").toString() : "Có lỗi xảy ra";
+                        Toast.makeText(ForgotPasswordActivity.this, message, Toast.LENGTH_SHORT).show();
+                    }
                 } else {
-                    Toast.makeText(ForgotPasswordActivity.this, "Email không tồn tại trong hệ thống.", Toast.LENGTH_SHORT).show();
+                    // Handle error response (404, etc)
+                    String errorMsg = "Email không tồn tại trong hệ thống.";
+                    try {
+                        if (response.errorBody() != null) {
+                            String errorBody = response.errorBody().string();
+                            android.util.Log.e("FORGOT_PASSWORD", "Error body: " + errorBody);
+                            // Try to parse error message
+                            if (errorBody.contains("message")) {
+                                errorMsg = errorBody;
+                            }
+                        }
+                    } catch (Exception e) {
+                        android.util.Log.e("FORGOT_PASSWORD", "Error reading errorBody", e);
+                    }
+                    Toast.makeText(ForgotPasswordActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                Toast.makeText(ForgotPasswordActivity.this, "Không thể kết nối đến máy chủ", Toast.LENGTH_SHORT).show();
+                btnResetPassword.setEnabled(true);
+                android.util.Log.e("FORGOT_PASSWORD", "Request failed", t);
+                Toast.makeText(ForgotPasswordActivity.this, "Không thể kết nối đến máy chủ: " + t.getMessage(), Toast.LENGTH_LONG).show();
             }
         });
     }

@@ -33,7 +33,8 @@ public class ResetPasswordActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Toast.makeText(this, "ResetPasswordActivity started!", Toast.LENGTH_SHORT).show(); // DEBUG
+        android.util.Log.d("RESET_PASSWORD", "onCreate() called");
+
         setContentView(R.layout.activity_reset_password);
 
         edtNewPassword = findViewById(R.id.edtNewPassword);
@@ -45,14 +46,26 @@ public class ResetPasswordActivity extends AppCompatActivity {
 
         // Get data from OtpVerificationActivity
         Intent intent = getIntent();
-        userEmail = intent.getStringExtra("user_email");
+
+        // Handle both "email" and "user_email" keys for compatibility
+        userEmail = intent.getStringExtra("email");
+        if (userEmail == null) {
+            userEmail = intent.getStringExtra("user_email");
+        }
+
         otp = intent.getStringExtra("otp"); // The verified OTP
 
+        android.util.Log.d("RESET_PASSWORD", "Received extras: email=" + userEmail + ", otp=" + otp);
+
         if (userEmail == null || otp == null) {
+            android.util.Log.e("RESET_PASSWORD", "Missing email or otp! userEmail=" + userEmail + ", otp=" + otp);
             Toast.makeText(this, "Lỗi: Phiên đặt lại mật khẩu không hợp lệ.", Toast.LENGTH_LONG).show();
             finish();
             return;
         }
+
+        android.util.Log.d("RESET_PASSWORD", "Setup complete for email: " + userEmail);
+        Toast.makeText(this, "Vui lòng nhập mật khẩu mới", Toast.LENGTH_SHORT).show();
 
         btnUpdatePassword.setOnClickListener(v -> updatePassword());
         ivBack.setOnClickListener(v -> finish());
