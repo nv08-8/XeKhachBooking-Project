@@ -21,7 +21,7 @@
         android:layout_height="0dp"
         android:background="@drawable/gradient_bottom"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintHeight_percent="0.6" />
+        app:layout_constraintTop_toBottomOf="@+id/top_background"/>
 
     <ImageView
         android:id="@+id/footer_spikes"
@@ -51,10 +51,9 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
-        android:text="Tên người dùng"
+        tools:text="Vo Nhu"
         android:textSize="18sp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tvTitle" />
 
@@ -63,68 +62,55 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="email@example.com"
+        tools:text="vonguyenquynhnhu2005@gmail.com"
         android:textSize="16sp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tvUserName" />
 
-    <Button
-        android:id="@+id/btnMyBookings"
+    <LinearLayout
+        android:id="@+id/buttonsLayout"
         android:layout_width="0dp"
-        android:layout_height="55dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:layout_marginHorizontal="24dp"
-        android:layout_marginBottom="12dp"
-        android:backgroundTint="@color/colorAccent"
-        android:text="Vé của tôi"
-        android:textColor="@android:color/white"
-        app:cornerRadius="28dp"
-        app:layout_constraintBottom_toTopOf="@id/btnEditProfile"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <Button
-        android:id="@+id/btnEditProfile"
-        android:layout_width="0dp"
-        android:layout_height="55dp"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginBottom="12dp"
-        android:backgroundTint="@color/colorPrimary"
-        android:text="Chỉnh sửa thông tin"
-        android:textColor="@android:color/white"
-        app:cornerRadius="28dp"
-        app:layout_constraintBottom_toTopOf="@id/btnChangePassword"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <Button
-        android:id="@+id/btnChangePassword"
-        android:layout_width="0dp"
-        android:layout_height="55dp"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginBottom="12dp"
-        android:backgroundTint="@color/colorPrimary"
-        android:text="Đổi mật khẩu"
-        android:textColor="@android:color/white"
-        app:cornerRadius="28dp"
-        app:layout_constraintBottom_toTopOf="@id/btnLogout"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <Button
-        android:id="@+id/btnLogout"
-        android:layout_width="0dp"
-        android:layout_height="55dp"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginBottom="16dp"
-        android:backgroundTint="@color/colorError"
-        android:text="Đăng xuất"
-        android:textColor="@android:color/white"
-        app:cornerRadius="28dp"
         app:layout_constraintBottom_toTopOf="@id/bottom_navigation"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:layout_marginBottom="16dp">
+
+        <Button
+            android:id="@+id/btnEditProfile"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:text="Chỉnh sửa thông tin"
+            android:textColor="@color/colorPrimary"
+            app:strokeColor="@color/colorPrimary"
+            app:cornerRadius="28dp" />
+
+        <Button
+            android:id="@+id/btnChangePassword"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:layout_marginTop="8dp"
+            android:text="Đổi mật khẩu"
+            android:textColor="@color/colorPrimary"
+            app:strokeColor="@color/colorPrimary"
+            app:cornerRadius="28dp" />
+
+        <Button
+            android:id="@+id/btnLogout"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:layout_marginTop="16dp"
+            android:backgroundTint="@color/colorPrimary"
+            android:text="Đăng xuất"
+            android:textColor="@android:color/white"
+            app:cornerRadius="28dp" />
+
+    </LinearLayout>
 
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_navigation"

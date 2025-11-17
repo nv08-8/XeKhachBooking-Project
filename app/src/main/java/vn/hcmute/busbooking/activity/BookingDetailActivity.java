@@ -2,6 +2,7 @@ package vn.hcmute.busbooking.activity;
 
 import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -30,6 +31,8 @@ import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
 
 public class BookingDetailActivity extends AppCompatActivity {
+
+    private static final String TAG = "BookingDetailActivity";
 
     private TextView tvBookingId, tvStatus, tvRoute, tvDepartureTime, tvArrivalTime;
     private TextView tvOperator, tvSeat, tvAmount, tvPaymentMethod, tvCreatedAt;
@@ -114,11 +117,15 @@ public class BookingDetailActivity extends AppCompatActivity {
         tvSeat.setText("Ghế: " + booking.get("seat_label"));
 
         Object pricePaidObj = booking.get("price_paid");
-        int pricePaid = 0;
-        if (pricePaidObj instanceof Double) {
-            pricePaid = ((Double) pricePaidObj).intValue();
-        } else if (pricePaidObj instanceof Integer) {
-            pricePaid = (Integer) pricePaidObj;
+        double pricePaid = 0.0;
+        if (pricePaidObj instanceof Number) {
+            pricePaid = ((Number) pricePaidObj).doubleValue();
+        } else if (pricePaidObj instanceof String) {
+            try {
+                pricePaid = Double.parseDouble((String) pricePaidObj);
+            } catch (NumberFormatException e) {
+                Log.e(TAG, "Could not parse price_paid string: " + pricePaidObj);
+            }
         }
 
         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
@@ -203,4 +210,3 @@ public class BookingDetailActivity extends AppCompatActivity {
         }
     }
 }
-

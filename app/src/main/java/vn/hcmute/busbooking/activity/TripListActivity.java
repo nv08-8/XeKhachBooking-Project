@@ -13,6 +13,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.appbar.MaterialToolbar;
+
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -45,6 +47,16 @@ public class TripListActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_trip_list);
 
+        // Setup toolbar back navigation
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        if (toolbar != null) {
+            toolbar.setNavigationOnClickListener(v -> {
+                // Use dispatcher for modern back handling (equivalent to finish())
+                getOnBackPressedDispatcher().onBackPressed();
+            });
+        }
+
+        // Initialize views
         tvRoute = findViewById(R.id.tvRoute);
         tvDate = findViewById(R.id.tvDate);
         spinnerPriceFilter = findViewById(R.id.spinnerPriceFilter);

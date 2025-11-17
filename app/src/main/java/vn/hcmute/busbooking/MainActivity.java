@@ -73,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav.setSelectedItemId(R.id.nav_home);
         bottomNav.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
 
@@ -81,16 +82,22 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             } else if (itemId == R.id.nav_tickets) { // Correct ID
                 if (sessionManager.isLoggedIn()) {
-                    startActivity(new Intent(this, MyBookingsActivity.class));
+                    Intent intent = new Intent(this, MyBookingsActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                    startActivity(intent);
                 } else {
                     startActivity(new Intent(this, LoginActivity.class));
                 }
                 return true;
             } else if (itemId == R.id.nav_account) {
                  if (sessionManager.isLoggedIn()) {
-                     startActivity(new Intent(this, UserAccountActivity.class));
+                     Intent intent = new Intent(this, UserAccountActivity.class);
+                     intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                     startActivity(intent);
                  } else {
-                     startActivity(new Intent(this, GuestAccountActivity.class));
+                     Intent intent = new Intent(this, GuestAccountActivity.class);
+                     intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                     startActivity(intent);
                  }
                  return true;
             } else {

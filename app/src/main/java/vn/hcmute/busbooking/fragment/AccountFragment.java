@@ -15,7 +15,6 @@ import androidx.fragment.app.Fragment;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.activity.LoginActivity;
 import vn.hcmute.busbooking.activity.RegisterActivity;
-import vn.hcmute.busbooking.activity.MyBookingsActivity;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class AccountFragment extends Fragment {
@@ -34,16 +33,25 @@ public class AccountFragment extends Fragment {
             TextView tvUserName = view.findViewById(R.id.tvUserName);
             TextView tvUserEmail = view.findViewById(R.id.tvUserEmail);
             Button btnLogout = view.findViewById(R.id.btnLogout);
-            Button btnMyBookings = view.findViewById(R.id.btnMyBookings);
+            Button btnEditProfile = view.findViewById(R.id.btnEditProfile);
+            Button btnChangePassword = view.findViewById(R.id.btnChangePassword);
 
             String userName = sessionManager.getUserName();
             String userEmail = sessionManager.getUserEmail();
             if (userName != null) tvUserName.setText("Xin chào, " + userName);
             if (userEmail != null) tvUserEmail.setText(userEmail);
 
-            if (btnMyBookings != null) {
-                btnMyBookings.setOnClickListener(v -> {
-                    Intent intent = new Intent(getActivity(), MyBookingsActivity.class);
+
+            if (btnEditProfile != null) {
+                btnEditProfile.setOnClickListener(v -> {
+                    Intent intent = new Intent(getActivity(), vn.hcmute.busbooking.activity.EditProfileActivity.class);
+                    startActivity(intent);
+                });
+            }
+
+            if (btnChangePassword != null) {
+                btnChangePassword.setOnClickListener(v -> {
+                    Intent intent = new Intent(getActivity(), vn.hcmute.busbooking.activity.ChangePasswordActivity.class);
                     startActivity(intent);
                 });
             }

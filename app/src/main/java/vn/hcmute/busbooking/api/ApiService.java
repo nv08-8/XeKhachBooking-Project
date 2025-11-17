@@ -81,9 +81,15 @@ public interface ApiService {
     @GET("api/auth/user/{id}")
     Call<Map<String, Object>> getUserInfo(@Path("id") int userId);
 
+    @GET("api/auth/user/{id}")
+    Call<Map<String, Object>> getUserProfile(@Path("id") int userId);
+
     @PUT("api/auth/user/{id}")
     Call<Map<String, Object>> updateUserInfo(@Path("id") int userId, @Body Map<String, String> body);
 
+    @PUT("api/auth/user/{id}")
+    Call<Map<String, Object>> updateUserProfile(@Path("id") int userId, @Body Map<String, Object> body);
+
     @POST("api/auth/change-password")
-    Call<Map<String, Object>> changePassword(@Body Map<String, Object> body);
+    Call<Map<String, Object>> changePassword(@Body Map<String, String> body);
 }

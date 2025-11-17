@@ -8,13 +8,18 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -35,11 +40,17 @@ public class MyBookingsActivity extends AppCompatActivity {
     private BookingAdapter bookingAdapter;
     private ApiService apiService;
     private SessionManager sessionManager;
+    private MaterialToolbar toolbar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my_bookings);
+
+        toolbar = findViewById(R.id.toolbar);
+        if (toolbar != null) {
+            toolbar.setNavigationOnClickListener(v -> finish());
+        }
 
         rvBookings = findViewById(R.id.rvBookings);
         tvEmptyState = findViewById(R.id.tvEmptyState);
@@ -50,17 +61,50 @@ public class MyBookingsActivity extends AppCompatActivity {
 
         rvBookings.setLayoutManager(new LinearLayoutManager(this));
         bookingAdapter = new BookingAdapter(new ArrayList<>(), this::onCancelBooking);
-        bookingAdapter.setOnItemClickListener(this::onBookingClick);
         rvBookings.setAdapter(bookingAdapter);
 
-        loadMyBookings();
-    }
+        // Open booking details when a ticket is clicked
+        bookingAdapter.setOnItemClickListener(booking -> {
+            Intent intent = new Intent(MyBookingsActivity.this, BookingDetailActivity.class);
+            intent.putExtra("booking_id", booking.getId());
+            startActivity(intent);
+        });
 
-    private void onBookingClick(Booking booking) {
-        int bookingId = booking.getId();
-        Intent intent = new Intent(this, BookingDetailActivity.class);
-        intent.putExtra("booking_id", bookingId);
-        startActivity(intent);
+        loadMyBookings();
+
+        // Setup bottom navigation
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav.setSelectedItemId(R.id.nav_tickets);
+        bottomNav.setOnItemSelectedListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == R.id.nav_home) {
+                Intent intent = new Intent(this, vn.hcmute.busbooking.MainActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                startActivity(intent);
+                return true;
+            } else if (itemId == R.id.nav_tickets) {
+                // Already on tickets page
+                return true;
+            } else if (itemId == R.id.nav_account) {
+                Intent intent = new Intent(this, UserAccountActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                startActivity(intent);
+                return true;
+            } else {
+                return false;
+            }
+        });
+
+        // Handle system back with dispatcher
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                Intent intent = new Intent(MyBookingsActivity.this, vn.hcmute.busbooking.MainActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                startActivity(intent);
+                finish();
+            }
+        });
     }
 
     private void loadMyBookings() {
@@ -124,9 +168,9 @@ public class MyBookingsActivity extends AppCompatActivity {
     private void cancelBooking(int bookingId) {
         progressBar.setVisibility(View.VISIBLE);
 
-        apiService.cancelBooking(bookingId).enqueue(new retrofit2.Callback<java.util.Map<String, Object>>() {
+        apiService.cancelBooking(bookingId).enqueue(new Callback<Map<String, Object>>() {
             @Override
-            public void onResponse(Call<java.util.Map<String, Object>> call, Response<java.util.Map<String, Object>> response) {
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 progressBar.setVisibility(View.GONE);
                 if (response.isSuccessful()) {
                     Toast.makeText(MyBookingsActivity.this, "Đã hủy vé thành công", Toast.LENGTH_SHORT).show();
@@ -138,7 +182,7 @@ public class MyBookingsActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onFailure(Call<java.util.Map<String, Object>> call, Throwable t) {
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
                 Toast.makeText(MyBookingsActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                 Log.e(TAG, "Cancel error", t);

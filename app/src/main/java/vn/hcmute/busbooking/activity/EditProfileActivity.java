@@ -1,13 +1,17 @@
 package vn.hcmute.busbooking.activity;
 
+import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ProgressBar;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,123 +26,195 @@ import vn.hcmute.busbooking.utils.SessionManager;
 
 public class EditProfileActivity extends AppCompatActivity {
 
-    private EditText etName, etEmail, etPhone;
-    private Button btnSave, btnCancel;
-    private ProgressBar progressBar;
+    private static final String TAG = "EditProfileActivity";
+
+    private EditText edtName, edtEmail, edtPhone;
+    private Button btnSaveProfile;
+    private ImageView ivBack;
     private SessionManager sessionManager;
     private ApiService apiService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d(TAG, "onCreate() called");
         setContentView(R.layout.activity_edit_profile);
 
         sessionManager = new SessionManager(this);
         apiService = ApiClient.getClient().create(ApiService.class);
 
-        etName = findViewById(R.id.etName);
-        etEmail = findViewById(R.id.etEmail);
-        etPhone = findViewById(R.id.etPhone);
-        btnSave = findViewById(R.id.btnSave);
-        btnCancel = findViewById(R.id.btnCancel);
-        progressBar = findViewById(R.id.progressBar);
+        // Toolbar navigation back
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        if (toolbar != null) {
+            toolbar.setNavigationOnClickListener(v -> {
+                Log.d(TAG, "Toolbar navigation clicked");
+                finish();
+            });
+        }
 
+        edtName = findViewById(R.id.edtName);
+        edtEmail = findViewById(R.id.edtEmail);
+        edtPhone = findViewById(R.id.edtPhone);
+        btnSaveProfile = findViewById(R.id.btnSaveProfile);
+        ivBack = findViewById(R.id.ivBack);
+
+        Log.d(TAG, "Views initialized, ivBack: " + (ivBack != null));
+
+        // Load current user info
         loadUserInfo();
 
-        btnSave.setOnClickListener(v -> saveUserInfo());
-        btnCancel.setOnClickListener(v -> finish());
+        btnSaveProfile.setOnClickListener(v -> saveProfile());
+
+        if (ivBack != null) {
+            ivBack.setOnClickListener(v -> {
+                Log.d(TAG, "Back button clicked");
+                finish();
+            });
+            Log.d(TAG, "Back button click listener set");
+        } else {
+            Log.e(TAG, "ivBack is null!");
+        }
+
+        // Setup bottom navigation
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        if (bottomNav != null) {
+            bottomNav.setSelectedItemId(R.id.nav_account);
+            bottomNav.setOnItemSelectedListener(item -> {
+                int itemId = item.getItemId();
+                if (itemId == R.id.nav_home) {
+                    Intent intent = new Intent(this, vn.hcmute.busbooking.MainActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                    startActivity(intent);
+                    return true;
+                } else if (itemId == R.id.nav_tickets) {
+                    Intent intent = new Intent(this, MyBookingsActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                    startActivity(intent);
+                    return true;
+                } else if (itemId == R.id.nav_account) {
+                    Intent intent = new Intent(this, UserAccountActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                    startActivity(intent);
+                    return true;
+                } else {
+                    return false;
+                }
+            });
+        }
     }
 
     private void loadUserInfo() {
+        String name = sessionManager.getUserName();
+        String email = sessionManager.getUserEmail();
+
+        if (name != null) edtName.setText(name);
+        if (email != null) {
+            edtEmail.setText(email);
+            edtEmail.setEnabled(false); // Email cannot be changed
+        }
+
+        // Load phone from server
+        Integer userId = sessionManager.getUserId();
+        if (userId != null) {
+            apiService.getUserProfile(userId).enqueue(new Callback<Map<String, Object>>() {
+                @Override
+                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        Map<String, Object> user = response.body();
+                        Object phoneObj = user.get("sdt");
+                        if (phoneObj != null) {
+                            // Handle phone number formatting
+                            String phone;
+                            if (phoneObj instanceof Number) {
+                                // Convert number to string without scientific notation
+                                phone = String.format("%.0f", ((Number) phoneObj).doubleValue());
+                            } else {
+                                phone = phoneObj.toString();
+                            }
+                            // Ensure phone number has 10 digits, add leading zero if needed
+                            if (phone.length() == 9 && !phone.startsWith("0")) {
+                                phone = "0" + phone;
+                            }
+                            edtPhone.setText(phone);
+                        }
+                        Log.d(TAG, "User info loaded");
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                    Log.e(TAG, "Failed to load user info", t);
+                }
+            });
+        }
+    }
+
+    private void saveProfile() {
+        String name = edtName.getText().toString().trim();
+        String phone = edtPhone.getText().toString().trim();
+
+        if (name.isEmpty()) {
+            Toast.makeText(this, "Vui lòng nhập tên", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (phone.isEmpty()) {
+            Toast.makeText(this, "Vui lòng nhập số điện thoại", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         Integer userId = sessionManager.getUserId();
         if (userId == null) {
-            Toast.makeText(this, "Vui long dang nhap", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Phiên đăng nhập đã hết hạn", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
 
-        progressBar.setVisibility(View.VISIBLE);
+        btnSaveProfile.setEnabled(false);
 
-        apiService.getUserInfo(userId).enqueue(new Callback<Map<String, Object>>() {
-            @Override
-            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                progressBar.setVisibility(View.GONE);
-
-                if (response.isSuccessful() && response.body() != null) {
-                    Map<String, Object> user = response.body();
-                    etName.setText((String) user.get("name"));
-                    etEmail.setText((String) user.get("email"));
-
-                    Object sdtObj = user.get("sdt");
-                    if (sdtObj != null) {
-                        etPhone.setText(sdtObj.toString());
-                    }
-                } else {
-                    Toast.makeText(EditProfileActivity.this, "Khong the tai thong tin", Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                progressBar.setVisibility(View.GONE);
-                Toast.makeText(EditProfileActivity.this, "Loi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void saveUserInfo() {
-        String name = etName.getText().toString().trim();
-        String email = etEmail.getText().toString().trim();
-        String phone = etPhone.getText().toString().trim();
-
-        if (name.isEmpty() || email.isEmpty() || phone.isEmpty()) {
-            Toast.makeText(this, "Vui long dien day du thong tin", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            Toast.makeText(this, "Email khong hop le", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        Integer userId = sessionManager.getUserId();
-        if (userId == null) return;
-
-        progressBar.setVisibility(View.VISIBLE);
-        btnSave.setEnabled(false);
-
-        Map<String, String> body = new HashMap<>();
+        Map<String, Object> body = new HashMap<>();
         body.put("name", name);
-        body.put("email", email);
-        body.put("phone", phone);
+        body.put("sdt", phone);
 
-        apiService.updateUserInfo(userId, body).enqueue(new Callback<Map<String, Object>>() {
+        Log.d(TAG, "Updating profile for userId: " + userId);
+
+        apiService.updateUserProfile(userId, body).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                progressBar.setVisibility(View.GONE);
-                btnSave.setEnabled(true);
+                btnSaveProfile.setEnabled(true);
+
+                Log.d(TAG, "Response code: " + response.code());
 
                 if (response.isSuccessful() && response.body() != null) {
-                    Toast.makeText(EditProfileActivity.this, "Cap nhat thanh cong!", Toast.LENGTH_SHORT).show();
+                    Map<String, Object> res = response.body();
+                    Log.d(TAG, "Response body: " + res.toString());
 
-                    setResult(RESULT_OK);
-                    finish();
-                } else {
-                    String message = "Cap nhat that bai";
-                    if (response.body() != null && response.body().get("message") != null) {
-                        message = (String) response.body().get("message");
+                    Object successObj = res.get("success");
+                    boolean success = successObj != null && Boolean.TRUE.equals(successObj);
+
+                    if (success) {
+                        // Update session with new name
+                        String email = sessionManager.getUserEmail();
+                        sessionManager.saveSession(userId, name, email);
+
+                        Toast.makeText(EditProfileActivity.this, "Cập nhật thông tin thành công!", Toast.LENGTH_SHORT).show();
+                        finish();
+                    } else {
+                        String message = res.get("message") != null ? res.get("message").toString() : "Cập nhật thất bại";
+                        Toast.makeText(EditProfileActivity.this, message, Toast.LENGTH_SHORT).show();
                     }
-                    Toast.makeText(EditProfileActivity.this, message, Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(EditProfileActivity.this, "Không thể cập nhật thông tin", Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Update failed: " + response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                progressBar.setVisibility(View.GONE);
-                btnSave.setEnabled(true);
-                Toast.makeText(EditProfileActivity.this, "Loi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                btnSaveProfile.setEnabled(true);
+                Toast.makeText(EditProfileActivity.this, "Lỗi kết nối: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Log.e(TAG, "Update error", t);
             }
         });
     }
 }
-
