@@ -14,7 +14,7 @@ const metaRoutes = require("./routes/metaRoutes");
 app.use(express.json());
 app.use(cors());
 
-// Middleware to set response headers for UTF-8
+// Middleware UTF-8
 app.use((req, res, next) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     next();
@@ -29,8 +29,9 @@ app.use("/api", metaRoutes);
 
 app.get("/", (req, res) => res.send("GoUTE API is running 🚍"));
 
-const PORT = process.env.PORT;
+// FIX PORT CHO RAILWAY
+const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, () => {
-  console.log("Server started on port", PORT);
+    console.log("Server started on port", PORT);
 });
