@@ -23,7 +23,7 @@ public class Trip implements Parcelable {
     private String arrivalTime;
 
     @SerializedName("price")
-    private double price;
+    private int price;
 
     @SerializedName("seats_total")
     private Integer seatsTotal;
@@ -49,7 +49,7 @@ public class Trip implements Parcelable {
         operator = in.readString();
         departureTime = in.readString();
         arrivalTime = in.readString();
-        price = in.readDouble();
+        price = in.readInt();
         int readSeatsTotal = in.readInt();
         seatsTotal = readSeatsTotal == -1 ? null : readSeatsTotal;
         int readSeatsAvailable = in.readInt();
@@ -66,7 +66,7 @@ public class Trip implements Parcelable {
         dest.writeString(operator);
         dest.writeString(departureTime);
         dest.writeString(arrivalTime);
-        dest.writeDouble(price);
+        dest.writeInt(price);
         if (seatsTotal == null) { dest.writeInt(-1); } else { dest.writeInt(seatsTotal); }
         if (seatsAvailable == null) { dest.writeInt(-1); } else { dest.writeInt(seatsAvailable); }
         dest.writeString(status);
@@ -96,7 +96,7 @@ public class Trip implements Parcelable {
     public String getOperator() { return operator; }
     public String getDepartureTime() { return departureTime; }
     public String getArrivalTime() { return arrivalTime; }
-    public double getPrice() { return price; }
+    public int getPrice() { return price; }
     public Integer getSeatsTotal() { return seatsTotal; }
     public Integer getSeatsAvailable() { return seatsAvailable; }
     public String getStatus() { return status; }

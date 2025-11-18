@@ -2,74 +2,68 @@ package vn.hcmute.busbooking.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
-
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-
-import com.google.android.material.bottomnavigation.BottomNavigationView;
-
-import vn.hcmute.busbooking.MainActivity;
+import java.util.ArrayList;
+import java.util.List;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class UserAccountActivity extends AppCompatActivity {
 
-    private TextView tvUserName, tvUserEmail;
-    private Button btnLogout, btnMyBookings; // Add btnMyBookings
+    private TextView tvUserName, tvUserMembership;
+    private ListView lvAccountOptions;
+    private Button btnLogout;
     private SessionManager sessionManager;
 
     @Override
-    protected void onCreate(@Nullable Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_user_account);
 
+        tvUserName = findViewById(R.id.tvUserName);
+        tvUserMembership = findViewById(R.id.tvUserMembership);
+        lvAccountOptions = findViewById(R.id.lvAccountOptions);
+        btnLogout = findViewById(R.id.btnLogout);
+
         sessionManager = new SessionManager(this);
 
-        tvUserName = findViewById(R.id.tvUserName);
-        tvUserEmail = findViewById(R.id.tvUserEmail);
-        btnLogout = findViewById(R.id.btnLogout);
-        btnMyBookings = findViewById(R.id.btnMyBookings); // Find the button
+        // Populate User Info
+        if (sessionManager.isLoggedIn()) {
+            tvUserName.setText(sessionManager.getUserName());
+            // You can add more logic for membership level later
+            tvUserMembership.setText("Thành viên Mới"); 
+        } else {
+            // Redirect to login if not logged in
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
 
-        // Set user info
-        tvUserName.setText(sessionManager.getUserName());
-        tvUserEmail.setText(sessionManager.getUserEmail());
+        // Populate ListView
+        List<String> options = new ArrayList<>();
+        options.add("Điểm thưởng của tôi");
+        options.add("Ưu đãi");
+        options.add("Giới thiệu nhận quà");
+        options.add("Quản lý thẻ");
+        options.add("Đánh giá chuyến đi");
+        options.add("Cài đặt");
+        options.add("Trung tâm Hỗ trợ");
+        options.add("Góp ý");
 
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, options);
+        lvAccountOptions.setAdapter(adapter);
+
+        // Logout Button
         btnLogout.setOnClickListener(v -> {
-            sessionManager.logout();
-            Toast.makeText(this, "Đã đăng xuất", Toast.LENGTH_SHORT).show();
-            // Go to MainActivity, which will show the guest UI
-            Intent intent = new Intent(UserAccountActivity.this, MainActivity.class);
+            sessionManager.clearSession();
+            Intent intent = new Intent(this, GuestHomeActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
             finish();
-        });
-
-        // Add OnClickListener for the "My Bookings" button
-        btnMyBookings.setOnClickListener(v -> {
-            Intent intent = new Intent(UserAccountActivity.this, MyBookingsActivity.class);
-            startActivity(intent);
-        });
-
-        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
-        bottomNav.setSelectedItemId(R.id.nav_account);
-        bottomNav.setOnItemSelectedListener(item -> {
-            int itemId = item.getItemId();
-            if (itemId == R.id.nav_home) {
-                startActivity(new Intent(this, MainActivity.class));
-                return true;
-            } else if (itemId == R.id.nav_tickets) { // Correct ID
-                startActivity(new Intent(this, MyBookingsActivity.class));
-                return true;
-            } else if (itemId == R.id.nav_account) {
-                // Already on the account screen, do nothing
-                return true;
-            } else {
-                // Handle other menu items here
-                return false;
-            }
         });
     }
 }

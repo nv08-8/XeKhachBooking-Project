@@ -18,79 +18,63 @@
             android:id="@+id/tvRoute"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
             android:textColor="@color/textPrimary"
             android:textSize="18sp"
             android:textStyle="bold"
-            app:layout_constraintEnd_toStartOf="@+id/tvPrice"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            tools:text="Sài Gòn → Nha Trang" />
+            tools:text="TP.HCM → Đà Lạt" />
 
         <TextView
-            android:id="@+id/tvDeparture"
+            android:id="@+id/tvBookingDate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:drawablePadding="4dp"
-            android:gravity="center_vertical"
             android:textColor="@color/textSecondary"
-            android:textSize="14sp"
-            app:drawableStartCompat="@drawable/ic_time"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/tvRoute"
-            tools:text="08:00 - 16/05/2024" />
+            tools:text="Ngày đi: 16/11/2025 - 07:00" />
 
         <TextView
-            android:id="@+id/tvSeat"
+            android:id="@+id/tvSeatNumber"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:drawablePadding="4dp"
-            android:gravity="center_vertical"
-            android:textColor="@color/textSecondary"
-            android:textSize="14sp"
-            app:drawableStartCompat="@drawable/ic_seat"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/tvDeparture"
-            tools:text="Ghế: A1" />
+            app:layout_constraintTop_toBottomOf="@+id/tvBookingDate"
+            tools:text="Ghế: A05" />
 
         <TextView
-            android:id="@+id/tvPrice"
+            android:id="@+id/tvTotalPrice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@color/colorPrimary"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/tvRoute"
-            tools:text="350.000đ" />
+            android:layout_marginTop="4dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tvSeatNumber"
+            tools:text="Giá vé: 350.000đ" />
 
         <TextView
-            android:id="@+id/tvStatus"
+            android:id="@+id/tvBookingStatus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
             android:background="@drawable/status_background"
-            android:paddingHorizontal="8dp"
+            android:paddingHorizontal="12dp"
             android:paddingVertical="4dp"
             android:textColor="@android:color/white"
-            android:textSize="12sp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/tvSeat"
-            tools:text="Đã xác nhận" />
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="ĐÃ XÁC NHẬN" />
 
         <Button
-            android:id="@+id/btnCancel"
+            android:id="@+id/btnCancelBooking"
             style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Hủy vé"
-            android:textColor="@color/colorError"
-            app:layout_constraintBottom_toBottomOf="parent"
+            android:textColor="@color/colorAccent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/tvPrice" />
+            app:layout_constraintBottom_toBottomOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-
 </androidx.cardview.widget.CardView>

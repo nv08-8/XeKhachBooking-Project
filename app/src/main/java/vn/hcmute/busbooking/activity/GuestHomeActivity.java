@@ -1,11 +1,15 @@
 package vn.hcmute.busbooking.activity;
 
+import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -13,28 +17,34 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 import vn.hcmute.busbooking.R;
-import vn.hcmute.busbooking.adapter.PopularRoutesAdapter;
-import vn.hcmute.busbooking.adapter.PromotionsAdapter;
-import vn.hcmute.busbooking.adapter.TestimonialsAdapter;
-import vn.hcmute.busbooking.model.PopularRoute;
-import vn.hcmute.busbooking.model.Promotion;
-import vn.hcmute.busbooking.model.Testimonial;
+import vn.hcmute.busbooking.adapter.TripAdapter;
+import vn.hcmute.busbooking.api.ApiClient;
+import vn.hcmute.busbooking.api.ApiService;
+import vn.hcmute.busbooking.model.Trip;
 
 public class GuestHomeActivity extends AppCompatActivity {
 
-    private TextView tvLogin;
     private AutoCompleteTextView etOrigin, etDestination;
+    private TextView tvDate;
+    private ImageButton btnSwap;
     private Button btnSearchTrips;
-    private RecyclerView rvPopularRoutes, rvPromotions, rvTestimonials;
+    private RecyclerView rvPopularRoutes;
     private BottomNavigationView bottomNav;
+    private TextView tvLogin;
 
-    private PopularRoutesAdapter popularRoutesAdapter;
-    private PromotionsAdapter promotionsAdapter;
-    private TestimonialsAdapter testimonialsAdapter;
+    private ApiService apiService;
+    private TripAdapter tripAdapter;
+    private final Calendar myCalendar = Calendar.getInstance();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,47 +52,25 @@ public class GuestHomeActivity extends AppCompatActivity {
         setContentView(R.layout.activity_guest_home);
 
         // --- Find Views ---
-        tvLogin = findViewById(R.id.tvLogin);
         etOrigin = findViewById(R.id.etOrigin);
         etDestination = findViewById(R.id.etDestination);
+        tvDate = findViewById(R.id.tvDate);
+        btnSwap = findViewById(R.id.btnSwap);
         btnSearchTrips = findViewById(R.id.btnSearchTrips);
         rvPopularRoutes = findViewById(R.id.rvPopularRoutes);
-        rvPromotions = findViewById(R.id.rvPromotions);
-        rvTestimonials = findViewById(R.id.rvTestimonials);
         bottomNav = findViewById(R.id.bottom_navigation);
+        tvLogin = findViewById(R.id.tvLogin);
+
+        // --- Initialize ApiService ---
+        apiService = ApiClient.getClient().create(ApiService.class);
+
+        // --- Setup RecyclerView ---
+        rvPopularRoutes.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        tripAdapter = new TripAdapter(new ArrayList<>());
+        rvPopularRoutes.setAdapter(tripAdapter);
 
         // --- Set Listeners ---
-        tvLogin.setOnClickListener(v -> {
-            Intent intent = new Intent(GuestHomeActivity.this, LoginActivity.class);
-            startActivity(intent);
-        });
-
-        btnSearchTrips.setOnClickListener(v -> {
-            String from = etOrigin.getText().toString();
-            String to = etDestination.getText().toString();
-
-            Intent intent = new Intent(GuestHomeActivity.this, TripListActivity.class);
-            intent.putExtra("origin", from);
-            intent.putExtra("destination", to);
-            startActivity(intent);
-        });
-
-        // Handle Bottom Navigation clicks
-        bottomNav.setOnItemSelectedListener(item -> {
-            int itemId = item.getItemId();
-            if (itemId == R.id.nav_home) {
-                // Already on the home screen, do nothing
-                return true;
-            } else if (itemId == R.id.nav_account || itemId == R.id.nav_tickets) {
-                // For guests, both "Account" and "My Tickets" go to the GuestAccountActivity
-                Intent intent = new Intent(this, GuestAccountActivity.class);
-                startActivity(intent);
-                overridePendingTransition(0, 0);
-                return false; // Do not keep the item selected as we are navigating away
-            }
-            return false;
-        });
-        bottomNav.setSelectedItemId(R.id.nav_home);
+        setupClickListeners();
 
         // --- Populate Data ---
         String[] locations = {"TP.HCM", "Hà Nội", "Đà Nẵng", "Đà Lạt", "Nha Trang", "Buôn Ma Thuột"};
@@ -90,42 +78,103 @@ public class GuestHomeActivity extends AppCompatActivity {
         etOrigin.setAdapter(adapter);
         etDestination.setAdapter(adapter);
 
-        setupMockData();
+        fetchTrips();
     }
 
-    private void setupMockData() {
-        rvPopularRoutes.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        List<PopularRoute> routes = new ArrayList<>();
-        routes.add(new PopularRoute("Hồ Chí Minh – Nha Trang", "Từ 199.000đ", R.drawable.img_route1));
-        routes.add(new PopularRoute("Hồ Chí Minh – Đà Lạt", "Từ 150.000đ", R.drawable.img_route2));
-        routes.add(new PopularRoute("Hồ Chí Minh – Vũng Tàu", "Từ 120.000đ", R.drawable.img_route3));
+    private void setupClickListeners() {
+        // Date Picker
+        DatePickerDialog.OnDateSetListener date = (view, year, month, day) -> {
+            myCalendar.set(Calendar.YEAR, year);
+            myCalendar.set(Calendar.MONTH, month);
+            myCalendar.set(Calendar.DAY_OF_MONTH, day);
+            updateLabel();
+        };
+        tvDate.setOnClickListener(v -> new DatePickerDialog(GuestHomeActivity.this, date, myCalendar.get(Calendar.YEAR), myCalendar.get(Calendar.MONTH), myCalendar.get(Calendar.DAY_OF_MONTH)).show());
 
-        popularRoutesAdapter = new PopularRoutesAdapter(routes);
-        rvPopularRoutes.setAdapter(popularRoutesAdapter);
+        // Swap origin and destination
+        btnSwap.setOnClickListener(v -> {
+            String origin = etOrigin.getText().toString();
+            String destination = etDestination.getText().toString();
+            etOrigin.setText(destination);
+            etDestination.setText(origin);
+        });
 
-        rvPromotions.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        List<Promotion> promotions = new ArrayList<>();
-        promotions.add(new Promotion("Giảm 30%", "Ưu đãi tháng 11", R.drawable.promo1));
-        promotions.add(new Promotion("Giảm 50%", "Cuối tuần", R.drawable.promo2));
+        // Search Button
+        btnSearchTrips.setOnClickListener(v -> {
+            String from = etOrigin.getText().toString().trim();
+            String to = etDestination.getText().toString().trim();
+            String dateStr = tvDate.getText().toString().trim();
 
-        promotionsAdapter = new PromotionsAdapter(promotions);
-        rvPromotions.setAdapter(promotionsAdapter);
+            if (from.isEmpty() || to.isEmpty() || dateStr.isEmpty() || dateStr.equals("Ngày đi")) {
+                Toast.makeText(this, "Vui lòng chọn đủ điểm đi, điểm đến và ngày đi", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
-        rvTestimonials.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        List<Testimonial> testimonials = new ArrayList<>();
-        testimonials.add(new Testimonial("Nguyễn Văn A", "Xe sạch, tài xế vui vẻ!", R.drawable.user1));
-        testimonials.add(new Testimonial("Trần Thị B", "Giá ok, đặt vé nhanh chóng!", R.drawable.user2));
+            Intent intent = new Intent(GuestHomeActivity.this, TripListActivity.class);
+            intent.putExtra("from", from);
+            intent.putExtra("to", to);
+            intent.putExtra("date", dateStr);
+            startActivity(intent);
+        });
 
-        testimonialsAdapter = new TestimonialsAdapter(testimonials);
-        rvTestimonials.setAdapter(testimonialsAdapter);
+        // Adapter item click
+        tripAdapter.setOnItemClickListener(trip -> {
+            DatePickerDialog.OnDateSetListener datePicker = (view, year, month, day) -> {
+                myCalendar.set(Calendar.YEAR, year);
+                myCalendar.set(Calendar.MONTH, month);
+                myCalendar.set(Calendar.DAY_OF_MONTH, day);
+                String selectedDate = new SimpleDateFormat("dd/MM/yyyy", Locale.US).format(myCalendar.getTime());
+
+                Intent intent = new Intent(GuestHomeActivity.this, TripListActivity.class);
+                intent.putExtra("from", trip.getFromLocation());
+                intent.putExtra("to", trip.getToLocation());
+                intent.putExtra("date", selectedDate);
+                startActivity(intent);
+            };
+            new DatePickerDialog(GuestHomeActivity.this, datePicker, myCalendar.get(Calendar.YEAR), myCalendar.get(Calendar.MONTH), myCalendar.get(Calendar.DAY_OF_MONTH)).show();
+        });
+
+        // Login Button
+        tvLogin.setOnClickListener(v -> {
+            startActivity(new Intent(GuestHomeActivity.this, LoginActivity.class));
+        });
+
+        // Bottom Navigation
+        bottomNav.setOnItemSelectedListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == R.id.nav_home) {
+                return true;
+            } else if (itemId == R.id.nav_tickets || itemId == R.id.nav_account) {
+                startActivity(new Intent(this, LoginActivity.class));
+                return true;
+            }
+            return false;
+        });
+        bottomNav.setSelectedItemId(R.id.nav_home);
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // When returning to this activity, ensure the "Home" tab is selected.
-        if (bottomNav != null) {
-            bottomNav.setSelectedItemId(R.id.nav_home);
-        }
+    private void updateLabel() {
+        String myFormat = "dd/MM/yyyy"; 
+        SimpleDateFormat dateFormat = new SimpleDateFormat(myFormat, Locale.US);
+        tvDate.setText(dateFormat.format(myCalendar.getTime()));
+    }
+
+    private void fetchTrips() {
+        apiService.getTrips(null, null).enqueue(new Callback<List<Trip>>() {
+            @Override
+            public void onResponse(Call<List<Trip>> call, Response<List<Trip>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    tripAdapter.updateTrips(response.body());
+                } else {
+                    Toast.makeText(GuestHomeActivity.this, "Failed to fetch trips", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Trip>> call, Throwable t) {
+                Toast.makeText(GuestHomeActivity.this, "Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Log.e("GuestHomeActivity", "Error fetching trips", t);
+            }
+        });
     }
 }

@@ -1,26 +1,45 @@
-// app/src/main/java/vn/hcmute/busbooking/model/Booking.java
 package vn.hcmute.busbooking.model;
 
-public class Booking {
-    private int id;
-    private String seat_label;
-    private String status;
-    private int price_paid;
-    private String created_at;
-    private String departure_time;
-    private String arrival_time;
-    private String operator;
-    private String origin;
-    private String destination;
+import com.google.gson.annotations.SerializedName;
 
+public class Booking {
+
+    @SerializedName("id")
+    private int id;
+
+    @SerializedName("trip_id")
+    private int tripId;
+
+    @SerializedName("user_id")
+    private int userId;
+
+    @SerializedName("seat_number")
+    private String seatNumber;
+
+    @SerializedName("total_price")
+    private int totalPrice;
+
+    @SerializedName("status")
+    private String status;
+
+    // Thông tin của chuyến đi lồng vào
+    @SerializedName("from_location")
+    private String fromLocation;
+
+    @SerializedName("to_location")
+    private String toLocation;
+
+    @SerializedName("departure_time")
+    private String departureTime;
+
+    // Getters
     public int getId() { return id; }
-    public String getSeat_label() { return seat_label; }
+    public int getTripId() { return tripId; }
+    public int getUserId() { return userId; }
+    public String getSeatNumber() { return seatNumber; }
+    public int getTotalPrice() { return totalPrice; }
     public String getStatus() { return status; }
-    public int getPrice_paid() { return price_paid; }
-    public String getCreated_at() { return created_at; }
-    public String getDeparture_time() { return departure_time; }
-    public String getArrival_time() { return arrival_time; }
-    public String getOperator() { return operator; }
-    public String getOrigin() { return origin; }
-    public String getDestination() { return destination; }
+    public String getFromLocation() { return fromLocation; }
+    public String getToLocation() { return toLocation; }
+    public String getDepartureTime() { return departureTime; }
 }

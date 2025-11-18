@@ -4,8 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F4F6F9"
-    tools:context=".activity.GuestHomeActivity">
+    android:background="#F4F6F9">
 
     <!-- Header Section -->
     <com.google.android.material.appbar.AppBarLayout
@@ -22,18 +21,18 @@
             <ImageView
                 android:layout_width="100dp"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_goute_logo" 
+                android:src="@drawable/ic_goute_logo"
                 app:tint="@android:color/white" />
 
             <TextView
-                android:id="@+id/tvLogin"
+                android:id="@+id/tvWelcome"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="end"
                 android:drawablePadding="8dp"
                 android:gravity="center_vertical"
                 android:paddingEnd="16dp"
-                android:text="Đăng nhập"
+                android:text="Chào bạn >"
                 android:textColor="@android:color/white"
                 app:drawableStartCompat="@drawable/ic_account" />
 
@@ -58,7 +57,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
-                android:layout_marginTop="-40dp" 
+                android:layout_marginTop="16dp"
                 android:layout_marginEnd="16dp"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="8dp">
@@ -78,7 +77,7 @@
                         android:drawablePadding="16dp"
                         android:hint="Nơi xuất phát"
                         android:paddingVertical="12dp"
-                        android:textColorHint="#999"
+                        android:textColorHint="#757575"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         app:layout_constraintEnd_toStartOf="@+id/btnSwap"
@@ -107,7 +106,7 @@
                         android:drawablePadding="16dp"
                         android:hint="Bạn muốn đi đâu?"
                         android:paddingVertical="12dp"
-                        android:textColorHint="#999"
+                        android:textColorHint="#757575"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         app:layout_constraintEnd_toStartOf="@id/btnSwap"
@@ -145,7 +144,7 @@
                         android:gravity="center_vertical"
                         android:hint="Ngày đi"
                         android:paddingVertical="16dp"
-                        android:textColorHint="#999"
+                        android:textColorHint="#757575"
                         android:textSize="16sp"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toStartOf="parent"
@@ -159,16 +158,15 @@
                 android:layout_width="match_parent"
                 android:layout_height="55dp"
                 android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="16dp"
                 android:backgroundTint="#FFC107"
-                android:text="Tìm kiếm"
+                android:text="Tìm kiếm chuyến đi"
                 android:textColor="@android:color/black"
                 android:textSize="18sp"
                 app:cornerRadius="8dp" />
 
-
             <!-- Popular Routes Section -->
             <TextView
-                android:id="@+id/tvPopularRoutesTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
@@ -193,15 +191,5 @@
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
-
-    <!-- Bottom Navigation -->
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottom_navigation"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:background="@android:color/white"
-        app:labelVisibilityMode="labeled"
-        app:menu="@menu/bottom_nav_menu" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

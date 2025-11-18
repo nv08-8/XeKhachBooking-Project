@@ -5,8 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F4F6F9"
-    tools:context=".activity.UserAccountActivity">
+    android:background="#F4F6F9">
 
     <!-- Header with User Info -->
     <LinearLayout
@@ -20,7 +19,7 @@
             android:id="@+id/ivAvatar"
             android:layout_width="64dp"
             android:layout_height="64dp"
-            android:src="@drawable/ic_account" 
+            android:src="@drawable/ic_account"
             app:tint="@android:color/white"/>
 
         <LinearLayout
@@ -46,14 +45,6 @@
                 android:textColor="#E0E0E0"
                 tools:text="truong@example.com" />
 
-            <!-- THÊM LẠI TextView CHO MEMBERSHIP -->
-            <TextView
-                android:id="@+id/tvUserMembership"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Thành viên Mới"
-                android:textColor="#E0E0E0" />
-
         </LinearLayout>
 
         <TextView
@@ -65,22 +56,12 @@
 
     </LinearLayout>
 
-    <Button
-        android:id="@+id/btnMyBookings"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
-        android:text="Vé của tôi" />
-
     <ListView
         android:id="@+id/lvAccountOptions"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1" />
 
-    <!-- Logout Button -->
     <Button
         android:id="@+id/btnLogout"
         android:layout_width="match_parent"

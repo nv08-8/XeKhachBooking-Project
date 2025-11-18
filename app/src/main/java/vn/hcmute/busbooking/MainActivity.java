@@ -1,115 +1,44 @@
 package vn.hcmute.busbooking;
 
-import android.content.Intent;
 import android.os.Bundle;
-import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
-import android.widget.Button;
-import android.widget.TextView;
-import android.widget.Toast;
-
 import androidx.appcompat.app.AppCompatActivity;
-
+import androidx.fragment.app.Fragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-
-import vn.hcmute.busbooking.activity.GuestAccountActivity;
-import vn.hcmute.busbooking.activity.LoginActivity;
-import vn.hcmute.busbooking.activity.MyBookingsActivity;
-import vn.hcmute.busbooking.activity.TripListActivity;
-import vn.hcmute.busbooking.activity.UserAccountActivity;
-import vn.hcmute.busbooking.utils.SessionManager;
+import vn.hcmute.busbooking.fragment.AccountFragment;
+import vn.hcmute.busbooking.fragment.BookingListFragment;
+import vn.hcmute.busbooking.fragment.HomeFragment;
 
 public class MainActivity extends AppCompatActivity {
-
-    private AutoCompleteTextView etOrigin, etDestination;
-    private Button btnSearchTrips;
-    private TextView tvWelcome, tvLogin;
-    private SessionManager sessionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Initialize views and SessionManager
-        etOrigin = findViewById(R.id.etOrigin);
-        etDestination = findViewById(R.id.etDestination);
-        btnSearchTrips = findViewById(R.id.btnSearchTrips);
-        tvWelcome = findViewById(R.id.tvWelcome);
-        tvLogin = findViewById(R.id.tvLogin);
-        sessionManager = new SessionManager(this);
-
-        // Update UI based on login status
-        updateUI();
-
-        // Setup AutoCompleteTextViews
-        String[] locations = {"TP.HCM", "Hà Nội", "Đà Nẵng", "Đà Lạt", "Nha Trang", "Buôn Ma Thuột"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, locations);
-        etOrigin.setAdapter(adapter);
-        etDestination.setAdapter(adapter);
-
-        btnSearchTrips.setOnClickListener(v -> {
-            String from = etOrigin.getText().toString();
-            String to = etDestination.getText().toString();
-
-            Intent intent = new Intent(MainActivity.this, TripListActivity.class);
-            intent.putExtra("origin", from);
-            intent.putExtra("destination", to);
-            startActivity(intent);
-        });
-
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+
+        // Load default fragment
+        if (savedInstanceState == null) {
+            getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container, new HomeFragment()).commit();
+        }
+
         bottomNav.setOnItemSelectedListener(item -> {
+            Fragment selectedFragment = null;
             int itemId = item.getItemId();
 
             if (itemId == R.id.nav_home) {
-                // Already on the home screen, do nothing
-                return true;
-            } else if (itemId == R.id.nav_tickets) { // Correct ID
-                if (sessionManager.isLoggedIn()) {
-                    startActivity(new Intent(this, MyBookingsActivity.class));
-                } else {
-                    startActivity(new Intent(this, LoginActivity.class));
-                }
-                return true;
+                selectedFragment = new HomeFragment();
+            } else if (itemId == R.id.nav_tickets) {
+                selectedFragment = new BookingListFragment(); // Placeholder
             } else if (itemId == R.id.nav_account) {
-                 if (sessionManager.isLoggedIn()) {
-                     startActivity(new Intent(this, UserAccountActivity.class));
-                 } else {
-                     startActivity(new Intent(this, GuestAccountActivity.class));
-                 }
-                 return true;
-            } else {
-                // Handle other menu items here
-                return false;
+                selectedFragment = new AccountFragment(); // Use the new AccountFragment
             }
+
+            if (selectedFragment != null) {
+                getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container, selectedFragment).commit();
+                return true;
+            }
+            return false;
         });
-    }
-
-    private void updateUI() {
-        if (sessionManager.isLoggedIn()) {
-            // User is logged in
-            tvWelcome.setText("Xin chào, " + sessionManager.getUserName() + "!");
-            tvLogin.setText("Đăng xuất");
-            tvLogin.setOnClickListener(v -> {
-                // Perform logout
-                sessionManager.logout();
-                Toast.makeText(this, "Đã đăng xuất", Toast.LENGTH_SHORT).show();
-
-                // Restart MainActivity to show guest UI
-                Intent intent = new Intent(MainActivity.this, MainActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                startActivity(intent);
-                finish();
-            });
-        } else {
-            // User is not logged in (Guest mode)
-            tvWelcome.setText("Xin chào, Khách!");
-            tvLogin.setText("Đăng nhập");
-            tvLogin.setOnClickListener(v -> {
-                Intent intent = new Intent(MainActivity.this, LoginActivity.class);
-                startActivity(intent);
-            });
-        }
     }
 }

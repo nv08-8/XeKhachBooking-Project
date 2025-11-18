@@ -74,16 +74,6 @@ public class LoginActivity extends AppCompatActivity {
         apiService.login(body).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-
-                Log.e("STATUS", response.code() + "");
-                try {
-                    Log.e("ERROR_BODY", response.errorBody() != null ? response.errorBody().string() : "null");
-                } catch (java.io.IOException e) {
-                    e.printStackTrace();
-                }
-                Log.e("LOGIN_BODY", String.valueOf(response.body()));
-
-
                 if (!response.isSuccessful() || response.body() == null) {
                     Toast.makeText(LoginActivity.this, "Đăng nhập thất bại", Toast.LENGTH_SHORT).show();
                     return;
@@ -91,24 +81,32 @@ public class LoginActivity extends AppCompatActivity {
 
                 Map<String, Object> res = response.body();
 
-                // BE trả "message=Đăng nhập thành công!"
-                Object msg = res.get("message");
-                if (msg != null && msg.toString().contains("Đăng nhập thành công")) {
+                if (res.get("message") != null && res.get("message").toString().contains("Đăng nhập thành công")) {
 
-                    // Lấy user object trong Java Map
                     Map<String, Object> user = (Map<String, Object>) res.get("user");
-
-                    // Lưu user vào session (hoặc token tự tạo)
                     sessionManager.saveUser(user);
 
                     Toast.makeText(LoginActivity.this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
 
-                    Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                    // SỬA LỖI: Kiểm tra vai trò (role) và điều hướng
+                    String role = "user"; // Mặc định là user
+                    if (user != null && user.get("role") != null) {
+                        role = user.get("role").toString();
+                    }
+
+                    Intent intent;
+                    if ("admin".equals(role)) {
+                        intent = new Intent(LoginActivity.this, AdminDashboardActivity.class);
+                    } else {
+                        intent = new Intent(LoginActivity.this, MainActivity.class);
+                    }
+                    
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                     startActivity(intent);
                     finish();
                 } else {
-                    Toast.makeText(LoginActivity.this, "Sai tài khoản hoặc mật khẩu", Toast.LENGTH_SHORT).show();
+                    String errorMessage = (res.get("message") != null) ? res.get("message").toString() : "Sai tài khoản hoặc mật khẩu";
+                    Toast.makeText(LoginActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
                 }
             }
 
