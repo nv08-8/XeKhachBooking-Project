@@ -36,4 +36,22 @@ router.get("/promotions/featured", (req, res) => {
   });
 });
 
+// GET /api/promos - simple promos with discount codes (from promos table)
+router.get("/promos", (req, res) => {
+  const sql = `
+    SELECT id, title, description, discount_percent, code, valid_until
+    FROM promos
+    WHERE valid_until >= CURDATE()
+    ORDER BY discount_percent DESC
+    LIMIT 10
+  `;
+  db.query(sql, (err, rows) => {
+    if (err) {
+      console.error("Failed to fetch promos:", err.message || err);
+      return res.status(500).json({ error: "Failed to fetch promos" });
+    }
+    res.json(rows || []);
+  });
+});
+
 module.exports = router;

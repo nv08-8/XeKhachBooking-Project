@@ -1,31 +1,23 @@
+// backend_api/routes/metaRoutes.js
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
-// GET /api/meta/locations
-router.get("/locations", (req, res) => {
-    const originsQuery = "SELECT DISTINCT from_location FROM trips;";
-    const destinationsQuery = "SELECT DISTINCT to_location FROM trips;";
+// GET /api/meta/locations - distinct origins and destinations for UI dropdowns
+router.get("/meta/locations", (req, res) => {
+  const queries = {
+    origins: "SELECT DISTINCT origin AS name FROM routes ORDER BY origin",
+    destinations: "SELECT DISTINCT destination AS name FROM routes ORDER BY destination",
+  };
 
-    db.query(originsQuery, (err, originRows) => {
-        if (err) {
-            return res.status(500).json({ message: "Error fetching origins.", error: err });
-        }
-
-        db.query(destinationsQuery, (err, destRows) => {
-            if (err) {
-                return res.status(500).json({ message: "Error fetching destinations.", error: err });
-            }
-
-            const origins = originRows.map(row => row.from_location);
-            const destinations = destRows.map(row => row.to_location);
-
-            res.json({
-                origins,
-                destinations
-            });
-        });
+  db.query(queries.origins, [], (err1, origins) => {
+    if (err1) return res.status(500).json({ message: err1.message });
+    db.query(queries.destinations, [], (err2, destinations) => {
+      if (err2) return res.status(500).json({ message: err2.message });
+      res.json({ origins: origins.map(o => o.name), destinations: destinations.map(d => d.name) });
     });
+  });
 });
 
 module.exports = router;
+
