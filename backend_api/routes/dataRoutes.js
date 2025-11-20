@@ -1,5 +1,6 @@
 // backend_api/routes/dataRoutes.js
 const express = require("express");
+// backend_api/routes/dataRoutes.jsconst express = require("express");
 const router = express.Router();
 const db = require("../db");
 
@@ -45,8 +46,10 @@ router.get("/trips/:id/seats", async (req, res) => {
   let sql = "SELECT id, trip_id, label, type, is_booked, booking_id FROM seats WHERE trip_id=$1";
   const params = [tripId];
 
+  // --- SỬA LỖI TẠI ĐÂY ---
+  // Thay đổi 'FALSE' thành '0' vì cột is_booked trong database là integer
   if (available === "true") {
-    sql += " AND is_booked = FALSE";
+    sql += " AND is_booked = 0";
   }
 
   sql += " ORDER BY label";
