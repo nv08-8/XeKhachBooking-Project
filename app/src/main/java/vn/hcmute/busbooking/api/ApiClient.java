@@ -8,7 +8,7 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class ApiClient {
-    private static final String BASE_URL = "https://refreshing-respect-production.up.railway.app/";
+    private static final String BASE_URL = "https://xekhachbooking-project.onrender.com/";
 
     private static Retrofit retrofit;
 
@@ -36,4 +36,3 @@ public class ApiClient {
         return retrofit;
     }
 }
-

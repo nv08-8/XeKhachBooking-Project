@@ -1,75 +1,74 @@
-require('dotenv').config();
-const mysql = require("mysql2");
-const fs = require('fs');
-const path = require('path');
+require("dotenv").config();
+const { Pool } = require("pg");
+const fs = require("fs");
+const path = require("path");
 
-const connection = mysql.createConnection({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT,
-  multipleStatements: true
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
 
-connection.connect((err) => {
-  if (err) {
+async function run() {
+  try {
+    await pool.query("SELECT NOW() AS connected_at");
+    console.log("✅ Connected to PostgreSQL");
+  } catch (err) {
     console.error("❌ Database connection error:", err);
     process.exit(1);
   }
-  console.log("✅ Connected to database");
-});
 
-// Allow dynamic migration file selection via env or CLI arg
-const envFile = process.env.MIGRATION_FILE; // e.g. MIGRATION_FILE=add_bus_type_to_trips.sql
-const argFile = process.argv[2]; // node run-migration.js add_bus_type_to_trips.sql
-const fileName = envFile || argFile || 'add_bus_type_to_trips.sql';
+  const envFile = process.env.MIGRATION_FILE;
+  const argFile = process.argv[2];
+  const fileName = envFile || argFile || "add_bus_type_to_trips.sql";
 
-const migrationPath = path.join(__dirname, 'migrations', fileName);
-if (!fs.existsSync(migrationPath)) {
-  console.error(`❌ Migration file not found: ${migrationPath}`);
-  process.exit(1);
-}
-
-console.log(`🔄 Running migration: ${fileName}`);
-
-const sql = fs.readFileSync(migrationPath, 'utf8');
-
-connection.query(sql, (err, results) => {
-  if (err) {
-    console.error("❌ Migration failed:", err);
-    connection.end();
+  const migrationPath = path.join(__dirname, "migrations", fileName);
+  if (!fs.existsSync(migrationPath)) {
+    console.error(`❌ Migration file not found: ${migrationPath}`);
     process.exit(1);
   }
 
-  console.log("✅ Migration completed successfully!");
-  console.log("📊 Results:", Array.isArray(results) ? results.length + ' statements executed' : results);
+  console.log(`🔄 Running migration: ${fileName}`);
 
-  // Simple verification depending on file
-  if (fileName.includes('bus_type')) {
-    connection.query("SELECT id, operator, bus_type FROM trips LIMIT 5", (vErr, rows) => {
-      if (vErr) {
-        console.error("❌ Verification query failed:", vErr);
-      } else {
-        console.log("\n📋 Sample trips after migration:");
-        console.table(rows);
-      }
-      connection.end();
-      console.log("\n✅ Migration script completed. Please restart your backend server if needed.");
-    });
-  } else if (fileName.includes('phone')) {
-    connection.query("SELECT id, name, email, sdt FROM users WHERE status = 'active' LIMIT 5", (vErr, rows) => {
-      if (vErr) {
-        console.error("❌ Verification query failed:", vErr);
-      } else {
-        console.log("\n📋 Sample users after migration:");
-        console.table(rows);
-      }
-      connection.end();
-      console.log("\n✅ Migration script completed. Please restart your backend server if needed.");
-    });
-  } else {
-    connection.end();
-    console.log("\n✅ Migration script completed. Please restart your backend server if needed.");
+  const sql = fs.readFileSync(migrationPath, "utf8");
+  const statements = sql
+    .split(/;\s*$/m)
+    .map(stmt => stmt.trim())
+    .filter(Boolean);
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    for (const statement of statements) {
+      await client.query(statement);
+    }
+    await client.query("COMMIT");
+    console.log("✅ Migration completed successfully!");
+    console.log(`📊 Statements executed: ${statements.length}`);
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("❌ Migration failed:", err);
+    process.exitCode = 1;
+  } finally {
+    client.release();
   }
+
+  try {
+    if (fileName.includes("bus_type")) {
+      const { rows } = await pool.query("SELECT id, operator, bus_type FROM trips LIMIT 5");
+      console.table(rows);
+    } else if (fileName.includes("phone")) {
+      const { rows } = await pool.query("SELECT id, name, email, sdt FROM users WHERE status = 'active' LIMIT 5");
+      console.table(rows);
+    }
+  } catch (err) {
+    console.error("❌ Verification query failed:", err);
+  }
+
+  await pool.end();
+  console.log("\n✅ Migration script completed. Please restart your backend server if needed.");
+}
+
+run().catch(err => {
+  console.error("❌ Unexpected migration error:", err);
+  process.exit(1);
 });

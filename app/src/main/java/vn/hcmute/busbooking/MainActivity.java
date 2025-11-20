@@ -10,10 +10,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Locale;
 
@@ -22,6 +25,12 @@ import vn.hcmute.busbooking.activity.LoginActivity;
 import vn.hcmute.busbooking.activity.MyBookingsActivity;
 import vn.hcmute.busbooking.activity.TripListActivity;
 import vn.hcmute.busbooking.activity.UserAccountActivity;
+import vn.hcmute.busbooking.adapter.PopularRoutesAdapter;
+import vn.hcmute.busbooking.adapter.PromotionsAdapter;
+import vn.hcmute.busbooking.adapter.TestimonialsAdapter;
+import vn.hcmute.busbooking.model.PopularRoute;
+import vn.hcmute.busbooking.model.Promotion;
+import vn.hcmute.busbooking.model.Testimonial;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class MainActivity extends AppCompatActivity {
@@ -45,6 +54,35 @@ public class MainActivity extends AppCompatActivity {
         tvLogin = findViewById(R.id.tvLogin);
         tvDate = findViewById(R.id.tvDate); // Find tvDate
         sessionManager = new SessionManager(this);
+
+        // Prepare RecyclerViews early (avoid "No adapter attached; skipping layout" warnings)
+        RecyclerView rvPopular = findViewById(R.id.rvPopularRoutes);
+        RecyclerView rvPromos = findViewById(R.id.rvPromotions);
+        RecyclerView rvReviews = findViewById(R.id.rvTestimonials);
+
+        if (rvPopular != null) {
+            rvPopular.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+            rvPopular.setHasFixedSize(true);
+            rvPopular.setNestedScrollingEnabled(false);
+            PopularRoutesAdapter prAdapter = new PopularRoutesAdapter(new ArrayList<>());
+            rvPopular.setAdapter(prAdapter);
+        }
+
+        if (rvPromos != null) {
+            rvPromos.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+            rvPromos.setHasFixedSize(true);
+            rvPromos.setNestedScrollingEnabled(false);
+            PromotionsAdapter promoAdapter = new PromotionsAdapter(new ArrayList<>());
+            rvPromos.setAdapter(promoAdapter);
+        }
+
+        if (rvReviews != null) {
+            rvReviews.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+            rvReviews.setHasFixedSize(true);
+            rvReviews.setNestedScrollingEnabled(false);
+            TestimonialsAdapter tAdapter = new TestimonialsAdapter(new ArrayList<>());
+            rvReviews.setAdapter(tAdapter);
+        }
 
         // Update UI based on login status
         updateUI();

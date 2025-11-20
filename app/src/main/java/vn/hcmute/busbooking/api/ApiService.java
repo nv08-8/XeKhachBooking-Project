@@ -92,4 +92,11 @@ public interface ApiService {
 
     @POST("api/auth/change-password")
     Call<Map<String, Object>> changePassword(@Body Map<String, String> body);
+
+    // New: popular routes and reviews
+    @GET("api/popular")
+    Call<List<Map<String, Object>>> getPopularRoutes(@Query("limit") Integer limit);
+
+    @GET("api/reviews")
+    Call<List<Map<String, Object>>> getReviews(@Query("limit") Integer limit);
 }

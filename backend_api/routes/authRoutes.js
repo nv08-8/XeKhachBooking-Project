@@ -5,11 +5,7 @@ const bcrypt = require("bcrypt");
 const sendEmail = require("../utils/sendEmail");
 const SALT_ROUNDS = 10;
 
-/* ============================================================
-    1. SEND OTP (REGISTER)
-   ============================================================ */
-
-router.post("/send-otp", (req, res) => {
+router.post("/send-otp", async (req, res) => {
     const { email } = req.body;
 
     if (!email)
@@ -17,299 +13,252 @@ router.post("/send-otp", (req, res) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000);
 
-    db.query("SELECT * FROM users WHERE email=?", [email], (err, rows) => {
-        if (err) return res.status(500).json({ message: err.message });
+    try {
+        const { rows } = await db.query("SELECT id, status FROM users WHERE email=$1", [email]);
 
-        if (rows.length === 0) {
-            db.query(
-                "INSERT INTO users (email, otp_code, status) VALUES (?, ?, 'pending')",
-                [email, otp],
-                (err2) => {
-                    if (err2) return res.status(500).json({ message: err2.message });
-
-                    res.json({ message: "OTP đã được gửi đến email!" });
-                    sendEmail(email, "Mã OTP đăng ký", `Mã OTP của bạn là: ${otp}`)
-                        .catch(emailErr => console.error("Gửi email thất bại:", emailErr));
-                }
+        if (!rows.length) {
+            await db.query(
+                "INSERT INTO users (email, otp_code, status) VALUES ($1, $2, 'pending')",
+                [email, otp]
             );
         } else {
             const user = rows[0];
             if (user.status === "active") {
                 return res.status(400).json({ message: "Email đã tồn tại!" });
             }
-            db.query(
-                "UPDATE users SET otp_code=?, status='pending' WHERE email=?",
-                [otp, email],
-                (err3) => {
-                    if (err3) return res.status(500).json({ message: err3.message });
-
-                    res.json({ message: "OTP đã được gửi đến email!" });
-                    sendEmail(email, "Mã OTP đăng ký", `Mã OTP của bạn là: ${otp}`)
-                        .catch(emailErr => console.error("Gửi email thất bại:", emailErr));
-                }
+            await db.query(
+                "UPDATE users SET otp_code=$1, status='pending' WHERE email=$2",
+                [otp, email]
             );
         }
-    });
+
+        res.json({ message: "OTP đã được gửi đến email!" });
+        sendEmail(email, "Mã OTP đăng ký", `Mã OTP của bạn là: ${otp}`)
+            .catch(emailErr => console.error("Gửi email thất bại:", emailErr));
+    } catch (err) {
+        console.error("Lỗi gửi OTP:", err);
+        res.status(500).json({ message: "Lỗi phía server." });
+    }
 });
 
-/* ============================================================
-    2. VERIFY OTP
-   ============================================================ */
-
-router.post("/verify-otp", (req, res) => {
+router.post("/verify-otp", async (req, res) => {
     const { email, otp } = req.body;
-
-    db.query(
-        "SELECT * FROM users WHERE email=? AND otp_code=?",
-        [email, otp],
-        (err, rows) => {
-            if (err) return res.status(500).json({ success: false, message: err.message });
-            if (rows.length === 0) return res.status(400).json({ success: false, message: "OTP sai!" });
-            return res.json({ success: true, message: "OTP hợp lệ!" });
+    try {
+        const { rows } = await db.query(
+            "SELECT id FROM users WHERE email=$1 AND otp_code=$2",
+            [email, otp]
+        );
+        if (!rows.length) {
+            return res.status(400).json({ success: false, message: "OTP sai!" });
         }
-    );
+        return res.json({ success: true, message: "OTP hợp lệ!" });
+    } catch (err) {
+        console.error("Lỗi verify OTP:", err);
+        return res.status(500).json({ success: false, message: "Lỗi phía server." });
+    }
 });
-
-
-/* ============================================================
-    3. FINISH REGISTER - ĐÃ SỬA LỖI
-   ============================================================ */
 
 router.post("/finish-register", async (req, res) => {
     const { name, phone, email, password } = req.body;
-
     if (!name || !phone || !email || !password)
         return res.status(400).json({ message: "Thiếu thông tin!" });
 
-    // Validate phone number format (keep as string to preserve leading zero)
     const phoneStr = phone.toString().trim();
     if (!/^\d{9,11}$/.test(phoneStr)) {
         return res.status(400).json({ message: "Số điện thoại không hợp lệ." });
     }
 
-    db.query("SELECT * FROM users WHERE sdt=? AND status='active'", [phoneStr], async (err, phoneRows) => {
-        if (err) {
-            console.error("Lỗi kiểm tra SĐT:", err);
-            return res.status(500).json({ message: "Lỗi phía server." });
-        }
-
+    try {
+        const { rows: phoneRows } = await db.query(
+            "SELECT id FROM users WHERE sdt=$1 AND status='active'",
+            [phoneStr]
+        );
         if (phoneRows.length > 0) {
             return res.status(400).json({ message: "Số điện thoại đã được sử dụng!" });
         }
 
         const hashed = await bcrypt.hash(password, SALT_ROUNDS);
-
-        db.query(
-            "UPDATE users SET name=?, sdt=?, password=?, otp_code=NULL, status='active' WHERE email=?",
-            [name, phoneStr, hashed, email], // Store phone as string to keep leading zero
-            (err2) => {
-                if (err2) {
-                    console.error("Lỗi cập nhật user:", err2);
-                    return res.status(500).json({ message: "Lỗi khi tạo tài khoản." });
-                }
-
-                return res.json({ message: "Tạo tài khoản thành công!" });
-            }
+        const { rowCount } = await db.query(
+            "UPDATE users SET name=$1, sdt=$2, password=$3, otp_code=NULL, status='active' WHERE email=$4",
+            [name, phoneStr, hashed, email]
         );
-    });
+        if (!rowCount) {
+            return res.status(404).json({ message: "Không tìm thấy tài khoản." });
+        }
+
+        return res.json({ message: "Tạo tài khoản thành công!" });
+    } catch (err) {
+        console.error("Lỗi tạo tài khoản:", err);
+        return res.status(500).json({ message: "Lỗi phía server." });
+    }
 });
 
-/* ============================================================
-    4. LOGIN (Chỉ active)
-   ============================================================ */
-
-router.post("/login", (req, res) => {
+router.post("/login", async (req, res) => {
     const { email, password } = req.body;
+    try {
+        const { rows } = await db.query(
+            "SELECT * FROM users WHERE email=$1",
+            [email]
+        );
+        if (!rows.length)
+            return res.status(401).json({ message: "Sai email hoặc mật khẩu!" });
 
-    db.query(
-        "SELECT * FROM users WHERE email=?",
-        [email],
-        async (err, rows) => {
-            if (err) return res.status(500).json({ message: err.message });
-
-            if (rows.length === 0)
-                return res.status(401).json({ message: "Sai email hoặc mật khẩu!" });
-
-            const user = rows[0];
-
-            if (user.status !== "active") {
-                return res.status(403).json({ message: "Tài khoản chưa xác thực email!" });
-            }
-
-            const isMatch = await bcrypt.compare(password, user.password);
-            if (!isMatch)
-                return res.status(401).json({ message: "Sai email hoặc mật khẩu!" });
-
-            delete user.password;
-
-            return res.json({
-                message: "Đăng nhập thành công!",
-                user
-            });
+        const user = rows[0];
+        if (user.status !== "active") {
+            return res.status(403).json({ message: "Tài khoản chưa xác thực email!" });
         }
-    );
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch)
+            return res.status(401).json({ message: "Sai email hoặc mật khẩu!" });
+
+        delete user.password;
+        return res.json({
+            message: "Đăng nhập thành công!",
+            user
+        });
+    } catch (err) {
+        console.error("Lỗi đăng nhập:", err);
+        return res.status(500).json({ message: "Lỗi phía server." });
+    }
 });
 
-/* ============================================================
-    5. FORGOT PASSWORD → SEND OTP
-   ============================================================ */
-
-router.post("/forgot-password", (req, res) => {
+router.post("/forgot-password", async (req, res) => {
     const { email } = req.body;
-
     const otp = Math.floor(100000 + Math.random() * 900000);
+    try {
+        const result = await db.query(
+            "UPDATE users SET otp_code=$1 WHERE email=$2 AND status='active'",
+            [otp, email]
+        );
+        if (!result.rowCount)
+            return res.status(404).json({ message: "Email không tồn tại hoặc chưa active!" });
 
-    db.query(
-        "UPDATE users SET otp_code=? WHERE email=? AND status='active'",
-        [otp, email],
-        (err, result) => {
-            if (err) return res.status(500).json({ message: err.message });
-
-            if (result.affectedRows === 0)
-                return res.status(404).json({ message: "Email không tồn tại hoặc chưa active!" });
-
-            res.json({ success: true, message: "OTP đã được gửi đến email!" });
-
-            sendEmail(email, "Mã OTP đặt lại mật khẩu", `Mã OTP của bạn là: ${otp}`)
-                .catch(emailErr => console.error("Gửi email quên mật khẩu thất bại:", emailErr));
-        }
-    );
+        res.json({ success: true, message: "OTP đã được gửi đến email!" });
+        sendEmail(email, "Mã OTP đặt lại mật khẩu", `Mã OTP của bạn là: ${otp}`)
+            .catch(emailErr => console.error("Gửi email quên mật khẩu thất bại:", emailErr));
+    } catch (err) {
+        console.error("Lỗi forgot password:", err);
+        return res.status(500).json({ message: "Lỗi phía server." });
+    }
 });
-
-/* ============================================================
-    6. RESET PASSWORD
-   ============================================================ */
 
 router.post("/reset-password", async (req, res) => {
     const { email, newPassword } = req.body;
-
-    const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
-
-    db.query(
-        "UPDATE users SET password=?, otp_code=NULL WHERE email=? AND status='active'",
-        [hashed, email],
-        (err) => {
-            if (err) return res.status(500).json({ message: err.message });
-
-            res.json({ success: true, message: "Đặt lại mật khẩu thành công!" });
+    try {
+        const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
+        const { rowCount } = await db.query(
+            "UPDATE users SET password=$1, otp_code=NULL WHERE email=$2 AND status='active'",
+            [hashed, email]
+        );
+        if (!rowCount) {
+            return res.status(404).json({ message: "Email không tồn tại hoặc chưa active!" });
         }
-    );
+        res.json({ success: true, message: "Đặt lại mật khẩu thành công!" });
+    } catch (err) {
+        console.error("Lỗi reset mật khẩu:", err);
+        return res.status(500).json({ message: "Lỗi phía server." });
+    }
 });
 
-/* ============================================================
-    7. GET USER INFO
-   ============================================================ */
-
-router.get("/user/:id", (req, res) => {
+router.get("/user/:id", async (req, res) => {
     const { id } = req.params;
-
-    db.query(
-        "SELECT id, name, email, sdt, status FROM users WHERE id=? AND status='active'",
-        [id],
-        (err, rows) => {
-            if (err) return res.status(500).json({ message: err.message });
-            if (rows.length === 0) return res.status(404).json({ message: "User not found" });
-            res.json(rows[0]);
-        }
-    );
+    try {
+        const { rows } = await db.query(
+            "SELECT id, name, email, sdt, status FROM users WHERE id=$1 AND status='active'",
+            [id]
+        );
+        if (!rows.length) return res.status(404).json({ message: "User not found" });
+        res.json(rows[0]);
+    } catch (err) {
+        console.error("Lỗi lấy user:", err);
+        return res.status(500).json({ message: "Lỗi phía server." });
+    }
 });
-
-/* ============================================================
-    8. CHANGE PASSWORD (for app - using email)
-   ============================================================ */
 
 router.post("/change-password", async (req, res) => {
     const { email, currentPassword, newPassword } = req.body;
-
     if (!email || !currentPassword || !newPassword) {
         return res.status(400).json({ success: false, message: "Thiếu thông tin!" });
     }
 
-    db.query(
-        "SELECT id, password FROM users WHERE email=? AND status='active'",
-        [email],
-        async (err, rows) => {
-            if (err) return res.status(500).json({ success: false, message: err.message });
-            if (rows.length === 0) return res.status(404).json({ success: false, message: "User not found" });
+    try {
+        const { rows } = await db.query(
+            "SELECT id, password FROM users WHERE email=$1 AND status='active'",
+            [email]
+        );
+        if (!rows.length) return res.status(404).json({ success: false, message: "User not found" });
 
-            const user = rows[0];
-            const isMatch = await bcrypt.compare(currentPassword, user.password);
-
-            if (!isMatch) {
-                return res.status(401).json({ success: false, message: "Mật khẩu hiện tại không đúng!" });
-            }
-
-            const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
-            db.query(
-                "UPDATE users SET password=? WHERE id=?",
-                [hashed, user.id],
-                (err2) => {
-                    if (err2) return res.status(500).json({ success: false, message: err2.message });
-                    res.json({ success: true, message: "Đổi mật khẩu thành công!" });
-                }
-            );
+        const user = rows[0];
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: "Mật khẩu hiện tại không đúng!" });
         }
-    );
-});
 
-/* ============================================================
-    9. UPDATE USER PROFILE (Only name and phone)
-   ============================================================ */
+        const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
+        await db.query(
+            "UPDATE users SET password=$1 WHERE id=$2",
+            [hashed, user.id]
+        );
+        res.json({ success: true, message: "Đổi mật khẩu thành công!" });
+    } catch (err) {
+        console.error("Lỗi đổi mật khẩu:", err);
+        return res.status(500).json({ success: false, message: "Lỗi phía server." });
+    }
+});
 
 router.put("/user/:id", async (req, res) => {
     const { id } = req.params;
     const { name, sdt } = req.body;
-
     if (!name && !sdt) {
         return res.status(400).json({ success: false, message: "Không có thông tin để cập nhật!" });
     }
 
-    let updateFields = [];
-    let updateValues = [];
+    const updateFields = [];
+    const updateValues = [];
 
     if (name) {
-        updateFields.push("name=?");
+        updateFields.push(`name=$${updateValues.length + 1}`);
         updateValues.push(name);
     }
 
     if (sdt) {
-        // Validate phone number format (keep as string to preserve leading zero)
         const phoneStr = sdt.toString().trim();
         if (!/^\d{9,11}$/.test(phoneStr)) {
             return res.status(400).json({ success: false, message: "Số điện thoại không hợp lệ." });
         }
 
-        // Check if phone is already used by another user
-        const checkPhone = await new Promise((resolve, reject) => {
-            db.query(
-                "SELECT id FROM users WHERE sdt=? AND id!=? AND status='active'",
-                [phoneStr, id],
-                (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows);
-                }
+        try {
+            const { rows } = await db.query(
+                "SELECT id FROM users WHERE sdt=$1 AND id!=$2 AND status='active'",
+                [phoneStr, id]
             );
-        });
-
-        if (checkPhone.length > 0) {
-            return res.status(400).json({ success: false, message: "Số điện thoại đã được sử dụng!" });
+            if (rows.length > 0) {
+                return res.status(400).json({ success: false, message: "Số điện thoại đã được sử dụng!" });
+            }
+        } catch (err) {
+            console.error("Lỗi kiểm tra SĐT:", err);
+            return res.status(500).json({ success: false, message: "Lỗi phía server." });
         }
 
-        updateFields.push("sdt=?");
+        updateFields.push(`sdt=$${updateValues.length + 1}`);
         updateValues.push(phoneStr);
     }
 
+    const idPlaceholder = `$${updateValues.length + 1}`;
     updateValues.push(id);
+    const sql = `UPDATE users SET ${updateFields.join(", ")} WHERE id=${idPlaceholder} AND status='active'`;
 
-    const sql = `UPDATE users SET ${updateFields.join(", ")} WHERE id=? AND status='active'`;
-
-    db.query(sql, updateValues, (err, result) => {
-        if (err) return res.status(500).json({ success: false, message: err.message });
-        if (result.affectedRows === 0) {
+    try {
+        const result = await db.query(sql, updateValues);
+        if (!result.rowCount) {
             return res.status(404).json({ success: false, message: "User not found" });
         }
         res.json({ success: true, message: "Cập nhật thông tin thành công!" });
-    });
+    } catch (err) {
+        console.error("Lỗi cập nhật user:", err);
+        return res.status(500).json({ success: false, message: "Lỗi phía server." });
+    }
 });
 
 module.exports = router;
