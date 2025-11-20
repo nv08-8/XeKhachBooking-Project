@@ -165,7 +165,7 @@ router.get("/user/:id", async (req, res) => {
     const { id } = req.params;
     try {
         const { rows } = await db.query(
-            "SELECT id, name, email, sdt, status FROM users WHERE id=$1 AND status='active'",
+            "SELECT id, name, email, sdt, status, role FROM users WHERE id=$1 AND status='active'",
             [id]
         );
         if (!rows.length) return res.status(404).json({ message: "User not found" });

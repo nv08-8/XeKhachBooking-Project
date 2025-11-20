@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -57,6 +58,8 @@ public class EditProfileActivity extends AppCompatActivity {
         edtPhone = findViewById(R.id.edtPhone);
         btnSaveProfile = findViewById(R.id.btnSaveProfile);
         ivBack = findViewById(R.id.ivBack);
+
+
 
         Log.d(TAG, "Views initialized, ivBack: " + (ivBack != null));
 
@@ -110,33 +113,45 @@ public class EditProfileActivity extends AppCompatActivity {
         if (name != null) edtName.setText(name);
         if (email != null) {
             edtEmail.setText(email);
-            edtEmail.setEnabled(false); // Email cannot be changed
+            edtEmail.setEnabled(false);
         }
 
-        // Load phone from server
         Integer userId = sessionManager.getUserId();
         if (userId != null) {
             apiService.getUserProfile(userId).enqueue(new Callback<Map<String, Object>>() {
                 @Override
                 public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                     if (response.isSuccessful() && response.body() != null) {
-                        Map<String, Object> user = response.body();
-                        Object phoneObj = user.get("sdt");
+                        Map<String, Object> userData = response.body(); // Đổi tên biến user -> userData để tránh nhầm lẫn
+
+                        // --- XỬ LÝ SỐ ĐIỆN THOẠI ---
+                        Object phoneObj = userData.get("sdt");
                         if (phoneObj != null) {
-                            // Handle phone number formatting
                             String phone;
                             if (phoneObj instanceof Number) {
-                                // Convert number to string without scientific notation
                                 phone = String.format("%.0f", ((Number) phoneObj).doubleValue());
                             } else {
                                 phone = phoneObj.toString();
                             }
-                            // Ensure phone number has 10 digits, add leading zero if needed
                             if (phone.length() == 9 && !phone.startsWith("0")) {
                                 phone = "0" + phone;
                             }
                             edtPhone.setText(phone);
                         }
+
+                        // --- XỬ LÝ ROLE (MỚI THÊM) ---
+                        // Đảm bảo bạn đã ánh xạ edtRole trong onCreate hoặc ánh xạ tại đây
+                        TextInputEditText edtRole = findViewById(R.id.edtRole);
+                        Object roleObj = userData.get("role"); // Lấy key 'role' từ API trả về
+
+                        if (roleObj != null) {
+                            String roleStr = roleObj.toString().toUpperCase();
+                            edtRole.setText(roleStr);
+                        } else {
+                            // Nếu không có role, mặc định là USER
+                            edtRole.setText("USER");
+                        }
+
                         Log.d(TAG, "User info loaded");
                     }
                 }
@@ -148,6 +163,7 @@ public class EditProfileActivity extends AppCompatActivity {
             });
         }
     }
+
 
     private void saveProfile() {
         String name = edtName.getText().toString().trim();
