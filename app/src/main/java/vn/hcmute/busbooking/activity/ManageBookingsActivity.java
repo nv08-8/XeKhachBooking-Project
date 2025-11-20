@@ -1,35 +1,126 @@
 package vn.hcmute.busbooking.activity;
 
-import android.content.Intent;
 import android.os.Bundle;
-import android.widget.ArrayAdapter;
-import android.widget.ListView;
-
+import android.view.View;
+import android.widget.Button;
+import android.widget.ProgressBar;
+import android.widget.Spinner;
+import android.widget.TextView;
+import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 import vn.hcmute.busbooking.R;
+import vn.hcmute.busbooking.adapter.BookingsAdapter;
+import vn.hcmute.busbooking.api.ApiClient;
+import vn.hcmute.busbooking.api.ApiService;
 
 public class ManageBookingsActivity extends AppCompatActivity {
-
-    private ListView lvBookings;
+    private ProgressBar progressBookings;
+    private RecyclerView rvBookings;
+    private TextView tvEmptyBookings;
+    private Spinner spinnerBookingStatus;
+    private Button btnRefreshBookings;
+    private BookingsAdapter adapter;
+    private List<Map<String, Object>> bookingsList = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_manage_bookings);
 
-        lvBookings = findViewById(R.id.lvBookings);
+        progressBookings = findViewById(R.id.progressBookings);
+        rvBookings = findViewById(R.id.rvBookings);
+        tvEmptyBookings = findViewById(R.id.tvEmptyBookings);
+        spinnerBookingStatus = findViewById(R.id.spinnerBookingStatus);
+        btnRefreshBookings = findViewById(R.id.btnRefreshBookings);
 
-        String[] sample = new String[]{"#BK001 - Nguyễn A - Hà Nội -> Hải Phòng", "#BK002 - Trần B - Hà Nội -> Nam Định"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, sample);
-        lvBookings.setAdapter(adapter);
+        // Setup RecyclerView
+        rvBookings.setLayoutManager(new LinearLayoutManager(this));
+        adapter = new BookingsAdapter(bookingsList, new BookingsAdapter.OnBookingClickListener() {
+            @Override
+            public void onConfirmBooking(Map<String, Object> booking) {
+                Toast.makeText(ManageBookingsActivity.this, "Xác nhận: " + booking.get("id"), Toast.LENGTH_SHORT).show();
+            }
 
-        lvBookings.setOnItemClickListener((parent, view, position, id) -> {
-            // open detail
-            Intent intent = new Intent(ManageBookingsActivity.this, BookingAdminDetailActivity.class);
-            // intent.putExtra("booking_id", ...);
-            startActivity(intent);
+            @Override
+            public void onCancelBooking(Map<String, Object> booking) {
+                Toast.makeText(ManageBookingsActivity.this, "Hủy: " + booking.get("id"), Toast.LENGTH_SHORT).show();
+            }
+        });
+        rvBookings.setAdapter(adapter);
+
+        btnRefreshBookings.setOnClickListener(v -> fetchAdminBookings());
+        spinnerBookingStatus.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                fetchAdminBookings();
+            }
+
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+
+        fetchAdminBookings();
+    }
+
+    private void fetchAdminBookings() {
+        progressBookings.setVisibility(View.VISIBLE);
+        rvBookings.setVisibility(View.GONE);
+        tvEmptyBookings.setVisibility(View.GONE);
+
+        ApiService api = ApiClient.getClient().create(ApiService.class);
+        Call<Map<String, Object>> call = api.getAdminBookings(new HashMap<>());
+        call.enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                progressBookings.setVisibility(View.GONE);
+                if (!response.isSuccessful() || response.body() == null) {
+                    tvEmptyBookings.setText("Không thể tải dữ liệu (code=" + response.code() + ")");
+                    tvEmptyBookings.setVisibility(View.VISIBLE);
+                    return;
+                }
+
+                Map<String, Object> result = response.body();
+                List<Map<String, Object>> bookings = null;
+
+                // Try multiple possible response keys
+                if (result.containsKey("data")) {
+                    bookings = (List<Map<String, Object>>) result.get("data");
+                } else if (result.containsKey("bookings")) {
+                    bookings = (List<Map<String, Object>>) result.get("bookings");
+                } else {
+                    // Nếu không có key, có thể result chính là list hoặc một array
+                    // Log toàn bộ response để debug
+                    android.util.Log.d("ManageBookings", "Response: " + result.toString());
+                }
+
+                if (bookings == null || bookings.isEmpty()) {
+                    tvEmptyBookings.setText("Không có đơn đặt vé");
+                    tvEmptyBookings.setVisibility(View.VISIBLE);
+                } else {
+                    bookingsList.clear();
+                    bookingsList.addAll(bookings);
+                    adapter.notifyDataSetChanged();
+                    rvBookings.setVisibility(View.VISIBLE);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                progressBookings.setVisibility(View.GONE);
+                tvEmptyBookings.setText("Lỗi: " + t.getMessage());
+                tvEmptyBookings.setVisibility(View.VISIBLE);
+            }
         });
     }
 }
-

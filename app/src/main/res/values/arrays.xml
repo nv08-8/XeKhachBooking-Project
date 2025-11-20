@@ -32,5 +32,13 @@
         <item>Theo ngày</item>
         <item>Theo tháng</item>
         <item>Theo năm</item>
+        <item>Theo tuyến</item>
+    </string-array>
+
+    <string-array name="booking_status">
+        <item>Tất cả</item>
+        <item>Chờ xác nhận</item>
+        <item>Đã xác nhận</item>
+        <item>Đã hủy</item>
     </string-array>
 </resources>

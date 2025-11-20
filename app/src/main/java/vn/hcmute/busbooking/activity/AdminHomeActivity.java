@@ -17,8 +17,8 @@ public class AdminHomeActivity extends AppCompatActivity {
         setContentView(R.layout.activity_admin_home);
 
         TextView tvGreeting = findViewById(R.id.tvGreeting);
-        
-        View btnManageRoutes = findViewById(R.id.btnManageUsers);
+
+        View btnManageRoutes = findViewById(R.id.btnManageRoutes);
         View btnManageBookings = findViewById(R.id.btnManageBookings);
         View btnRevenueStats = findViewById(R.id.btnRevenueStats);
         View btnLogout = findViewById(R.id.btnLogout);

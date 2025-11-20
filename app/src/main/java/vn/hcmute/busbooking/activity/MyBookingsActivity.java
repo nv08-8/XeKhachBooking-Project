@@ -25,7 +25,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 import vn.hcmute.busbooking.R;
-import vn.hcmute.busbooking.adapter.BookingAdapter;
+import vn.hcmute.busbooking.adapter.BackupBookingAdapter;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.Booking;
@@ -37,7 +37,7 @@ public class MyBookingsActivity extends AppCompatActivity {
     private RecyclerView rvBookings;
     private TextView tvEmptyState;
     private ProgressBar progressBar;
-    private BookingAdapter bookingAdapter;
+    private BackupBookingAdapter bookingAdapter;
     private ApiService apiService;
     private SessionManager sessionManager;
     private MaterialToolbar toolbar;
@@ -60,7 +60,7 @@ public class MyBookingsActivity extends AppCompatActivity {
         apiService = ApiClient.getClient().create(ApiService.class);
 
         rvBookings.setLayoutManager(new LinearLayoutManager(this));
-        bookingAdapter = new BookingAdapter(new ArrayList<>(), this::onCancelBooking);
+        bookingAdapter = new BackupBookingAdapter(new ArrayList<>(), this::onCancelBooking);
         rvBookings.setAdapter(bookingAdapter);
 
         // Open booking details when a ticket is clicked

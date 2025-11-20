@@ -5,9 +5,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F5F5F5">
+    android:background="@color/background">
 
-    <!-- Header with Gradient Background -->
+    <!-- Header with Primary Background -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -24,7 +24,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/admin_panel_title"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/white"
                 android:textSize="22sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="8dp" />
@@ -62,7 +62,7 @@
 
                 <!-- Manage Routes -->
                 <androidx.cardview.widget.CardView
-                    android:id="@+id/btnManageUsers"
+                    android:id="@+id/btnManageRoutes"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
@@ -70,7 +70,7 @@
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="16dp"
                     app:cardCornerRadius="12dp"
-                    app:cardElevation="4dp"
+                    app:cardElevation="6dp"
                     android:clickable="true"
                     android:foreground="?attr/selectableItemBackground">
 
@@ -79,15 +79,15 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:gravity="center"
-                        android:padding="24dp"
+                        android:padding="20dp"
                         android:background="#E8F5E9">
 
                         <ImageView
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
                             android:src="@drawable/ic_bus"
                             app:tint="#2E7D32"
-                            android:layout_marginBottom="12dp" />
+                            android:layout_marginBottom="10dp" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -110,7 +110,7 @@
                     android:layout_marginStart="8dp"
                     android:layout_marginBottom="16dp"
                     app:cardCornerRadius="12dp"
-                    app:cardElevation="4dp"
+                    app:cardElevation="6dp"
                     android:clickable="true"
                     android:foreground="?attr/selectableItemBackground">
 
@@ -119,15 +119,15 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:gravity="center"
-                        android:padding="24dp"
+                        android:padding="20dp"
                         android:background="#E3F2FD">
 
                         <ImageView
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
                             android:src="@drawable/ic_ticket"
                             app:tint="#1565C0"
-                            android:layout_marginBottom="12dp" />
+                            android:layout_marginBottom="10dp" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -150,7 +150,7 @@
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="16dp"
                     app:cardCornerRadius="12dp"
-                    app:cardElevation="4dp"
+                    app:cardElevation="6dp"
                     android:clickable="true"
                     android:foreground="?attr/selectableItemBackground">
 
@@ -159,15 +159,15 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:gravity="center"
-                        android:padding="24dp"
+                        android:padding="20dp"
                         android:background="#FFF8E1">
 
                         <ImageView
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
                             android:src="@drawable/ic_chart_bar"
                             app:tint="#F9A825"
-                            android:layout_marginBottom="12dp" />
+                            android:layout_marginBottom="10dp" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -190,7 +190,7 @@
                     android:layout_marginStart="8dp"
                     android:layout_marginBottom="16dp"
                     app:cardCornerRadius="12dp"
-                    app:cardElevation="4dp"
+                    app:cardElevation="6dp"
                     android:clickable="true"
                     android:foreground="?attr/selectableItemBackground">
 
@@ -199,20 +199,20 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:gravity="center"
-                        android:padding="24dp"
+                        android:padding="20dp"
                         android:background="#FFEBEE">
 
                         <ImageView
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
                             android:src="@drawable/ic_logout"
                             app:tint="#D32F2F"
-                            android:layout_marginBottom="12dp" />
+                            android:layout_marginBottom="10dp" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Đăng xuất"
+                            android:text="@string/login_out"
                             android:textSize="14sp"
                             android:textStyle="bold"
                             android:textColor="#D32F2F"
@@ -221,6 +221,7 @@
                 </androidx.cardview.widget.CardView>
 
             </GridLayout>
+
 
         </LinearLayout>
     </ScrollView>
