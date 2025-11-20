@@ -16,10 +16,15 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import java.util.ArrayList;
 import java.util.List;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.adapter.PopularRoutesAdapter;
 import vn.hcmute.busbooking.adapter.PromotionsAdapter;
 import vn.hcmute.busbooking.adapter.TestimonialsAdapter;
+import vn.hcmute.busbooking.api.ApiClient;
+import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.PopularRoute;
 import vn.hcmute.busbooking.model.Promotion;
 import vn.hcmute.busbooking.model.Testimonial;
@@ -36,6 +41,8 @@ public class GuestHomeActivity extends AppCompatActivity {
     private PromotionsAdapter promotionsAdapter;
     private TestimonialsAdapter testimonialsAdapter;
 
+    private ApiService apiService;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -50,6 +57,8 @@ public class GuestHomeActivity extends AppCompatActivity {
         rvPromotions = findViewById(R.id.rvPromotions);
         rvTestimonials = findViewById(R.id.rvTestimonials);
         bottomNav = findViewById(R.id.bottom_navigation);
+
+        apiService = ApiClient.getClient().create(ApiService.class);
 
         // --- Set Listeners ---
         tvLogin.setOnClickListener(v -> {
@@ -90,11 +99,104 @@ public class GuestHomeActivity extends AppCompatActivity {
         etOrigin.setAdapter(adapter);
         etDestination.setAdapter(adapter);
 
-        setupMockData();
+        // Initialize recyclers with empty adapters and then fetch real data
+        rvPopularRoutes.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        rvPromotions.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        rvTestimonials.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+
+        popularRoutesAdapter = new PopularRoutesAdapter(new java.util.ArrayList<>());
+        promotionsAdapter = new PromotionsAdapter(new java.util.ArrayList<>());
+        testimonialsAdapter = new TestimonialsAdapter(new java.util.ArrayList<>());
+
+        rvPopularRoutes.setAdapter(popularRoutesAdapter);
+        rvPromotions.setAdapter(promotionsAdapter);
+        rvTestimonials.setAdapter(testimonialsAdapter);
+
+        // Fetch from backend
+        fetchPopularRoutes();
+        fetchFeaturedPromotions();
+        fetchReviews();
+    }
+
+    private void fetchPopularRoutes() {
+        apiService.getPopularRoutes(10).enqueue(new Callback<java.util.List<java.util.Map<String, Object>>>() {
+            @Override
+            public void onResponse(Call<java.util.List<java.util.Map<String, Object>>> call, Response<java.util.List<java.util.Map<String, Object>>> response) {
+                if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
+                    java.util.List<java.util.Map<String, Object>> rows = response.body();
+                    java.util.List<vn.hcmute.busbooking.model.PopularRoute> routes = new java.util.ArrayList<>();
+                    for (java.util.Map<String, Object> r : rows) {
+                        String name = r.get("name") != null ? String.valueOf(r.get("name")) : "";
+                        Object priceObj = r.get("avg_price");
+                        String price = priceObj != null ? "Từ " + priceObj.toString() : "";
+                        // Use a default drawable for server-provided routes
+                        int img = R.drawable.img_route1;
+                        routes.add(new vn.hcmute.busbooking.model.PopularRoute(name, price, img));
+                    }
+                    popularRoutesAdapter = new PopularRoutesAdapter(routes);
+                    rvPopularRoutes.setAdapter(popularRoutesAdapter);
+                } else {
+                    // fallback to mock data
+                    setupMockData();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<java.util.List<java.util.Map<String, Object>>> call, Throwable t) {
+                setupMockData();
+            }
+        });
+    }
+
+    private void fetchFeaturedPromotions() {
+        apiService.getFeaturedPromotions(5).enqueue(new Callback<java.util.List<java.util.Map<String, Object>>>() {
+            @Override
+            public void onResponse(Call<java.util.List<java.util.Map<String, Object>>> call, Response<java.util.List<java.util.Map<String, Object>>> response) {
+                if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
+                    java.util.List<java.util.Map<String, Object>> rows = response.body();
+                    java.util.List<vn.hcmute.busbooking.model.Promotion> promos = new java.util.ArrayList<>();
+                    for (java.util.Map<String, Object> p : rows) {
+                        String title = p.get("title") != null ? String.valueOf(p.get("title")) : "";
+                        String desc = p.get("description") != null ? String.valueOf(p.get("description")) : "";
+                        promos.add(new vn.hcmute.busbooking.model.Promotion(title, desc, R.drawable.promo1));
+                    }
+                    promotionsAdapter = new PromotionsAdapter(promos);
+                    rvPromotions.setAdapter(promotionsAdapter);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<java.util.List<java.util.Map<String, Object>>> call, Throwable t) {
+                // Leave existing (or mock) promotions
+            }
+        });
+    }
+
+    private void fetchReviews() {
+        apiService.getReviews(10).enqueue(new Callback<java.util.List<java.util.Map<String, Object>>>() {
+            @Override
+            public void onResponse(Call<java.util.List<java.util.Map<String, Object>>> call, Response<java.util.List<java.util.Map<String, Object>>> response) {
+                if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
+                    java.util.List<java.util.Map<String, Object>> rows = response.body();
+                    java.util.List<vn.hcmute.busbooking.model.Testimonial> list = new java.util.ArrayList<>();
+                    for (java.util.Map<String, Object> r : rows) {
+                        String name = r.get("customer_name") != null ? String.valueOf(r.get("customer_name")) : "Khách";
+                        String comment = r.get("comment") != null ? String.valueOf(r.get("comment")) : "";
+                        list.add(new vn.hcmute.busbooking.model.Testimonial(name, comment, R.drawable.user1));
+                    }
+                    testimonialsAdapter = new TestimonialsAdapter(list);
+                    rvTestimonials.setAdapter(testimonialsAdapter);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<java.util.List<java.util.Map<String, Object>>> call, Throwable t) {
+                // keep mock testimonials
+            }
+        });
     }
 
     private void setupMockData() {
-        rvPopularRoutes.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         List<PopularRoute> routes = new ArrayList<>();
         routes.add(new PopularRoute("Hồ Chí Minh – Nha Trang", "Từ 199.000đ", R.drawable.img_route1));
         routes.add(new PopularRoute("Hồ Chí Minh – Đà Lạt", "Từ 150.000đ", R.drawable.img_route2));
@@ -103,7 +205,6 @@ public class GuestHomeActivity extends AppCompatActivity {
         popularRoutesAdapter = new PopularRoutesAdapter(routes);
         rvPopularRoutes.setAdapter(popularRoutesAdapter);
 
-        rvPromotions.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         List<Promotion> promotions = new ArrayList<>();
         promotions.add(new Promotion("Giảm 30%", "Ưu đãi tháng 11", R.drawable.promo1));
         promotions.add(new Promotion("Giảm 50%", "Cuối tuần", R.drawable.promo2));
@@ -111,7 +212,6 @@ public class GuestHomeActivity extends AppCompatActivity {
         promotionsAdapter = new PromotionsAdapter(promotions);
         rvPromotions.setAdapter(promotionsAdapter);
 
-        rvTestimonials.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         List<Testimonial> testimonials = new ArrayList<>();
         testimonials.add(new Testimonial("Nguyễn Văn A", "Xe sạch, tài xế vui vẻ!", R.drawable.user1));
         testimonials.add(new Testimonial("Trần Thị B", "Giá ok, đặt vé nhanh chóng!", R.drawable.user2));

@@ -63,4 +63,16 @@
     <string name="content_description_origin_icon">Origin Icon</string>
     <string name="content_description_destination_icon">Destination Icon</string>
 
+    <!-- Account screen texts -->
+    <string name="account_title">Thông tin tài khoản</string>
+    <string name="account_edit_profile">Chỉnh sửa thông tin</string>
+    <string name="account_change_password">Đổi mật khẩu</string>
+    <string name="account_logout">Đăng xuất</string>
+    <string name="cd_footer_decoration">Trang trí dưới cùng</string>
+    <string name="login_out">Đăng xuất</string>
+    <string name="welcome_guest">Xin chào, Khách!</string>
+    <string name="promo_default">🎉 Khuyến mãi đặc biệt</string>
+    <string name="promo_banner_format">🎉 %1$s - Giảm %2$s%%</string>
+    <string name="tv_welcome_format">Xin chào, %1$s!</string>
+    <string name="content_description_footer_spikes">Footer spikes</string>
 </resources>

@@ -54,4 +54,8 @@ dependencies {
 
     // ZXing for QR code generation
     implementation("com.google.zxing:core:3.5.2")
+
+    // Glide for async image loading and decoding off the main thread
+    implementation("com.github.bumptech.glide:glide:4.15.1")
+    annotationProcessor("com.github.bumptech.glide:compiler:4.15.1")
 }

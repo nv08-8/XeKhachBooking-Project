@@ -52,10 +52,12 @@ function listRoutes(app) {
     }
 }
 
-app.get("/", (req, res) => res.send("GoUTE API is running 🚍"));
+app.get("/", (req, res) => {
+    res.send("XeKhachBooking API chạy bằng PostgreSQL trên Render nè!");
+});
 
 // FIX PORT CHO RAILWAY
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, () => {
     console.log("Server started on port", PORT);

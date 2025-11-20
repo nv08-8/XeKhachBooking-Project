@@ -291,7 +291,7 @@
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvPromotions"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="150dp"
                 android:layout_marginTop="8dp"
                 android:clipToPadding="false"
                 android:importantForAccessibility="no"
@@ -315,7 +315,7 @@
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvTestimonials"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="180dp"
                 android:layout_marginTop="8dp"
                 android:clipToPadding="false"
                 android:orientation="horizontal"
