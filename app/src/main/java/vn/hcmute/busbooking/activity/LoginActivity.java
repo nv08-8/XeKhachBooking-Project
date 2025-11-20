@@ -126,7 +126,29 @@ public class LoginActivity extends AppCompatActivity {
 
                     Toast.makeText(LoginActivity.this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
 
-                    Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                    // Determine if user is admin. The backend may return a 'role' field, or 'isAdmin'.
+                    boolean isAdmin = false;
+                    if (user != null) {
+                        Object roleObj = user.get("role");
+                        if (roleObj != null && "admin".equalsIgnoreCase(String.valueOf(roleObj))) {
+                            isAdmin = true;
+                        } else {
+                            Object isAdminObj = user.get("isAdmin");
+                            if (isAdminObj != null) {
+                                try {
+                                    isAdmin = Boolean.parseBoolean(String.valueOf(isAdminObj));
+                                } catch (Exception ignored) {
+                                }
+                            }
+                        }
+                    }
+
+                    Intent intent;
+                    if (isAdmin) {
+                        intent = new Intent(LoginActivity.this, AdminHomeActivity.class);
+                    } else {
+                        intent = new Intent(LoginActivity.this, MainActivity.class);
+                    }
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                     startActivity(intent);
                     finish();

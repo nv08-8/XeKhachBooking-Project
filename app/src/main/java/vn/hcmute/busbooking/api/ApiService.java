@@ -99,4 +99,31 @@ public interface ApiService {
 
     @GET("api/reviews")
     Call<List<Map<String, Object>>> getReviews(@Query("limit") Integer limit);
+
+    // ----- Admin endpoints (stubs) -----
+
+    // Routes management
+    @POST("api/admin/routes")
+    Call<Map<String, Object>> createRoute(@Body Map<String, Object> body);
+
+    @PUT("api/admin/routes/{id}")
+    Call<Map<String, Object>> updateRoute(@Path("id") int routeId, @Body Map<String, Object> body);
+
+    @DELETE("api/admin/routes/{id}")
+    Call<Map<String, Object>> deleteRoute(@Path("id") int routeId);
+
+    // Admin bookings
+    @GET("api/admin/bookings")
+    Call<Map<String, Object>> getAdminBookings(@QueryMap Map<String, String> query);
+
+    @POST("api/admin/bookings/{id}/confirm")
+    Call<Map<String, Object>> confirmAdminBooking(@Path("id") int bookingId);
+
+    @POST("api/admin/bookings/{id}/cancel")
+    Call<Map<String, Object>> cancelAdminBooking(@Path("id") int bookingId);
+
+    // Revenue stats
+    @GET("api/admin/stats/revenue")
+    Call<Map<String, Object>> getRevenueStats(@Query("group_by") String groupBy, @Query("from") String from, @Query("to") String to);
+
 }

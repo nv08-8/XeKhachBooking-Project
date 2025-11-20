@@ -37,6 +37,12 @@
         <activity android:name=".activity.BookingDetailActivity" />
         <activity android:name=".activity.EditProfileActivity" />
         <activity android:name=".activity.ChangePasswordActivity" />
+        <activity android:name=".activity.AdminHomeActivity" />
+        <activity android:name=".activity.ManageRoutesActivity" />
+        <activity android:name=".activity.RouteFormActivity" />
+        <activity android:name=".activity.ManageBookingsActivity" />
+        <activity android:name=".activity.BookingAdminDetailActivity" />
+        <activity android:name=".activity.RevenueStatsActivity" />
     </application>
 
 </manifest>
