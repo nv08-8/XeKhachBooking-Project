@@ -1,23 +1,26 @@
 package vn.hcmute.busbooking.model;
 
+import com.google.gson.annotations.SerializedName;
+
 public class Seat {
     private int id;
-    private String seatNumber;
+
+    // Map json "label" từ backend vào biến này
+    @SerializedName("label")
     private String label;
-    private String type; // "floor1" or "floor2"
-    private boolean isAvailable;
+
+    // Map json "type" (nếu có)
+    @SerializedName("type")
+    private String type;
+
+    // QUAN TRỌNG: Map "is_booked" từ backend vào biến isBooked
+    @SerializedName("is_booked")
+    private boolean isBooked;
+
+    // Biến nội bộ, không liên quan API
     private boolean isSelected;
 
     public Seat() {
-        this.isSelected = false;
-    }
-
-    public Seat(int id, String seatNumber, String type, boolean isAvailable) {
-        this.id = id;
-        this.seatNumber = seatNumber;
-        this.label = seatNumber;
-        this.type = type;
-        this.isAvailable = isAvailable;
         this.isSelected = false;
     }
 
@@ -25,17 +28,21 @@ public class Seat {
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 
-    public String getSeatNumber() { return seatNumber; }
-    public void setSeatNumber(String seatNumber) { this.seatNumber = seatNumber; }
-
-    public String getLabel() { return label != null ? label : seatNumber; }
+    public String getLabel() { return label; }
     public void setLabel(String label) { this.label = label; }
+
+    // Để tương thích với code cũ nếu bạn lỡ dùng getSeatNumber ở đâu đó
+    public String getSeatNumber() { return label; }
 
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
 
-    public boolean isAvailable() { return isAvailable; }
-    public void setAvailable(boolean available) { isAvailable = available; }
+    // Hàm này trả về true nếu ghế ĐÃ ĐƯỢC ĐẶT
+    public boolean isBooked() { return isBooked; }
+    public void setBooked(boolean booked) { isBooked = booked; }
+
+    // Hàm tiện ích: Ghế khả dụng khi CHƯA bị đặt
+    public boolean isAvailable() { return !isBooked; }
 
     public boolean isSelected() { return isSelected; }
     public void setSelected(boolean selected) { isSelected = selected; }

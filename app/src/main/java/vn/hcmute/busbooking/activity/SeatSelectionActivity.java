@@ -113,7 +113,7 @@ public class SeatSelectionActivity extends AppCompatActivity {
                     for (Map<String, Object> seatData : response.body()) {
                         Seat seat = new Seat();
                         seat.setLabel((String) seatData.get("label"));
-                        seat.setAvailable(true); // Only available seats from API
+                        seat.setBooked(false); // Only available seats from API
                         seatList.add(seat);
                     }
 

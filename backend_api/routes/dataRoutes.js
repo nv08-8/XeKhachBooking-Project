@@ -49,15 +49,20 @@ router.get("/trips/:id/seats", async (req, res) => {
     sql += " AND is_booked = 0";
   }
 
-  // --- SỬA LẠI PHẦN ORDER BY ---
-  // Sắp xếp theo độ dài chuỗi trước (LENGTH(label)), sau đó mới đến ký tự (label).
-  // Logic: A2 (độ dài 2) sẽ đứng trước A10 (độ dài 3).
-  // Nếu cùng độ dài (A1, A2) thì sắp xếp theo label.
+  // Sắp xếp thông minh: A1 -> A2 -> ... -> A10
   sql += " ORDER BY LENGTH(label), label";
 
   try {
     const { rows } = await db.query(sql, params);
-    return res.json(rows);
+
+    // QUAN TRỌNG: Map dữ liệu để Android dễ xử lý
+    // Chuyển is_booked từ 0/1 sang false/true
+    const formattedRows = rows.map(seat => ({
+        ...seat,
+        is_booked: seat.is_booked === 1 || seat.is_booked === true // Đảm bảo luôn là boolean
+    }));
+
+    return res.json(formattedRows);
   } catch (err) {
     console.error("Lỗi lấy ghế:", err);
     return res.status(500).json({ message: "Lỗi phía server." });
