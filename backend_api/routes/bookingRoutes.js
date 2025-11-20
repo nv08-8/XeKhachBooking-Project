@@ -212,12 +212,22 @@ router.get("/bookings/:id", async (req, res) => {
 router.get("/seats/:tripId", async (req, res) => {
   const { tripId } = req.params;
 
+  // 1. Kiểm tra đầu vào
   if (!tripId) {
     return res.status(400).json({ message: "Missing trip_id" });
   }
 
+  // Chuyển tripId sang số nguyên (quan trọng vì database so sánh số)
+  const tripIdInt = parseInt(tripId, 10);
+  if (isNaN(tripIdInt)) {
+    return res.status(400).json({ message: "trip_id must be a number" });
+  }
+
   try {
-    // Lấy tất cả ghế của chuyến xe đó, sắp xếp theo id hoặc label
+    // 2. Log để kiểm tra xem server có nhận được request không
+    console.log(`Đang lấy ghế cho Trip ID: ${tripIdInt}`);
+
+    // 3. Câu lệnh SQL (đơn giản hóa để tránh lỗi cú pháp)
     const sql = `
       SELECT id, trip_id, label, is_booked, booking_id
       FROM seats
@@ -225,16 +235,19 @@ router.get("/seats/:tripId", async (req, res) => {
       ORDER BY id ASC
     `;
 
-    const { rows } = await db.query(sql, [tripId]);
+    const { rows } = await db.query(sql, [tripIdInt]);
 
-    // Nếu chưa có ghế nào được tạo cho chuyến này (trường hợp chuyến xe mới)
-    // Bạn có thể trả về mảng rỗng hoặc tự động tạo ghế (tùy logic dự án)
+    // 4. Log kết quả trả về từ Database
+    console.log(`Tìm thấy ${rows.length} ghế.`);
+
+    // 5. Trả về kết quả
     res.json(rows);
 
   } catch (err) {
-    console.error("Failed to fetch seats:", err);
-    res.status(500).json({ message: "Failed to fetch seats" });
+    console.error("Lỗi nghiêm trọng khi lấy ghế:", err);
+    res.status(500).json({ message: "Failed to fetch seats", error: err.message });
   }
 });
+
 
 module.exports = router;
