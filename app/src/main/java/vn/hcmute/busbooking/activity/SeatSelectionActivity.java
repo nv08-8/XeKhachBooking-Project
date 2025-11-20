@@ -1,7 +1,7 @@
 package vn.hcmute.busbooking.activity;
 
 import android.content.Intent;
-import android.os.Build; // Added for API level check
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -84,8 +84,8 @@ public class SeatSelectionActivity extends AppCompatActivity {
 
         // Display trip details
         String tripInfo = trip.getOrigin() + " → " + trip.getDestination() + "\n" +
-                         trip.getDepartureTime() + " - " + trip.getArrivalTime() + "\n" +
-                         "Nhà xe: " + trip.getOperator();
+                trip.getDepartureTime() + " - " + trip.getArrivalTime() + "\n" +
+                "Nhà xe: " + trip.getOperator();
         tvTripDetails.setText(tripInfo);
 
         // Setup RecyclerView
@@ -121,6 +121,7 @@ public class SeatSelectionActivity extends AppCompatActivity {
                         if (isBookedObj instanceof Boolean) {
                             isBooked = (Boolean) isBookedObj;
                         } else if (isBookedObj instanceof Number) {
+                            // Cột is_booked trên DB là Integer (1 hoặc 0)
                             isBooked = ((Number) isBookedObj).intValue() == 1;
                         }
                         seat.setBooked(isBooked);
@@ -129,8 +130,6 @@ public class SeatSelectionActivity extends AppCompatActivity {
                     }
 
                     // 2. SẮP XẾP LẠI DANH SÁCH ĐỂ HIỂN THỊ THEO CỘT DỌC (A B C D)
-                    // 2. SẮP XẾP LẠI DANH SÁCH
-                    // Logic: Tách phần chữ (A) và phần số (1, 10) để sắp xếp đúng thứ tự tự nhiên
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                         seatList.sort((s1, s2) -> {
                             String label1 = s1.getLabel(); // VD: A1, A10
@@ -162,7 +161,6 @@ public class SeatSelectionActivity extends AppCompatActivity {
                         });
                     }
 
-
                     seatAdapter.notifyDataSetChanged();
                 } else {
                     Toast.makeText(SeatSelectionActivity.this, "Không thể tải danh sách ghế", Toast.LENGTH_SHORT).show();
@@ -172,12 +170,10 @@ public class SeatSelectionActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
-                Toast.makeText(SeatSelectionActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(SeatSelectionActivity.this, "Lỗi tải ghế: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }
-
-
 
     private void onSeatSelected(Seat seat) {
         if (selectedSeats.contains(seat.getLabel())) {
@@ -190,10 +186,11 @@ public class SeatSelectionActivity extends AppCompatActivity {
 
     private void updateSelectedInfo() {
         int totalAmount = selectedSeats.size() * seatPrice;
+        // Sử dụng Locale Việt Nam để hiển thị tiền tệ (₫)
         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
 
         String info = "Đã chọn: " + selectedSeats.size() + " ghế\n" +
-                     "Tổng tiền: " + formatter.format(totalAmount);
+                "Tổng tiền: " + formatter.format(totalAmount);
         tvSelectedSeatsInfo.setText(info);
 
         btnConfirmSeat.setEnabled(!selectedSeats.isEmpty());
@@ -214,7 +211,7 @@ public class SeatSelectionActivity extends AppCompatActivity {
             return;
         }
 
-        // ⭐ LẤY DANH SÁCH TẤT CẢ CÁC GHẾ ĐÃ CHỌN
+        // LẤY DANH SÁCH TẤT CẢ CÁC GHẾ ĐÃ CHỌN
         List<String> seatsToBook = new ArrayList<>(selectedSeats);
         int totalAmount = selectedSeats.size() * seatPrice;
 
@@ -225,7 +222,7 @@ public class SeatSelectionActivity extends AppCompatActivity {
         body.put("user_id", userId);
         body.put("trip_id", trip.getId());
 
-        // ⭐ GỬI MẢNG GHẾ LÊN SERVER (Sử dụng key: "seat_labels" như đã sửa trong Backend)
+        // GỬI MẢNG GHẾ LÊN SERVER
         body.put("seat_labels", seatsToBook);
 
         apiService.createBooking(body).enqueue(new Callback<Map<String, Object>>() {
@@ -237,33 +234,70 @@ public class SeatSelectionActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     Map<String, Object> result = response.body();
 
-                    // ⭐ XỬ LÝ DANH SÁCH BOOKING ID TRẢ VỀ TỪ SERVER
-                    Object bookingIdsObj = result.get("booking_ids");
-                    if (!(bookingIdsObj instanceof List)) {
-                        Toast.makeText(SeatSelectionActivity.this, "Lỗi định dạng phản hồi đặt vé", Toast.LENGTH_SHORT).show();
+                    // ⭐ KHỐI SỬA LỖI ClassCastException (Dòng 248)
+                    List<Integer> bookingIds = new ArrayList<>();
+                    Object bookingIdsObj = result.get("booking_ids"); // Lấy object từ key
+
+                    if (bookingIdsObj instanceof List) {
+                        List<?> rawList = (List<?>) bookingIdsObj;
+
+                        try {
+                            for (Object idObj : rawList) {
+                                if (idObj instanceof String) {
+                                    // Trường hợp backend trả về List<String> (ví dụ: ["312", "313"])
+                                    bookingIds.add(Integer.parseInt((String) idObj));
+                                } else if (idObj instanceof Number) {
+                                    // Trường hợp backend trả về List<Number> (ví dụ: [312.0, 313.0] hoặc [312, 313])
+                                    bookingIds.add(((Number) idObj).intValue());
+                                } else {
+                                    // Nếu kiểu dữ liệu không mong muốn
+                                    throw new ClassCastException("Unexpected type for booking ID: " +
+                                            (idObj != null ? idObj.getClass().getSimpleName() : "null"));
+                                }
+                            }
+                        } catch (Exception e) {
+                            // Báo lỗi nếu việc chuyển đổi thất bại
+                            Toast.makeText(SeatSelectionActivity.this, "Lỗi định dạng ID từ server. Vấn đề ép kiểu.", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                    } else {
+                        // Nếu 'booking_ids' không phải là List
+                        Toast.makeText(SeatSelectionActivity.this, "Lỗi: Không tìm thấy danh sách Booking ID hợp lệ.", Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    List<Double> doubleIds = (List<Double>) bookingIdsObj;
-                    List<Integer> bookingIds = new ArrayList<>();
-                    for (Double id : doubleIds) {
-                        bookingIds.add(id.intValue());
-                    }
 
-                    Toast.makeText(SeatSelectionActivity.this, "Đặt " + seatsToBook.size() + " vé thành công!", Toast.LENGTH_SHORT).show();
+                    if (bookingIds.isEmpty()) {
+                        Toast.makeText(SeatSelectionActivity.this, "Đặt vé thành công nhưng không có Booking ID nào được tạo.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    // ⭐ END KHỐI SỬA LỖI
+
+
+                    Toast.makeText(SeatSelectionActivity.this, "Đặt " + seatsToBook.size() + " vé thành công! Đang chuyển hướng thanh toán.", Toast.LENGTH_SHORT).show();
 
                     // Chuyển sang PaymentActivity
                     Intent intent = new Intent(SeatSelectionActivity.this, PaymentActivity.class);
 
-                    // ⭐ TRUYỀN DANH SÁCH BOOKING ID VÀ TỔNG TIỀN ĐẾN PAYMENT ACTIVITY
+                    // TRUYỀN DANH SÁCH BOOKING ID VÀ TỔNG TIỀN
                     intent.putIntegerArrayListExtra("booking_ids", (ArrayList<Integer>) bookingIds);
                     intent.putStringArrayListExtra("seat_labels", (ArrayList<String>) seatsToBook);
                     intent.putExtra("amount", totalAmount);
-                    // Cần truyền thêm các thông tin cần thiết khác (origin, destination, operator...)
+
+                    // Thêm thông tin chuyến đi cần thiết cho màn hình thanh toán/chi tiết
+                    intent.putExtra("origin", trip.getOrigin());
+                    intent.putExtra("destination", trip.getDestination());
+                    intent.putExtra("departure_time", trip.getDepartureTime());
+                    intent.putExtra("operator", trip.getOperator());
 
                     startActivity(intent);
                     finish();
                 } else {
-                    Toast.makeText(SeatSelectionActivity.this, "Đặt vé thất bại", Toast.LENGTH_SHORT).show();
+                    // Xử lý lỗi từ server (Ví dụ: 409 Conflict, 400 Bad Request)
+                    String errorMessage = "Đặt vé thất bại. Vui lòng thử lại.";
+                    if (response.errorBody() != null) {
+                        // Thêm logic đọc errorBody nếu cần chi tiết hơn
+                    }
+                    Toast.makeText(SeatSelectionActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
                 }
             }
 
@@ -271,7 +305,7 @@ public class SeatSelectionActivity extends AppCompatActivity {
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
                 btnConfirmSeat.setEnabled(true);
-                Toast.makeText(SeatSelectionActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(SeatSelectionActivity.this, "Lỗi kết nối: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }
