@@ -22,7 +22,7 @@ const rollbackAndRelease = async (client) => {
 };
 
 // ==========================================================
-// ⭐ SỬA ĐỔI ROUTE ĐẶT VÉ ĐỂ HỖ TRỢ NHIỀU GHẾ
+// ⭐ SỬA ĐỔI ROUTE ĐẶT VÉ ĐỂ HỖ TRỢ NHIỀU GHẾ (is_booked=1)
 // ==========================================================
 router.post("/bookings", async (req, res) => {
   // Chuyển từ 'seat_label' đơn lẻ sang 'seat_labels' là mảng
@@ -73,7 +73,8 @@ router.post("/bookings", async (req, res) => {
         await rollbackAndRelease(client);
         return res.status(400).json({ message: `Seat ${label} not found` });
       }
-      if (seatResult.rows[0].is_booked) {
+      // ⭐ Sửa lỗi: Kiểm tra giá trị Integer (1) thay vì Boolean (TRUE)
+      if (seatResult.rows[0].is_booked === 1) {
         await rollbackAndRelease(client);
         return res.status(409).json({ message: `Seat ${label} already booked` });
       }
@@ -90,7 +91,7 @@ router.post("/bookings", async (req, res) => {
 
       // c. Cập nhật trạng thái ghế
       await client.query(
-        "UPDATE seats SET is_booked=TRUE, booking_id=$1 WHERE id=$2",
+        "UPDATE seats SET is_booked=1, booking_id=$1 WHERE id=$2", // ⭐ Dùng '1'
         [bookingId, seatResult.rows[0].id]
       );
     }
@@ -118,6 +119,9 @@ router.post("/bookings", async (req, res) => {
   }
 });
 
+// ==========================================================
+// ⭐ ROUTE HỦY (Cần sửa lỗi is_booked)
+// ==========================================================
 router.post("/bookings/:id/cancel", async (req, res) => {
   const { id } = req.params;
   const client = await beginTransaction();
@@ -139,7 +143,7 @@ router.post("/bookings/:id/cancel", async (req, res) => {
 
     await client.query("UPDATE bookings SET status='cancelled' WHERE id=$1", [id]);
     await client.query(
-      "UPDATE seats SET is_booked=FALSE, booking_id=NULL WHERE trip_id=$1 AND label=$2",
+      "UPDATE seats SET is_booked=0, booking_id=NULL WHERE trip_id=$1 AND label=$2", // ⭐ Dùng '0' thay vì FALSE
       [bookingResult.rows[0].trip_id, bookingResult.rows[0].seat_label]
     );
     await client.query(
