@@ -77,6 +77,57 @@
             android:layout_marginTop="16dp"
             android:visibility="gone" />
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="8dp"
+            app:layout_constraintBottom_toTopOf="@+id/tvSelectedSeatsInfo"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <!-- Chú thích ghế trống -->
+            <View
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:background="@drawable/bg_seat_legend_empty"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Trống"
+                android:textColor="@android:color/black"
+                android:layout_marginEnd="24dp"/>
+
+            <!-- Chú thích ghế đã đặt -->
+            <View
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:background="@android:color/darker_gray"
+                android:layout_marginEnd="8dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Đã đặt"
+                android:textColor="@android:color/black"
+                android:layout_marginEnd="24dp"/>
+
+            <!-- Chú thích ghế đang chọn -->
+            <View
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:background="@color/colorPrimary"
+                android:layout_marginEnd="8dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Đang chọn"
+                android:textColor="@android:color/black"/>
+        </LinearLayout>
+
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/seatRecyclerView"
             android:layout_width="match_parent"
@@ -106,6 +157,8 @@
             app:cornerRadius="28dp" />
 
     </LinearLayout>
+
+
 
     <ImageView
         android:id="@+id/footer_image"

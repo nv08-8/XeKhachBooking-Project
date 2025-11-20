@@ -129,32 +129,39 @@ public class SeatSelectionActivity extends AppCompatActivity {
                     }
 
                     // 2. SẮP XẾP LẠI DANH SÁCH ĐỂ HIỂN THỊ THEO CỘT DỌC (A B C D)
-                    // Logic: Sắp xếp theo Số ghế trước (01, 02...), sau đó đến Chữ cái (A, B...)
-                    // Kết quả hiển thị trên Grid 4 cột sẽ là:
-                    // A01 | B01 | C01 | D01
-                    // A02 | B02 | C02 | D02
+                    // 2. SẮP XẾP LẠI DANH SÁCH
+                    // Logic: Tách phần chữ (A) và phần số (1, 10) để sắp xếp đúng thứ tự tự nhiên
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                         seatList.sort((s1, s2) -> {
-                            String label1 = s1.getLabel(); // VD: A01
-                            String label2 = s2.getLabel(); // VD: B01
+                            String label1 = s1.getLabel(); // VD: A1, A10
+                            String label2 = s2.getLabel(); // VD: A2
 
-                            // Tách phần chữ và phần số
-                            // Giả sử định dạng luôn là 1 Chữ cái + 2 Chữ số (A01)
-                            String char1 = label1.substring(0, 1);
-                            String num1 = label1.substring(1);
+                            // Tách phần chữ cái đầu tiên
+                            String char1 = label1.replaceAll("[0-9]", "");
+                            String char2 = label2.replaceAll("[0-9]", "");
 
-                            String char2 = label2.substring(0, 1);
-                            String num2 = label2.substring(1);
+                            // Tách phần số (dùng regex lấy số)
+                            String numStr1 = label1.replaceAll("[^0-9]", "");
+                            String numStr2 = label2.replaceAll("[^0-9]", "");
 
-                            // So sánh phần số trước
-                            int numCompare = num1.compareTo(num2);
+                            int num1 = numStr1.isEmpty() ? 0 : Integer.parseInt(numStr1);
+                            int num2 = numStr2.isEmpty() ? 0 : Integer.parseInt(numStr2);
+
+                            // --- LOGIC SẮP XẾP THEO CỘT DỌC (A B C D) ---
+                            // Muốn A1, B1, C1, D1 nằm ngang hàng nhau trên Grid 4 cột
+                            // Thì thứ tự trong List phải là: A1, B1, C1, D1, A2, B2, C2, D2...
+
+                            // Ưu tiên so sánh số ghế trước (1 vs 1, 1 vs 2)
+                            int numCompare = Integer.compare(num1, num2);
                             if (numCompare != 0) {
                                 return numCompare;
                             }
-                            // Nếu số giống nhau (cùng là 01), so sánh phần chữ (A vs B)
+
+                            // Nếu số ghế bằng nhau (cùng là hàng 1), so sánh chữ cái (A vs B)
                             return char1.compareTo(char2);
                         });
                     }
+
 
                     seatAdapter.notifyDataSetChanged();
                 } else {
