@@ -207,47 +207,61 @@ router.get("/bookings/:id", async (req, res) => {
   }
 });
 
-// API: Lấy danh sách ghế của một chuyến xe
-// URL: GET /api/seats/:tripId
+// API: Lấy danh sách ghế (Tự động tạo nếu chưa có)
 router.get("/seats/:tripId", async (req, res) => {
   const { tripId } = req.params;
-
-  // 1. Kiểm tra đầu vào
-  if (!tripId) {
-    return res.status(400).json({ message: "Missing trip_id" });
-  }
-
-  // Chuyển tripId sang số nguyên (quan trọng vì database so sánh số)
   const tripIdInt = parseInt(tripId, 10);
+
   if (isNaN(tripIdInt)) {
-    return res.status(400).json({ message: "trip_id must be a number" });
+    return res.status(400).json({ message: "Trip ID phải là số" });
   }
 
   try {
-    // 2. Log để kiểm tra xem server có nhận được request không
-    console.log(`Đang lấy ghế cho Trip ID: ${tripIdInt}`);
+    console.log(`Đang tìm ghế cho Trip ID: ${tripIdInt}`);
 
-    // 3. Câu lệnh SQL (đơn giản hóa để tránh lỗi cú pháp)
-    const sql = `
-      SELECT id, trip_id, label, is_booked, booking_id
+    // 1. Lấy danh sách ghế hiện có
+    let sql = `
+      SELECT id, trip_id, label, is_booked
       FROM seats
       WHERE trip_id = $1
       ORDER BY id ASC
     `;
+    let { rows } = await db.query(sql, [tripIdInt]);
 
-    const { rows } = await db.query(sql, [tripIdInt]);
+    // 2. Nếu chưa có ghế nào -> TỰ ĐỘNG TẠO 35 GHẾ CHO CHUYẾN NÀY
+    if (rows.length === 0) {
+      console.log(`Chưa có ghế cho Trip ${tripIdInt}. Đang tạo mới...`);
 
-    // 4. Log kết quả trả về từ Database
-    console.log(`Tìm thấy ${rows.length} ghế.`);
+      // Tạo 35 ghế: A01 -> A35
+      for (let i = 1; i <= 35; i++) {
+        const label = `A${i.toString().padStart(2, '0')}`;
 
-    // 5. Trả về kết quả
-    res.json(rows);
+        // Lưu ý: is_booked để là 0 (vì database của bạn dùng integer 0/1)
+        await db.query(
+          "INSERT INTO seats (trip_id, label, is_booked, type) VALUES ($1, $2, 0, 'seat')",
+          [tripIdInt, label]
+        );
+      }
+
+      // Query lại lần nữa để lấy danh sách vừa tạo
+      const result = await db.query(sql, [tripIdInt]);
+      rows = result.rows;
+    }
+
+    // 3. Chuyển đổi dữ liệu để App Android hiểu (0 -> false, 1 -> true)
+    // App Android thường mong đợi boolean cho trường isBooked
+    const formattedRows = rows.map(seat => ({
+        ...seat,
+        is_booked: seat.is_booked === 1 // Chuyển 1 thành true, 0 thành false
+    }));
+
+    console.log(`Trả về ${formattedRows.length} ghế.`);
+    res.json(formattedRows);
 
   } catch (err) {
-    console.error("Lỗi nghiêm trọng khi lấy ghế:", err);
-    res.status(500).json({ message: "Failed to fetch seats", error: err.message });
+    console.error("Lỗi lấy danh sách ghế:", err);
+    res.status(500).json({ message: "Lỗi server", error: err.message });
   }
 });
-
 
 module.exports = router;
