@@ -207,4 +207,34 @@ router.get("/bookings/:id", async (req, res) => {
   }
 });
 
+// API: Lấy danh sách ghế của một chuyến xe
+// URL: GET /api/seats/:tripId
+router.get("/seats/:tripId", async (req, res) => {
+  const { tripId } = req.params;
+
+  if (!tripId) {
+    return res.status(400).json({ message: "Missing trip_id" });
+  }
+
+  try {
+    // Lấy tất cả ghế của chuyến xe đó, sắp xếp theo id hoặc label
+    const sql = `
+      SELECT id, trip_id, label, is_booked, booking_id
+      FROM seats
+      WHERE trip_id = $1
+      ORDER BY id ASC
+    `;
+
+    const { rows } = await db.query(sql, [tripId]);
+
+    // Nếu chưa có ghế nào được tạo cho chuyến này (trường hợp chuyến xe mới)
+    // Bạn có thể trả về mảng rỗng hoặc tự động tạo ghế (tùy logic dự án)
+    res.json(rows);
+
+  } catch (err) {
+    console.error("Failed to fetch seats:", err);
+    res.status(500).json({ message: "Failed to fetch seats" });
+  }
+});
+
 module.exports = router;
