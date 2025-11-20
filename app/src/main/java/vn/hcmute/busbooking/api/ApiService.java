@@ -99,4 +99,11 @@ public interface ApiService {
 
     @GET("api/reviews")
     Call<List<Map<String, Object>>> getReviews(@Query("limit") Integer limit);
+
+    // PayOS payment
+    @POST("api/payos/create")
+    Call<Map<String, Object>> createPayosCheckout(@Body Map<String, Object> body);
+
+    @POST("api/payos/verify")
+    Call<Map<String, Object>> verifyPayos(@Body Map<String, String> body);
 }

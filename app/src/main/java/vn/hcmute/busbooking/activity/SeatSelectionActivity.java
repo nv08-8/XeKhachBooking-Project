@@ -258,7 +258,9 @@ public class SeatSelectionActivity extends AppCompatActivity {
                     intent.putIntegerArrayListExtra("booking_ids", (ArrayList<Integer>) bookingIds);
                     intent.putStringArrayListExtra("seat_labels", (ArrayList<String>) seatsToBook);
                     intent.putExtra("amount", totalAmount);
-                    // Cần truyền thêm các thông tin cần thiết khác (origin, destination, operator...)
+                    intent.putExtra("origin", trip.getOrigin());
+                    intent.putExtra("destination", trip.getDestination());
+                    intent.putExtra("operator", trip.getOperator());
 
                     startActivity(intent);
                     finish();

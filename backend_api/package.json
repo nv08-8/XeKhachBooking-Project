@@ -14,7 +14,8 @@
     "mongoose": "^8.20.0",
     "nodemailer": "^7.0.10",
     "pg": "^8.16.3",
-    "resend": "^6.4.2"
+    "resend": "^6.4.2",
+    "@payos/node": "^1.0.2"
   },
   "description": "",
   "keywords": [],

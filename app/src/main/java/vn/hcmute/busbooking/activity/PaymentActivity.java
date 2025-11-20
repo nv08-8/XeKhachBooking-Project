@@ -2,6 +2,7 @@ package vn.hcmute.busbooking.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
@@ -13,7 +14,9 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -32,8 +35,13 @@ public class PaymentActivity extends AppCompatActivity {
     private Button btnConfirmPayment;
     private ProgressBar progressBar;
 
-    private int bookingId;
+    private final List<Integer> bookingIds = new ArrayList<>();
+    private ArrayList<String> seatLabels;
+    private String origin;
+    private String destination;
+    private String operator;
     private int amount;
+    private int primaryBookingId;
     private ApiService apiService;
 
     @Override
@@ -54,22 +62,72 @@ public class PaymentActivity extends AppCompatActivity {
 
         apiService = ApiClient.getClient().create(ApiService.class);
 
-        // Get data from intent
-        bookingId = getIntent().getIntExtra("booking_id", 0);
-        String origin = getIntent().getStringExtra("origin");
-        String destination = getIntent().getStringExtra("destination");
-        String seatLabel = getIntent().getStringExtra("seat_label");
-        amount = getIntent().getIntExtra("amount", 0);
+        collectIntentData();
+        if (!validateBookingData()) {
+            finish();
+            return;
+        }
+        populateBookingSummary();
 
-        // Display booking info
-        tvBookingId.setText("Mã đặt vé: #" + bookingId);
-        tvRoute.setText(origin + " → " + destination);
-        tvSeat.setText("Ghế: " + seatLabel);
+        btnConfirmPayment.setOnClickListener(v -> processPayment());
+    }
+
+    private void collectIntentData() {
+        ArrayList<Integer> incomingIds = getIntent().getIntegerArrayListExtra("booking_ids");
+        if (incomingIds != null) {
+            bookingIds.addAll(incomingIds);
+        }
+
+        int singleId = getIntent().getIntExtra("booking_id", 0);
+        if (bookingIds.isEmpty() && singleId > 0) {
+            bookingIds.add(singleId);
+        }
+
+        primaryBookingId = bookingIds.isEmpty() ? 0 : bookingIds.get(0);
+        seatLabels = getIntent().getStringArrayListExtra("seat_labels");
+        origin = getIntent().getStringExtra("origin");
+        destination = getIntent().getStringExtra("destination");
+        operator = getIntent().getStringExtra("operator");
+        amount = getIntent().getIntExtra("amount", 0);
+    }
+
+    private boolean validateBookingData() {
+        if (bookingIds.isEmpty()) {
+            Toast.makeText(this, "Không tìm thấy thông tin đặt vé", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        return true;
+    }
+
+    private void populateBookingSummary() {
+        if (bookingIds.size() == 1) {
+            tvBookingId.setText("Mã đặt vé: #" + bookingIds.get(0));
+        } else {
+            tvBookingId.setText("Mã " + bookingIds.size() + " vé: #" + bookingIds.get(0) + " +" + (bookingIds.size() - 1));
+        }
+
+        StringBuilder routeBuilder = new StringBuilder();
+        if (!TextUtils.isEmpty(origin) && !TextUtils.isEmpty(destination)) {
+            routeBuilder.append(origin).append(" → ").append(destination);
+        }
+        if (!TextUtils.isEmpty(operator)) {
+            if (routeBuilder.length() > 0) {
+                routeBuilder.append("\n");
+            }
+            routeBuilder.append("Nhà xe: ").append(operator);
+        }
+        tvRoute.setText(routeBuilder.length() == 0 ? "Tuyến đường" : routeBuilder.toString());
+
+        String seatText;
+        if (seatLabels != null && !seatLabels.isEmpty()) {
+            seatText = TextUtils.join(", ", seatLabels);
+        } else {
+            seatText = "Đang cập nhật";
+        }
+        tvSeat.setText("Ghế: " + seatText);
 
         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
         tvAmount.setText("Số tiền: " + formatter.format(amount));
-
-        btnConfirmPayment.setOnClickListener(v -> processPayment());
     }
 
     private void processPayment() {
@@ -84,39 +142,51 @@ public class PaymentActivity extends AppCompatActivity {
         progressBar.setVisibility(View.VISIBLE);
         btnConfirmPayment.setEnabled(false);
 
+        confirmNextPayment(0, paymentMethod);
+    }
+
+    private void confirmNextPayment(int index, String paymentMethod) {
+        if (index >= bookingIds.size()) {
+            onAllPaymentsSuccess();
+            return;
+        }
+
+        int currentBookingId = bookingIds.get(index);
         Map<String, String> body = new HashMap<>();
         body.put("payment_method", paymentMethod);
 
-        apiService.confirmPayment(bookingId, body).enqueue(new Callback<Map<String, Object>>() {
+        apiService.confirmPayment(currentBookingId, body).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                progressBar.setVisibility(View.GONE);
-                btnConfirmPayment.setEnabled(true);
-
                 if (response.isSuccessful() && response.body() != null) {
-                    Map<String, Object> result = response.body();
-                    String qrCode = (String) result.get("qr_code");
-
-                    Toast.makeText(PaymentActivity.this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
-
-                    // Navigate to booking detail with QR code
-                    Intent intent = new Intent(PaymentActivity.this, BookingDetailActivity.class);
-                    intent.putExtra("booking_id", bookingId);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                    startActivity(intent);
-                    finish();
+                    confirmNextPayment(index + 1, paymentMethod);
                 } else {
-                    Toast.makeText(PaymentActivity.this, "Thanh toán thất bại", Toast.LENGTH_SHORT).show();
+                    handlePaymentError();
                 }
             }
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                progressBar.setVisibility(View.GONE);
-                btnConfirmPayment.setEnabled(true);
-                Toast.makeText(PaymentActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                handlePaymentError();
             }
         });
     }
-}
 
+    private void handlePaymentError() {
+        progressBar.setVisibility(View.GONE);
+        btnConfirmPayment.setEnabled(true);
+        Toast.makeText(PaymentActivity.this, "Thanh toán thất bại", Toast.LENGTH_SHORT).show();
+    }
+
+    private void onAllPaymentsSuccess() {
+        progressBar.setVisibility(View.GONE);
+        btnConfirmPayment.setEnabled(true);
+        Toast.makeText(PaymentActivity.this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
+
+        Intent intent = new Intent(PaymentActivity.this, BookingDetailActivity.class);
+        intent.putExtra("booking_id", primaryBookingId);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(intent);
+        finish();
+    }
+}
