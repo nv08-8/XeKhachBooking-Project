@@ -214,8 +214,9 @@ public class SeatSelectionActivity extends AppCompatActivity {
             return;
         }
 
-        // Book the first selected seat (can be extended to book multiple seats)
-        String seatLabel = selectedSeats.iterator().next();
+        // ⭐ LẤY DANH SÁCH TẤT CẢ CÁC GHẾ ĐÃ CHỌN
+        List<String> seatsToBook = new ArrayList<>(selectedSeats);
+        int totalAmount = selectedSeats.size() * seatPrice;
 
         progressBar.setVisibility(View.VISIBLE);
         btnConfirmSeat.setEnabled(false);
@@ -223,7 +224,9 @@ public class SeatSelectionActivity extends AppCompatActivity {
         Map<String, Object> body = new HashMap<>();
         body.put("user_id", userId);
         body.put("trip_id", trip.getId());
-        body.put("seat_label", seatLabel);
+
+        // ⭐ GỬI MẢNG GHẾ LÊN SERVER (Sử dụng key: "seat_labels" như đã sửa trong Backend)
+        body.put("seat_labels", seatsToBook);
 
         apiService.createBooking(body).enqueue(new Callback<Map<String, Object>>() {
             @Override
@@ -233,24 +236,30 @@ public class SeatSelectionActivity extends AppCompatActivity {
 
                 if (response.isSuccessful() && response.body() != null) {
                     Map<String, Object> result = response.body();
-                    Object bookingIdObj = result.get("booking_id");
 
-                    int bookingId = 0;
-                    if (bookingIdObj instanceof Double) {
-                        bookingId = ((Double) bookingIdObj).intValue();
-                    } else if (bookingIdObj instanceof Integer) {
-                        bookingId = (Integer) bookingIdObj;
+                    // ⭐ XỬ LÝ DANH SÁCH BOOKING ID TRẢ VỀ TỪ SERVER
+                    Object bookingIdsObj = result.get("booking_ids");
+                    if (!(bookingIdsObj instanceof List)) {
+                        Toast.makeText(SeatSelectionActivity.this, "Lỗi định dạng phản hồi đặt vé", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    List<Double> doubleIds = (List<Double>) bookingIdsObj;
+                    List<Integer> bookingIds = new ArrayList<>();
+                    for (Double id : doubleIds) {
+                        bookingIds.add(id.intValue());
                     }
 
-                    Toast.makeText(SeatSelectionActivity.this, "Đặt vé thành công!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(SeatSelectionActivity.this, "Đặt " + seatsToBook.size() + " vé thành công!", Toast.LENGTH_SHORT).show();
 
-                    // Navigate to payment
+                    // Chuyển sang PaymentActivity
                     Intent intent = new Intent(SeatSelectionActivity.this, PaymentActivity.class);
-                    intent.putExtra("booking_id", bookingId);
-                    intent.putExtra("origin", trip.getOrigin());
-                    intent.putExtra("destination", trip.getDestination());
-                    intent.putExtra("seat_label", seatLabel);
-                    intent.putExtra("amount", seatPrice);
+
+                    // ⭐ TRUYỀN DANH SÁCH BOOKING ID VÀ TỔNG TIỀN ĐẾN PAYMENT ACTIVITY
+                    intent.putIntegerArrayListExtra("booking_ids", (ArrayList<Integer>) bookingIds);
+                    intent.putStringArrayListExtra("seat_labels", (ArrayList<String>) seatsToBook);
+                    intent.putExtra("amount", totalAmount);
+                    // Cần truyền thêm các thông tin cần thiết khác (origin, destination, operator...)
+
                     startActivity(intent);
                     finish();
                 } else {
