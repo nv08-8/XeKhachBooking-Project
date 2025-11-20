@@ -112,6 +112,9 @@ public interface ApiService {
     @DELETE("api/admin/routes/{id}")
     Call<Map<String, Object>> deleteRoute(@Path("id") int routeId);
 
+    @GET("api/admin/routes/{id}")
+    Call<Map<String, Object>> getRouteById(@Path("id") int routeId);
+
     // Admin bookings
     @GET("api/admin/bookings")
     Call<Map<String, Object>> getAdminBookings(@QueryMap Map<String, String> query);

@@ -75,4 +75,29 @@
     <string name="promo_banner_format">🎉 %1$s - Giảm %2$s%%</string>
     <string name="tv_welcome_format">Xin chào, %1$s!</string>
     <string name="content_description_footer_spikes">Footer spikes</string>
+
+    <!-- Admin Panel -->
+    <string name="admin_panel_title">Manager (nhà xe / quản lý hệ thống)</string>
+    <string name="admin_task_1">Thêm, sửa, xóa tuyến xe</string>
+    <string name="admin_task_2">Cập nhật giá vé, lịch trình, trạng thái</string>
+    <string name="admin_task_3">Quản lý danh sách vé đặt (xác nhận / hủy)</string>
+    <string name="admin_task_4">Xem thống kê doanh thu theo tuyến, ngày, tháng, năm</string>
+    <string name="btn_manage_routes">Quản lý tuyến xe</string>
+    <string name="btn_manage_bookings">Quản lý đặt vé</string>
+    <string name="btn_revenue_stats">Báo cáo doanh thu</string>
+
+    <!-- Sample route item strings -->
+    <string name="sample_route_title">Hà Nội - Hải Phòng</string>
+    <string name="sample_route_subtitle">Giá: 150.000 VNĐ - Thời gian: 180 phút</string>
+
+    <!-- Revenue stats strings -->
+    <string name="revenue_stats_title">Báo cáo doanh thu</string>
+    <string name="from_date">Từ ngày</string>
+    <string name="to_date">Đến ngày</string>
+    <string name="total_revenue">Tổng doanh thu</string>
+    <string name="total_revenue_default">0 VNĐ</string>
+    <string name="total_tickets">Tổng vé bán</string>
+    <string name="total_tickets_default">0</string>
+    <string name="top_route">Tuyến bán chạy</string>
+    <string name="chart_placeholder">Biểu đồ (tạm)</string>
 </resources>

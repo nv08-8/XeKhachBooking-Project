@@ -1,21 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:layout_height="match_parent">
 
-    <Button
-        android:id="@+id/btnAddRoute"
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar_manage_routes"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Thêm tuyến mới" />
+        android:title="Quản lý tuyến xe"
+        android:backgroundTint="@color/colorPrimary"
+        android:titleTextColor="@android:color/white" />
 
-    <ListView
-        android:id="@+id/lvRoutes"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvRoutes"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginTop="8dp" />
+        android:layout_marginTop="56dp"
+        android:padding="8dp" />
 
-</LinearLayout>
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabAddRoute"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        app:layout_anchorGravity="bottom|end"
+        app:layout_anchor="@id/rvRoutes"
+        android:src="@android:drawable/ic_input_add"
+        android:contentDescription="Thêm tuyến" />
 
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
