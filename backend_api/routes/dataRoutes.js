@@ -1,6 +1,5 @@
 // backend_api/routes/dataRoutes.js
 const express = require("express");
-// backend_api/routes/dataRoutes.jsconst express = require("express");
 const router = express.Router();
 const db = require("../db");
 
@@ -46,13 +45,15 @@ router.get("/trips/:id/seats", async (req, res) => {
   let sql = "SELECT id, trip_id, label, type, is_booked, booking_id FROM seats WHERE trip_id=$1";
   const params = [tripId];
 
-  // --- SỬA LỖI TẠI ĐÂY ---
-  // Thay đổi 'FALSE' thành '0' vì cột is_booked trong database là integer
   if (available === "true") {
     sql += " AND is_booked = 0";
   }
 
-  sql += " ORDER BY label";
+  // --- SỬA LẠI PHẦN ORDER BY ---
+  // Sắp xếp theo độ dài chuỗi trước (LENGTH(label)), sau đó mới đến ký tự (label).
+  // Logic: A2 (độ dài 2) sẽ đứng trước A10 (độ dài 3).
+  // Nếu cùng độ dài (A1, A2) thì sắp xếp theo label.
+  sql += " ORDER BY LENGTH(label), label";
 
   try {
     const { rows } = await db.query(sql, params);
