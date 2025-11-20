@@ -102,7 +102,7 @@ public class SeatSelectionActivity extends AppCompatActivity {
     private void loadSeats() {
         progressBar.setVisibility(View.VISIBLE);
 
-        apiService.getSeats(trip.getId(), "true").enqueue(new Callback<List<Map<String, Object>>>() {
+        apiService.getSeats(trip.getId(), null).enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
             public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
                 progressBar.setVisibility(View.GONE);
@@ -110,11 +110,50 @@ public class SeatSelectionActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     seatList.clear();
 
+                    // 1. Parse dữ liệu từ API
                     for (Map<String, Object> seatData : response.body()) {
                         Seat seat = new Seat();
-                        seat.setLabel((String) seatData.get("label"));
-                        seat.setBooked(false); // Only available seats from API
+                        String label = (String) seatData.get("label"); // Ví dụ: A01, B01...
+                        seat.setLabel(label);
+
+                        Object isBookedObj = seatData.get("is_booked");
+                        boolean isBooked = false;
+                        if (isBookedObj instanceof Boolean) {
+                            isBooked = (Boolean) isBookedObj;
+                        } else if (isBookedObj instanceof Number) {
+                            isBooked = ((Number) isBookedObj).intValue() == 1;
+                        }
+                        seat.setBooked(isBooked);
+
                         seatList.add(seat);
+                    }
+
+                    // 2. SẮP XẾP LẠI DANH SÁCH ĐỂ HIỂN THỊ THEO CỘT DỌC (A B C D)
+                    // Logic: Sắp xếp theo Số ghế trước (01, 02...), sau đó đến Chữ cái (A, B...)
+                    // Kết quả hiển thị trên Grid 4 cột sẽ là:
+                    // A01 | B01 | C01 | D01
+                    // A02 | B02 | C02 | D02
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        seatList.sort((s1, s2) -> {
+                            String label1 = s1.getLabel(); // VD: A01
+                            String label2 = s2.getLabel(); // VD: B01
+
+                            // Tách phần chữ và phần số
+                            // Giả sử định dạng luôn là 1 Chữ cái + 2 Chữ số (A01)
+                            String char1 = label1.substring(0, 1);
+                            String num1 = label1.substring(1);
+
+                            String char2 = label2.substring(0, 1);
+                            String num2 = label2.substring(1);
+
+                            // So sánh phần số trước
+                            int numCompare = num1.compareTo(num2);
+                            if (numCompare != 0) {
+                                return numCompare;
+                            }
+                            // Nếu số giống nhau (cùng là 01), so sánh phần chữ (A vs B)
+                            return char1.compareTo(char2);
+                        });
                     }
 
                     seatAdapter.notifyDataSetChanged();
@@ -130,6 +169,8 @@ public class SeatSelectionActivity extends AppCompatActivity {
             }
         });
     }
+
+
 
     private void onSeatSelected(Seat seat) {
         if (selectedSeats.contains(seat.getLabel())) {

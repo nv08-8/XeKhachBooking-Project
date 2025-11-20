@@ -47,37 +47,51 @@ public class SeatSelectionAdapter extends RecyclerView.Adapter<SeatSelectionAdap
 
         boolean isSelected = selectedSeats.contains(seat.getLabel());
 
-        if (!seat.isAvailable()) {
-            // Seat is booked
+        // LOGIC UPDATE: Use isBooked() if available, or !isAvailable()
+        // Assuming your Seat model has isBooked() mapped to the API's "is_booked"
+        if (seat.isBooked()) {
+            // --- CASE 1: BOOKED SEAT (GREY) ---
             holder.cardView.setCardBackgroundColor(
-                ContextCompat.getColor(holder.itemView.getContext(), android.R.color.darker_gray)
+                    ContextCompat.getColor(holder.itemView.getContext(), android.R.color.darker_gray)
             );
             holder.tvSeatLabel.setTextColor(
-                ContextCompat.getColor(holder.itemView.getContext(), android.R.color.white)
+                    ContextCompat.getColor(holder.itemView.getContext(), android.R.color.white)
             );
-            holder.itemView.setEnabled(false);
-        } else if (isSelected) {
-            // Seat is selected
-            holder.cardView.setCardBackgroundColor(
-                ContextCompat.getColor(holder.itemView.getContext(), R.color.colorPrimary)
-            );
-            holder.tvSeatLabel.setTextColor(
-                ContextCompat.getColor(holder.itemView.getContext(), android.R.color.white)
-            );
-            holder.itemView.setEnabled(true);
-        } else {
-            // Seat is available
-            holder.cardView.setCardBackgroundColor(
-                ContextCompat.getColor(holder.itemView.getContext(), android.R.color.white)
-            );
-            holder.tvSeatLabel.setTextColor(
-                ContextCompat.getColor(holder.itemView.getContext(), android.R.color.black)
-            );
-            holder.itemView.setEnabled(true);
-        }
 
+            holder.itemView.setEnabled(false);
+            holder.itemView.setOnClickListener(null); // CRITICAL: Remove click listener completely
+
+        } else if (isSelected) {
+            // --- CASE 2: SELECTED SEAT (ORANGE/PRIMARY) ---
+            holder.cardView.setCardBackgroundColor(
+                    ContextCompat.getColor(holder.itemView.getContext(), R.color.colorPrimary)
+            );
+            holder.tvSeatLabel.setTextColor(
+                    ContextCompat.getColor(holder.itemView.getContext(), android.R.color.white)
+            );
+
+            holder.itemView.setEnabled(true);
+            setClickListener(holder, seat, position); // Helper method to attach listener
+
+        } else {
+            // --- CASE 3: AVAILABLE SEAT (WHITE) ---
+            holder.cardView.setCardBackgroundColor(
+                    ContextCompat.getColor(holder.itemView.getContext(), android.R.color.white)
+            );
+            holder.tvSeatLabel.setTextColor(
+                    ContextCompat.getColor(holder.itemView.getContext(), android.R.color.black)
+            );
+
+            holder.itemView.setEnabled(true);
+            setClickListener(holder, seat, position); // Helper method to attach listener
+        }
+    }
+
+    // Helper method to avoid code duplication
+    private void setClickListener(SeatViewHolder holder, Seat seat, int position) {
         holder.itemView.setOnClickListener(v -> {
-            if (seat.isAvailable()) {
+            // Double check availability just in case
+            if (!seat.isBooked()) {
                 if (selectedSeats.contains(seat.getLabel())) {
                     selectedSeats.remove(seat.getLabel());
                 } else {
@@ -90,6 +104,7 @@ public class SeatSelectionAdapter extends RecyclerView.Adapter<SeatSelectionAdap
             }
         });
     }
+
 
     @Override
     public int getItemCount() {
