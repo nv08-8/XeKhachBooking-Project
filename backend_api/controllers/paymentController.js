@@ -46,16 +46,28 @@ exports.createCheckout = async (req, res) => {
                 }
             ];
 
+        // Clean and validate buyer phone - must be valid format (no null/undefined)
+        let cleanPhone = '0123456789'; // default
+        if (buyerPhone && String(buyerPhone).trim()) {
+            cleanPhone = String(buyerPhone).trim().replace(/\s+/g, '');
+            // Remove country code if present
+            if (cleanPhone.startsWith('+84')) {
+                cleanPhone = '0' + cleanPhone.substring(3);
+            } else if (cleanPhone.startsWith('84')) {
+                cleanPhone = '0' + cleanPhone.substring(2);
+            }
+        }
+
         // PayOS requires ALL these fields for signature creation
         const paymentData = {
             orderCode: Number(orderId),
             amount: Number(amount),
-            description: 'Thanh toán vé xe khách',
+            description: 'Thanh toan ve xe khach', // No Vietnamese chars to avoid encoding issues
             // Required buyer information (use provided or default)
-            buyerName: buyerName || 'Khách hàng',
-            buyerEmail: buyerEmail || 'customer@xekhachbooking.com',
-            buyerPhone: (typeof buyerPhone !== 'undefined' && buyerPhone !== null) ? String(buyerPhone) : '0123456789',
-            buyerAddress: buyerAddress || 'Việt Nam',
+            buyerName: (buyerName && String(buyerName).trim()) || 'Khach hang',
+            buyerEmail: (buyerEmail && String(buyerEmail).trim()) || 'customer@xekhachbooking.com',
+            buyerPhone: cleanPhone,
+            buyerAddress: (buyerAddress && String(buyerAddress).trim()) || 'Viet Nam',
             // Required items array
             items: items,
             // Add expiredAt - 15 minutes from now
@@ -64,12 +76,26 @@ exports.createCheckout = async (req, res) => {
             cancelUrl: cancelUrl
         };
 
-        // Defensive check: all required fields exist
-        const required = ['orderCode', 'amount', 'returnUrl', 'cancelUrl', 'description'];
-        const missing = required.filter(k => paymentData[k] === undefined || paymentData[k] === null);
+        // Defensive check: all required fields exist and properly formatted
+        const required = ['orderCode', 'amount', 'returnUrl', 'cancelUrl', 'description', 'buyerName', 'buyerEmail', 'buyerPhone', 'buyerAddress'];
+        const missing = required.filter(k => !paymentData[k] || paymentData[k] === undefined || paymentData[k] === null);
         if (missing.length) {
             console.error('Payment data missing required fields:', missing);
             return res.status(500).json({ error: 'Payment data incomplete: ' + missing.join(', ') });
+        }
+
+        // Ensure items array is valid
+        if (!Array.isArray(paymentData.items) || paymentData.items.length === 0) {
+            console.error('Items array is invalid');
+            return res.status(500).json({ error: 'Items array must not be empty' });
+        }
+
+        // Validate each item has required fields
+        for (const item of paymentData.items) {
+            if (!item.name || !item.quantity || !item.price) {
+                console.error('Item missing required fields:', item);
+                return res.status(500).json({ error: 'Each item must have name, quantity, and price' });
+            }
         }
 
         console.log('Creating PayOS payment link with:', {
@@ -113,26 +139,26 @@ exports.handleReturn = async (req, res) => {
     // Extract orderCode and status from PayOS callback
     const orderCode = params.orderCode || params.code || params.order_id || params.orderId;
     const status = params.status || params.resultCode;
-    const transId = params.id || params.transactionId || params.transId;
+    let transId = params.id || params.transactionId || params.transId;
 
-    // Check if payment is successful
-    const success = status && (String(status).toLowerCase() === 'paid' || String(status) === '00' || String(status).toLowerCase() === 'success');
+    // Check if payment is successful based on redirect params
+    let success = status && (String(status).toLowerCase() === 'paid' || String(status) === '00' || String(status).toLowerCase() === 'success');
 
-    if (orderCode && success) {
+    // If redirect did not provide status, try to fetch payment info from PayOS
+    if (!success && orderCode && payos && typeof payos.getPaymentLinkInformation === 'function') {
         try {
-            const { rows } = await db.query('SELECT booking_ids FROM payment_orders WHERE order_code=$1 ORDER BY created_at DESC LIMIT 1', [orderCode]);
-            if (rows && rows.length) {
-                const bookingIds = JSON.parse(rows[0].booking_ids);
-                for (const id of bookingIds) {
-                    await db.query("UPDATE bookings SET status='confirmed', payment_method='payos', payment_time=NOW() WHERE id=$1", [id]);
-                }
-            }
+            const info = await payos.getPaymentLinkInformation(orderCode);
+            console.log('PayOS link info on return:', info);
+            // Try to extract transaction id from SDK response
+            transId = transId || info.id || info.transactionId || info.transId || (info.data && (info.data.id || info.data.transactionId));
+
+            // Flexible checks for success fields returned by PayOS
+            const s = info.status || info.resultCode || info.code || info.paymentStatus || (info.data && (info.data.status || info.data.resultCode || info.data.code || info.data.paymentStatus));
+            success = s && (String(s).toLowerCase() === 'paid' || String(s) === '00' || String(s).toLowerCase() === 'success' || String(s).toLowerCase() === 'completed' || String(s).toLowerCase() === 'successfull' || String(s).toLowerCase() === 'successed');
         } catch (e) {
-            console.warn('Could not auto-confirm bookings on return:', e.message || e);
+            console.warn('Could not fetch PayOS link info on return:', e.message || e);
         }
     }
-
-    // Respond with HTML that redirects to app via deep link
     const html = `
         <!DOCTYPE html>
         <html>
@@ -280,49 +306,131 @@ exports.handleCancel = (req, res) => {
 exports.verifyPayment = async (req, res) => {
     const { orderId, transactionId } = req.body || req.query || {};
 
+    console.log('verifyPayment called with:', { orderId, transactionId });
+
     if (!orderId && !transactionId) {
         return res.status(400).json({ error: 'Missing orderId or transactionId' });
     }
 
     try {
-        // Attempt to confirm via PayOS SDK if available
-        let payosStatus = null;
-        try {
-            if (transactionId && typeof payos.getPayment === 'function') {
-                payosStatus = await payos.getPayment({ transactionId });
-            } else if (orderId && typeof payos.getPaymentByOrder === 'function') {
-                payosStatus = await payos.getPaymentByOrder({ orderCode: orderId });
-            }
-        } catch (e) {
-            console.warn('PayOS SDK verify not available or failed:', e.message || e);
-            payosStatus = null;
-        }
-
-        // Resolve booking IDs from payment_orders table if present
+        // Resolve booking IDs from payment_orders table
         let bookingIds = [];
         try {
             const key = orderId || transactionId;
             const { rows } = await db.query('SELECT booking_ids FROM payment_orders WHERE order_code=$1 ORDER BY created_at DESC LIMIT 1', [key]);
-            if (rows && rows.length) {
+            if (rows && rows.length && rows[0].booking_ids) {
                 bookingIds = JSON.parse(rows[0].booking_ids);
+                console.log('Found booking_ids from DB:', bookingIds);
             }
         } catch (e) {
-            console.warn('Could not read payment_orders mapping:', e.message || e);
+            console.warn('Could not fetch booking_ids from DB:', e.message);
         }
 
-        // If PayOS reports success or we have transactionId presence, mark bookings as confirmed
-        const successFromPayos = payosStatus && (payosStatus.status === 'SUCCESS' || String(payosStatus.status).toLowerCase() === 'success' || payosStatus.code === '00');
+        // Attempt to verify via PayOS SDK
+        let payosStatus = null;
+        try {
+            if (orderId && typeof payos.getPaymentLinkInformation === 'function') {
+                payosStatus = await payos.getPaymentLinkInformation(orderId);
+                console.log('PayOS verify result:', payosStatus);
+            }
+        } catch (e) {
+            console.warn('PayOS SDK verify failed:', e.message || e);
+            payosStatus = null;
+        }
+
+        // Check if payment was successful
+        const successFromPayos = payosStatus && (
+            payosStatus.status === 'PAID' ||
+            String(payosStatus.status).toLowerCase() === 'paid' ||
+            String(payosStatus.status).toLowerCase() === 'success' ||
+            payosStatus.code === '00'
+        );
+
+        // Consider success if we have transactionId or PayOS confirms success
         const considerSuccess = successFromPayos || !!transactionId;
 
+        console.log('Payment verification:', { considerSuccess, bookingIds });
+
+        // Update booking status if successful
         if (considerSuccess && bookingIds.length) {
             for (const id of bookingIds) {
-                await db.query("UPDATE bookings SET status='confirmed', payment_method='payos', payment_time=NOW() WHERE id=$1", [id]);
+                await db.query(
+                    "UPDATE bookings SET status='confirmed', payment_method='payos', payment_time=NOW() WHERE id=$1",
+                    [id]
+                );
+                console.log(`Updated booking ${id} to confirmed`);
             }
         }
 
-        return res.json({ ok: true, booking_ids: bookingIds, payosStatus });
+        return res.json({
+            ok: true,
+            booking_ids: bookingIds,
+            payosStatus,
+            success: considerSuccess
+        });
     } catch (err) {
         console.error('verifyPayment error:', err);
         return res.status(500).json({ error: err.message || 'Verify failed' });
     }
 };
+
+// Webhook handler - PayOS will call this when payment status changes
+exports.handleWebhook = async (req, res) => {
+    console.log('PayOS webhook received:', JSON.stringify(req.body, null, 2));
+
+    try {
+        const data = req.body;
+
+        // PayOS webhook structure varies, handle common fields
+        const orderCode = data.orderCode || data.code || data.order_id || data.orderId;
+        const status = data.status || data.paymentStatus;
+        const transactionId = data.id || data.transactionId || data.transId;
+
+        if (!orderCode) {
+            console.warn('Webhook missing orderCode');
+            return res.status(400).json({ error: 'Missing orderCode' });
+        }
+
+        // Check if payment is successful
+        const isSuccess = status && (
+            String(status).toLowerCase() === 'paid' ||
+            String(status).toLowerCase() === 'success' ||
+            String(status) === '00'
+        );
+
+        console.log('Webhook payment status:', { orderCode, status, isSuccess, transactionId });
+
+        if (isSuccess) {
+            // Find booking IDs from payment_orders
+            const { rows } = await db.query(
+                'SELECT booking_ids FROM payment_orders WHERE order_code=$1 ORDER BY created_at DESC LIMIT 1',
+                [orderCode]
+            );
+
+            if (rows && rows.length && rows[0].booking_ids) {
+                const bookingIds = JSON.parse(rows[0].booking_ids);
+                console.log('Webhook updating bookings:', bookingIds);
+
+                // Update all bookings to confirmed
+                for (const id of bookingIds) {
+                    await db.query(
+                        "UPDATE bookings SET status='confirmed', payment_method='payos', payment_time=NOW() WHERE id=$1",
+                        [id]
+                    );
+                    console.log(`Webhook: Updated booking ${id} to confirmed`);
+                }
+
+                return res.json({ success: true, bookings_updated: bookingIds.length });
+            } else {
+                console.warn('No booking_ids found for order:', orderCode);
+                return res.json({ success: false, message: 'No bookings found' });
+            }
+        }
+
+        return res.json({ success: true, message: 'Payment not yet successful' });
+    } catch (err) {
+        console.error('Webhook error:', err);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
