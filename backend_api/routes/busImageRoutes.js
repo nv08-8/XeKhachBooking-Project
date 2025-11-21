@@ -63,20 +63,20 @@ router.get("/bus-image", (req, res) => {
 
     console.log(`✅ Found match with ${found.image_urls.length} images`);
 
-    // Filter and prioritize non-TikTok URLs (they're less likely to be blocked)
+    // Filter out TikTok URLs (they're blocked with HTTP 403)
     const nonTikTokUrls = found.image_urls.filter(url => !url.includes('tiktok.com'));
-    const tiktokUrls = found.image_urls.filter(url => url.includes('tiktok.com'));
 
-    // Prioritize non-TikTok URLs, then TikTok URLs
-    const sortedUrls = [...nonTikTokUrls, ...tiktokUrls];
+    console.log(`   Total URLs: ${found.image_urls.length}, Non-TikTok URLs: ${nonTikTokUrls.length}`);
 
-    console.log(`   Non-TikTok URLs: ${nonTikTokUrls.length}, TikTok URLs: ${tiktokUrls.length}`);
+    // If we have non-TikTok URLs, use them. Otherwise fallback to original
+    const finalUrls = nonTikTokUrls.length > 0 ? nonTikTokUrls : found.image_urls;
 
-    // Return the first non-TikTok image as primary, or first TikTok if no other option
+    // Return only reliable non-TikTok images
     return res.json({
         success: true,
-        image: sortedUrls[0] || found.image_urls[0],
-        all_images: sortedUrls.length > 0 ? sortedUrls : found.image_urls
+        image: finalUrls[0],
+        all_images: finalUrls,
+        note: nonTikTokUrls.length === 0 ? "Only TikTok URLs available (may be blocked)" : "Using reliable non-TikTok URLs"
     });
 });
 
