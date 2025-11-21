@@ -78,17 +78,17 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="24dp">
             <RadioButton
-                android:id="@+id/rbMomo"
+                android:id="@+id/rbPayos"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="MoMo"
+                android:text="💳 Thanh toán Online (Ngân hàng, MOMO, ZaloPay)"
                 android:textSize="16sp"
                 android:padding="12dp"/>
             <RadioButton
-                android:id="@+id/rbBank"
+                android:id="@+id/rbCash"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Chuyển khoản ngân hàng"
+                android:text="💵 Thanh toán tiền mặt khi lên xe"
                 android:textSize="16sp"
                 android:padding="12dp"/>
         </RadioGroup>

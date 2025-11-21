@@ -101,6 +101,13 @@ public interface ApiService {
     Call<List<Map<String, Object>>> getReviews(@Query("limit") Integer limit);
 
     // PayOS payment
+    @POST("api/payment/payos/create")
+    Call<vn.hcmute.busbooking.model.PaymentResponse> createPayosPayment(@Body vn.hcmute.busbooking.model.PaymentRequest request);
+
+    @POST("api/payment/payos/verify")
+    Call<Map<String, Object>> verifyPayos(@Body Map<String, String> body);
+
+    // PayOS payment
     @POST("api/payos/create")
     Call<Map<String, Object>> createPayosCheckout(@Body Map<String, Object> body);
 

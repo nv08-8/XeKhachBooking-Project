@@ -1,6 +1,7 @@
 package vn.hcmute.busbooking.activity;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -26,12 +27,14 @@ import retrofit2.Response;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
+import vn.hcmute.busbooking.model.PaymentRequest;
+import vn.hcmute.busbooking.model.PaymentResponse;
 
 public class PaymentActivity extends AppCompatActivity {
 
     private TextView tvBookingId, tvRoute, tvSeat, tvAmount;
     private RadioGroup rgPaymentMethod;
-    private RadioButton rbMomo, rbBank;
+    private RadioButton rbPayos, rbCash;
     private Button btnConfirmPayment;
     private ProgressBar progressBar;
 
@@ -55,8 +58,8 @@ public class PaymentActivity extends AppCompatActivity {
         tvSeat = findViewById(R.id.tvSeat);
         tvAmount = findViewById(R.id.tvAmount);
         rgPaymentMethod = findViewById(R.id.rgPaymentMethod);
-        rbMomo = findViewById(R.id.rbMomo);
-        rbBank = findViewById(R.id.rbBank);
+        rbPayos = findViewById(R.id.rbPayos);
+        rbCash = findViewById(R.id.rbCash);
         btnConfirmPayment = findViewById(R.id.btnConfirmPayment);
         progressBar = findViewById(R.id.progressBar);
 
@@ -137,12 +140,74 @@ public class PaymentActivity extends AppCompatActivity {
             return;
         }
 
-        String paymentMethod = selectedId == R.id.rbMomo ? "momo" : "bank";
-
         progressBar.setVisibility(View.VISIBLE);
         btnConfirmPayment.setEnabled(false);
 
-        confirmNextPayment(0, paymentMethod);
+        if (selectedId == R.id.rbPayos) {
+            // Thanh toán online qua PayOS (Ngân hàng, MOMO, ZaloPay...)
+            processPayosPayment();
+        } else {
+            // Thanh toán tiền mặt khi lên xe
+            processCashPayment();
+        }
+    }
+
+    private void processPayosPayment() {
+        // Tạo orderId unique
+        String orderId = String.valueOf(System.currentTimeMillis());
+
+        PaymentRequest request = new PaymentRequest(orderId, amount, bookingIds);
+
+        apiService.createPayosPayment(request).enqueue(new Callback<PaymentResponse>() {
+            @Override
+            public void onResponse(Call<PaymentResponse> call, Response<PaymentResponse> response) {
+                progressBar.setVisibility(View.GONE);
+                btnConfirmPayment.setEnabled(true);
+
+                if (response.isSuccessful() && response.body() != null) {
+                    String checkoutUrl = response.body().getCheckoutUrl();
+                    if (checkoutUrl != null && !checkoutUrl.isEmpty()) {
+                        // Mở link thanh toán bằng trình duyệt
+                        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(checkoutUrl));
+                        startActivity(browserIntent);
+
+                        Toast.makeText(PaymentActivity.this,
+                            "Vui lòng hoàn tất thanh toán trên trang web",
+                            Toast.LENGTH_LONG).show();
+
+                        // Quay về MyBookings
+                        Intent intent = new Intent(PaymentActivity.this, MyBookingsActivity.class);
+                        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                        startActivity(intent);
+                        finish();
+                    } else {
+                        Toast.makeText(PaymentActivity.this, "Không nhận được link thanh toán", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    String error = "Không thể tạo link thanh toán";
+                    try {
+                        if (response.errorBody() != null) {
+                            error = response.errorBody().string();
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    Toast.makeText(PaymentActivity.this, error, Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<PaymentResponse> call, Throwable t) {
+                progressBar.setVisibility(View.GONE);
+                btnConfirmPayment.setEnabled(true);
+                Toast.makeText(PaymentActivity.this, "Lỗi mạng: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void processCashPayment() {
+        // Thanh toán tiền mặt - confirm từng booking
+        confirmNextPayment(0, "cash");
     }
 
     private void confirmNextPayment(int index, String paymentMethod) {
@@ -181,7 +246,7 @@ public class PaymentActivity extends AppCompatActivity {
     private void onAllPaymentsSuccess() {
         progressBar.setVisibility(View.GONE);
         btnConfirmPayment.setEnabled(true);
-        Toast.makeText(PaymentActivity.this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
+        Toast.makeText(PaymentActivity.this, "Đặt vé thành công! Thanh toán khi lên xe", Toast.LENGTH_LONG).show();
 
         Intent intent = new Intent(PaymentActivity.this, BookingDetailActivity.class);
         intent.putExtra("booking_id", primaryBookingId);

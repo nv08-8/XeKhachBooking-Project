@@ -12,23 +12,21 @@ exports.createCheckout = async (req, res) => {
 
     try {
         const payment = await payos.createPaymentLink({
-            orderCode: orderId,
-            amount: amount,
-            description: 'Thanh toán vé xe',
-            returnUrl: process.env.PAYMENT_RETURN_URL || 'https://xekhachbooking-project.onrender.com/payment/return',
-            cancelUrl: process.env.PAYMENT_CANCEL_URL || 'https://xekhachbooking-project.onrender.com/payment/cancel'
+            orderCode: Number(orderId),
+            amount: Number(amount),
+            description: 'Thanh toán vé xe khách',
+            returnUrl: process.env.PAYMENT_RETURN_URL || 'https://xekhachbooking-project.onrender.com/api/payment/payos/return',
+            cancelUrl: process.env.PAYMENT_CANCEL_URL || 'https://xekhachbooking-project.onrender.com/api/payment/payos/cancel'
         });
 
-        // Optionally persist order mapping to booking_ids (for later verification)
+        // Persist order mapping to booking_ids
         if (Array.isArray(booking_ids) && booking_ids.length) {
-            // store a simple mapping in a payment_orders table if exists; otherwise log
             try {
                 await db.query(
                     'INSERT INTO payment_orders(order_code, booking_ids, amount, created_at) VALUES($1, $2, $3, NOW())',
                     [orderId, JSON.stringify(booking_ids), amount]
                 );
             } catch (e) {
-                // If table doesn't exist, just log and continue
                 console.warn('Could not persist payment order mapping:', e.message || e);
             }
         }
@@ -42,20 +40,19 @@ exports.createCheckout = async (req, res) => {
 
 // Handle return redirect from PayOS
 exports.handleReturn = async (req, res) => {
-    // PayOS will redirect users to returnUrl with query params. We log and show a simple page.
     const params = req.query || {};
     console.log('PayOS return params:', params);
 
-    // Try to reconcile payment where possible: if orderCode present, mark bookings as confirmed
-    const orderCode = params.orderCode || params.orderCode || params.order_id || params.orderId || params.order;
-    const status = params.status || params.result || params.responseCode;
-    const transId = params.transactionId || params.transId || params.transaction_id;
+    // Extract orderCode and status from PayOS callback
+    const orderCode = params.orderCode || params.code || params.order_id || params.orderId;
+    const status = params.status || params.resultCode;
+    const transId = params.id || params.transactionId || params.transId;
 
-    // Basic heuristic: if status indicates success ("success" or "00" or "SUCCESS"), update booking rows
-    const success = status && (String(status).toLowerCase() === 'success' || String(status) === '00' || String(status).toUpperCase() === 'SUCCESS');
+    // Check if payment is successful
+    const success = status && (String(status).toLowerCase() === 'paid' || String(status) === '00' || String(status).toLowerCase() === 'success');
+
     if (orderCode && success) {
         try {
-            // try to find mapping in payment_orders
             const { rows } = await db.query('SELECT booking_ids FROM payment_orders WHERE order_code=$1 ORDER BY created_at DESC LIMIT 1', [orderCode]);
             if (rows && rows.length) {
                 const bookingIds = JSON.parse(rows[0].booking_ids);
@@ -68,20 +65,73 @@ exports.handleReturn = async (req, res) => {
         }
     }
 
-    // Respond with a small HTML that can redirect user back to app or show success
+    // Respond with HTML that redirects to app via deep link
     const html = `
+        <!DOCTYPE html>
         <html>
           <head>
             <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Thanh toán</title>
-            <style>body{font-family:Arial,sans-serif;padding:24px;text-align:center}</style>
+            <style>
+                body {
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    padding: 40px 20px;
+                    text-align: center;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .container {
+                    background: white;
+                    padding: 30px;
+                    border-radius: 15px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                    max-width: 400px;
+                }
+                .icon {
+                    font-size: 60px;
+                    margin-bottom: 20px;
+                }
+                h2 {
+                    color: #333;
+                    margin-bottom: 10px;
+                }
+                .info {
+                    color: #666;
+                    margin: 10px 0;
+                    font-size: 14px;
+                }
+                .btn {
+                    display: inline-block;
+                    margin-top: 20px;
+                    padding: 12px 30px;
+                    background: #667eea;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 25px;
+                    font-weight: bold;
+                }
+            </style>
           </head>
           <body>
-            <h2>Thanh toán ${success ? 'thành công' : 'không thành công'}</h2>
-            <p>Order: ${orderCode || 'n/a'}</p>
-            <p>Transaction: ${transId || 'n/a'}</p>
-            <p>Bấm <a id="back" href="xekhachbooking://payment?order=${orderCode}">về app</a> để xem vé, hoặc đóng cửa sổ này.</p>
-            <script>setTimeout(()=>{document.getElementById('back').click()},3000)</script>
+            <div class="container">
+                <div class="icon">${success ? '✅' : '❌'}</div>
+                <h2>Thanh toán ${success ? 'thành công!' : 'không thành công'}</h2>
+                <div class="info">Mã đơn: <strong>${orderCode || 'N/A'}</strong></div>
+                <div class="info">Mã giao dịch: <strong>${transId || 'N/A'}</strong></div>
+                <p style="margin-top: 20px; color: #888;">Đang chuyển về ứng dụng...</p>
+                <a id="backLink" href="xekhachbooking://payment?order=${orderCode}&status=${success ? 'success' : 'failed'}&transactionId=${transId || ''}" class="btn">
+                    Mở App
+                </a>
+            </div>
+            <script>
+                setTimeout(() => {
+                    window.location.href = 'xekhachbooking://payment?order=${orderCode}&status=${success ? 'success' : 'failed'}&transactionId=${transId || ''}';
+                }, 2000);
+            </script>
           </body>
         </html>
     `;
@@ -94,7 +144,69 @@ exports.handleReturn = async (req, res) => {
 exports.handleCancel = (req, res) => {
     const params = req.query || {};
     console.log('PayOS cancel params:', params);
-    res.redirect(process.env.PAYMENT_CANCEL_PAGE || '/');
+
+    const orderCode = params.orderCode || params.code || params.orderId;
+
+    const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Hủy thanh toán</title>
+            <style>
+                body {
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    padding: 40px 20px;
+                    text-align: center;
+                    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .container {
+                    background: white;
+                    padding: 30px;
+                    border-radius: 15px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                    max-width: 400px;
+                }
+                .icon { font-size: 60px; margin-bottom: 20px; }
+                h2 { color: #333; margin-bottom: 10px; }
+                .btn {
+                    display: inline-block;
+                    margin-top: 20px;
+                    padding: 12px 30px;
+                    background: #f5576c;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 25px;
+                    font-weight: bold;
+                }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+                <div class="icon">⚠️</div>
+                <h2>Đã hủy thanh toán</h2>
+                <p style="color: #666;">Bạn đã hủy giao dịch</p>
+                <p style="margin-top: 20px; color: #888;">Đang chuyển về ứng dụng...</p>
+                <a href="xekhachbooking://payment?order=${orderCode || ''}&status=cancelled" class="btn">
+                    Mở App
+                </a>
+            </div>
+            <script>
+                setTimeout(() => {
+                    window.location.href = 'xekhachbooking://payment?order=${orderCode || ''}&status=cancelled';
+                }, 2000);
+            </script>
+          </body>
+        </html>
+    `;
+
+    res.set('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
 };
 
 // Verify payment (called by app after deep link or manually)

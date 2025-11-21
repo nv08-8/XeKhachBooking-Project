@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:payos": "node test-payos.js",
+    "migrate": "node run-migration.js"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
