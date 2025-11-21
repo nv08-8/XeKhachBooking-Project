@@ -27,7 +27,7 @@ app.use("/api", dataRoutes);
 app.use("/api", bookingRoutes);
 app.use("/api", promoRoutes);
 app.use("/api", metaRoutes);
-app.use("/api", paymentRoutes);
+app.use("/api/payment", paymentRoutes);
 
 // small helper to list registered routes (useful for debugging 404s/method mismatches)
 function listRoutes(app) {
