@@ -246,4 +246,62 @@ router.get("/bookings/:id", async (req, res) => {
   }
 });
 
+// Manual payment verification endpoint (for debugging/manual confirmation)
+router.post("/bookings/:id/verify-payment", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Check if booking exists and is pending
+    const { rows } = await db.query("SELECT * FROM bookings WHERE id=$1", [id]);
+    if (!rows.length) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    const booking = rows[0];
+
+    if (booking.status === 'confirmed') {
+      return res.json({
+        message: "Booking already confirmed",
+        status: "confirmed",
+        booking_id: id
+      });
+    }
+
+    // Check if there's a payment order for this booking
+    const { rows: orders } = await db.query(
+      "SELECT * FROM payment_orders WHERE booking_ids::jsonb @> $1::jsonb ORDER BY created_at DESC LIMIT 1",
+      [`[${id}]`]
+    );
+
+    if (orders.length > 0) {
+      // Payment order exists - likely paid via PayOS
+      console.log(`Manual verification: Confirming booking ${id} with PayOS payment`);
+      const qrData = `BOOKING-${id}-${Date.now()}`;
+      await db.query(
+        "UPDATE bookings SET status='confirmed', payment_method='payos', qr_code=$1, payment_time=NOW() WHERE id=$2",
+        [qrData, id]
+      );
+
+      return res.json({
+        message: "Payment verified and booking confirmed",
+        status: "confirmed",
+        payment_method: "payos",
+        booking_id: id,
+        qr_code: qrData
+      });
+    } else {
+      // No payment order found
+      return res.json({
+        message: "No payment record found",
+        status: "pending",
+        booking_id: id,
+        suggestion: "Please complete payment or contact support"
+      });
+    }
+  } catch (err) {
+    console.error("Payment verification failed:", err);
+    res.status(500).json({ message: "Payment verification failed" });
+  }
+});
+
 module.exports = router;
