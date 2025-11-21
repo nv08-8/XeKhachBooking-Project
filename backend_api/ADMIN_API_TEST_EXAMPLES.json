@@ -1,0 +1,147 @@
+{
+  "info": {
+    "name": "Admin Bus Booking API",
+    "description": "API endpoints for admin management",
+    "version": "1.0.0"
+  },
+  "endpoints": [
+    {
+      "name": "Add Route",
+      "method": "POST",
+      "url": "/api/admin/routes",
+      "headers": {
+        "user-id": "23",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "origin": "Hà Nội",
+        "destination": "Hải Phòng",
+        "distance_km": 120,
+        "duration_min": 120
+      }
+    },
+    {
+      "name": "Update Route",
+      "method": "PUT",
+      "url": "/api/admin/routes/3",
+      "headers": {
+        "user-id": "23",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "origin": "Hà Nội",
+        "destination": "Hải Phòng",
+        "distance_km": 125,
+        "duration_min": 130
+      }
+    },
+    {
+      "name": "Delete Route",
+      "method": "DELETE",
+      "url": "/api/admin/routes/3",
+      "headers": {
+        "user-id": "23"
+      }
+    },
+    {
+      "name": "Add Trip",
+      "method": "POST",
+      "url": "/api/admin/trips",
+      "headers": {
+        "user-id": "23",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "route_id": "3",
+        "operator": "Xe Thiên Tây",
+        "bus_type": "Giường nằm",
+        "departure_time": "2025-11-21T10:00:00Z",
+        "arrival_time": "2025-11-21T12:00:00Z",
+        "price": 150000,
+        "seats_total": 40
+      }
+    },
+    {
+      "name": "Update Trip (Price, Schedule, Status)",
+      "method": "PUT",
+      "url": "/api/admin/trips/1",
+      "headers": {
+        "user-id": "23",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "operator": "Xe Thiên Tây",
+        "bus_type": "Giường nằm",
+        "departure_time": "2025-11-21T10:30:00Z",
+        "arrival_time": "2025-11-21T12:30:00Z",
+        "price": 160000,
+        "status": "active"
+      }
+    },
+    {
+      "name": "Delete Trip",
+      "method": "DELETE",
+      "url": "/api/admin/trips/1",
+      "headers": {
+        "user-id": "23"
+      }
+    },
+    {
+      "name": "Get Admin Bookings",
+      "method": "GET",
+      "url": "/api/admin/bookings?trip_id=1&status=confirmed&page=1&page_size=50",
+      "headers": {
+        "user-id": "23"
+      }
+    },
+    {
+      "name": "Confirm Booking",
+      "method": "PUT",
+      "url": "/api/admin/bookings/1/confirm",
+      "headers": {
+        "user-id": "23"
+      }
+    },
+    {
+      "name": "Cancel Booking",
+      "method": "PUT",
+      "url": "/api/admin/bookings/1/cancel",
+      "headers": {
+        "user-id": "23"
+      }
+    },
+    {
+      "name": "Revenue by Route",
+      "method": "GET",
+      "url": "/api/admin/revenue/by-route",
+      "headers": {
+        "user-id": "23"
+      }
+    },
+    {
+      "name": "Revenue by Date",
+      "method": "GET",
+      "url": "/api/admin/revenue/by-date?from_date=2025-11-01&to_date=2025-11-30",
+      "headers": {
+        "user-id": "23"
+      }
+    },
+    {
+      "name": "Revenue by Month",
+      "method": "GET",
+      "url": "/api/admin/revenue/by-month",
+      "headers": {
+        "user-id": "23"
+      }
+    },
+    {
+      "name": "Revenue by Year",
+      "method": "GET",
+      "url": "/api/admin/revenue/by-year",
+      "headers": {
+        "user-id": "23"
+      }
+    }
+  ]
+}
+

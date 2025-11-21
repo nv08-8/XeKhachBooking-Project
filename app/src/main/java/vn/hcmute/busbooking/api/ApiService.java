@@ -100,33 +100,63 @@ public interface ApiService {
     @GET("api/reviews")
     Call<List<Map<String, Object>>> getReviews(@Query("limit") Integer limit);
 
-    // ----- Admin endpoints (stubs) -----
+    // ----- Admin endpoints (FULL) -----
 
-    // Routes management
+    // ========== ROUTES MANAGEMENT ==========
     @POST("api/admin/routes")
-    Call<Map<String, Object>> createRoute(@Body Map<String, Object> body);
+    Call<Map<String, Object>> createRoute(@Header("user-id") int userId, @Body Map<String, Object> body);
 
     @PUT("api/admin/routes/{id}")
-    Call<Map<String, Object>> updateRoute(@Path("id") int routeId, @Body Map<String, Object> body);
+    Call<Map<String, Object>> updateRoute(@Header("user-id") int userId, @Path("id") int routeId, @Body Map<String, Object> body);
 
     @DELETE("api/admin/routes/{id}")
-    Call<Map<String, Object>> deleteRoute(@Path("id") int routeId);
+    Call<Map<String, Object>> deleteRoute(@Header("user-id") int userId, @Path("id") int routeId);
 
     @GET("api/admin/routes/{id}")
-    Call<Map<String, Object>> getRouteById(@Path("id") int routeId);
+    Call<Map<String, Object>> getRouteById(@Header("user-id") int userId, @Path("id") int routeId);
 
-    // Admin bookings
+    // ========== TRIPS MANAGEMENT ==========
+    @POST("api/admin/trips")
+    Call<Map<String, Object>> createTrip(@Header("user-id") int userId, @Body Map<String, Object> body);
+
+    @PUT("api/admin/trips/{id}")
+    Call<Map<String, Object>> updateTrip(@Header("user-id") int userId, @Path("id") int tripId, @Body Map<String, Object> body);
+
+    @DELETE("api/admin/trips/{id}")
+    Call<Map<String, Object>> deleteTrip(@Header("user-id") int userId, @Path("id") int tripId);
+
+    // ========== BOOKINGS MANAGEMENT ==========
     @GET("api/admin/bookings")
-    Call<Map<String, Object>> getAdminBookings(@QueryMap Map<String, String> query);
+    Call<List<Map<String, Object>>> getAdminBookings(
+            @Header("user-id") int userId,
+            @Query("trip_id") String tripId,
+            @Query("user_id") String userId2,
+            @Query("status") String status,
+            @Query("page") int page,
+            @Query("page_size") int pageSize
+    );
 
-    @POST("api/admin/bookings/{id}/confirm")
-    Call<Map<String, Object>> confirmAdminBooking(@Path("id") int bookingId);
+    @PUT("api/admin/bookings/{id}/confirm")
+    Call<Map<String, Object>> confirmAdminBooking(@Header("user-id") int userId, @Path("id") int bookingId);
 
-    @POST("api/admin/bookings/{id}/cancel")
-    Call<Map<String, Object>> cancelAdminBooking(@Path("id") int bookingId);
+    @PUT("api/admin/bookings/{id}/cancel")
+    Call<Map<String, Object>> cancelAdminBooking(@Header("user-id") int userId, @Path("id") int bookingId);
 
-    // Revenue stats
-    @GET("api/admin/stats/revenue")
-    Call<Map<String, Object>> getRevenueStats(@Query("group_by") String groupBy, @Query("from") String from, @Query("to") String to);
+    // ========== REVENUE STATISTICS ==========
+    @GET("api/admin/revenue/by-route")
+    Call<List<Map<String, Object>>> getRevenueByRoute(@Header("user-id") int userId);
+
+    @GET("api/admin/revenue/by-date")
+    Call<List<Map<String, Object>>> getRevenueByDate(
+            @Header("user-id") int userId,
+            @Query("from_date") String fromDate,
+            @Query("to_date") String toDate
+    );
+
+    @GET("api/admin/revenue/by-month")
+    Call<List<Map<String, Object>>> getRevenueByMonth(@Header("user-id") int userId);
+
+    @GET("api/admin/revenue/by-year")
+    Call<List<Map<String, Object>>> getRevenueByYear(@Header("user-id") int userId);
 
 }

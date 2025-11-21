@@ -10,6 +10,7 @@ const dataRoutes = require("./routes/dataRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
 const promoRoutes = require("./routes/promoRoutes");
 const metaRoutes = require("./routes/metaRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 app.use(express.json());
 app.use(cors());
@@ -26,6 +27,7 @@ app.use("/api", dataRoutes);
 app.use("/api", bookingRoutes);
 app.use("/api", promoRoutes);
 app.use("/api", metaRoutes);
+app.use("/api", adminRoutes);
 
 // small helper to list registered routes (useful for debugging 404s/method mismatches)
 function listRoutes(app) {
