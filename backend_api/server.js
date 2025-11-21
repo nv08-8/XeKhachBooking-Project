@@ -11,6 +11,8 @@ const bookingRoutes = require("./routes/bookingRoutes");
 const promoRoutes = require("./routes/promoRoutes");
 const metaRoutes = require("./routes/metaRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const busImageRoutes = require("./routes/busImageRoutes");
+const tripDetailRoutes = require("./routes/tripDetailRoutes");
 
 app.use(express.json());
 app.use(cors());
@@ -28,6 +30,8 @@ app.use("/api", bookingRoutes);
 app.use("/api", promoRoutes);
 app.use("/api", metaRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api", busImageRoutes);
+app.use("/api", tripDetailRoutes);
 
 // small helper to list registered routes (useful for debugging 404s/method mismatches)
 function listRoutes(app) {
