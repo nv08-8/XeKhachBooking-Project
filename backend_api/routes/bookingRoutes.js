@@ -194,10 +194,30 @@ router.post("/bookings/:id/cancel", async (req, res) => {
     const newStatus = refundAmount > 0 ? 'pending_refund' : 'cancelled';
 
     // Update booking status and refund info
-    await client.query(
-      "UPDATE bookings SET status=$1, refund_amount=$2, refund_percentage=$3, cancelled_at=NOW() WHERE id=$4",
-      [newStatus, refundAmount, refundPercentage, id]
-    );
+    // Check if refund columns exist first to avoid transaction abort
+    const columnsCheck = await client.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'bookings'
+      AND column_name IN ('refund_amount', 'refund_percentage', 'cancelled_at')
+    `);
+
+    const hasRefundColumns = columnsCheck.rowCount >= 3;
+
+    if (hasRefundColumns) {
+      // Update with all refund columns
+      await client.query(
+        "UPDATE bookings SET status=$1, refund_amount=$2, refund_percentage=$3, cancelled_at=NOW() WHERE id=$4",
+        [newStatus, refundAmount, refundPercentage, id]
+      );
+    } else {
+      // Fallback: update only status if refund columns don't exist
+      console.warn("Refund columns not found in bookings table, updating status only");
+      await client.query(
+        "UPDATE bookings SET status=$1 WHERE id=$2",
+        ['cancelled', id]
+      );
+    }
 
     // Release seat back to available
     await client.query(
@@ -227,6 +247,7 @@ router.post("/bookings/:id/cancel", async (req, res) => {
     });
   } catch (err) {
     console.error("Cancel booking failed:", err.message || err);
+    console.error("Full error:", err);
     await rollbackAndRelease(client);
     res.status(500).json({ message: "Không thể hủy vé. Vui lòng thử lại" });
   }
