@@ -6,18 +6,32 @@ const db = require('../db');
 exports.createCheckout = async (req, res) => {
     const { orderId, amount, booking_ids } = req.body;
 
+    console.log('createCheckout called with:', { orderId, amount, booking_ids });
+
     if (!orderId || !amount) {
         return res.status(400).json({ error: 'Missing orderId or amount' });
     }
 
+    // Verify PayOS credentials
+    if (!process.env.PAYOS_CLIENT_ID || !process.env.PAYOS_API_KEY || !process.env.PAYOS_CHECKSUM_KEY) {
+        console.error('PayOS credentials missing!');
+        return res.status(500).json({ error: 'PayOS not configured. Please contact administrator.' });
+    }
+
     try {
-        const payment = await payos.createPaymentLink({
+        const paymentData = {
             orderCode: Number(orderId),
             amount: Number(amount),
             description: 'Thanh toán vé xe khách',
             returnUrl: process.env.PAYMENT_RETURN_URL || 'https://xekhachbooking-project.onrender.com/api/payment/payos/return',
             cancelUrl: process.env.PAYMENT_CANCEL_URL || 'https://xekhachbooking-project.onrender.com/api/payment/payos/cancel'
-        });
+        };
+
+        console.log('Creating PayOS payment link with:', paymentData);
+
+        const payment = await payos.createPaymentLink(paymentData);
+
+        console.log('PayOS response:', payment);
 
         // Persist order mapping to booking_ids
         if (Array.isArray(booking_ids) && booking_ids.length) {
@@ -26,6 +40,7 @@ exports.createCheckout = async (req, res) => {
                     'INSERT INTO payment_orders(order_code, booking_ids, amount, created_at) VALUES($1, $2, $3, NOW())',
                     [orderId, JSON.stringify(booking_ids), amount]
                 );
+                console.log('Payment order saved to DB');
             } catch (e) {
                 console.warn('Could not persist payment order mapping:', e.message || e);
             }
@@ -34,7 +49,11 @@ exports.createCheckout = async (req, res) => {
         res.json({ checkoutUrl: payment.checkoutUrl });
     } catch (err) {
         console.error('createCheckout error:', err);
-        res.status(500).json({ error: err.message || 'Failed to create checkout' });
+        console.error('Error stack:', err.stack);
+        res.status(500).json({
+            error: err.message || 'Failed to create checkout',
+            details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 };
 
