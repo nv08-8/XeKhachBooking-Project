@@ -191,33 +191,15 @@ router.post("/bookings/:id/cancel", async (req, res) => {
     }
 
     refundAmount = Math.floor((booking.price_paid * refundPercentage) / 100);
-
-    // Update booking status
-    // If refund amount > 0: pending_refund (waiting for admin to process)
-    // If refund amount = 0: cancelled (no refund needed)
     const newStatus = refundAmount > 0 ? 'pending_refund' : 'cancelled';
     await client.query(
       "UPDATE bookings SET status=$1, refund_amount=$2, refund_percentage=$3, cancelled_at=NOW() WHERE id=$4",
       [newStatus, refundAmount, refundPercentage, id]
     );
-
-    // Release seat
     await client.query(
-      "UPDATE seats SET is_booked=0, booking_id=NULL WHERE trip_id=$1 AND label=$2",
-      [booking.trip_id, booking.seat_label]
+      "UPDATE bookings SET status=$1, refund_amount=$2, refund_percentage=$3, cancelled_at=NOW() WHERE id=$4",
+      [newStatus, refundAmount, refundPercentage, id]
     );
-
-    // Update available seats
-    await client.query(
-      "UPDATE trips SET seats_available = seats_available + 1 WHERE id=$1",
-      [booking.trip_id]
-    );
-
-    await commitAndRelease(client);
-
-    const message = refundAmount > 0
-      ? "Đã hủy vé thành công. Yêu cầu hoàn tiền đang được xử lý."
-      : "Đã hủy vé thành công. Không hoàn tiền do hủy quá gần giờ khởi hành.";
 
     res.json({
       message: message,
@@ -247,15 +229,8 @@ router.get("/bookings/my", async (req, res) => {
     WHERE b.user_id=$1
     ORDER BY b.created_at DESC
   `;
-  try {
     const { rows } = await db.query(sql, [user_id]);
-    res.json(rows);
-  } catch (err) {
-    console.error("Failed to fetch my bookings:", err);
-    res.status(500).json({ message: "Failed to fetch bookings" });
-  }
-});
-
+    res.status(500).json({ message: "Không thể hủy vé. Vui lòng thử lại" });
 router.post("/bookings/:id/payment", async (req, res) => {
   const { id } = req.params;
   const { payment_method } = req.body;
