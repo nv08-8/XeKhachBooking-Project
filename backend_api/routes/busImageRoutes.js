@@ -1,6 +1,20 @@
 const express = require("express");
 const router = express.Router();
-const images = require("../data/bus_images.json");
+const path = require("path");
+const fs = require("fs");
+
+// Use absolute path for compatibility with different environments
+const imagesPath = path.join(__dirname, "../data/bus_images.json");
+let images = [];
+
+try {
+    const data = fs.readFileSync(imagesPath, "utf8");
+    images = JSON.parse(data);
+    console.log(`✅ Loaded ${images.length} bus images`);
+} catch (error) {
+    console.error("❌ Error loading bus_images.json:", error.message);
+    images = []; // Fallback to empty array
+}
 
 // GET /api/bus-image?operator=Nhà xe Hải Vân&bus_type=Giường nằm 32 chỗ có WC
 router.get("/bus-image", (req, res) => {
