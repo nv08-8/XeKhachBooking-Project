@@ -12,7 +12,12 @@ exports.createCheckout = async (req, res) => {
         return res.status(400).json({ error: 'Missing orderId or amount' });
     }
 
-    // Verify PayOS credentials
+    // Verify PayOS credentials / SDK
+    if (!payos || typeof payos.createPaymentLink !== 'function') {
+        console.error('PayOS SDK not initialized properly.');
+        return res.status(500).json({ error: 'PayOS SDK not available. Check server logs.' });
+    }
+
     if (!process.env.PAYOS_CLIENT_ID || !process.env.PAYOS_API_KEY || !process.env.PAYOS_CHECKSUM_KEY) {
         console.error('PayOS credentials missing!');
         return res.status(500).json({ error: 'PayOS not configured. Please contact administrator.' });
@@ -20,11 +25,26 @@ exports.createCheckout = async (req, res) => {
 
     try {
         // Get buyer info from request body (optional) or use defaults
-        const { buyerName, buyerEmail, buyerPhone, buyerAddress } = req.body;
+        const { buyerName, buyerEmail, buyerPhone, buyerAddress, items: clientItems } = req.body || {};
 
         // Calculate quantity and unit price
         const quantity = Array.isArray(booking_ids) && booking_ids.length > 0 ? booking_ids.length : 1;
-        const unitPrice = Math.floor(Number(amount) / quantity);
+        const unitPrice = Math.floor(Number(amount) / quantity) || Number(amount);
+
+        // Ensure return/cancel URLs
+        const returnUrl = process.env.PAYMENT_RETURN_URL || process.env.PAYOS_RETURN_URL || 'https://xekhachbooking-project.onrender.com/api/payment/payos/return';
+        const cancelUrl = process.env.PAYMENT_CANCEL_URL || process.env.PAYOS_CANCEL_URL || 'https://xekhachbooking-project.onrender.com/api/payment/payos/cancel';
+
+        // Build items: prefer client-sent items, otherwise construct a default item
+        const items = Array.isArray(clientItems) && clientItems.length > 0
+            ? clientItems
+            : [
+                {
+                    name: 'Vé xe khách',
+                    quantity: quantity,
+                    price: unitPrice
+                }
+            ];
 
         // PayOS requires ALL these fields for signature creation
         const paymentData = {
@@ -34,21 +54,23 @@ exports.createCheckout = async (req, res) => {
             // Required buyer information (use provided or default)
             buyerName: buyerName || 'Khách hàng',
             buyerEmail: buyerEmail || 'customer@xekhachbooking.com',
-            buyerPhone: buyerPhone || '0123456789',
+            buyerPhone: (typeof buyerPhone !== 'undefined' && buyerPhone !== null) ? String(buyerPhone) : '0123456789',
             buyerAddress: buyerAddress || 'Việt Nam',
             // Required items array
-            items: [
-                {
-                    name: 'Vé xe khách',
-                    quantity: quantity,
-                    price: unitPrice
-                }
-            ],
+            items: items,
             // Add expiredAt - 15 minutes from now
             expiredAt: Math.floor(Date.now() / 1000) + (15 * 60),
-            returnUrl: process.env.PAYMENT_RETURN_URL || 'https://xekhachbooking-project.onrender.com/api/payment/payos/return',
-            cancelUrl: process.env.PAYMENT_CANCEL_URL || 'https://xekhachbooking-project.onrender.com/api/payment/payos/cancel'
+            returnUrl: returnUrl,
+            cancelUrl: cancelUrl
         };
+
+        // Defensive check: all required fields exist
+        const required = ['orderCode', 'amount', 'returnUrl', 'cancelUrl', 'description'];
+        const missing = required.filter(k => paymentData[k] === undefined || paymentData[k] === null);
+        if (missing.length) {
+            console.error('Payment data missing required fields:', missing);
+            return res.status(500).json({ error: 'Payment data incomplete: ' + missing.join(', ') });
+        }
 
         console.log('Creating PayOS payment link with:', {
             ...paymentData,
