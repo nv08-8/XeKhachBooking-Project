@@ -16,9 +16,17 @@ try {
     images = []; // Fallback to empty array
 }
 
+// Helper function to normalize strings for comparison
+function normalize(str) {
+    if (!str) return "";
+    return str.toLowerCase().trim().replace(/\s+/g, " ");
+}
+
 // GET /api/bus-image?operator=Nhà xe Hải Vân&bus_type=Giường nằm 32 chỗ có WC
 router.get("/bus-image", (req, res) => {
     const { operator, bus_type } = req.query;
+
+    console.log(`🔍 Bus image request - operator: "${operator}", bus_type: "${bus_type}"`);
 
     // Validate required parameters
     if (!operator || !bus_type) {
@@ -29,26 +37,37 @@ router.get("/bus-image", (req, res) => {
         });
     }
 
-    // Find matching bus image
+    // Normalize input for comparison
+    const normalizedOperator = normalize(operator);
+    const normalizedBusType = normalize(bus_type);
+
+    // Find matching bus image with normalized comparison
     const found = images.find(
         item =>
-            item.operator === operator &&
-            item.bus_type === bus_type
+            normalize(item.operator) === normalizedOperator &&
+            normalize(item.bus_type) === normalizedBusType
     );
 
     if (!found) {
+        console.log(`❌ No exact match found`);
+        console.log(`   Looking for: operator="${normalizedOperator}", bus_type="${normalizedBusType}"`);
+        console.log(`   Available operators:`, [...new Set(images.map(i => i.operator))]);
+
         return res.json({
             success: false,
-            message: "No image found for this operator and bus type",
+            message: `No image found for operator: "${operator}" and bus type: "${bus_type}"`,
+            requested: { operator, bus_type },
             image: "https://placehold.co/600x300?text=No+Image"
         });
     }
+
+    console.log(`✅ Found match with ${found.image_urls.length} images`);
 
     // Return the first image URL (primary image)
     return res.json({
         success: true,
         image: found.image_urls[0],
-        all_images: found.image_urls // Optional: return all images if needed
+        all_images: found.image_urls
     });
 });
 
