@@ -44,6 +44,8 @@ exports.createCheckout = async (req, res) => {
                     price: unitPrice
                 }
             ],
+            // Add expiredAt - 15 minutes from now
+            expiredAt: Math.floor(Date.now() / 1000) + (15 * 60),
             returnUrl: process.env.PAYMENT_RETURN_URL || 'https://xekhachbooking-project.onrender.com/api/payment/payos/return',
             cancelUrl: process.env.PAYMENT_CANCEL_URL || 'https://xekhachbooking-project.onrender.com/api/payment/payos/cancel'
         };
