@@ -120,7 +120,7 @@ router.post("/bookings", async (req, res) => {
 });
 
 // ==========================================================
-// ⭐ ROUTE HỦY (Cần sửa lỗi is_booked)
+// ⭐ ROUTE HỦY VÉ VÀ HOÀN TIỀN
 // ==========================================================
 router.post("/bookings/:id/cancel", async (req, res) => {
   const { id } = req.params;
@@ -128,35 +128,103 @@ router.post("/bookings/:id/cancel", async (req, res) => {
   try {
     await client.query("BEGIN");
 
+    // Get booking with trip details
     const bookingResult = await client.query(
-      "SELECT * FROM bookings WHERE id=$1 FOR UPDATE",
+      `SELECT b.*, t.departure_time, t.price
+       FROM bookings b
+       JOIN trips t ON t.id = b.trip_id
+       WHERE b.id=$1 FOR UPDATE`,
       [id]
     );
+
     if (!bookingResult.rowCount) {
       await rollbackAndRelease(client);
       return res.status(404).json({ message: "Booking not found" });
     }
-    if (!["confirmed", "pending"].includes(bookingResult.rows[0].status)) {
+
+    const booking = bookingResult.rows[0];
+
+    // Check if booking can be cancelled
+    if (!["confirmed", "pending"].includes(booking.status)) {
       await rollbackAndRelease(client);
-      return res.status(409).json({ message: "Cannot cancel" });
+      return res.status(409).json({ message: "Không thể hủy vé này" });
     }
 
-    await client.query("UPDATE bookings SET status='cancelled' WHERE id=$1", [id]);
+    // Check if departure time has passed
+    const departureTime = new Date(booking.departure_time);
+    const now = new Date();
+    const hoursUntilDeparture = (departureTime - now) / (1000 * 60 * 60);
+
+    if (hoursUntilDeparture <= 0) {
+      await rollbackAndRelease(client);
+      return res.status(409).json({
+        message: "Không thể hủy vé sau giờ khởi hành",
+        canCancel: false
+      });
+    }
+
+    // Calculate refund percentage based on cancellation time
+    let refundPercentage = 0;
+    let refundAmount = 0;
+    let refundPolicy = "";
+
+    if (hoursUntilDeparture >= 24) {
+      // Cancel 24h or more before departure: 90% refund
+      refundPercentage = 90;
+      refundPolicy = "Hủy trước 24h: Hoàn 90%";
+    } else if (hoursUntilDeparture >= 12) {
+      // Cancel 12-24h before: 70% refund
+      refundPercentage = 70;
+      refundPolicy = "Hủy trước 12-24h: Hoàn 70%";
+    } else if (hoursUntilDeparture >= 6) {
+      // Cancel 6-12h before: 50% refund
+      refundPercentage = 50;
+      refundPolicy = "Hủy trước 6-12h: Hoàn 50%";
+    } else if (hoursUntilDeparture >= 2) {
+      // Cancel 2-6h before: 30% refund
+      refundPercentage = 30;
+      refundPolicy = "Hủy trước 2-6h: Hoàn 30%";
+    } else {
+      // Cancel less than 2h before: No refund
+      refundPercentage = 0;
+      refundPolicy = "Hủy trong 2h: Không hoàn tiền";
+    }
+
+    refundAmount = Math.floor((booking.price_paid * refundPercentage) / 100);
+
+    // Update booking status
+    const newStatus = refundAmount > 0 ? 'refunded' : 'cancelled';
     await client.query(
-      "UPDATE seats SET is_booked=0, booking_id=NULL WHERE trip_id=$1 AND label=$2", // ⭐ Dùng '0' thay vì FALSE
-      [bookingResult.rows[0].trip_id, bookingResult.rows[0].seat_label]
+      "UPDATE bookings SET status=$1, refund_amount=$2, refund_percentage=$3, cancelled_at=NOW() WHERE id=$4",
+      [newStatus, refundAmount, refundPercentage, id]
     );
+
+    // Release seat
+    await client.query(
+      "UPDATE seats SET is_booked=0, booking_id=NULL WHERE trip_id=$1 AND label=$2",
+      [booking.trip_id, booking.seat_label]
+    );
+
+    // Update available seats
     await client.query(
       "UPDATE trips SET seats_available = seats_available + 1 WHERE id=$1",
-      [bookingResult.rows[0].trip_id]
+      [booking.trip_id]
     );
 
     await commitAndRelease(client);
-    res.json({ message: "Cancelled" });
+
+    res.json({
+      message: "Đã hủy vé thành công",
+      status: newStatus,
+      refundAmount: refundAmount,
+      refundPercentage: refundPercentage,
+      refundPolicy: refundPolicy,
+      hoursUntilDeparture: Math.round(hoursUntilDeparture * 10) / 10
+    });
   } catch (err) {
     console.error("Cancel booking failed:", err.message || err);
     await rollbackAndRelease(client);
-    res.status(500).json({ message: "Cancel booking failed" });
+    res.status(500).json({ message: "Không thể hủy vé. Vui lòng thử lại" });
   }
 });
 
