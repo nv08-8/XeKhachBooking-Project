@@ -191,6 +191,11 @@ router.post("/bookings/:id/cancel", async (req, res) => {
     }
 
     refundAmount = Math.floor((booking.price_paid * refundPercentage) / 100);
+
+    // Status logic (requires migration 004 to expand VARCHAR(9) to VARCHAR(20)):
+    // - 'pending_refund' (14 chars): Hủy vé có hoàn tiền, chờ admin xử lý
+    // - 'cancelled' (9 chars): Hủy vé không hoàn tiền
+    // NOTE: Run migration 004_expand_status_column.sql BEFORE deploying this code!
     const newStatus = refundAmount > 0 ? 'pending_refund' : 'cancelled';
 
     // Update booking status and refund info
