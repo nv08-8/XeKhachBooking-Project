@@ -63,11 +63,20 @@ router.get("/bus-image", (req, res) => {
 
     console.log(`✅ Found match with ${found.image_urls.length} images`);
 
-    // Return the first image URL (primary image)
+    // Filter and prioritize non-TikTok URLs (they're less likely to be blocked)
+    const nonTikTokUrls = found.image_urls.filter(url => !url.includes('tiktok.com'));
+    const tiktokUrls = found.image_urls.filter(url => url.includes('tiktok.com'));
+
+    // Prioritize non-TikTok URLs, then TikTok URLs
+    const sortedUrls = [...nonTikTokUrls, ...tiktokUrls];
+
+    console.log(`   Non-TikTok URLs: ${nonTikTokUrls.length}, TikTok URLs: ${tiktokUrls.length}`);
+
+    // Return the first non-TikTok image as primary, or first TikTok if no other option
     return res.json({
         success: true,
-        image: found.image_urls[0],
-        all_images: found.image_urls
+        image: sortedUrls[0] || found.image_urls[0],
+        all_images: sortedUrls.length > 0 ? sortedUrls : found.image_urls
     });
 });
 
