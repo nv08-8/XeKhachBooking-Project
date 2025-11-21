@@ -193,7 +193,9 @@ router.post("/bookings/:id/cancel", async (req, res) => {
     refundAmount = Math.floor((booking.price_paid * refundPercentage) / 100);
 
     // Update booking status
-    const newStatus = refundAmount > 0 ? 'refunded' : 'cancelled';
+    // If refund amount > 0: pending_refund (waiting for admin to process)
+    // If refund amount = 0: cancelled (no refund needed)
+    const newStatus = refundAmount > 0 ? 'pending_refund' : 'cancelled';
     await client.query(
       "UPDATE bookings SET status=$1, refund_amount=$2, refund_percentage=$3, cancelled_at=NOW() WHERE id=$4",
       [newStatus, refundAmount, refundPercentage, id]
@@ -213,8 +215,12 @@ router.post("/bookings/:id/cancel", async (req, res) => {
 
     await commitAndRelease(client);
 
+    const message = refundAmount > 0
+      ? "Đã hủy vé thành công. Yêu cầu hoàn tiền đang được xử lý."
+      : "Đã hủy vé thành công. Không hoàn tiền do hủy quá gần giờ khởi hành.";
+
     res.json({
-      message: "Đã hủy vé thành công",
+      message: message,
       status: newStatus,
       refundAmount: refundAmount,
       refundPercentage: refundPercentage,
