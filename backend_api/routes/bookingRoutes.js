@@ -401,4 +401,35 @@ router.post("/bookings/:id/verify-payment", async (req, res) => {
   }
 });
 
+// Thông tin thân thiện với khách cho màn hình Đặt vé của khách
+router.get("/bookings/guest/info", (req, res) => {
+  const sampleBookings = [
+    {
+      route: "TP.HCM → Nha Trang",
+      status: "confirmed",
+      departure_time: "2025-01-12T07:30:00+07:00",
+      perks: ["QR vé điện tử", "Thông báo lên xe"],
+    },
+    {
+      route: "TP.HCM → Đà Lạt",
+      status: "pending",
+      departure_time: "2025-01-20T22:00:00+07:00",
+      perks: ["Giữ ghế 24h", "Hoàn tiền linh hoạt"],
+    },
+  ];
+
+  res.json({
+    guest: true,
+    headline: "Đăng nhập để xem vé của bạn",
+    message:
+      "Sau khi đăng nhập, bạn sẽ theo dõi được trạng thái vé, lịch sử thanh toán và yêu cầu hỗ trợ chỉ trong một nơi.",
+    actions: {
+      login: "/login",
+      register: "/register",
+    },
+    sampleBookings,
+  });
+});
+
 module.exports = router;
+
