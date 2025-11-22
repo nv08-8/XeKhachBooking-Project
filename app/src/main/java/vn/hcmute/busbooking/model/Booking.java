@@ -20,6 +20,9 @@ public class Booking {
     private String destination;
     private String distance;
     private String duration;
+    private double refund_amount;
+    private int refund_percentage;
+    private String cancelled_at;
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
@@ -74,4 +77,13 @@ public class Booking {
 
     public String getDuration() { return duration; }
     public void setDuration(String duration) { this.duration = duration; }
+
+    public double getRefund_amount() { return refund_amount; }
+    public void setRefund_amount(double refund_amount) { this.refund_amount = refund_amount; }
+
+    public int getRefund_percentage() { return refund_percentage; }
+    public void setRefund_percentage(int refund_percentage) { this.refund_percentage = refund_percentage; }
+
+    public String getCancelled_at() { return cancelled_at; }
+    public void setCancelled_at(String cancelled_at) { this.cancelled_at = cancelled_at; }
 }

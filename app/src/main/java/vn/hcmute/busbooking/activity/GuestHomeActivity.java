@@ -34,6 +34,7 @@ public class GuestHomeActivity extends AppCompatActivity {
     private TextView tvLogin;
     private AutoCompleteTextView etOrigin, etDestination;
     private Button btnSearchTrips;
+    private androidx.appcompat.widget.SwitchCompat switchReturn;
     private RecyclerView rvPopularRoutes, rvPromotions, rvTestimonials;
     private BottomNavigationView bottomNav;
 
@@ -53,6 +54,7 @@ public class GuestHomeActivity extends AppCompatActivity {
         etOrigin = findViewById(R.id.etOrigin);
         etDestination = findViewById(R.id.etDestination);
         btnSearchTrips = findViewById(R.id.btnSearchTrips);
+        switchReturn = findViewById(R.id.switchReturn);
         rvPopularRoutes = findViewById(R.id.rvPopularRoutes);
         rvPromotions = findViewById(R.id.rvPromotions);
         rvTestimonials = findViewById(R.id.rvTestimonials);
@@ -69,10 +71,12 @@ public class GuestHomeActivity extends AppCompatActivity {
         btnSearchTrips.setOnClickListener(v -> {
             String from = etOrigin.getText().toString();
             String to = etDestination.getText().toString();
+            boolean isReturn = switchReturn.isChecked();
 
             Intent intent = new Intent(GuestHomeActivity.this, TripListActivity.class);
             intent.putExtra("origin", from);
             intent.putExtra("destination", to);
+            intent.putExtra("isReturn", isReturn);
             startActivity(intent);
         });
 
@@ -80,14 +84,21 @@ public class GuestHomeActivity extends AppCompatActivity {
         bottomNav.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
             if (itemId == R.id.nav_home) {
-                // Already on the home screen, do nothing
                 return true;
-            } else if (itemId == R.id.nav_account || itemId == R.id.nav_tickets) {
-                // For guests, both "Account" and "My Tickets" go to the GuestAccountActivity
+            } else if (itemId == R.id.nav_tickets) {
+                Intent intent = new Intent(this, LoginActivity.class);
+                startActivity(intent);
+                return true;
+            } else if (itemId == R.id.nav_favorites) {
+                Intent intent = new Intent(this, GuestFavoritesActivity.class);
+                startActivity(intent);
+                overridePendingTransition(0, 0);
+                return true;
+            } else if (itemId == R.id.nav_account) {
                 Intent intent = new Intent(this, GuestAccountActivity.class);
                 startActivity(intent);
                 overridePendingTransition(0, 0);
-                return false; // Do not keep the item selected as we are navigating away
+                return true;
             }
             return false;
         });

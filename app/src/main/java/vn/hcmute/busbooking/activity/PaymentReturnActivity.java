@@ -54,14 +54,55 @@ public class PaymentReturnActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     // Navigate to booking detail of first booking if available
                     Object bookingIdsObj = response.body().get("booking_ids");
+                    Log.d(TAG, "Verify response body: " + response.body());
+
                     if (bookingIdsObj instanceof java.util.List && !((java.util.List) bookingIdsObj).isEmpty()) {
-                        Double idDouble = (Double) ((java.util.List) bookingIdsObj).get(0);
-                        int bookingId = idDouble.intValue();
-                        Intent intent = new Intent(PaymentReturnActivity.this, BookingDetailActivity.class);
-                        intent.putExtra("booking_id", bookingId);
-                        startActivity(intent);
-                        finish();
-                        return;
+                        Object first = ((java.util.List) bookingIdsObj).get(0);
+                        int bookingId = -1;
+                        try {
+                            if (first instanceof Number) {
+                                bookingId = ((Number) first).intValue();
+                            } else if (first instanceof String) {
+                                bookingId = Integer.parseInt((String) first);
+                            } else {
+                                Log.w(TAG, "Unknown booking id type: " + (first != null ? first.getClass() : "null"));
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "Failed to parse booking id", e);
+                        }
+
+                        if (bookingId > 0) {
+                            // ⭐ KIỂM TRA XEM CÓ PHẢI CHUYẾN KHỨ HỒI KHÔNG
+                            android.content.SharedPreferences prefs = getSharedPreferences("return_trip", MODE_PRIVATE);
+                            boolean isReturn = prefs.getBoolean("isReturn", false);
+                            String returnOrigin = prefs.getString("returnOrigin", null);
+                            String returnDestination = prefs.getString("returnDestination", null);
+                            String returnDate = prefs.getString("returnDate", null);
+
+                            if (isReturn && returnOrigin != null && returnDestination != null) {
+                                // Xóa thông tin khứ hồi
+                                prefs.edit().clear().apply();
+
+                                Toast.makeText(PaymentReturnActivity.this, "Thanh toán thành công! Tiếp tục chọn chuyến về", Toast.LENGTH_LONG).show();
+
+                                // Mở màn hình tìm chuyến về
+                                Intent intent = new Intent(PaymentReturnActivity.this, TripListActivity.class);
+                                intent.putExtra("origin", returnOrigin);
+                                intent.putExtra("destination", returnDestination);
+                                intent.putExtra("date", returnDate);
+                                intent.putExtra("isReturn", false);
+                                startActivity(intent);
+                                finish();
+                                return;
+                            }
+
+                            // Không phải chuyến khứ hồi - mở chi tiết booking
+                            Intent intent = new Intent(PaymentReturnActivity.this, BookingDetailActivity.class);
+                            intent.putExtra("booking_id", bookingId);
+                            startActivity(intent);
+                            finish();
+                            return;
+                        }
                     }
                 }
                 // fallback: open MyBookings
@@ -80,4 +121,3 @@ public class PaymentReturnActivity extends AppCompatActivity {
         });
     }
 }
-

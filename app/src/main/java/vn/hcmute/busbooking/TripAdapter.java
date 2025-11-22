@@ -9,6 +9,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
+
 import vn.hcmute.busbooking.model.Trip;
 
 public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder> {
@@ -45,28 +46,58 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
     public void onBindViewHolder(@NonNull TripViewHolder holder, int position) {
         Trip trip = tripList.get(position);
 
-        // 1. Route
-        holder.txtRoute.setText(trip.getFromLocation() + " → " + trip.getToLocation());
+        holder.tvBusOperator.setText(trip.getOperator());
+        holder.tvBusType.setText(trip.getBusType());
+        holder.tvPrice.setText(String.format("%,.0fđ", trip.getPrice()));
 
-        // 2. Price
-        holder.txtPrice.setText(String.format("%.0f ₫", trip.getPrice()));
-
-        // 3. Departure Time
         String departureTime = trip.getDepartureTime();
         if (departureTime != null && departureTime.length() > 16) {
-            // Extract HH:mm from ISO format (e.g., 2025-11-15T08:00:00.000Z)
             String time = departureTime.substring(11, 16);
-            holder.txtDeparture.setText("Khởi hành: " + time);
+            holder.tvDepartureTime.setText(time);
         } else {
-            holder.txtDeparture.setText("Khởi hành: N/A");
+            holder.tvDepartureTime.setText("N/A");
         }
 
-        // 4. Available Seats
-        if (trip.getSeatsAvailable() != null) {
-            holder.txtAvailableSeats.setText("Còn " + trip.getSeatsAvailable() + " chỗ");
+        String arrivalTime = trip.getArrivalTime();
+        if (arrivalTime != null && arrivalTime.length() > 16) {
+            String time = arrivalTime.substring(11, 16);
+            holder.tvArrivalTime.setText(time);
         } else {
-            holder.txtAvailableSeats.setText("");
+            holder.tvArrivalTime.setText("N/A");
         }
+
+        holder.tvDepartureStation.setText(trip.getFromLocation());
+        holder.tvArrivalStation.setText(trip.getToLocation());
+
+        Double duration = trip.getDurationHours();
+        Integer seats = trip.getSeatsAvailable();
+
+        String durationStr = "";
+        if (duration != null) {
+            if (duration % 1 == 0) {
+                durationStr = String.format("%.0f", duration) + " hours";
+            } else {
+                durationStr = String.format("%.1f", duration) + " hours";
+            }
+        }
+
+        String seatsStr = "";
+        if (seats != null) {
+            seatsStr = seats + " seats left";
+        }
+
+        String tripInfo = "";
+        if (!durationStr.isEmpty()) {
+            tripInfo += durationStr;
+        }
+        if (!seatsStr.isEmpty()) {
+            if (!tripInfo.isEmpty()) {
+                tripInfo += " • ";
+            }
+            tripInfo += seatsStr;
+        }
+        holder.tvTripInfo.setText(tripInfo);
+
 
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {
@@ -81,14 +112,19 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
     }
 
     public static class TripViewHolder extends RecyclerView.ViewHolder {
-        TextView txtRoute, txtDeparture, txtPrice, txtAvailableSeats;
+        TextView tvBusOperator, tvBusType, tvPrice, tvDepartureTime, tvArrivalTime,
+                tvDepartureStation, tvArrivalStation, tvTripInfo;
 
         public TripViewHolder(@NonNull View itemView) {
             super(itemView);
-            txtRoute = itemView.findViewById(R.id.txtRoute);
-            txtDeparture = itemView.findViewById(R.id.txtDeparture);
-            txtPrice = itemView.findViewById(R.id.txtPrice);
-            txtAvailableSeats = itemView.findViewById(R.id.txtAvailableSeats);
+            tvBusOperator = itemView.findViewById(R.id.tvBusOperator);
+            tvBusType = itemView.findViewById(R.id.tvBusType);
+            tvPrice = itemView.findViewById(R.id.tvPrice);
+            tvDepartureTime = itemView.findViewById(R.id.tvDepartureTime);
+            tvArrivalTime = itemView.findViewById(R.id.tvArrivalTime);
+            tvDepartureStation = itemView.findViewById(R.id.tvDepartureStation);
+            tvArrivalStation = itemView.findViewById(R.id.tvArrivalStation);
+            tvTripInfo = itemView.findViewById(R.id.tvTripInfo);
         }
     }
 }

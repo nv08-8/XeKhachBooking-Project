@@ -69,6 +69,17 @@ public interface ApiService {
     @GET("api/meta/locations")
     Call<Map<String, Object>> getMetaLocations();
 
+    // Trip details
+    @GET("api/trips/{id}")
+    Call<Map<String, Object>> getTripDetails(@Path("id") int tripId);
+
+    // Bus image
+    @GET("api/bus-image")
+    Call<Map<String, Object>> getBusImage(
+        @Query("operator") String operator,
+        @Query("bus_type") String busType
+    );
+
     // Payment
     @POST("api/bookings/{id}/payment")
     Call<Map<String, Object>> confirmPayment(@Path("id") int bookingId, @Body Map<String, String> body);
@@ -76,6 +87,10 @@ public interface ApiService {
     // Booking details
     @GET("api/bookings/{id}")
     Call<Map<String, Object>> getBookingDetails(@Path("id") int bookingId);
+
+    // Verify booking payment status
+    @POST("api/bookings/{id}/verify-payment")
+    Call<Map<String, Object>> verifyBookingPayment(@Path("id") int bookingId);
 
     // User profile
     @GET("api/auth/user/{id}")
@@ -105,12 +120,5 @@ public interface ApiService {
     Call<vn.hcmute.busbooking.model.PaymentResponse> createPayosPayment(@Body vn.hcmute.busbooking.model.PaymentRequest request);
 
     @POST("api/payment/payos/verify")
-    Call<Map<String, Object>> verifyPayos(@Body Map<String, String> body);
-
-    // PayOS payment
-    @POST("api/payos/create")
-    Call<Map<String, Object>> createPayosCheckout(@Body Map<String, Object> body);
-
-    @POST("api/payos/verify")
     Call<Map<String, Object>> verifyPayos(@Body Map<String, String> body);
 }

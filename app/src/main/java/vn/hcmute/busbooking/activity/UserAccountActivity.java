@@ -35,50 +35,63 @@ public class UserAccountActivity extends AppCompatActivity {
         btnChangePassword = findViewById(R.id.btnChangePassword);
 
         // Set user info
-        tvUserName.setText(sessionManager.getUserName());
-        tvUserEmail.setText(sessionManager.getUserEmail());
+        // Safely set user info (views may be missing in some layout variants)
+        if (tvUserName != null) tvUserName.setText(sessionManager.getUserName() != null ? sessionManager.getUserName() : "");
+        if (tvUserEmail != null) tvUserEmail.setText(sessionManager.getUserEmail() != null ? sessionManager.getUserEmail() : "");
 
-        btnLogout.setOnClickListener(v -> {
-            sessionManager.logout();
-            Toast.makeText(this, "Đã đăng xuất", Toast.LENGTH_SHORT).show();
-            Intent intent = new Intent(UserAccountActivity.this, MainActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
-        });
+        if (btnLogout != null) {
+            btnLogout.setOnClickListener(v -> {
+                sessionManager.logout();
+                Toast.makeText(this, "Đã đăng xuất", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(UserAccountActivity.this, MainActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(intent);
+                finish();
+            });
+        }
 
 
-        btnEditProfile.setOnClickListener(v -> {
-            Intent intent = new Intent(UserAccountActivity.this, EditProfileActivity.class);
-            startActivity(intent);
-        });
+        if (btnEditProfile != null) {
+            btnEditProfile.setOnClickListener(v -> {
+                Intent intent = new Intent(UserAccountActivity.this, EditProfileActivity.class);
+                startActivity(intent);
+            });
+        }
 
-        btnChangePassword.setOnClickListener(v -> {
-            Intent intent = new Intent(UserAccountActivity.this, ChangePasswordActivity.class);
-            startActivity(intent);
-        });
+        if (btnChangePassword != null) {
+            btnChangePassword.setOnClickListener(v -> {
+                Intent intent = new Intent(UserAccountActivity.this, ChangePasswordActivity.class);
+                startActivity(intent);
+            });
+        }
 
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
-        bottomNav.setSelectedItemId(R.id.nav_account);
-        bottomNav.setOnItemSelectedListener(item -> {
-            int itemId = item.getItemId();
-            if (itemId == R.id.nav_home) {
-                Intent intent = new Intent(this, MainActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-                startActivity(intent);
-                return true;
-            } else if (itemId == R.id.nav_tickets) {
-                Intent intent = new Intent(this, MyBookingsActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-                startActivity(intent);
-                return true;
-            } else if (itemId == R.id.nav_account) {
-                // Already on account page
-                return true;
-            } else {
-                return false;
-            }
-        });
+        if (bottomNav != null) {
+            bottomNav.setSelectedItemId(R.id.nav_account);
+            bottomNav.setOnItemSelectedListener(item -> {
+                int itemId = item.getItemId();
+                if (itemId == R.id.nav_home) {
+                    Intent intent = new Intent(this, MainActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                    startActivity(intent);
+                    return true;
+                } else if (itemId == R.id.nav_tickets) {
+                    Intent intent = new Intent(this, MyBookingsActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                    startActivity(intent);
+                    return true;
+                } else if (itemId == R.id.nav_favorites) {
+                    Intent intent = new Intent(this, FavoritesActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                    startActivity(intent);
+                    return true;
+                } else if (itemId == R.id.nav_account) {
+                    return true;
+                } else {
+                    return false;
+                }
+            });
+        }
     }
 
     @Override

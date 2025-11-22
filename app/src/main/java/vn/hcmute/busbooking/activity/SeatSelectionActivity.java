@@ -51,6 +51,9 @@ public class SeatSelectionActivity extends AppCompatActivity {
     private final Set<String> selectedSeats = new HashSet<>();
     private int seatPrice = 0;
 
+    private boolean isReturn;
+    private String returnOrigin, returnDestination, returnDate;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -79,6 +82,12 @@ public class SeatSelectionActivity extends AppCompatActivity {
             finish();
             return;
         }
+
+        // Get return trip information
+        isReturn = getIntent().getBooleanExtra("isReturn", false);
+        returnOrigin = getIntent().getStringExtra("returnOrigin");
+        returnDestination = getIntent().getStringExtra("returnDestination");
+        returnDate = getIntent().getStringExtra("returnDate");
 
         seatPrice = (int) trip.getPrice();
 
@@ -243,13 +252,32 @@ public class SeatSelectionActivity extends AppCompatActivity {
                         Toast.makeText(SeatSelectionActivity.this, "Lỗi định dạng phản hồi đặt vé", Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    List<Double> doubleIds = (List<Double>) bookingIdsObj;
+
+                    List<?> rawIds = (List<?>) bookingIdsObj;
                     List<Integer> bookingIds = new ArrayList<>();
-                    for (Double id : doubleIds) {
-                        bookingIds.add(id.intValue());
+
+                    // Xử lý cả String và Number
+                    for (Object id : rawIds) {
+                        try {
+                            if (id instanceof Number) {
+                                bookingIds.add(((Number) id).intValue());
+                            } else if (id instanceof String) {
+                                bookingIds.add(Integer.parseInt((String) id));
+                            } else {
+                                android.util.Log.e("SeatSelection", "Unknown booking ID type: " + id.getClass());
+                            }
+                        } catch (Exception e) {
+                            android.util.Log.e("SeatSelection", "Error parsing booking ID: " + id, e);
+                        }
                     }
 
-                    Toast.makeText(SeatSelectionActivity.this, "Đặt " + seatsToBook.size() + " vé thành công!", Toast.LENGTH_SHORT).show();
+                    // ⭐ LOG DEBUG
+                    android.util.Log.d("SeatSelection", "Booking IDs: " + bookingIds);
+                    android.util.Log.d("SeatSelection", "Amount: " + totalAmount);
+                    android.util.Log.d("SeatSelection", "Navigating to PaymentActivity...");
+
+                    // ⚠️ QUAN TRỌNG: KHÔNG SHOW TOAST "THÀNH CÔNG" Ở ĐÂY
+                    // Vì user chưa thanh toán, chỉ mới đặt chỗ thôi!
 
                     // Chuyển sang PaymentActivity
                     Intent intent = new Intent(SeatSelectionActivity.this, PaymentActivity.class);
@@ -262,8 +290,14 @@ public class SeatSelectionActivity extends AppCompatActivity {
                     intent.putExtra("destination", trip.getDestination());
                     intent.putExtra("operator", trip.getOperator());
 
+                    // ⭐ TRUYỀN THÔNG TIN KHỨ HỒI
+                    intent.putExtra("isReturn", isReturn);
+                    intent.putExtra("returnOrigin", returnOrigin);
+                    intent.putExtra("returnDestination", returnDestination);
+                    intent.putExtra("returnDate", returnDate);
+
                     startActivity(intent);
-                    finish();
+                    // ⚠️ KHÔNG FINISH() Ở ĐÂY - Để user có thể back về nếu muốn đổi ghế
                 } else {
                     Toast.makeText(SeatSelectionActivity.this, "Đặt vé thất bại", Toast.LENGTH_SHORT).show();
                 }

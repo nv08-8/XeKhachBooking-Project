@@ -3,13 +3,11 @@ package vn.hcmute.busbooking.activity;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -19,7 +17,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
-import com.google.android.material.snackbar.Snackbar;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.WriterException;
@@ -44,22 +41,18 @@ import vn.hcmute.busbooking.api.ApiService;
 public class BookingDetailActivity extends AppCompatActivity {
 
     private static final String TAG = "BookingDetailActivity";
-
     private TextView tvBookingId, tvStatus, tvRoute, tvDepartureTime, tvArrivalTime;
     private TextView tvOperator, tvSeat, tvAmount, tvPaymentMethod, tvCreatedAt;
-    private TextView tvStatusBadge, tvBusType, tvNextStepTitle, tvNextStepContent;
-    private ImageView ivQrCode, ivShareHint;
+    private TextView tvBusType, tvNextStepTitle, tvNextStepContent, tvStatusBadge;
+    private ImageView ivQrCode;
     private ProgressBar progressBar;
-    private View layoutQrCode;
-    private Button btnBack, btnDownloadTicket;
-    private View cardNextSteps;
-    private ImageButton btnShareTicket;
+    private View layoutQrCode, cardNextSteps;
+    private Button btnDownloadTicket, btnShareTicket, btnBack;
 
     private ApiService apiService;
     private int bookingId;
 
     private String currentStatus;
-    private String qrCodeData;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,7 +62,6 @@ public class BookingDetailActivity extends AppCompatActivity {
         // Initialize views
         tvBookingId = findViewById(R.id.tvBookingId);
         tvStatus = findViewById(R.id.tvStatus);
-        tvStatusBadge = findViewById(R.id.tvStatusBadge);
         tvRoute = findViewById(R.id.tvRoute);
         tvDepartureTime = findViewById(R.id.tvDepartureTime);
         tvArrivalTime = findViewById(R.id.tvArrivalTime);
@@ -84,10 +76,12 @@ public class BookingDetailActivity extends AppCompatActivity {
         ivQrCode = findViewById(R.id.ivQrCode);
         progressBar = findViewById(R.id.progressBar);
         layoutQrCode = findViewById(R.id.layoutQrCode);
-        btnBack = findViewById(R.id.btnBack);
         btnDownloadTicket = findViewById(R.id.btnDownloadTicket);
         cardNextSteps = findViewById(R.id.cardNextSteps);
         btnShareTicket = findViewById(R.id.btnShareTicket);
+        tvStatusBadge = findViewById(R.id.tvStatusBadge);
+        btnBack = findViewById(R.id.btnBack);
+
 
         apiService = ApiClient.getClient().create(ApiService.class);
 
@@ -113,21 +107,32 @@ public class BookingDetailActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 progressBar.setVisibility(View.GONE);
-
                 if (response.isSuccessful() && response.body() != null) {
                     displayBookingDetails(response.body());
                 } else {
                     Toast.makeText(BookingDetailActivity.this, "Không thể tải thông tin vé", Toast.LENGTH_SHORT).show();
+                    finish();
                 }
             }
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
-                Toast.makeText(BookingDetailActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Log.e(TAG, "Load booking failed", t);
+                Toast.makeText(BookingDetailActivity.this, "Lỗi kết nối", Toast.LENGTH_SHORT).show();
+                finish();
             }
         });
     }
+
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.d(TAG, "onResume: refreshing booking details");
+        loadBookingDetails();
+    }
+
 
     private void displayBookingDetails(Map<String, Object> booking) {
         tvBookingId.setText("Mã vé: #" + booking.get("id"));
@@ -158,18 +163,12 @@ public class BookingDetailActivity extends AppCompatActivity {
         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
         tvAmount.setText("Giá vé: " + formatter.format(pricePaid));
 
-        String paymentMethod = (String) booking.get("payment_method");
-        if (paymentMethod != null) {
-            tvPaymentMethod.setText("Thanh toán: " + (paymentMethod.equals("momo") ? "MoMo" : "Ngân hàng"));
-            tvPaymentMethod.setVisibility(View.VISIBLE);
-        } else {
-            tvPaymentMethod.setVisibility(View.GONE);
-        }
-
+        tvPaymentMethod.setText("Thanh toán: " + booking.get("payment_method"));
         tvCreatedAt.setText("Đặt lúc: " + formatDateTime((String) booking.get("created_at")));
+
         configureNextSteps();
 
-        qrCodeData = (String) booking.get("qr_code");
+        String qrCodeData = (String) booking.get("qr_code");
         if ("confirmed".equals(currentStatus) && qrCodeData != null && !qrCodeData.isEmpty()) {
             layoutQrCode.setVisibility(View.VISIBLE);
             btnShareTicket.setVisibility(View.VISIBLE);
@@ -201,6 +200,12 @@ public class BookingDetailActivity extends AppCompatActivity {
             case "confirmed":
                 colorRes = R.color.colorPrimary;
                 break;
+            case "pending_refund":
+                colorRes = android.R.color.holo_orange_light;
+                break;
+            case "refunded":
+                colorRes = android.R.color.holo_purple;
+                break;
             case "cancelled":
             default:
                 colorRes = R.color.colorError;
@@ -213,23 +218,44 @@ public class BookingDetailActivity extends AppCompatActivity {
         if (cardNextSteps == null) return;
         if ("pending".equals(currentStatus)) {
             cardNextSteps.setVisibility(View.VISIBLE);
-            tvNextStepTitle.setText("Hoàn tất thanh toán");
-            tvNextStepContent.setText("Vui lòng thanh toán trước giờ khởi hành để giữ chỗ.");
+            tvNextStepTitle.setText("Đã thanh toán rồi?");
+            tvNextStepContent.setText("Nếu bạn đã thanh toán, vui lòng chờ vài giây hoặc bấm nút 'Làm mới' bên dưới để cập nhật trạng thái.");
+            btnBack.setText("Làm mới");
+
         } else if ("confirmed".equals(currentStatus)) {
             cardNextSteps.setVisibility(View.VISIBLE);
             tvNextStepTitle.setText("Chuẩn bị lên xe");
             tvNextStepContent.setText("Có mặt trước giờ khởi hành 15 phút và mang giấy tờ tùy thân.");
+            btnBack.setText("Quay lại");
+
+        } else if ("pending_refund".equals(currentStatus)) {
+            cardNextSteps.setVisibility(View.VISIBLE);
+            tvNextStepTitle.setText("Đang xử lý hoàn tiền");
+            tvNextStepContent.setText("Yêu cầu hoàn tiền của bạn đang được xử lý. Tiền sẽ được chuyển về tài khoản trong 3-5 ngày làm việc.");
+            btnBack.setText("Quay lại");
+
+        } else if ("refunded".equals(currentStatus)) {
+            cardNextSteps.setVisibility(View.VISIBLE);
+            tvNextStepTitle.setText("Đã hoàn tiền");
+            tvNextStepContent.setText("Vé đã được hủy và hoàn tiền thành công. Tiền đã được chuyển về tài khoản của bạn.");
+            btnBack.setText("Quay lại");
+
         } else {
             cardNextSteps.setVisibility(View.GONE);
         }
     }
 
     private String getStatusText(String status) {
+        if (status == null) return "";
         switch (status) {
             case "pending":
                 return "Chờ thanh toán";
             case "confirmed":
-                return "Đã xác nhận";
+                return "Đã thanh toán";
+            case "pending_refund":
+                return "Chờ hoàn tiền";
+            case "refunded":
+                return "Đã hoàn tiền";
             case "cancelled":
                 return "Đã hủy";
             default:
@@ -238,15 +264,20 @@ public class BookingDetailActivity extends AppCompatActivity {
     }
 
     private int getStatusColor(String status) {
+        if (status == null) return getColor(android.R.color.black);
         switch (status) {
             case "pending":
-                return getResources().getColor(android.R.color.holo_orange_dark);
+                return getColor(android.R.color.holo_orange_dark);
             case "confirmed":
-                return getResources().getColor(android.R.color.holo_green_dark);
+                return getColor(android.R.color.holo_green_dark);
+            case "pending_refund":
+                return getColor(android.R.color.holo_orange_light);
+            case "refunded":
+                return getColor(android.R.color.holo_purple);
             case "cancelled":
-                return getResources().getColor(android.R.color.holo_red_dark);
+                return getColor(android.R.color.holo_red_dark);
             default:
-                return getResources().getColor(android.R.color.black);
+                return getColor(android.R.color.black);
         }
     }
 
@@ -255,10 +286,13 @@ public class BookingDetailActivity extends AppCompatActivity {
             SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
             SimpleDateFormat outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
             Date date = inputFormat.parse(dateTimeStr);
-            return outputFormat.format(date);
+            if (date != null) {
+                return outputFormat.format(date);
+            }
         } catch (Exception e) {
-            return dateTimeStr;
+            Log.e(TAG, "Error formatting date: " + dateTimeStr, e);
         }
+        return dateTimeStr; // Return original string if parsing fails
     }
 
     private void generateQRCode(String qrData) {
@@ -278,56 +312,51 @@ public class BookingDetailActivity extends AppCompatActivity {
 
             ivQrCode.setImageBitmap(bitmap);
         } catch (WriterException e) {
-            e.printStackTrace();
+            Log.e(TAG, "Could not generate QR code", e);
             Toast.makeText(this, "Không thể tạo mã QR", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void shareTicket() {
-        if (qrCodeData == null) return;
-        File imageFile = createTicketImage();
-        if (imageFile == null) {
-            Snackbar.make(btnShareTicket, "Không thể chia sẻ vé", Snackbar.LENGTH_SHORT).show();
-            return;
-        }
-        Intent intent = new Intent(Intent.ACTION_SEND);
-        intent.setType("image/png");
-        Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".provider", imageFile);
-        intent.putExtra(Intent.EXTRA_STREAM, uri);
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        startActivity(Intent.createChooser(intent, "Chia sẻ vé"));
-    }
-
     private void saveTicketImage() {
-        File imageFile = createTicketImage();
-        if (imageFile == null) {
-            Snackbar.make(btnDownloadTicket, "Lưu vé thất bại", Snackbar.LENGTH_SHORT).show();
-            return;
-        }
-        Snackbar.make(btnDownloadTicket, "Đã lưu vé tại " + imageFile.getAbsolutePath(), Snackbar.LENGTH_LONG).show();
-    }
-
-    private File createTicketImage() {
-        layoutQrCode.setDrawingCacheEnabled(true);
-        Bitmap bitmap = Bitmap.createBitmap(layoutQrCode.getWidth(), layoutQrCode.getHeight(), Bitmap.Config.ARGB_8888);
+        View viewToCapture = findViewById(android.R.id.content).getRootView();
+        Bitmap bitmap = Bitmap.createBitmap(viewToCapture.getWidth(), viewToCapture.getHeight(), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
-        layoutQrCode.draw(canvas);
-        layoutQrCode.setDrawingCacheEnabled(false);
+        viewToCapture.draw(canvas);
 
-        try {
-            File outputDir = new File(getExternalFilesDir(null), "tickets");
-            if (!outputDir.exists()) {
-                outputDir.mkdirs();
-            }
-            File ticketFile = new File(outputDir, "ticket_" + bookingId + ".png");
-            FileOutputStream fos = new FileOutputStream(ticketFile);
-            bitmap.compress(Bitmap.CompressFormat.PNG, 90, fos);
-            fos.flush();
-            fos.close();
-            return ticketFile;
+        File imagePath = new File(getExternalFilesDir(null), "ticket.png");
+        try (FileOutputStream fos = new FileOutputStream(imagePath)) {
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+            Toast.makeText(this, "Đã lưu vé vào thư mục Downloads", Toast.LENGTH_LONG).show();
         } catch (IOException e) {
             Log.e(TAG, "Failed to save ticket image", e);
-            return null;
+            Toast.makeText(this, "Lưu vé thất bại", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void shareTicket() {
+        View viewToCapture = findViewById(android.R.id.content).getRootView();
+        Bitmap bitmap = Bitmap.createBitmap(viewToCapture.getWidth(), viewToCapture.getHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        viewToCapture.draw(canvas);
+
+        try {
+            File cachePath = new File(getCacheDir(), "images");
+            cachePath.mkdirs();
+            File imagePath = new File(cachePath, "ticket_to_share.png");
+            FileOutputStream fos = new FileOutputStream(imagePath);
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+            fos.close();
+
+            Uri imageUri = FileProvider.getUriForFile(this, getApplicationContext().getPackageName() + ".provider", imagePath);
+
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType("image/png");
+            shareIntent.putExtra(Intent.EXTRA_STREAM, imageUri);
+            shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(shareIntent, "Chia sẻ vé qua"));
+
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to share ticket image", e);
         }
     }
 }

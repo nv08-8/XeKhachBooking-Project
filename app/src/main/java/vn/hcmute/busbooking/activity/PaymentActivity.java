@@ -7,7 +7,6 @@ import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
-import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -34,7 +33,6 @@ public class PaymentActivity extends AppCompatActivity {
 
     private TextView tvBookingId, tvRoute, tvSeat, tvAmount;
     private RadioGroup rgPaymentMethod;
-    private RadioButton rbPayos, rbCash;
     private Button btnConfirmPayment;
     private ProgressBar progressBar;
 
@@ -46,10 +44,15 @@ public class PaymentActivity extends AppCompatActivity {
     private int amount;
     private int primaryBookingId;
     private ApiService apiService;
+    private vn.hcmute.busbooking.utils.SessionManager sessionManager;
+
+    private boolean isReturn;
+    private String returnOrigin, returnDestination, returnDate;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        android.util.Log.d("PaymentActivity", "onCreate started");
         setContentView(R.layout.activity_payment);
 
         // Initialize views
@@ -58,21 +61,29 @@ public class PaymentActivity extends AppCompatActivity {
         tvSeat = findViewById(R.id.tvSeat);
         tvAmount = findViewById(R.id.tvAmount);
         rgPaymentMethod = findViewById(R.id.rgPaymentMethod);
-        rbPayos = findViewById(R.id.rbPayos);
-        rbCash = findViewById(R.id.rbCash);
         btnConfirmPayment = findViewById(R.id.btnConfirmPayment);
         progressBar = findViewById(R.id.progressBar);
 
+        android.util.Log.d("PaymentActivity", "Views initialized");
+
         apiService = ApiClient.getClient().create(ApiService.class);
+        sessionManager = new vn.hcmute.busbooking.utils.SessionManager(this);
 
         collectIntentData();
+        android.util.Log.d("PaymentActivity", "Intent data collected. BookingIds: " + bookingIds.size());
+
         if (!validateBookingData()) {
+            android.util.Log.e("PaymentActivity", "Booking data validation failed!");
             finish();
             return;
         }
+
         populateBookingSummary();
+        android.util.Log.d("PaymentActivity", "Summary populated");
 
         btnConfirmPayment.setOnClickListener(v -> processPayment());
+
+        android.util.Log.d("PaymentActivity", "onCreate completed successfully");
     }
 
     private void collectIntentData() {
@@ -91,6 +102,12 @@ public class PaymentActivity extends AppCompatActivity {
         origin = getIntent().getStringExtra("origin");
         destination = getIntent().getStringExtra("destination");
         operator = getIntent().getStringExtra("operator");
+
+        // Get return trip information
+        isReturn = getIntent().getBooleanExtra("isReturn", false);
+        returnOrigin = getIntent().getStringExtra("returnOrigin");
+        returnDestination = getIntent().getStringExtra("returnDestination");
+        returnDate = getIntent().getStringExtra("returnDate");
         amount = getIntent().getIntExtra("amount", 0);
     }
 
@@ -135,6 +152,8 @@ public class PaymentActivity extends AppCompatActivity {
 
     private void processPayment() {
         int selectedId = rgPaymentMethod.getCheckedRadioButtonId();
+        android.util.Log.d("PaymentActivity", "processPayment: selectedId = " + selectedId);
+
         if (selectedId == -1) {
             Toast.makeText(this, "Vui lòng chọn phương thức thanh toán", Toast.LENGTH_SHORT).show();
             return;
@@ -144,9 +163,11 @@ public class PaymentActivity extends AppCompatActivity {
         btnConfirmPayment.setEnabled(false);
 
         if (selectedId == R.id.rbPayos) {
+            android.util.Log.d("PaymentActivity", "Processing PayOS payment...");
             // Thanh toán online qua PayOS (Ngân hàng, MOMO, ZaloPay...)
             processPayosPayment();
         } else {
+            android.util.Log.d("PaymentActivity", "Processing Cash payment...");
             // Thanh toán tiền mặt khi lên xe
             processCashPayment();
         }
@@ -156,7 +177,22 @@ public class PaymentActivity extends AppCompatActivity {
         // Tạo orderId unique
         String orderId = String.valueOf(System.currentTimeMillis());
 
-        PaymentRequest request = new PaymentRequest(orderId, amount, bookingIds);
+        // Lấy thông tin user từ SessionManager
+        String userName = sessionManager.getUserName();
+        String userEmail = sessionManager.getUserEmail();
+        String userPhone = sessionManager.getUserPhone();
+
+        android.util.Log.d("PaymentActivity", "User info - Name: " + userName + ", Email: " + userEmail + ", Phone: " + userPhone);
+
+        // Tạo request với thông tin user (nếu có)
+        PaymentRequest request;
+        if (userName != null && userEmail != null) {
+            request = new PaymentRequest(orderId, amount, bookingIds, userName, userEmail, userPhone);
+            android.util.Log.d("PaymentActivity", "Using user profile info for PayOS");
+        } else {
+            request = new PaymentRequest(orderId, amount, bookingIds);
+            android.util.Log.d("PaymentActivity", "Using default buyer info (user not logged in)");
+        }
 
         apiService.createPayosPayment(request).enqueue(new Callback<PaymentResponse>() {
             @Override
@@ -167,18 +203,30 @@ public class PaymentActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     String checkoutUrl = response.body().getCheckoutUrl();
                     if (checkoutUrl != null && !checkoutUrl.isEmpty()) {
+                        // ⭐ LƯU THÔNG TIN KHỨ HỒI VÀO SHAREDPREFERENCES
+                        if (isReturn && returnOrigin != null && returnDestination != null) {
+                            android.content.SharedPreferences prefs = getSharedPreferences("return_trip", MODE_PRIVATE);
+                            prefs.edit()
+                                .putBoolean("isReturn", true)
+                                .putString("returnOrigin", returnOrigin)
+                                .putString("returnDestination", returnDestination)
+                                .putString("returnDate", returnDate)
+                                .apply();
+                        }
+
                         // Mở link thanh toán bằng trình duyệt
                         Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(checkoutUrl));
                         startActivity(browserIntent);
 
                         Toast.makeText(PaymentActivity.this,
-                            "Vui lòng hoàn tất thanh toán trên trang web",
+                            "Vui lòng hoàn tất thanh toán trên trang web và quay lại ứng dụng khi xong",
                             Toast.LENGTH_LONG).show();
 
-                        // Quay về MyBookings
-                        Intent intent = new Intent(PaymentActivity.this, MyBookingsActivity.class);
-                        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                        startActivity(intent);
+                        // DON'T navigate back to MyBookings here. Leave the app and wait for the payment provider
+                        // to redirect back to our app via deep link (handled in PaymentReturnActivity).
+                        // Previously the code navigated back immediately which marked bookings as completed prematurely.
+
+                        // Close PaymentActivity to let user continue in browser and return via deep link
                         finish();
                     } else {
                         Toast.makeText(PaymentActivity.this, "Không nhận được link thanh toán", Toast.LENGTH_SHORT).show();
@@ -248,10 +296,26 @@ public class PaymentActivity extends AppCompatActivity {
         btnConfirmPayment.setEnabled(true);
         Toast.makeText(PaymentActivity.this, "Đặt vé thành công! Thanh toán khi lên xe", Toast.LENGTH_LONG).show();
 
-        Intent intent = new Intent(PaymentActivity.this, BookingDetailActivity.class);
-        intent.putExtra("booking_id", primaryBookingId);
-        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        startActivity(intent);
-        finish();
+        // ⭐ KIỂM TRA XEM CÓ PHẢI CHUYẾN KHỨ HỒI KHÔNG
+        if (isReturn && returnOrigin != null && returnDestination != null) {
+            Toast.makeText(PaymentActivity.this, "Tiếp tục chọn chuyến về", Toast.LENGTH_LONG).show();
+
+            // Mở màn hình tìm chuyến về
+            Intent intent = new Intent(PaymentActivity.this, TripListActivity.class);
+            intent.putExtra("origin", returnOrigin);
+            intent.putExtra("destination", returnDestination);
+            intent.putExtra("date", returnDate);
+            intent.putExtra("isReturn", false); // Chuyến về không còn là round trip nữa
+            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(intent);
+            finish();
+        } else {
+            // Chuyến một chiều hoặc đã hoàn thành cả 2 chiều
+            Intent intent = new Intent(PaymentActivity.this, BookingDetailActivity.class);
+            intent.putExtra("booking_id", primaryBookingId);
+            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(intent);
+            finish();
+        }
     }
 }

@@ -33,17 +33,18 @@ public class GuestAccountActivity extends AppCompatActivity {
         bottomNav.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
             if (itemId == R.id.nav_home) {
-                // Always go to MainActivity, which handles guest/user state
                 startActivity(new Intent(getApplicationContext(), MainActivity.class));
                 overridePendingTransition(0, 0);
                 finish();
                 return true;
-            } else if (itemId == R.id.nav_tickets) { // Correct ID
-                // Guest users must log in to see their bookings
+            } else if (itemId == R.id.nav_tickets) {
                 startActivity(new Intent(this, LoginActivity.class));
                 return true;
+            } else if (itemId == R.id.nav_favorites) {
+                startActivity(new Intent(this, GuestFavoritesActivity.class));
+                overridePendingTransition(0, 0);
+                return true;
             } else if (itemId == R.id.nav_account) {
-                // Already on this screen, do nothing
                 return true;
             }
             return false;

@@ -113,8 +113,13 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             case "confirmed":
                 colorResId = R.color.colorPrimary;
                 break;
-            case "cancelled":
+            case "pending_refund":
+                colorResId = android.R.color.holo_orange_light;
+                break;
             case "refunded":
+                colorResId = android.R.color.holo_purple;
+                break;
+            case "cancelled":
                 colorResId = R.color.colorError;
                 break;
             case "pending":
@@ -140,10 +145,11 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
 
     private String getStatusText(String status) {
         switch (status) {
-            case "confirmed": return "Đã xác nhận";
-            case "pending": return "Chờ xác nhận";
-            case "cancelled": return "Đã hủy";
+            case "confirmed": return "Đã thanh toán";
+            case "pending": return "Chờ thanh toán";
+            case "pending_refund": return "Chờ hoàn tiền";
             case "refunded": return "Đã hoàn tiền";
+            case "cancelled": return "Đã hủy";
             default: return status;
         }
     }

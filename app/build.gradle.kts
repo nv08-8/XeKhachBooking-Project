@@ -58,4 +58,10 @@ dependencies {
     // Glide for async image loading and decoding off the main thread
     implementation("com.github.bumptech.glide:glide:4.15.1")
     annotationProcessor("com.github.bumptech.glide:compiler:4.15.1")
+
+    // FlexboxLayout for flexible layouts
+    implementation("com.google.android.flexbox:flexbox:3.0.0")
+
+    // ViewPager2 for image carousel
+    implementation("androidx.viewpager2:viewpager2:1.0.0")
 }

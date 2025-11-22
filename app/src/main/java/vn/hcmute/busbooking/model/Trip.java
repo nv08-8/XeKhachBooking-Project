@@ -40,6 +40,21 @@ public class Trip implements Parcelable {
     @SerializedName("destination")
     private String destination;
 
+    @SerializedName("bus_type")
+    private String busType;
+
+    @SerializedName("duration_hours")
+    private Double durationHours;
+
+    @SerializedName("distance_km")
+    private Double distanceKm;
+
+    @SerializedName("pickup_point")
+    private String pickupPoint;
+
+    @SerializedName("dropoff_point")
+    private String dropoffPoint;
+
     public Trip() {}
 
     protected Trip(Parcel in) {
@@ -57,6 +72,11 @@ public class Trip implements Parcelable {
         status = in.readString();
         origin = in.readString();
         destination = in.readString();
+        busType = in.readString();
+        durationHours = in.readByte() == 0 ? null : in.readDouble();
+        distanceKm = in.readByte() == 0 ? null : in.readDouble();
+        pickupPoint = in.readString();
+        dropoffPoint = in.readString();
     }
 
     @Override
@@ -72,6 +92,11 @@ public class Trip implements Parcelable {
         dest.writeString(status);
         dest.writeString(origin);
         dest.writeString(destination);
+        dest.writeString(busType);
+        if (durationHours == null) { dest.writeByte((byte) 0); } else { dest.writeByte((byte) 1); dest.writeDouble(durationHours); }
+        if (distanceKm == null) { dest.writeByte((byte) 0); } else { dest.writeByte((byte) 1); dest.writeDouble(distanceKm); }
+        dest.writeString(pickupPoint);
+        dest.writeString(dropoffPoint);
     }
 
     @Override
@@ -103,11 +128,15 @@ public class Trip implements Parcelable {
     public String getOrigin() { return origin; }
     public String getDestination() { return destination; }
 
+    public String getBusType() { return busType; }
+    public Double getDurationHours() { return durationHours; }
+    public Double getDistanceKm() { return distanceKm; }
+    public String getPickupPoint() { return pickupPoint; }
+    public String getDropoffPoint() { return dropoffPoint; }
+
     // Backward-compatible helpers for older UI code
     public String getFromLocation() { return origin; }
     public void setFromLocation(String val) { this.origin = val; }
     public String getToLocation() { return destination; }
     public void setToLocation(String val) { this.destination = val; }
-    public String getBusType() { return operator; }
-    public void setBusType(String val) { this.operator = val; }
 }

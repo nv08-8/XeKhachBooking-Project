@@ -35,12 +35,15 @@ public class TripListActivity extends AppCompatActivity {
 
     private static final String TAG = "TripListActivity";
 
-    private TextView tvRoute, tvDate;
+    private TextView tvRoute, tvDate, tvEmptyState;
     private Spinner spinnerPriceFilter, spinnerSeatTypeFilter, spinnerTimeFilter;
     private RecyclerView rvTrips;
     private TripAdapter tripAdapter;
     private List<Trip> allTrips = new ArrayList<>();
     private ApiService apiService;
+
+    private boolean isReturn;
+    private String origin, destination, travelDate;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,35 +62,42 @@ public class TripListActivity extends AppCompatActivity {
         // Initialize views
         tvRoute = findViewById(R.id.tvRoute);
         tvDate = findViewById(R.id.tvDate);
+        tvEmptyState = findViewById(R.id.tvEmptyState);
         spinnerPriceFilter = findViewById(R.id.spinnerPriceFilter);
         spinnerSeatTypeFilter = findViewById(R.id.spinnerSeatTypeFilter);
         spinnerTimeFilter = findViewById(R.id.spinnerTimeFilter);
         rvTrips = findViewById(R.id.rvTrips);
 
         // Get data from intent
-        String from = getIntent().getStringExtra("origin");
-        String to = getIntent().getStringExtra("destination");
-        String date = getIntent().getStringExtra("date");
+        origin = getIntent().getStringExtra("origin");
+        destination = getIntent().getStringExtra("destination");
+        travelDate = getIntent().getStringExtra("date");
+        isReturn = getIntent().getBooleanExtra("isReturn", false);
 
-        if (from == null) from = "";
-        if (to == null) to = "";
-        if (date == null) date = "Hôm nay";
+        if (origin == null) origin = "";
+        if (destination == null) destination = "";
+        if (travelDate == null) travelDate = "Hôm nay";
 
-        tvRoute.setText(from + " → " + to);
-        tvDate.setText("Ngày: " + date);
+        tvRoute.setText(origin + " → " + destination);
+        tvDate.setText("Ngày: " + travelDate);
 
         rvTrips.setLayoutManager(new LinearLayoutManager(this));
         tripAdapter = new TripAdapter(new ArrayList<>());
         rvTrips.setAdapter(tripAdapter);
 
         tripAdapter.setOnItemClickListener(trip -> {
-            Intent intent = new Intent(TripListActivity.this, SeatSelectionActivity.class);
+            // Open TripDetailActivity first to show trip details
+            Intent intent = new Intent(TripListActivity.this, vn.hcmute.busbooking.TripDetailActivity.class);
             intent.putExtra("trip", trip);
+            intent.putExtra("isReturn", isReturn);
+            intent.putExtra("returnOrigin", destination);
+            intent.putExtra("returnDestination", origin);
+            intent.putExtra("returnDate", travelDate);
             startActivity(intent);
         });
 
         apiService = ApiClient.getClient().create(ApiService.class);
-        fetchTrips(from, to, date);
+        fetchTrips(origin, destination, travelDate);
 
         setupFilters();
     }
@@ -116,7 +126,8 @@ public class TripListActivity extends AppCompatActivity {
                     Log.d(TAG, "Trips loaded: " + allTrips.size());
                 } else {
                     Log.e(TAG, "Response not successful. Code: " + response.code());
-                    Toast.makeText(TripListActivity.this, "Không tìm thấy chuyến đi", Toast.LENGTH_SHORT).show();
+                    allTrips.clear();
+                    applyFilters();
                 }
             }
 
@@ -124,6 +135,8 @@ public class TripListActivity extends AppCompatActivity {
             public void onFailure(Call<List<Trip>> call, Throwable t) {
                 Log.e(TAG, "API call failed: " + t.getMessage(), t);
                 Toast.makeText(TripListActivity.this, "Lỗi kết nối: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                allTrips.clear();
+                applyFilters();
             }
         });
     }
@@ -152,6 +165,15 @@ public class TripListActivity extends AppCompatActivity {
             }
         }
         tripAdapter.updateTrips(filteredTrips);
+
+        // Show/hide empty state
+        if (filteredTrips.isEmpty()) {
+            tvEmptyState.setVisibility(View.VISIBLE);
+            rvTrips.setVisibility(View.GONE);
+        } else {
+            tvEmptyState.setVisibility(View.GONE);
+            rvTrips.setVisibility(View.VISIBLE);
+        }
     }
 
     private boolean checkPriceFilter(Trip trip) {

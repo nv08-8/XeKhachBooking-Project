@@ -1,15 +1,6 @@
 <resources>
-    <!-- Other arrays can be defined here -->
-    <string-array name="price_ranges">
-        <item>Dưới 100.000đ</item>
-        <item>100.000đ - 200.000đ</item>
-        <item>200.000đ - 300.000đ</item>
-        <item>Trên 300.000đ</item>
-    </string-array>
-
-    <!-- Missing arrays -->
     <string-array name="price_filters">
-        <item>Giá</item>
+        <item>Giá vé</item>
         <item>Dưới 100.000đ</item>
         <item>100.000đ - 200.000đ</item>
         <item>Trên 200.000đ</item>
@@ -23,8 +14,8 @@
 
     <string-array name="time_filters">
         <item>Giờ đi</item>
-        <item>Sáng</item>
-        <item>Chiều</item>
-        <item>Tối</item>
+        <item>Sáng (06:00 - 12:00)</item>
+        <item>Chiều (12:00 - 18:00)</item>
+        <item>Tối (18:00 - 24:00)</item>
     </string-array>
 </resources>

@@ -1,31 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Orix Pet Theme Colors -->
-    <color name="colorPrimary">#4D8DFF</color> <!-- Main Blue -->
-    <color name="colorPrimaryDark">#3A7AE0</color> <!-- Darker Blue -->
+    <!-- Modern Theme Colors - GoUTE -->
+    <color name="colorPrimary">#137fec</color> <!-- Main Blue -->
+    <color name="colorPrimaryDark">#0f6ac4</color> <!-- Darker Blue -->
     <color name="colorAccent">#FACC15</color> <!-- Yellow Accent -->
     <color name="colorError">#D32F2F</color> <!-- Red for errors/cancel -->
 
-    <!-- Harmonious Background Gradient -->
-    <color name="gradientStart">#EBF7FF</color> <!-- Very Soft Blue/Cyan -->
-    <color name="gradientCenter">#F1F8E8</color> <!-- Very Soft Green -->
-    <color name="gradientEnd">#FFFFFF</color>   <!-- White -->
+    <!-- Background Colors -->
+    <color name="backgroundLight">#f6f7f8</color>
+    <color name="backgroundDark">#101922</color>
+    <color name="surfaceLight">#FFFFFF</color>
+    <color name="surfaceDark">#1A242E</color>
 
-    <color name="textPrimary">#212121</color>
-    <color name="textSecondary">#757575</color>
+    <!-- Legacy Gradient (for backward compatibility) -->
+    <color name="gradientStart">#EBF7FF</color>
+    <color name="gradientCenter">#F1F8E8</color>
+    <color name="gradientEnd">#FFFFFF</color>
+
+    <!-- Text Colors -->
+    <color name="textPrimary">#111418</color>
+    <color name="textSecondary">#617589</color>
     <color name="colorSecondary">#616161</color>
     <color name="textHint">#BDBDBD</color>
-    <color name="textForgotPassword">#FF9800</color> <!-- Bold Orange -->
+    <color name="textForgotPassword">#FF9800</color>
 
+    <!-- Standard Colors -->
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
 
-    <!-- Missing colors -->
-    <color name="background">#F5F5F5</color>
-    <color name="backgroundPrimary">#F5F5F5</color>
-    <color name="selected_seat">#4CAF50</color>
-    <color name="booked_seat">#F44336</color>
-    <color name="available_seat">#BDBDBD</color>
+    <!-- Seat Colors -->
+    <color name="selected_seat">#FFB700</color> <!-- Yellow for selected -->
+    <color name="booked_seat">#D3D3D3</color> <!-- Gray for booked -->
+    <color name="available_seat">#A8DADC</color> <!-- Light blue for available -->
+
+    <!-- Status Colors -->
+    <color name="statusConfirmed">#10B981</color> <!-- Green -->
+    <color name="statusPending">#F59E0B</color> <!-- Orange -->
+    <color name="statusCancelled">#EF4444</color> <!-- Red -->
+
+    <!-- Icon & Navigation Surfaces -->
+    <color name="iconCircleBackground">#F1F5FF</color>
+    <color name="bottomNavBackground">#FFFFFF</color>
+    <color name="bottomNavStroke">#E6EBF2</color>
+    <color name="bottomNavInactive">#96A1B2</color>
+
+    <!-- Backward Compatibility -->
+    <color name="background">#f6f7f8</color>
+    <color name="backgroundPrimary">#f6f7f8</color>
     <color name="backgroundGradientEnd">#FFFFFF</color>
     <color name="backgroundGradientMid">#F1F8E8</color>
     <color name="backgroundGradientStart">#EBF7FF</color>

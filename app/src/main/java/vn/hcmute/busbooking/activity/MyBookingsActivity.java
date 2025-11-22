@@ -83,7 +83,11 @@ public class MyBookingsActivity extends AppCompatActivity {
                 startActivity(intent);
                 return true;
             } else if (itemId == R.id.nav_tickets) {
-                // Already on tickets page
+                return true;
+            } else if (itemId == R.id.nav_favorites) {
+                Intent intent = new Intent(this, FavoritesActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                startActivity(intent);
                 return true;
             } else if (itemId == R.id.nav_account) {
                 Intent intent = new Intent(this, UserAccountActivity.class);
@@ -105,6 +109,14 @@ public class MyBookingsActivity extends AppCompatActivity {
                 finish();
             }
         });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Refresh bookings when returning from detail screen
+        Log.d(TAG, "onResume: Refreshing bookings list");
+        loadMyBookings();
     }
 
     private void loadMyBookings() {
@@ -153,7 +165,10 @@ public class MyBookingsActivity extends AppCompatActivity {
         String status = booking.getStatus();
 
         if (!"confirmed".equals(status) && !"pending".equals(status)) {
-            Toast.makeText(this, "Không thể hủy vé này", Toast.LENGTH_SHORT).show();
+            String message = "pending_refund".equals(status)
+                ? "Vé đang được xử lý hoàn tiền, không thể hủy"
+                : "Không thể hủy vé này";
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
             return;
         }
 

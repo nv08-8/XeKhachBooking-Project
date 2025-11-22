@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_amenity_chip"
+    android:orientation="horizontal"
+    android:padding="8dp"
+    android:layout_margin="4dp"
+    android:gravity="center">
+
+    <ImageView
+        android:id="@+id/imgAmenityIcon"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:src="@drawable/ic_check"
+        android:layout_marginEnd="4dp"
+        app:tint="#00BCD4"
+        xmlns:app="http://schemas.android.com/apk/res-auto" />
+
+    <TextView
+        android:id="@+id/txtAmenity"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Wifi miễn phí"
+        android:textColor="#424242"
+        android:textSize="12sp" />
+
+</LinearLayout>
+

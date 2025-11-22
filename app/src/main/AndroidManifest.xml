@@ -28,6 +28,7 @@
         <activity android:name=".activity.OtpVerificationActivity" />
         <activity android:name=".activity.ResetPasswordActivity" />
         <activity android:name=".activity.TripListActivity" />
+        <activity android:name=".TripDetailActivity" />
         <activity android:name=".activity.SeatSelectionActivity" />
         <activity android:name=".activity.MyBookingsActivity" />
         <activity android:name=".activity.LoginActivity" />
@@ -46,6 +47,10 @@
                 <data android:scheme="xekhachbooking" android:host="payment" />
             </intent-filter>
         </activity>
+        <activity android:name="vn.hcmute.busbooking.activity.FavoritesActivity"
+            android:exported="false" />
+        <activity android:name="vn.hcmute.busbooking.activity.GuestFavoritesActivity"
+            android:exported="false" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
