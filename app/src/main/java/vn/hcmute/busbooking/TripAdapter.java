@@ -46,7 +46,7 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
         Trip trip = tripList.get(position);
 
         // 1. Route
-        holder.txtRoute.setText(trip.getFromLocation() + " → " + trip.getToLocation());
+        holder.txtRoute.setText(trip.getOrigin() + " → " + trip.getDestination());
 
         // 2. Price
         holder.txtPrice.setText(String.format("%.0f ₫", trip.getPrice()));
@@ -85,8 +85,8 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
 
         public TripViewHolder(@NonNull View itemView) {
             super(itemView);
-            txtRoute = itemView.findViewById(R.id.txtRoute);
-            txtDeparture = itemView.findViewById(R.id.txtDeparture);
+            txtRoute = itemView.findViewById(R.id.tvTripName);
+            txtDeparture = itemView.findViewById(R.id.tvTripDetails);
             txtPrice = itemView.findViewById(R.id.txtPrice);
             txtAvailableSeats = itemView.findViewById(R.id.txtAvailableSeats);
         }

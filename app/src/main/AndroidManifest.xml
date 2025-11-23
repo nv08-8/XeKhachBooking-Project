@@ -45,6 +45,8 @@
         <activity android:name=".activity.RevenueStatsActivity" />
         <activity android:name=".activity.ManageUsersActivity" />
         <activity android:name=".activity.EditUserActivity" />
+        <activity android:name=".activity.ManageTripsActivity" />
+        <activity android:name=".activity.TripFormActivity" />
     </application>
 
 </manifest>
