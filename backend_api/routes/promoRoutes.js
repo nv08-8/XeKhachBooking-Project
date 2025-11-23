@@ -5,7 +5,7 @@ const db = require("../db");
 router.get("/promotions", async (req, res) => {
   const nowSql = `
     SELECT id, title, description, discount_percent, starts_at, ends_at, active, created_at
-    FROM promotions
+    FROM promos
     WHERE active = TRUE
       AND (starts_at IS NULL OR starts_at <= NOW())
       AND (ends_at IS NULL OR ends_at >= NOW())
@@ -24,7 +24,7 @@ router.get("/promotions/featured", async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || "5", 10), 20) || 5;
   const sql = `
     SELECT id, title, description, discount_percent, starts_at, ends_at, active
-    FROM promotions
+    FROM promos
     WHERE active = TRUE
       AND (starts_at IS NULL OR starts_at <= NOW())
       AND (ends_at IS NULL OR ends_at >= NOW())
