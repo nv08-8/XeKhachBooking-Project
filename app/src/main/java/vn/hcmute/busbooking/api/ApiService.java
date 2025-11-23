@@ -6,7 +6,8 @@ import retrofit2.Call;
 import retrofit2.http.*;
 
 import vn.hcmute.busbooking.model.Trip;
-import vn.hcmute.busbooking.model.Booking; // Added
+import vn.hcmute.busbooking.model.Booking;
+import vn.hcmute.busbooking.model.User;
 
 public interface ApiService {
 
@@ -158,5 +159,8 @@ public interface ApiService {
 
     @GET("api/admin/revenue/by-year")
     Call<List<Map<String, Object>>> getRevenueByYear(@Header("user-id") int userId);
+
+    @GET("api/admin/users")
+    Call<List<User>> getAllUsers(@Header("user-id") int userId);
 
 }

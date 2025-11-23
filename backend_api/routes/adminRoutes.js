@@ -296,6 +296,20 @@ router.put("/admin/bookings/:id/cancel", checkAdminRole, async (req, res) => {
 });
 
 // ============================================================
+// ROUTES: QUẢN LÝ NGƯỜI DÙNG
+// ============================================================
+
+router.get("/admin/users", checkAdminRole, async (req, res) => {
+  try {
+    const result = await db.query("SELECT id, name, email, phone, role, status FROM users ORDER BY id ASC");
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    res.status(500).json({ message: "Lỗi khi lấy danh sách người dùng" });
+  }
+});
+
+// ============================================================
 // ROUTES: BÁO CÁO DOANH THU
 // ============================================================
 

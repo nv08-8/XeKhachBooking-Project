@@ -43,6 +43,7 @@
         <activity android:name=".activity.ManageBookingsActivity" />
         <activity android:name=".activity.BookingAdminDetailActivity" />
         <activity android:name=".activity.RevenueStatsActivity" />
+        <activity android:name=".activity.ManageUsersActivity" />
     </application>
 
 </manifest>
