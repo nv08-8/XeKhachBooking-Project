@@ -327,10 +327,12 @@ router.get("/bookings/:id", async (req, res) => {
   const sql = `
     SELECT b.id, b.user_id, b.trip_id, b.seat_label, b.price_paid, b.status, b.created_at, b.payment_method, b.payment_time, b.qr_code,
            t.departure_time, t.arrival_time, t.operator, t.bus_type,
-           r.origin, r.destination, r.distance_km AS distance, r.duration_min AS duration
+           r.origin, r.destination, r.distance_km AS distance, r.duration_min AS duration,
+           u.name AS passenger_name, u.phone AS passenger_phone
     FROM bookings b
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
+    JOIN users u ON u.id = b.user_id
     WHERE b.id=$1
   `;
   try {
