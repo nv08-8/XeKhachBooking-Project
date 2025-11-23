@@ -359,11 +359,12 @@ router.get("/admin/revenue/by-route", checkAdminRole, async (req, res) => {
         r.origin,
         r.destination,
         COUNT(b.id) as total_bookings,
-        SUM(CASE WHEN b.status='confirmed' THEN b.price_paid ELSE 0 END) as total_revenue,
+        SUM(b.price_paid) as total_revenue,
         SUM(CASE WHEN b.status='confirmed' THEN 1 ELSE 0 END) as confirmed_bookings
       FROM routes r
       LEFT JOIN trips t ON t.route_id = r.id
       LEFT JOIN bookings b ON b.trip_id = t.id
+      WHERE b.status = 'confirmed'
       GROUP BY r.id, r.origin, r.destination
       ORDER BY total_revenue DESC NULLS LAST
     `);
@@ -382,10 +383,10 @@ router.get("/admin/revenue/by-date", checkAdminRole, async (req, res) => {
     SELECT
       DATE(b.created_at) as date,
       COUNT(b.id) as total_bookings,
-      SUM(CASE WHEN b.status='confirmed' THEN b.price_paid ELSE 0 END) as total_revenue,
+      SUM(b.price_paid) as total_revenue,
       SUM(CASE WHEN b.status='confirmed' THEN 1 ELSE 0 END) as confirmed_bookings
     FROM bookings b
-    WHERE 1=1
+    WHERE b.status = 'confirmed'
   `;
   const params = [];
 
@@ -416,9 +417,10 @@ router.get("/admin/revenue/by-month", checkAdminRole, async (req, res) => {
       SELECT
         TO_CHAR(b.created_at, 'YYYY-MM') as month,
         COUNT(b.id) as total_bookings,
-        SUM(CASE WHEN b.status='confirmed' THEN b.price_paid ELSE 0 END) as total_revenue,
+        SUM(b.price_paid) as total_revenue,
         SUM(CASE WHEN b.status='confirmed' THEN 1 ELSE 0 END) as confirmed_bookings
       FROM bookings b
+      WHERE b.status = 'confirmed'
       GROUP BY TO_CHAR(b.created_at, 'YYYY-MM')
       ORDER BY month DESC
     `);
@@ -436,9 +438,10 @@ router.get("/admin/revenue/by-year", checkAdminRole, async (req, res) => {
       SELECT
         EXTRACT(YEAR FROM b.created_at) as year,
         COUNT(b.id) as total_bookings,
-        SUM(CASE WHEN b.status='confirmed' THEN b.price_paid ELSE 0 END) as total_revenue,
+        SUM(b.price_paid) as total_revenue,
         SUM(CASE WHEN b.status='confirmed' THEN 1 ELSE 0 END) as confirmed_bookings
       FROM bookings b
+      WHERE b.status = 'confirmed'
       GROUP BY EXTRACT(YEAR FROM b.created_at)
       ORDER BY year DESC
     `);
