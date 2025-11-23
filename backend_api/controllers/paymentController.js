@@ -4,7 +4,9 @@ const db = require('../db');
 
 // Create PayOS checkout link
 exports.createCheckout = async (req, res) => {
-    const { orderId, amount, booking_ids } = req.body;
+    const orderId = req.body.orderId || req.body.order_id;
+    const amount = req.body.amount;
+    const booking_ids = req.body.booking_ids;
 
     console.log('createCheckout called with:', { orderId, amount, booking_ids });
 
