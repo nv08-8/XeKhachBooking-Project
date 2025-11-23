@@ -21,6 +21,7 @@ import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.adapter.RevenueAdapter;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
+import vn.hcmute.busbooking.utils.SessionManager;
 
 public class RevenueStatsActivity extends AppCompatActivity {
     private ProgressBar progressRevenue;
@@ -30,11 +31,14 @@ public class RevenueStatsActivity extends AppCompatActivity {
     private Button btnApplyFilter;
     private RevenueAdapter adapter;
     private List<Map<String, Object>> revenueList = new ArrayList<>();
+    private SessionManager sessionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_revenue_stats);
+
+        sessionManager = new SessionManager(this);
 
         progressRevenue = findViewById(R.id.progressRevenue);
         rvRevenue = findViewById(R.id.rvRevenue);
@@ -64,31 +68,37 @@ public class RevenueStatsActivity extends AppCompatActivity {
         else if (selected == 3) groupBy = "route";
 
         ApiService api = ApiClient.getClient().create(ApiService.class);
-        Call<Map<String, Object>> call = api.getRevenueStats(groupBy, null, null);
-        call.enqueue(new Callback<Map<String, Object>>() {
+        int userId = sessionManager.getUserId();
+
+        Call<List<Map<String, Object>>> call;
+
+        switch (groupBy) {
+            case "month":
+                call = api.getRevenueByMonth(userId);
+                break;
+            case "year":
+                call = api.getRevenueByYear(userId);
+                break;
+            case "route":
+                call = api.getRevenueByRoute(userId);
+                break;
+            case "day":
+            default:
+                call = api.getRevenueByDate(userId, null, null);
+                break;
+        }
+
+        call.enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
-            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+            public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
                 progressRevenue.setVisibility(View.GONE);
-                if (!response.isSuccessful() || response.body() == null) {
+                if (!response.isSuccessful()) {
                     tvEmptyRevenue.setText("Không thể tải báo cáo (code=" + response.code() + ")");
                     tvEmptyRevenue.setVisibility(View.VISIBLE);
                     return;
                 }
 
-                Map<String, Object> result = response.body();
-                List<Map<String, Object>> revenues = null;
-
-                // Try multiple possible response keys
-                if (result.containsKey("data")) {
-                    revenues = (List<Map<String, Object>>) result.get("data");
-                } else if (result.containsKey("stats")) {
-                    revenues = (List<Map<String, Object>>) result.get("stats");
-                } else if (result.containsKey("revenue")) {
-                    revenues = (List<Map<String, Object>>) result.get("revenue");
-                } else {
-                    // Log toàn bộ response để debug
-                    android.util.Log.d("RevenueStats", "Response: " + result.toString());
-                }
+                List<Map<String, Object>> revenues = response.body();
 
                 if (revenues == null || revenues.isEmpty()) {
                     tvEmptyRevenue.setText("Không có dữ liệu báo cáo");
@@ -102,7 +112,7 @@ public class RevenueStatsActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+            public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
                 progressRevenue.setVisibility(View.GONE);
                 tvEmptyRevenue.setText("Lỗi: " + t.getMessage());
                 tvEmptyRevenue.setVisibility(View.VISIBLE);

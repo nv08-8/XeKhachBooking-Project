@@ -17,6 +17,7 @@ import retrofit2.Response;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
+import vn.hcmute.busbooking.utils.SessionManager;
 
 public class RouteFormActivity extends AppCompatActivity {
 
@@ -24,6 +25,7 @@ public class RouteFormActivity extends AppCompatActivity {
     private Button btnSave;
     private ApiService apiService;
     private Integer editingRouteId = null;
+    private SessionManager sessionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,6 +38,7 @@ public class RouteFormActivity extends AppCompatActivity {
         edtDuration = findViewById(R.id.edtDuration);
         btnSave = findViewById(R.id.btnSaveRoute);
 
+        sessionManager = new SessionManager(this);
         apiService = ApiClient.getClient().create(ApiService.class);
 
         if (getIntent() != null && getIntent().hasExtra("route_id")) {
@@ -49,7 +52,8 @@ public class RouteFormActivity extends AppCompatActivity {
     }
 
     private void loadRouteDetails(int id) {
-        Call<Map<String, Object>> call = apiService.getRouteById(id);
+        int userId = sessionManager.getUserId();
+        Call<Map<String, Object>> call = apiService.getRouteById(userId, id);
         call.enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
@@ -103,11 +107,13 @@ public class RouteFormActivity extends AppCompatActivity {
             }
         }
 
+        int userId = sessionManager.getUserId();
+
         Call<Map<String, Object>> call;
         if (editingRouteId == null) {
-            call = apiService.createRoute(body);
+            call = apiService.createRoute(userId, body);
         } else {
-            call = apiService.updateRoute(editingRouteId, body);
+            call = apiService.updateRoute(userId, editingRouteId, body);
         }
 
         call.enqueue(new Callback<Map<String, Object>>() {
