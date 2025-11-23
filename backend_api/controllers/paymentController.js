@@ -319,9 +319,20 @@ exports.verifyPayment = async (req, res) => {
         let bookingIds = [];
         try {
             const key = orderId || transactionId;
-            const { rows } = await db.query('SELECT booking_ids FROM payment_orders WHERE order_code=$1 ORDER BY created_at DESC LIMIT 1', [key]);
+            const { rows } = await db.query(
+                'SELECT booking_ids FROM payment_orders WHERE order_code=$1 ORDER BY created_at DESC LIMIT 1',
+                [key]
+            );
+
             if (rows && rows.length && rows[0].booking_ids) {
-                bookingIds = JSON.parse(rows[0].booking_ids);
+                // booking_ids is already JSONB => array
+                bookingIds = rows[0].booking_ids;
+
+                // ensure it's always array
+                if (!Array.isArray(bookingIds)) {
+                    bookingIds = [bookingIds];
+                }
+
                 console.log('Found booking_ids from DB:', bookingIds);
             }
         } catch (e) {
@@ -341,20 +352,22 @@ exports.verifyPayment = async (req, res) => {
         }
 
         // Check if payment was successful
-        const successFromPayos = payosStatus && (
-            payosStatus.status === 'PAID' ||
-            String(payosStatus.status).toLowerCase() === 'paid' ||
-            String(payosStatus.status).toLowerCase() === 'success' ||
-            payosStatus.code === '00'
-        );
+        const successFromPayos =
+            payosStatus &&
+            (
+                payosStatus.status === 'PAID' ||
+                String(payosStatus.status).toLowerCase() === 'paid' ||
+                String(payosStatus.status).toLowerCase() === 'success' ||
+                payosStatus.code === '00'
+            );
 
-        // Consider success if we have transactionId or PayOS confirms success
+        // Also accept success if deep link sent transactionId
         const considerSuccess = successFromPayos || !!transactionId;
 
         console.log('Payment verification:', { considerSuccess, bookingIds });
 
         // Update booking status if successful
-        if (considerSuccess && bookingIds.length) {
+        if (considerSuccess && bookingIds.length > 0) {
             for (const id of bookingIds) {
                 await db.query(
                     "UPDATE bookings SET status='confirmed', payment_method='payos', payment_time=NOW() WHERE id=$1",
@@ -370,6 +383,7 @@ exports.verifyPayment = async (req, res) => {
             payosStatus,
             success: considerSuccess
         });
+
     } catch (err) {
         console.error('verifyPayment error:', err);
         return res.status(500).json({ error: err.message || 'Verify failed' });
