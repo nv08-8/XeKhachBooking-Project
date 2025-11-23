@@ -410,7 +410,18 @@ exports.handleWebhook = async (req, res) => {
             );
 
             if (rows && rows.length && rows[0].booking_ids) {
-                const bookingIds = JSON.parse(rows[0].booking_ids);
+                let bookingIds = rows[0].booking_ids;
+
+                if (typeof bookingIds === 'string') {
+                    try {
+                        bookingIds = JSON.parse(bookingIds);
+                    } catch (e) {
+                        bookingIds = [ Number(bookingIds) ];
+                    }
+                } else if (typeof bookingIds === 'number') {
+                    bookingIds = [ bookingIds ];
+                }
+
                 console.log('Webhook updating bookings:', bookingIds);
 
                 // Update all bookings to confirmed
