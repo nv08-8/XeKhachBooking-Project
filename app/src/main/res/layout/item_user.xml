@@ -44,4 +44,20 @@
         android:padding="8dp"
         android:background="@drawable/bg_role_tag" />
 
+    <ImageButton
+        android:id="@+id/btnEditUser"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_edit"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Sửa người dùng" />
+
+    <ImageButton
+        android:id="@+id/btnDeleteUser"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_delete"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Xóa người dùng" />
+
 </LinearLayout>

@@ -309,6 +309,43 @@ router.get("/admin/users", checkAdminRole, async (req, res) => {
   }
 });
 
+router.put("/admin/users/:id", checkAdminRole, async (req, res) => {
+  const { id } = req.params;
+  const { name, email, phone, role, status } = req.body;
+
+  try {
+    const result = await db.query(
+      `UPDATE users
+       SET name=$1, email=$2, phone=$3, role=$4, status=$5
+       WHERE id=$6
+       RETURNING *`,
+      [name, email, phone, role, status, id]
+    );
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Người dùng không tìm thấy" });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error updating user:", err);
+    res.status(500).json({ message: "Lỗi khi cập nhật người dùng" });
+  }
+});
+
+router.delete("/admin/users/:id", checkAdminRole, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await db.query("DELETE FROM users WHERE id=$1 RETURNING id", [id]);
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Người dùng không tìm thấy" });
+    }
+    res.json({ message: "Xóa người dùng thành công" });
+  } catch (err) {
+    console.error("Error deleting user:", err);
+    res.status(500).json({ message: "Lỗi khi xóa người dùng" });
+  }
+});
+
 // ============================================================
 // ROUTES: BÁO CÁO DOANH THU
 // ============================================================

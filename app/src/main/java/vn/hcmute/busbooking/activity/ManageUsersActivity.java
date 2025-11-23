@@ -1,9 +1,14 @@
 package vn.hcmute.busbooking.activity;
 
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -11,7 +16,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -23,7 +27,7 @@ import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.User;
 import vn.hcmute.busbooking.utils.SessionManager;
 
-public class ManageUsersActivity extends AppCompatActivity {
+public class ManageUsersActivity extends AppCompatActivity implements UsersAdapter.OnUserClickListener {
 
     private RecyclerView rvUsers;
     private ProgressBar progressUsers;
@@ -31,6 +35,7 @@ public class ManageUsersActivity extends AppCompatActivity {
     private UsersAdapter adapter;
     private List<User> userList = new ArrayList<>();
     private SessionManager sessionManager;
+    private ApiService apiService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,13 +47,14 @@ public class ManageUsersActivity extends AppCompatActivity {
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         sessionManager = new SessionManager(this);
+        apiService = ApiClient.getClient().create(ApiService.class);
 
         rvUsers = findViewById(R.id.rvUsers);
         progressUsers = findViewById(R.id.progressUsers);
         tvEmptyUsers = findViewById(R.id.tvEmptyUsers);
 
         rvUsers.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new UsersAdapter(userList);
+        adapter = new UsersAdapter(userList, this);
         rvUsers.setAdapter(adapter);
 
         fetchAllUsers();
@@ -58,7 +64,6 @@ public class ManageUsersActivity extends AppCompatActivity {
         progressUsers.setVisibility(View.VISIBLE);
         tvEmptyUsers.setVisibility(View.GONE);
 
-        ApiService apiService = ApiClient.getClient().create(ApiService.class);
         int userId = sessionManager.getUserId();
 
         Call<List<User>> call = apiService.getAllUsers(userId);
@@ -89,6 +94,42 @@ public class ManageUsersActivity extends AppCompatActivity {
                 tvEmptyUsers.setVisibility(View.VISIBLE);
             }
         });
+    }
+
+    @Override
+    public void onEditUser(User user) {
+        Intent intent = new Intent(this, EditUserActivity.class);
+        intent.putExtra("user", user);
+        startActivity(intent);
+    }
+
+    @Override
+    public void onDeleteUser(User user) {
+        new AlertDialog.Builder(this)
+                .setTitle("Xác nhận xóa")
+                .setMessage("Bạn có chắc chắn muốn xóa người dùng '" + user.getName() + "'?")
+                .setPositiveButton("Xóa", (dialog, which) -> {
+                    int adminId = sessionManager.getUserId();
+                    Call<Void> call = apiService.deleteUser(adminId, user.getId());
+                    call.enqueue(new Callback<Void>() {
+                        @Override
+                        public void onResponse(Call<Void> call, Response<Void> response) {
+                            if (response.isSuccessful()) {
+                                Toast.makeText(ManageUsersActivity.this, "Xóa người dùng thành công", Toast.LENGTH_SHORT).show();
+                                fetchAllUsers(); // Refresh the list
+                            } else {
+                                Toast.makeText(ManageUsersActivity.this, "Xóa thất bại", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Call<Void> call, Throwable t) {
+                            Toast.makeText(ManageUsersActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                })
+                .setNegativeButton("Hủy", null)
+                .show();
     }
 
     @Override

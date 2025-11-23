@@ -44,6 +44,7 @@
         <activity android:name=".activity.BookingAdminDetailActivity" />
         <activity android:name=".activity.RevenueStatsActivity" />
         <activity android:name=".activity.ManageUsersActivity" />
+        <activity android:name=".activity.EditUserActivity" />
     </application>
 
 </manifest>

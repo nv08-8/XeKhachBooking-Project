@@ -1,11 +1,14 @@
 package vn.hcmute.busbooking.model;
 
-public class User {
+import java.io.Serializable;
+
+public class User implements Serializable {
     private int id;
     private String name;
     private String email;
     private String phone;
     private String role;
+    private String status;
 
     // Getters and setters
     public int getId() {
@@ -46,5 +49,13 @@ public class User {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

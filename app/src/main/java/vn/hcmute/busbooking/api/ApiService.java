@@ -143,6 +143,16 @@ public interface ApiService {
     @PUT("api/admin/bookings/{id}/cancel")
     Call<Map<String, Object>> cancelAdminBooking(@Header("user-id") int userId, @Path("id") int bookingId);
 
+    // ========== USER MANAGEMENT ==========
+    @GET("api/admin/users")
+    Call<List<User>> getAllUsers(@Header("user-id") int userId);
+
+    @PUT("api/admin/users/{id}")
+    Call<User> updateUser(@Header("user-id") int adminId, @Path("id") int userId, @Body User user);
+
+    @DELETE("api/admin/users/{id}")
+    Call<Void> deleteUser(@Header("user-id") int adminId, @Path("id") int userId);
+
     // ========== REVENUE STATISTICS ==========
     @GET("api/admin/revenue/by-route")
     Call<List<Map<String, Object>>> getRevenueByRoute(@Header("user-id") int userId);
@@ -159,8 +169,5 @@ public interface ApiService {
 
     @GET("api/admin/revenue/by-year")
     Call<List<Map<String, Object>>> getRevenueByYear(@Header("user-id") int userId);
-
-    @GET("api/admin/users")
-    Call<List<User>> getAllUsers(@Header("user-id") int userId);
 
 }

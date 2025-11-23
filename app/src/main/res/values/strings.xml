@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">GoUTE</string>
     <string name="slogan">Đặt vé xe khách nhanh chóng</string>
@@ -100,4 +101,16 @@
     <string name="total_tickets_default">0</string>
     <string name="top_route">Tuyến bán chạy</string>
     <string name="chart_placeholder">Biểu đồ (tạm)</string>
+
+    <string-array name="user_roles">
+        <item>user</item>
+        <item>admin</item>
+    </string-array>
+
+    <string-array name="user_statuses">
+        <item>active</item>
+        <item>pending</item>
+        <item>suspended</item>
+    </string-array>
+
 </resources>
