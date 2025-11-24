@@ -69,3 +69,70 @@ app.listen(PORT, () => {
     console.log("Server started on port", PORT);
     listRoutes(app);
 });
+
+// Background job: expire pending bookings older than configured TTL (default 5 minutes)
+const BOOKING_PENDING_TTL_MINUTES = parseInt(process.env.BOOKING_PENDING_TTL_MINUTES || '5', 10);
+const EXPIRE_CHECK_INTERVAL_MS = 60 * 1000; // run every minute
+
+async function expirePendingBookings() {
+    try {
+        console.log(`Running expirePendingBookings (TTL=${BOOKING_PENDING_TTL_MINUTES}min)`);
+        // Find pending bookings older than TTL
+        const sql = `SELECT id, trip_id, seat_label FROM bookings WHERE status='pending' AND created_at < NOW() - INTERVAL '${BOOKING_PENDING_TTL_MINUTES} minutes'`;
+        const { rows } = await db.query(sql);
+        if (!rows || rows.length === 0) return;
+
+        for (const booking of rows) {
+            const client = await db.connect();
+            try {
+                await client.query('BEGIN');
+
+                // Double-check booking still pending
+                const bRes = await client.query('SELECT * FROM bookings WHERE id=$1 FOR UPDATE', [booking.id]);
+                if (!bRes.rowCount) {
+                    await client.query('ROLLBACK');
+                    client.release();
+                    continue;
+                }
+                if (bRes.rows[0].status !== 'pending') {
+                    await client.query('ROLLBACK');
+                    client.release();
+                    continue;
+                }
+
+                // Release seat(s) associated with this booking
+                // Some schemas may store one seat per booking row (seat_label column)
+                await client.query(
+                    'UPDATE seats SET is_booked=0, booking_id=NULL WHERE trip_id=$1 AND label=$2',
+                    [booking.trip_id, booking.seat_label]
+                );
+
+                // Increase trip seats_available by 1
+                await client.query(
+                    'UPDATE trips SET seats_available = seats_available + 1 WHERE id = $1',
+                    [booking.trip_id]
+                );
+
+                // Finally delete the booking row
+                await client.query('DELETE FROM bookings WHERE id=$1', [booking.id]);
+
+                await client.query('COMMIT');
+                client.release();
+
+                console.log(`Expired pending booking id=${booking.id}, trip_id=${booking.trip_id}, seat=${booking.seat_label}`);
+            } catch (err) {
+                console.error('Failed to expire booking id=' + booking.id, err.message || err);
+                try { await client.query('ROLLBACK'); } catch (e) { /* ignore */ }
+                client.release();
+            }
+        }
+    } catch (err) {
+        console.error('expirePendingBookings failed:', err.message || err);
+    }
+}
+
+// Start interval
+setInterval(expirePendingBookings, EXPIRE_CHECK_INTERVAL_MS);
+
+// Run once at startup
+expirePendingBookings();
