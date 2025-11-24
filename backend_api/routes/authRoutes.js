@@ -4,6 +4,8 @@ const db = require("../db");
 const bcrypt = require("bcrypt");
 const sendEmail = require("../utils/sendEmail");
 const SALT_ROUNDS = 10;
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me';
 
 router.post("/send-otp", async (req, res) => {
     const { email } = req.body;
@@ -112,10 +114,16 @@ router.post("/login", async (req, res) => {
         if (!isMatch)
             return res.status(401).json({ message: "Sai email hoặc mật khẩu!" });
 
+        // Remove sensitive fields
         delete user.password;
+
+        // Create JWT token (include minimal payload)
+        const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' });
+
         return res.json({
             message: "Đăng nhập thành công!",
-            user
+            user,
+            token
         });
     } catch (err) {
         console.error("Lỗi đăng nhập:", err);

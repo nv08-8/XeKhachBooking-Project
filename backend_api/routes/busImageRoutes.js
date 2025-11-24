@@ -10,7 +10,13 @@ let images = [];
 try {
     const data = fs.readFileSync(imagesPath, "utf8");
     images = JSON.parse(data);
-    console.log(`✅ Loaded ${images.length} bus images`);
+    // Remove TikTok URLs from image lists to avoid blocked/403 images
+    images.forEach(item => {
+        if (Array.isArray(item.image_urls)) {
+            item.image_urls = item.image_urls.filter(url => typeof url === 'string' && !url.includes('tiktok.com'));
+        }
+    });
+    console.log(`✅ Loaded ${images.length} bus images (TikTok links removed)`);
 } catch (error) {
     console.error("❌ Error loading bus_images.json:", error.message);
     images = []; // Fallback to empty array
@@ -63,7 +69,7 @@ router.get("/bus-image", (req, res) => {
 
     console.log(`✅ Found match with ${found.image_urls.length} images`);
 
-    // Filter out TikTok URLs (they're blocked with HTTP 403)
+    // Filter out TikTok URLs (they're blocked with HTTP 403) -- defensive: keep finalUrls only non-tiktok
     const nonTikTokUrls = found.image_urls.filter(url => !url.includes('tiktok.com'));
 
     console.log(`   Total URLs: ${found.image_urls.length}, Non-TikTok URLs: ${nonTikTokUrls.length}`);
@@ -71,10 +77,11 @@ router.get("/bus-image", (req, res) => {
     // If we have non-TikTok URLs, use them. Otherwise fallback to original
     const finalUrls = nonTikTokUrls.length > 0 ? nonTikTokUrls : found.image_urls;
 
-    // Return only reliable non-TikTok images
+    // Return only reliable non-TikTok images and include `image_urls` key for Android client compatibility
     return res.json({
         success: true,
         image: finalUrls[0],
+        image_urls: finalUrls,
         all_images: finalUrls,
         note: nonTikTokUrls.length === 0 ? "Only TikTok URLs available (may be blocked)" : "Using reliable non-TikTok URLs"
     });
@@ -90,4 +97,3 @@ router.get("/bus-images", (req, res) => {
 });
 
 module.exports = router;
-

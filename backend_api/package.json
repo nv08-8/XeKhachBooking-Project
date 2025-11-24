@@ -17,10 +17,10 @@
     "nodemailer": "^7.0.10",
     "pg": "^8.16.3",
     "resend": "^6.4.2",
-    "@payos/node": "^1.0.2"
+    "@payos/node": "^1.0.2",
+    "socket.io": "^4.7.2",
+    "jsonwebtoken": "^9.0.0"
   },
-  "description": "",
-  "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs"
