@@ -118,3 +118,5 @@ function generateDetailedSeatLayout(busType, seatLayout) {
     });
     return seatLayout;
 }
+
+module.exports = { generateDetailedSeatLayout };
