@@ -70,11 +70,20 @@ router.get("/trips/:id", async (req, res) => {
             order: stop.order_index
         }));
 
-        // Giả sử 'trip' là biến chứa dữ liệu chuyến đi lấy từ database
-        if (buses.seat_layout) {
-            let seatLayoutObject = JSON.parseJavaScript(buses.seat_layout);
-            buses.seat_layout = generateDetailedSeatLayout(trip.bus_type, seatLayoutObject);
+        // 'seat_layout' là một thuộc tính của 'trip'
+        if (trip.seat_layout) {
+            try {
+                // Dùng JSON.parse() để chuyển chuỗi thành object
+                let seatLayoutObject = JSON.parse(trip.seat_layout);
+                
+                // Gọi hàm sinh layout chi tiết và cập nhật lại vào chính 'trip'
+                trip.seat_layout = generateDetailedSeatLayout(trip.bus_type, seatLayoutObject);
+            } catch (e) {
+                console.error("Lỗi khi xử lý seat_layout:", e);
+                // Nếu có lỗi, giữ nguyên layout cũ để tránh crash
+            }
         }
+
         return res.json({
             success: true,
             data: {
