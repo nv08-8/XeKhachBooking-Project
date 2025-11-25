@@ -12,7 +12,7 @@ const tripDetailRoutes = require('./routes/tripDetailRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const pushRoutes = require('./routes/pushRoutes'); 
 
-const { expirePendingBookings, BOOKING_PENDING_TTL_MINUTES } = require('./services/bookingService');
+// const { expirePendingBookings, BOOKING_PENDING_TTL_MINUTES } = require('./services/bookingService');
 
 const app = express();
 const server = http.createServer(app);
@@ -68,27 +68,27 @@ app.use((err, req, res, next) => {
 });
 
 // Run background tasks
-const runBackgroundTasks = () => {
-    setInterval(async () => {
-        // console.log(`Running expirePendingBookings (TTL=${BOOKING_PENDING_TTL_MINUTES}min)`);
-        try {
-            const expiredCount = await expirePendingBookings();
-            if (expiredCount > 0) {
-                console.log(`Expired ${expiredCount} pending bookings.`);
-                 // Notify relevant users if possible via WebSocket
-                 io.emit('bookings_expired', { count: expiredCount });
-            }
-        } catch (error) {
-            console.error("Error expiring bookings:", error);
-        }
-    }, 1 * 60 * 1000); // Run every 1 minute
-};
+// const runBackgroundTasks = () => {
+//     setInterval(async () => {
+//         // console.log(`Running expirePendingBookings (TTL=${BOOKING_PENDING_TTL_MINUTES}min)`);
+//         try {
+//             const expiredCount = await expirePendingBookings();
+//             if (expiredCount > 0) {
+//                 console.log(`Expired ${expiredCount} pending bookings.`);
+//                  // Notify relevant users if possible via WebSocket
+//                  io.emit('bookings_expired', { count: expiredCount });
+//             }
+//         } catch (error) {
+//             console.error("Error expiring bookings:", error);
+//         }
+//     }, 1 * 60 * 1000); // Run every 1 minute
+// };
 
 // Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
-    runBackgroundTasks();
+    // runBackgroundTasks();
 });
 
 // Export io and connectedUsers for use in other modules
