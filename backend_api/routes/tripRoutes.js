@@ -18,9 +18,13 @@ router.get("/trips", async (req, res) => {
     SELECT
       t.id, t.route_id, t.operator, t.bus_type, t.departure_time, t.arrival_time,
       t.price, t.seats_total, t.seats_available, t.status, t.created_at,
-      r.origin, r.destination, r.distance_km, r.duration_min
+      r.origin, r.destination, r.distance_km, r.duration_min,
+      b.number_plate, b.image_url AS bus_image_url,
+      d.name AS driver_name, d.phone AS driver_phone
     FROM trips t
     JOIN routes r ON r.id = t.route_id
+    LEFT JOIN buses b ON b.id = t.bus_id
+    LEFT JOIN drivers d ON d.id = t.driver_id
     WHERE 1=1`;
   const params = [];
 

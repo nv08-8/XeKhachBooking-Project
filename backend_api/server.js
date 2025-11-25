@@ -16,6 +16,7 @@ const metaRoutes = require("./routes/metaRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const busImageRoutes = require("./routes/busImageRoutes");
 const tripDetailRoutes = require("./routes/tripDetailRoutes");
+const seatsRoutes = require("./routes/seatsRoutes");
 
 app.use(express.json());
 app.use(cors());
@@ -35,6 +36,7 @@ app.use("/api", metaRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api", busImageRoutes);
 app.use("/api", tripDetailRoutes);
+app.use('/api/seats', seatsRoutes);
 
 // small helper to list registered routes (useful for debugging 404s/method mismatches)
 function listRoutes(app) {
@@ -127,40 +129,86 @@ const EXPIRE_CHECK_INTERVAL_MS = 60 * 1000; // run every minute
 async function expirePendingBookings() {
     try {
         console.log(`Running expirePendingBookings (TTL=${BOOKING_PENDING_TTL_MINUTES}min)`);
-        // Find pending bookings older than TTL (include user_id)
-        const sql = `SELECT id, trip_id, seat_label, user_id FROM bookings WHERE status='pending' AND created_at < NOW() - INTERVAL '${BOOKING_PENDING_TTL_MINUTES} minutes'`;
+        // Find pending bookings older than TTL (fetch minimal columns; we'll re-select inside transaction)
+        const sql = `SELECT id, user_id, trip_id FROM bookings WHERE status='pending' AND created_at < NOW() - INTERVAL '${BOOKING_PENDING_TTL_MINUTES} minutes'`;
         const { rows } = await db.query(sql);
         if (!rows || rows.length === 0) return;
 
-        for (const booking of rows) {
+        for (const b of rows) {
+            const bookingId = b.id;
             const client = await db.connect();
             try {
                 await client.query('BEGIN');
 
-                // Double-check booking still pending
-                const bRes = await client.query('SELECT * FROM bookings WHERE id=$1 FOR UPDATE', [booking.id]);
+                // Lock and read the full booking row
+                const bRes = await client.query('SELECT * FROM bookings WHERE id=$1 FOR UPDATE', [bookingId]);
                 if (!bRes.rowCount) {
                     await client.query('ROLLBACK');
                     client.release();
                     continue;
                 }
-                if (bRes.rows[0].status !== 'pending') {
+                const booking = bRes.rows[0];
+                if (booking.status !== 'pending') {
                     await client.query('ROLLBACK');
                     client.release();
                     continue;
                 }
 
-                // Release seat(s) associated with this booking
-                await client.query(
-                    'UPDATE seats SET is_booked=0, booking_id=NULL WHERE trip_id=$1 AND label=$2',
-                    [booking.trip_id, booking.seat_label]
-                );
+                // Preferred source of seat labels: booking_items table (one row per seat)
+                let seatLabels = [];
+                try {
+                    const items = await client.query('SELECT seat_code FROM booking_items WHERE booking_id=$1', [bookingId]);
+                    if (items && items.rowCount) {
+                        seatLabels = items.rows.map(r => r.seat_code).filter(Boolean);
+                    }
+                } catch (e) {
+                    console.warn('Could not read booking_items for booking', bookingId, e.message || e);
+                }
 
-                // Increase trip seats_available by 1
-                await client.query(
-                    'UPDATE trips SET seats_available = seats_available + 1 WHERE id = $1',
-                    [booking.trip_id]
-                );
+                // If booking_items are empty, fall back to any legacy columns on bookings row (seat_label / seat / seat_labels)
+                if ((!seatLabels || seatLabels.length === 0)) {
+                    if (booking.seat_label) seatLabels = [booking.seat_label];
+                    else if (booking.seat) seatLabels = [booking.seat];
+                    else if (booking.seat_labels) {
+                        try {
+                            if (Array.isArray(booking.seat_labels)) seatLabels = booking.seat_labels;
+                            else if (typeof booking.seat_labels === 'string') seatLabels = JSON.parse(booking.seat_labels || '[]');
+                            else seatLabels = String(booking.seat_labels).split(',').map(s => s.trim()).filter(Boolean);
+                        } catch (e) {
+                            console.warn('Could not parse booking.seat_labels for', bookingId, e.message || e);
+                            seatLabels = [];
+                        }
+                    }
+                }
+
+                // Release each seat associated with this booking (by seats.label)
+                let releasedCount = 0;
+                for (const label of seatLabels) {
+                    try {
+                        const r = await client.query('UPDATE seats SET is_booked=0, booking_id=NULL WHERE trip_id=$1 AND label=$2 RETURNING id', [booking.trip_id, label]);
+                        if (r.rowCount) releasedCount += r.rowCount;
+                    } catch (e) {
+                        console.warn(`Failed to release seat "${label}" for booking ${bookingId}: ${e.message || e}`);
+                    }
+                }
+
+                // If we couldn't determine seats (no booking_items and no legacy seat columns), attempt to release by seats.booking_id
+                if (releasedCount === 0) {
+                    try {
+                        const res2 = await client.query('UPDATE seats SET is_booked=0, booking_id=NULL WHERE booking_id=$1 RETURNING id', [bookingId]);
+                        releasedCount = res2.rowCount || 0;
+                    } catch (e) {
+                        console.warn('Fallback release by booking_id failed for', bookingId, e.message || e);
+                    }
+                }
+
+                // Increase trip seats_available by releasedCount (if >0)
+                if (releasedCount > 0) {
+                    await client.query(
+                        'UPDATE trips SET seats_available = seats_available + $1 WHERE id = $2',
+                        [releasedCount, booking.trip_id]
+                    );
+                }
 
                 // Mark booking as expired (prefer update with expired_at if column exists) instead of deleting
                 const colCheck = await client.query(`
@@ -173,29 +221,29 @@ async function expirePendingBookings() {
                 if (colCheck.rowCount > 0) {
                   await client.query(
                     "UPDATE bookings SET status='expired', expired_at=NOW() WHERE id=$1",
-                    [booking.id]
+                    [bookingId]
                   );
                 } else {
                   await client.query(
                     "UPDATE bookings SET status='expired' WHERE id=$1",
-                    [booking.id]
+                    [bookingId]
                   );
                 }
 
-                // Emit booking_event to user's room
+                // Emit booking_event to user's room (include seat_labels array)
                 io.to(`user_${booking.user_id}`).emit('booking_event', {
-                  id: booking.id,
+                  id: bookingId,
                   trip_id: booking.trip_id,
-                  seat_label: booking.seat_label,
+                  seat_labels: seatLabels,
                   status: 'expired'
                 });
 
                 await client.query('COMMIT');
                 client.release();
 
-                console.log(`Expired pending booking id=${booking.id}, trip_id=${booking.trip_id}, seat=${booking.seat_label}`);
+                console.log(`Expired pending booking id=${bookingId}, trip_id=${booking.trip_id}, released=${releasedCount}, seats=${JSON.stringify(seatLabels)}`);
             } catch (err) {
-                console.error('Failed to expire booking id=' + booking.id, err.message || err);
+                console.error('Failed to expire booking id=' + bookingId, err.message || err);
                 try { await client.query('ROLLBACK'); } catch (e) { /* ignore */ }
                 client.release();
             }

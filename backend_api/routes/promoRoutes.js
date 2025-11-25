@@ -4,12 +4,12 @@ const db = require("../db");
 
 router.get("/promotions", async (req, res) => {
   const nowSql = `
-    SELECT id, title, description, discount_percent, starts_at, ends_at, active, created_at
+    SELECT id, code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status
     FROM promotions
-    WHERE active = TRUE
-      AND (starts_at IS NULL OR starts_at <= NOW())
-      AND (ends_at IS NULL OR ends_at >= NOW())
-    ORDER BY starts_at DESC, id DESC
+    WHERE status = 'active'
+      AND start_date <= NOW()
+      AND end_date >= NOW()
+    ORDER BY start_date DESC, id DESC
   `;
   try {
     const { rows } = await db.query(nowSql);
@@ -23,12 +23,12 @@ router.get("/promotions", async (req, res) => {
 router.get("/promotions/featured", async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || "5", 10), 20) || 5;
   const sql = `
-    SELECT id, title, description, discount_percent, starts_at, ends_at, active
+    SELECT id, code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status
     FROM promotions
-    WHERE active = TRUE
-      AND (starts_at IS NULL OR starts_at <= NOW())
-      AND (ends_at IS NULL OR ends_at >= NOW())
-    ORDER BY starts_at DESC, id DESC
+    WHERE status = 'active'
+      AND start_date <= NOW()
+      AND end_date >= NOW()
+    ORDER BY start_date DESC, id DESC
     LIMIT $1
   `;
   try {
@@ -37,23 +37,6 @@ router.get("/promotions/featured", async (req, res) => {
   } catch (err) {
     console.error("Failed to fetch featured promotions:", err);
     res.status(500).json({ message: "Failed to fetch featured promotions" });
-  }
-});
-
-router.get("/promos", async (req, res) => {
-  const sql = `
-    SELECT id, title, description, discount_percent, code, valid_until
-    FROM promos
-    WHERE valid_until >= CURRENT_DATE
-    ORDER BY discount_percent DESC
-    LIMIT 10
-  `;
-  try {
-    const { rows } = await db.query(sql);
-    res.json(rows || []);
-  } catch (err) {
-    console.error("Failed to fetch promos:", err.message || err);
-    return res.status(500).json({ error: "Failed to fetch promos" });
   }
 });
 

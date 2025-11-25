@@ -72,7 +72,7 @@ router.post("/finish-register", async (req, res) => {
 
     try {
         const { rows: phoneRows } = await db.query(
-            "SELECT id FROM users WHERE sdt=$1 AND status='active'",
+            "SELECT id FROM users WHERE phone=$1 AND status='active'",
             [phoneStr]
         );
         if (phoneRows.length > 0) {
@@ -81,7 +81,7 @@ router.post("/finish-register", async (req, res) => {
 
         const hashed = await bcrypt.hash(password, SALT_ROUNDS);
         const { rowCount } = await db.query(
-            "UPDATE users SET name=$1, sdt=$2, password=$3, otp_code=NULL, status='active' WHERE email=$4",
+            "UPDATE users SET name=$1, phone=$2, password=$3, otp_code=NULL, status='active' WHERE email=$4",
             [name, phoneStr, hashed, email]
         );
         if (!rowCount) {
@@ -173,7 +173,7 @@ router.get("/user/:id", async (req, res) => {
     const { id } = req.params;
     try {
         const { rows } = await db.query(
-            "SELECT id, name, email, sdt, status, role FROM users WHERE id=$1 AND status='active'",
+            "SELECT id, name, email, phone, status, role FROM users WHERE id=$1 AND status='active'",
             [id]
         );
         if (!rows.length) return res.status(404).json({ message: "User not found" });
@@ -217,8 +217,8 @@ router.post("/change-password", async (req, res) => {
 
 router.put("/user/:id", async (req, res) => {
     const { id } = req.params;
-    const { name, sdt } = req.body;
-    if (!name && !sdt) {
+    const { name, phone } = req.body;
+    if (!name && !phone) {
         return res.status(400).json({ success: false, message: "Không có thông tin để cập nhật!" });
     }
 
@@ -230,15 +230,15 @@ router.put("/user/:id", async (req, res) => {
         updateValues.push(name);
     }
 
-    if (sdt) {
-        const phoneStr = sdt.toString().trim();
+    if (phone) {
+        const phoneStr = phone.toString().trim();
         if (!/^\d{9,11}$/.test(phoneStr)) {
             return res.status(400).json({ success: false, message: "Số điện thoại không hợp lệ." });
         }
 
         try {
             const { rows } = await db.query(
-                "SELECT id FROM users WHERE sdt=$1 AND id!=$2 AND status='active'",
+                "SELECT id FROM users WHERE phone=$1 AND id!=$2 AND status='active'",
                 [phoneStr, id]
             );
             if (rows.length > 0) {
@@ -249,7 +249,7 @@ router.put("/user/:id", async (req, res) => {
             return res.status(500).json({ success: false, message: "Lỗi phía server." });
         }
 
-        updateFields.push(`sdt=$${updateValues.length + 1}`);
+        updateFields.push(`phone=$${updateValues.length + 1}`);
         updateValues.push(phoneStr);
     }
 

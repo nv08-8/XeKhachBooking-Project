@@ -9,62 +9,65 @@ router.get("/trips/:id", async (req, res) => {
     try {
         const tripQuery = `
             SELECT
-                t.id,
-                t.route_id,
-                t.operator,
-                t.bus_type,
-                t.departure_time,
-                t.arrival_time,
-                t.price,
-                t.seats_total,
-                t.seats_available,
-                t.status,
-                r.origin,
-                r.destination,
-                r.duration_hours,
-                r.distance_km,
-                r.pickup_point,
-                r.dropoff_point
+                t.id, t.route_id, t.operator, t.bus_type, t.departure_time, t.arrival_time,
+                t.price, t.seats_total, t.seats_available, t.status,
+                r.origin, r.destination, r.distance_km, r.duration_min,
+                b.number_plate, b.image_url AS bus_image_url, b.seat_layout,
+                d.name AS driver_name, d.phone AS driver_phone
             FROM trips t
             LEFT JOIN routes r ON t.route_id = r.id
+            LEFT JOIN buses b ON t.bus_id = b.id
+            LEFT JOIN drivers d ON t.driver_id = d.id
             WHERE t.id = $1
         `;
 
-        const result = await db.query(tripQuery, [tripId]);
+        const reviewsQuery = `
+            SELECT r.rating, r.comment, u.name as user_name
+            FROM reviews r
+            JOIN users u ON r.user_id = u.id
+            WHERE r.trip_id = $1
+            ORDER BY r.created_at DESC
+        `;
 
-        if (result.rows.length === 0) {
+        const stopsQuery = `
+            WITH first_stop_time AS (
+                SELECT estimate_time
+                FROM route_stops
+                WHERE route_id = (SELECT route_id FROM trips WHERE id = $1)
+                ORDER BY order_index ASC
+                LIMIT 1
+            )
+            SELECT
+                rs.id, rs.name, rs.address, rs.type, rs.order_index,
+                (t.departure_time + (rs.estimate_time - (SELECT estimate_time FROM first_stop_time)))::timestamp AS estimated_arrival_time
+            FROM route_stops rs
+            JOIN trips t ON t.route_id = rs.route_id
+            WHERE t.id = $1
+            ORDER BY rs.order_index ASC;
+        `;
+
+        const tripResult = await db.query(tripQuery, [tripId]);
+
+        if (tripResult.rows.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: "Không tìm thấy chuyến đi"
             });
         }
 
-        const trip = result.rows[0];
+        const trip = tripResult.rows[0];
+        const reviewsResult = await db.query(reviewsQuery, [tripId]);
+        const stopsResult = await db.query(stopsQuery, [tripId]);
 
-        // Get amenities/facilities (from bus_type or default)
         const amenities = getAmenitiesByBusType(trip.bus_type);
-
-        // Get route stops/timeline
-        const timeline = generateTimeline(
-            trip.origin,
-            trip.destination,
-            trip.departure_time,
-            trip.arrival_time,
-            trip.duration_hours
-        );
-
-        // Calculate rating (mock for now, you can add reviews table later)
-        const rating = {
-            average: 4.5,
-            total_reviews: 1283,
-            breakdown: {
-                5: 50,
-                4: 35,
-                3: 10,
-                2: 3,
-                1: 2
-            }
-        };
+        const timeline = stopsResult.rows.map(stop => ({
+            location: stop.name,
+            address: stop.address,
+            time: stop.estimated_arrival_time,
+            type: stop.type,
+            stop_id: stop.id,
+            order: stop.order_index
+        }));
 
         return res.json({
             success: true,
@@ -72,11 +75,10 @@ router.get("/trips/:id", async (req, res) => {
                 ...trip,
                 amenities,
                 timeline,
-                rating,
-                // Format times for display
+                reviews: reviewsResult.rows,
                 departure_display: formatTime(trip.departure_time),
                 arrival_display: formatTime(trip.arrival_time),
-                duration_display: formatDuration(trip.duration_hours)
+                duration_display: formatDuration(trip.duration_min)
             }
         });
 
@@ -89,94 +91,26 @@ router.get("/trips/:id", async (req, res) => {
     }
 });
 
-// Helper function to get amenities based on bus type
 function getAmenitiesByBusType(busType) {
-    const amenities = {
-        wifi: false,
-        water: false,
-        ac: false,
-        wc: false,
-        tv: false,
-        charging: false
-    };
-
+    const amenities = { wifi: false, water: false, ac: true, wc: false, tv: false, charging: false };
     if (!busType) return amenities;
-
     const type = busType.toLowerCase();
-
-    // All bus types have AC
-    amenities.ac = true;
-
-    // Limousine types have more amenities
-    if (type.includes("limousine")) {
-        amenities.wifi = true;
-        amenities.water = true;
-        amenities.charging = true;
-        amenities.tv = true;
-    }
-
-    // Buses with WC
-    if (type.includes("wc") || type.includes("có wc")) {
-        amenities.wc = true;
-    }
-
-    // Higher-end buses (40+ seats or limousine)
-    if (type.includes("limousine") || type.match(/\d{2,}/)?.[0] >= 40) {
-        amenities.wifi = true;
-        amenities.water = true;
-    }
-
+    if (type.includes("limousine")) Object.assign(amenities, { wifi: true, water: true, charging: true, tv: true });
+    if (type.includes("wc")) amenities.wc = true;
+    if (type.includes("limousine") || (type.match(/\d{2,}/)?.[0] || 0) >= 40) Object.assign(amenities, { wifi: true, water: true });
     return amenities;
 }
 
-// Generate timeline with stops
-function generateTimeline(origin, destination, departureTime, arrivalTime, durationHours) {
-    const timeline = [];
-
-    // Start point
-    timeline.push({
-        location: `Bến xe ${origin}`,
-        time: departureTime,
-        type: "departure",
-        description: "Điểm khởi hành"
-    });
-
-    // Middle stop (if journey is long enough)
-    if (durationHours && durationHours > 4) {
-        const midpointTime = new Date(new Date(departureTime).getTime() + (durationHours / 2 * 60 * 60 * 1000));
-        timeline.push({
-            location: "Trạm dừng chân Madagui",
-            time: midpointTime.toISOString(),
-            type: "rest_stop",
-            description: "Nghỉ 30 phút"
-        });
-    }
-
-    // End point
-    timeline.push({
-        location: `Bến xe ${destination}`,
-        time: arrivalTime,
-        type: "arrival",
-        description: "Điểm đến"
-    });
-
-    return timeline;
-}
-
-// Format time to HH:mm
 function formatTime(isoString) {
     if (!isoString) return "N/A";
-    const date = new Date(isoString);
-    return date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    return new Date(isoString).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 }
 
-// Format duration
-function formatDuration(hours) {
-    if (!hours) return "N/A";
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
+function formatDuration(minutes) {
+    if (!minutes) return "N/A";
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
     return `${h} giờ ${m > 0 ? m + " phút" : ""}`.trim();
 }
 
 module.exports = router;
-

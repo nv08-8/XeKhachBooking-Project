@@ -4,23 +4,21 @@ const router = express.Router();
 const db = require("../db");
 
 // GET /api/meta/locations - distinct origins and destinations for UI dropdowns
-router.get("/meta/locations", (req, res) => {
-  const queries = {
-    origins: "SELECT DISTINCT origin AS name FROM routes ORDER BY origin",
-    destinations: "SELECT DISTINCT destination AS name FROM routes ORDER BY destination",
-  };
-
-  db.query(queries.origins, [], (err1, origins) => {
-    if (err1) return res.status(500).json({ message: err1.message });
-    db.query(queries.destinations, [], (err2, destinations) => {
-      if (err2) return res.status(500).json({ message: err2.message });
-      res.json({ origins: origins.map(o => o.name), destinations: destinations.map(d => d.name) });
+router.get("/meta/locations", async (req, res) => {
+  try {
+    const { rows: origins } = await db.query("SELECT DISTINCT origin AS name FROM routes ORDER BY origin");
+    const { rows: destinations } = await db.query("SELECT DISTINCT destination AS name FROM routes ORDER BY destination");
+    res.json({ 
+      origins: origins.map(o => o.name), 
+      destinations: destinations.map(d => d.name) 
     });
-  });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
-// GET /api/popular - compute popular routes by seats booked (seats_total - seats_available)
-router.get("/popular", (req, res) => {
+// GET /api/popular - compute popular routes by seats booked
+router.get("/popular", async (req, res) => {
   const aggQuery = `
     SELECT
       CONCAT(r.origin, ' → ', r.destination) AS name,
@@ -38,41 +36,36 @@ router.get("/popular", (req, res) => {
     ORDER BY seats_booked DESC
     LIMIT 10;
   `;
-
-  db.query(aggQuery, (err, rows) => {
-    if (err) {
-      console.error("Failed computing popular routes:", err.message || err);
-      return res.status(500).json({ error: "Failed to fetch popular routes" });
-    }
+  try {
+    const { rows } = await db.query(aggQuery);
     res.json(rows || []);
-  });
+  } catch (err) {
+    console.error("Failed computing popular routes:", err.message || err);
+    return res.status(500).json({ error: "Failed to fetch popular routes" });
+  }
 });
 
-// GET /api/reviews - get customer reviews
-router.get("/reviews", (req, res) => {
-  const query = "SELECT * FROM reviews ORDER BY created_at DESC LIMIT 10";
-  db.query(query, (err, rows) => {
-    if (err) {
-      console.error("Failed to fetch reviews:", err.message || err);
-      return res.status(500).json({ error: "Failed to fetch reviews" });
-    }
+// GET /api/reviews - get recent customer reviews with user and trip info
+router.get("/reviews", async (req, res) => {
+  const query = `
+    SELECT
+        rev.id, rev.rating, rev.comment, rev.created_at,
+        u.name AS user_name,
+        r.origin, r.destination
+    FROM reviews rev
+    JOIN users u ON u.id = rev.user_id
+    JOIN trips t ON t.id = rev.trip_id
+    JOIN routes r ON r.id = t.route_id
+    ORDER BY rev.created_at DESC
+    LIMIT 10
+  `;
+  try {
+    const { rows } = await db.query(query);
     res.json(rows || []);
-  });
-});
-
-// GET /api/routes - full list of routes (origin/destination in Vietnamese with diacritics)
-router.get('/routes', (req, res) => {
-  // Optional filters ?origin=...&destination=...
-  const { origin, destination } = req.query;
-  let sql = `SELECT id, origin, destination, distance_km, duration_min, created_at FROM routes WHERE 1=1`;
-  const params = [];
-  if (origin) { sql += ' AND origin = ?'; params.push(origin); }
-  if (destination) { sql += ' AND destination = ?'; params.push(destination); }
-  sql += ' ORDER BY id ASC';
-  db.query(sql, params, (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
-  });
+  } catch (err) {
+    console.error("Failed to fetch reviews:", err.message || err);
+    return res.status(500).json({ error: "Failed to fetch reviews" });
+  }
 });
 
 module.exports = router;
