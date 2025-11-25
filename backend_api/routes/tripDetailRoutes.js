@@ -1,3 +1,4 @@
+const { generateDetailedSeatLayout } = require('../data/seat_layout.js');
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
@@ -69,6 +70,11 @@ router.get("/trips/:id", async (req, res) => {
             order: stop.order_index
         }));
 
+        // Giả sử 'trip' là biến chứa dữ liệu chuyến đi lấy từ database
+        if (buses.seat_layout) {
+            let seatLayoutObject = JSON.parseJavaScript(buses.seat_layout);
+            buses.seat_layout = generateDetailedSeatLayout(trip.bus_type, seatLayoutObject);
+        }
         return res.json({
             success: true,
             data: {
