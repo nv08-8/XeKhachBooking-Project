@@ -37,6 +37,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
+    implementation(libs.play.services.maps)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
@@ -64,4 +65,10 @@ dependencies {
 
     // ViewPager2 for image carousel
     implementation("androidx.viewpager2:viewpager2:1.0.0")
+
+    // Socket.IO client for realtime events
+    implementation("io.socket:socket.io-client:2.0.1") {
+        // excluding org.json to avoid conflicts on Android
+        exclude(group = "org.json", module = "json")
+    }
 }

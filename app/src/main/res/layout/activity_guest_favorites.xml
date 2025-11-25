@@ -7,6 +7,15 @@
     android:background="@drawable/background"
     tools:context=".activity.GuestAccountActivity">
 
+    <View
+        android:id="@+id/statusBarScrim"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@color/appBarBackground"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <androidx.core.widget.NestedScrollView
         android:id="@+id/contentScroll"
         android:layout_width="0dp"
@@ -19,9 +28,9 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:gravity="center"
+            android:gravity="center_horizontal"
             android:padding="24dp">
 
             <ImageView
@@ -52,11 +61,11 @@
                 android:textSize="16sp" />
 
             <androidx.cardview.widget.CardView
-                android:id="@+id/favoritesCard"
+                android:id="@+id/accountCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp"
-                app:cardCornerRadius="24dp"
+                app:cardCornerRadius="28dp"
                 app:cardElevation="4dp">
 
                 <LinearLayout
@@ -66,24 +75,25 @@
                     android:padding="24dp">
 
                     <TextView
+                        android:id="@+id/tvGuestMessage"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:gravity="center"
-                        android:text="Đăng nhập để xem và quản lý các chuyến đi đã lưu."
+                        android:layout_gravity="center_horizontal"
+                        android:text="Đăng nhập để trải nghiệm đầy đủ tính năng!"
                         android:textAlignment="center"
                         android:textColor="@color/textPrimary"
-                        android:textSize="17sp" />
+                        android:textSize="18sp" />
 
                     <Button
                         android:id="@+id/btnLogin"
                         android:layout_width="match_parent"
                         android:layout_height="55dp"
-                        android:layout_marginTop="20dp"
+                        android:layout_marginTop="24dp"
                         android:backgroundTint="@color/colorPrimary"
                         android:text="Đăng nhập"
                         android:textAllCaps="false"
                         android:textColor="@color/white"
-                        app:cornerRadius="26dp" />
+                        app:cornerRadius="28dp" />
 
                     <Button
                         android:id="@+id/btnRegister"
@@ -94,7 +104,7 @@
                         android:text="Đăng ký"
                         android:textAllCaps="false"
                         android:textColor="@color/white"
-                        app:cornerRadius="26dp" />
+                        app:cornerRadius="28dp" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
         </LinearLayout>
@@ -112,28 +122,20 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <LinearLayout
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/bottom_navigation"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="@color/bottomNavStroke"
-                android:layout_marginBottom="8dp" />
-
-            <com.google.android.material.bottomnavigation.BottomNavigationView
-                android:id="@+id/bottom_navigation"
-                style="@style/Widget.XeKhach.BottomNav"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@android:color/transparent"
-                app:labelVisibilityMode="labeled"
-                app:menu="@menu/bottom_navigation_menu" />
-        </LinearLayout>
+            android:background="@drawable/bg_bottom_nav_modern"
+            app:elevation="0dp"
+            app:itemBackground="@drawable/nav_item_background"
+            app:itemIconTint="@color/bottom_nav_color_selector"
+            app:itemTextColor="@color/bottom_nav_color_selector"
+            app:labelVisibilityMode="labeled"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:menu="@menu/bottom_navigation_menu" />
     </com.google.android.material.card.MaterialCardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-

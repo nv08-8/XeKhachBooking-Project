@@ -1,11 +1,11 @@
 package vn.hcmute.busbooking.adapter;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -17,120 +17,41 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.TimeZone;
 
 import vn.hcmute.busbooking.R;
+import vn.hcmute.busbooking.activity.BookingDetailActivity;
 import vn.hcmute.busbooking.model.Booking;
 
 public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingViewHolder> {
 
     private List<Booking> bookings;
-    private OnCancelListener cancelListener;
-    private OnItemClickListener itemClickListener;
-    private Context context;
+    // pending countdowns in milliseconds keyed by booking id
+    private Map<Integer, Long> pendingCountdowns = new HashMap<>();
 
-    public interface OnCancelListener {
-        void onCancel(Booking booking);
-    }
-
-    public interface OnItemClickListener {
-        void onItemClick(Booking booking);
-    }
-
-    public BookingAdapter(List<Booking> bookings, OnCancelListener listener) {
+    public BookingAdapter(List<Booking> bookings) {
         this.bookings = bookings;
-        this.cancelListener = listener;
     }
 
-    public void setOnItemClickListener(OnItemClickListener listener) {
-        this.itemClickListener = listener;
+    public void updatePendingCountdowns(Map<Integer, Long> newCountdowns) {
+        if (newCountdowns == null) newCountdowns = new HashMap<>();
+        this.pendingCountdowns = newCountdowns;
+        notifyDataSetChanged();
     }
 
     @NonNull
     @Override
     public BookingViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        this.context = parent.getContext();
-        View view = LayoutInflater.from(context)
-                .inflate(R.layout.item_booking, parent, false);
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_booking, parent, false);
         return new BookingViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull BookingViewHolder holder, int position) {
         Booking booking = bookings.get(position);
-
-        String origin = booking.getOrigin();
-        String destination = booking.getDestination();
-        String seatLabel = booking.getSeat_label();
-        String status = booking.getStatus();
-        String departureTimeStr = booking.getDeparture_time();
-        int price = booking.getPrice_paid();
-
-        holder.tvRoute.setText(origin + " → " + destination);
-        holder.tvSeat.setText("Ghế: " + seatLabel);
-        holder.tvPrice.setText(String.format(Locale.GERMANY, "%,.0fđ", (double) price));
-
-        holder.tvDeparture.setText(formatDateTime(departureTimeStr));
-
-        holder.tvStatus.setText(getStatusText(status));
-        updateStatusBackground(holder.tvStatus, status);
-
-        if ("confirmed".equals(status) || "pending".equals(status)) {
-            holder.btnCancel.setVisibility(View.VISIBLE);
-            holder.btnCancel.setOnClickListener(v -> {
-                if (cancelListener != null) {
-                    cancelListener.onCancel(booking);
-                }
-            });
-        } else {
-            holder.btnCancel.setVisibility(View.GONE);
-        }
-
-        holder.itemView.setOnClickListener(v -> {
-            if (itemClickListener != null) {
-                itemClickListener.onItemClick(booking);
-            }
-        });
-    }
-
-    private String formatDateTime(String isoString) {
-        if (isoString == null) return "N/A";
-        try {
-            SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-            isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-            Date date = isoFormat.parse(isoString);
-
-            SimpleDateFormat displayFormat = new SimpleDateFormat("HH:mm - dd/MM/yyyy", Locale.getDefault());
-            return displayFormat.format(date);
-        } catch (ParseException e) {
-            return isoString; // fallback to raw string
-        }
-    }
-
-    private void updateStatusBackground(TextView textView, String status) {
-        int colorResId;
-        switch (status) {
-            case "confirmed":
-                colorResId = R.color.colorPrimary;
-                break;
-            case "pending_refund":
-                colorResId = android.R.color.holo_orange_light;
-                break;
-            case "refunded":
-                colorResId = android.R.color.holo_purple;
-                break;
-            case "cancelled":
-                colorResId = R.color.colorError;
-                break;
-            case "pending":
-                colorResId = R.color.colorAccent;
-                break;
-            default:
-                colorResId = R.color.textSecondary;
-                break;
-        }
-        GradientDrawable background = (GradientDrawable) textView.getBackground();
-        background.setColor(ContextCompat.getColor(context, colorResId));
+        holder.bind(booking, pendingCountdowns);
     }
 
     @Override
@@ -143,29 +64,133 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
         notifyDataSetChanged();
     }
 
-    private String getStatusText(String status) {
-        switch (status) {
-            case "confirmed": return "Đã thanh toán";
-            case "pending": return "Chờ thanh toán";
-            case "pending_refund": return "Chờ hoàn tiền";
-            case "refunded": return "Đã hoàn tiền";
-            case "cancelled": return "Đã hủy";
-            default: return status;
-        }
-    }
-
     static class BookingViewHolder extends RecyclerView.ViewHolder {
-        TextView tvRoute, tvSeat, tvStatus, tvDeparture, tvPrice;
-        Button btnCancel;
+        private final TextView tvOperator, tvStatus, tvOrigin, tvDepartureTime, tvDestination, tvArrivalTime, tvDate, tvDuration;
 
-        BookingViewHolder(@NonNull View itemView) {
+        public BookingViewHolder(@NonNull View itemView) {
             super(itemView);
-            tvRoute = itemView.findViewById(R.id.tvRoute);
-            tvSeat = itemView.findViewById(R.id.tvSeat);
+            tvOperator = itemView.findViewById(R.id.tvOperator);
             tvStatus = itemView.findViewById(R.id.tvStatus);
-            tvDeparture = itemView.findViewById(R.id.tvDeparture);
-            tvPrice = itemView.findViewById(R.id.tvPrice);
-            btnCancel = itemView.findViewById(R.id.btnCancel);
+            tvOrigin = itemView.findViewById(R.id.tvOrigin);
+            tvDepartureTime = itemView.findViewById(R.id.tvDepartureTime);
+            tvDestination = itemView.findViewById(R.id.tvDestination);
+            tvArrivalTime = itemView.findViewById(R.id.tvArrivalTime);
+            tvDate = itemView.findViewById(R.id.tvDate);
+            tvDuration = itemView.findViewById(R.id.tvDuration);
+        }
+
+        public void bind(Booking booking, Map<Integer, Long> pendingCountdowns) {
+            tvOperator.setText(booking.getOperator());
+            tvOrigin.setText(booking.getOrigin());
+            tvDestination.setText(booking.getDestination());
+
+            tvDepartureTime.setText(formatTime(booking.getDeparture_time()));
+            tvArrivalTime.setText(formatTime(booking.getArrival_time()));
+            tvDate.setText(formatDate(booking.getDeparture_time()));
+            tvDuration.setText(formatDuration(booking.getDuration()));
+
+            // setStatus needs booking id to lookup pending countdown
+            setStatus(tvStatus, booking.getStatus(), booking.getId(), pendingCountdowns);
+
+            itemView.setOnClickListener(v -> {
+                Context context = itemView.getContext();
+                Intent intent = new Intent(context, BookingDetailActivity.class);
+                intent.putExtra("booking_id", booking.getId());
+                context.startActivity(intent);
+            });
+        }
+
+        private String formatTime(String isoString) {
+            if (isoString == null) return "";
+            try {
+                SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
+                isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+                Date date = isoFormat.parse(isoString);
+                if (date == null) return "";
+                SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+                return timeFormat.format(date);
+            } catch (ParseException e) {
+                return "";
+            }
+        }
+
+        private String formatDate(String isoString) {
+            if (isoString == null) return "";
+            try {
+                SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
+                isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+                Date date = isoFormat.parse(isoString);
+                if (date == null) return "";
+                SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd/MM/yyyy", new Locale("vi", "VN"));
+                return dateFormat.format(date);
+            } catch (ParseException e) {
+                return "";
+            }
+        }
+
+        private String formatDuration(String minutesString) {
+            if (minutesString == null) return "";
+            try {
+                int minutes = Integer.parseInt(minutesString);
+                long hours = minutes / 60;
+                return hours + " giờ";
+            } catch (NumberFormatException e) {
+                return "";
+            }
+        }
+
+        private void setStatus(TextView tvStatus, String status, int bookingId, Map<Integer, Long> pendingCountdowns) {
+            Context context = tvStatus.getContext();
+            if (status == null) {
+                tvStatus.setVisibility(View.GONE);
+                return;
+            }
+
+            tvStatus.setVisibility(View.VISIBLE);
+            int backgroundColor;
+            int textColor;
+
+            switch (status) {
+                case "confirmed":
+                    tvStatus.setText("Đã thanh toán");
+                    backgroundColor = ContextCompat.getColor(context, R.color.lightGreen);
+                    textColor = ContextCompat.getColor(context, R.color.darkGreen);
+                    break;
+                case "pending":
+                    // show countdown if available
+                    Long rem = null;
+                    if (pendingCountdowns != null) rem = pendingCountdowns.get(bookingId);
+                    String pendingText = "Chờ thanh toán";
+                    if (rem != null) {
+                        long seconds = Math.max(0, rem / 1000);
+                        long mm = seconds / 60;
+                        long ss = seconds % 60;
+                        pendingText = String.format(Locale.getDefault(), "Chờ thanh toán (%02d:%02d)", mm, ss);
+                    }
+                    tvStatus.setText(pendingText);
+                    backgroundColor = ContextCompat.getColor(context, R.color.lightYellow);
+                    textColor = ContextCompat.getColor(context, R.color.darkYellow);
+                    break;
+                case "cancelled":
+                    tvStatus.setText("Đã hủy");
+                    backgroundColor = ContextCompat.getColor(context, R.color.lightRed);
+                    textColor = ContextCompat.getColor(context, R.color.darkRed);
+                    break;
+                case "expired":
+                    tvStatus.setText("Hết hạn");
+                    backgroundColor = ContextCompat.getColor(context, R.color.lightGray);
+                    textColor = ContextCompat.getColor(context, R.color.darkGray);
+                    break;
+                default:
+                    tvStatus.setText(status);
+                    backgroundColor = ContextCompat.getColor(context, R.color.lightGray);
+                    textColor = ContextCompat.getColor(context, R.color.darkGray);
+                    break;
+            }
+
+            GradientDrawable background = (GradientDrawable) tvStatus.getBackground();
+            background.setColor(backgroundColor);
+            tvStatus.setTextColor(textColor);
         }
     }
 }

@@ -4,13 +4,22 @@ import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ImageView;
+import android.text.InputType;
+import android.view.animation.Animation;
+import android.view.animation.RotateAnimation;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -30,10 +39,11 @@ import vn.hcmute.busbooking.activity.UserAccountActivity;
 import vn.hcmute.busbooking.adapter.PopularRoutesAdapter;
 import vn.hcmute.busbooking.adapter.PromotionsAdapter;
 import vn.hcmute.busbooking.adapter.TestimonialsAdapter;
-import vn.hcmute.busbooking.model.PopularRoute;
-import vn.hcmute.busbooking.model.Promotion;
-import vn.hcmute.busbooking.model.Testimonial;
+import vn.hcmute.busbooking.api.ApiClient;
+import vn.hcmute.busbooking.api.ApiService;
+import vn.hcmute.busbooking.model.LocationsMeta;
 import vn.hcmute.busbooking.utils.SessionManager;
+import vn.hcmute.busbooking.ws.SocketManager;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -43,15 +53,24 @@ public class MainActivity extends AppCompatActivity {
     private androidx.appcompat.widget.SwitchCompat switchReturn;
     private SessionManager sessionManager;
     private Calendar selectedDate = Calendar.getInstance(); // To store the selected date
+    private View mainLayout;
+    private View statusBarScrim;
+    private ApiService apiService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_main);
+
+        mainLayout = findViewById(R.id.mainLayout);
+        statusBarScrim = findViewById(R.id.statusBarScrim);
+        handleWindowInsets();
 
         // Initialize views and SessionManager
         etOrigin = findViewById(R.id.etOrigin);
         etDestination = findViewById(R.id.etDestination);
+        ImageView ivSwap = findViewById(R.id.ivSwap);
         btnSearchTrips = findViewById(R.id.btnSearchTrips);
         tvWelcome = findViewById(R.id.tvWelcome);
         tvLogin = findViewById(R.id.tvLogin);
@@ -93,10 +112,96 @@ public class MainActivity extends AppCompatActivity {
         updateDateLabel();
 
         // Setup AutoCompleteTextViews
-        String[] locations = {"TP.HCM", "Hà Nội", "Đà Nẵng", "Đà Lạt", "Nha Trang", "Buôn Ma Thuột", "Quy Nhơn", "Cần Thơ", "Vũng Tàu", "Huế", "Quảng Bình", "Thanh Hóa", "Hải Phòng"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, locations);
-        etOrigin.setAdapter(adapter);
-        etDestination.setAdapter(adapter);
+        // Immediately set a fallback adapter so dropdown works even if backend is down
+        String[] fallbackLocations = {"TP.HCM", "Hà Nội", "Đà Nẵng", "Đà Lạt", "Nha Trang", "Buôn Ma Thuột"};
+        ArrayAdapter<String> initialAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, fallbackLocations);
+        etOrigin.setAdapter(initialAdapter);
+        etDestination.setAdapter(initialAdapter);
+
+        // Try fetch meta locations from backend
+        apiService = ApiClient.getClient().create(ApiService.class);
+        apiService.getMetaLocations().enqueue(new retrofit2.Callback<java.util.Map<String, Object>>() {
+            @Override
+            public void onResponse(retrofit2.Call<java.util.Map<String, Object>> call, retrofit2.Response<java.util.Map<String, Object>> response) {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful() && response.body() != null) {
+                        java.util.Map<String, Object> body = response.body();
+                        java.util.List<String> origins = new java.util.ArrayList<>();
+                        java.util.List<String> destinations = new java.util.ArrayList<>();
+                        try {
+                            Object o1 = body.get("origins");
+                            if (o1 instanceof java.util.List) {
+                                for (Object it : (java.util.List<?>) o1) if (it != null) origins.add(String.valueOf(it));
+                            }
+                            Object o2 = body.get("destinations");
+                            if (o2 instanceof java.util.List) {
+                                for (Object it : (java.util.List<?>) o2) if (it != null) destinations.add(String.valueOf(it));
+                            }
+                        } catch (Exception ignored) {}
+                        java.util.Set<String> union = new java.util.LinkedHashSet<>();
+                        union.addAll(origins);
+                        union.addAll(destinations);
+                        if (union.isEmpty()) {
+                            union.add("TP.HCM"); union.add("Hà Nội"); union.add("Đà Nẵng"); union.add("Đà Lạt"); union.add("Nha Trang");
+                        }
+                        String[] arr = union.toArray(new String[0]);
+                        ArrayAdapter<String> newAdapter = new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_list_item_1, arr);
+                        etOrigin.setAdapter(newAdapter);
+                        etDestination.setAdapter(newAdapter);
+                    }
+                    // if not successful, leave initialAdapter (fallback) as-is
+                });
+            }
+
+            @Override
+            public void onFailure(retrofit2.Call<java.util.Map<String, Object>> call, Throwable t) {
+                // network failure: do nothing, initialAdapter already set
+            }
+        });
+
+        // Use inputType null to avoid keyboard but keep touch/click behaviors stable
+        etOrigin.setInputType(InputType.TYPE_NULL);
+        etDestination.setInputType(InputType.TYPE_NULL);
+        etOrigin.setThreshold(0);
+        etDestination.setThreshold(0);
+        etOrigin.setFocusable(true);
+        etOrigin.setFocusableInTouchMode(true);
+        etOrigin.setClickable(true);
+        etDestination.setFocusable(true);
+        etDestination.setFocusableInTouchMode(true);
+        etDestination.setClickable(true);
+        etOrigin.setOnClickListener(v -> { etOrigin.requestFocus(); etOrigin.showDropDown(); });
+        etDestination.setOnClickListener(v -> { etDestination.requestFocus(); etDestination.showDropDown(); });
+        etOrigin.setOnTouchListener((v, event) -> {
+            etOrigin.requestFocus();
+            etOrigin.post(() -> {
+                try { etOrigin.showDropDown(); } catch (Exception ignored) {}
+            });
+            return false; // allow normal handling
+        });
+        etDestination.setOnTouchListener((v, event) -> {
+            etDestination.requestFocus();
+            etDestination.post(() -> {
+                try { etDestination.showDropDown(); } catch (Exception ignored) {}
+            });
+            return false;
+        });
+
+        // Swap origin/destination when ivSwap clicked
+        if (ivSwap != null) {
+            ivSwap.setOnClickListener(v -> {
+                String from = etOrigin.getText().toString();
+                String to = etDestination.getText().toString();
+                etOrigin.setText(to);
+                etDestination.setText(from);
+                // small rotate animation for feedback
+                RotateAnimation rotate = new RotateAnimation(0f, 180f,
+                        Animation.RELATIVE_TO_SELF, 0.5f,
+                        Animation.RELATIVE_TO_SELF, 0.5f);
+                rotate.setDuration(300);
+                ivSwap.startAnimation(rotate);
+            });
+        }
 
         // Date Picker setup
         tvDate.setOnClickListener(v -> showDatePickerDialog());
@@ -156,6 +261,44 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 return false;
             }
+        });
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        // Connect global socket if user logged in
+        if (sessionManager == null) sessionManager = new SessionManager(this);
+        if (sessionManager.isLoggedIn()) {
+            SocketManager.getInstance(this).connect();
+        } else {
+            // ensure disconnected when not logged in
+            SocketManager.getInstance(this).disconnect();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // Disconnect socket when app is backgrounded/closed
+        SocketManager.getInstance(this).disconnect();
+    }
+
+    private void handleWindowInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(mainLayout, (v, insets) -> {
+            int statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top;
+            ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+            params.topMargin = statusBarHeight;
+            v.setLayoutParams(params);
+
+            if (statusBarScrim != null) {
+                ViewGroup.LayoutParams scrimParams = statusBarScrim.getLayoutParams();
+                scrimParams.height = statusBarHeight;
+                statusBarScrim.setLayoutParams(scrimParams);
+                statusBarScrim.setVisibility(statusBarHeight > 0 ? View.VISIBLE : View.GONE);
+                statusBarScrim.setBackgroundColor(ContextCompat.getColor(this, R.color.appBarBackground));
+            }
+            return insets;
         });
     }
 

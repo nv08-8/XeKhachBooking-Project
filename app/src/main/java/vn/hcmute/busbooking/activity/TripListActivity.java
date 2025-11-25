@@ -8,11 +8,16 @@ import android.widget.AdapterView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.content.pm.ApplicationInfo;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.appbar.MaterialToolbar;
 
 import java.text.ParseException;
@@ -48,7 +53,17 @@ public class TripListActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_trip_list);
+
+        View mainView = findViewById(R.id.main);
+        AppBarLayout appBarLayout = findViewById(R.id.appBarLayout);
+
+        ViewCompat.setOnApplyWindowInsetsListener(mainView, (v, insets) -> {
+            int topInset = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top;
+            appBarLayout.setPadding(0, topInset, 0, 0);
+            return insets;
+        });
 
         // Setup toolbar back navigation
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
@@ -82,7 +97,7 @@ public class TripListActivity extends AppCompatActivity {
         tvDate.setText("Ngày: " + travelDate);
 
         rvTrips.setLayoutManager(new LinearLayoutManager(this));
-        tripAdapter = new TripAdapter(new ArrayList<>());
+        tripAdapter = new TripAdapter(this, new ArrayList<>());
         rvTrips.setAdapter(tripAdapter);
 
         tripAdapter.setOnItemClickListener(trip -> {
@@ -97,12 +112,16 @@ public class TripListActivity extends AppCompatActivity {
         });
 
         apiService = ApiClient.getClient().create(ApiService.class);
-        fetchTrips(origin, destination, travelDate);
+        Log.d(TAG, "Initial search params: origin='" + origin + "', destination='" + destination + "', date='" + travelDate + "'");
+        Toast.makeText(this, "Đang tìm chuyến...", Toast.LENGTH_SHORT).show();
+        // runtime debug check instead of BuildConfig.DEBUG (avoids import issues)
+        final boolean isDebug = (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+        fetchTrips(origin, destination, travelDate, isDebug);
 
         setupFilters();
     }
 
-    private void fetchTrips(String from, String to, String date) {
+    private void fetchTrips(String from, String to, String date, boolean isDebug) {
         String apiDate = "";
         if (!"Hôm nay".equals(date)) {
             try {
@@ -117,15 +136,43 @@ public class TripListActivity extends AppCompatActivity {
             }
         }
 
-        apiService.getTrips(from, to, apiDate).enqueue(new Callback<List<Trip>>() {
+        final String apiDateFinal = apiDate;
+        apiService.getTrips(from, to, apiDateFinal).enqueue(new Callback<List<Trip>>() {
             @Override
             public void onResponse(Call<List<Trip>> call, Response<List<Trip>> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     allTrips = response.body();
                     applyFilters();
                     Log.d(TAG, "Trips loaded: " + allTrips.size());
+                    if (allTrips.isEmpty()) {
+                        Toast.makeText(TripListActivity.this, "Không tìm thấy chuyến khớp. Thử mở rộng tìm kiếm hoặc kiểm tra kết nối.", Toast.LENGTH_LONG).show();
+                        // Debug fallback: if in debug, try fetch without origin/destination to see if server returns anything
+                        if (isDebug) {
+                            Log.d(TAG, "DEBUG: performing fallback fetch (no origin/destination)");
+                            apiService.getTrips("", "", apiDateFinal).enqueue(new Callback<List<Trip>>() {
+                                @Override
+                                public void onResponse(Call<List<Trip>> call2, Response<List<Trip>> response2) {
+                                    if (response2.isSuccessful() && response2.body() != null && !response2.body().isEmpty()) {
+                                        Log.d(TAG, "DEBUG fallback found trips: " + response2.body().size());
+                                    } else {
+                                        String bodyStr = "";
+                                        try { if (response2.errorBody() != null) bodyStr = response2.errorBody().string(); } catch (Exception ignored) {}
+                                        Log.w(TAG, "DEBUG fallback no data; code=" + response2.code() + " body=" + bodyStr);
+                                    }
+                                }
+
+                                @Override
+                                public void onFailure(Call<List<Trip>> call2, Throwable t2) {
+                                    Log.e(TAG, "DEBUG fallback failed: " + t2.getMessage(), t2);
+                                }
+                            });
+                        }
+                    }
                 } else {
                     Log.e(TAG, "Response not successful. Code: " + response.code());
+                    String err = "";
+                    try { if (response.errorBody() != null) err = response.errorBody().string(); } catch (Exception ignored) {}
+                    Toast.makeText(TripListActivity.this, "Lỗi server: " + response.code() + (err.isEmpty() ? "" : (" - " + err)), Toast.LENGTH_LONG).show();
                     allTrips.clear();
                     applyFilters();
                 }

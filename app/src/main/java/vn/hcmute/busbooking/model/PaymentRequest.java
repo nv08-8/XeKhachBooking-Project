@@ -1,14 +1,23 @@
 package vn.hcmute.busbooking.model;
 
+import com.google.gson.annotations.SerializedName;
+
 import java.util.List;
 
 public class PaymentRequest {
+    @SerializedName("order_id")
     private String orderId;
+    @SerializedName("amount")
     private int amount;
+    @SerializedName("booking_ids")
     private List<Integer> booking_ids;
+    @SerializedName("buyer_name")
     private String buyerName;
+    @SerializedName("buyer_email")
     private String buyerEmail;
+    @SerializedName("buyer_phone")
     private String buyerPhone;
+    @SerializedName("buyer_address")
     private String buyerAddress;
 
     public PaymentRequest(String orderId, int amount, List<Integer> booking_ids) {
@@ -84,4 +93,3 @@ public class PaymentRequest {
         this.buyerAddress = buyerAddress;
     }
 }
-

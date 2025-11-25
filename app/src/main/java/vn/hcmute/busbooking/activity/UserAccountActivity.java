@@ -2,13 +2,20 @@ package vn.hcmute.busbooking.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 
+import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import vn.hcmute.busbooking.MainActivity;
@@ -17,20 +24,27 @@ import vn.hcmute.busbooking.utils.SessionManager;
 
 public class UserAccountActivity extends AppCompatActivity {
 
-    private TextView tvUserName, tvUserEmail;
-    private Button btnLogout, btnEditProfile, btnChangePassword;
+    private TextView tvUserName, tvUserEmail, tvLogout;
+    private Button btnEditProfile, btnChangePassword;
     private SessionManager sessionManager;
+    private AppBarLayout appBarLayout;
+    private View statusBarScrim;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_user_account);
+
+        appBarLayout = findViewById(R.id.appBarLayout);
+        statusBarScrim = findViewById(R.id.statusBarScrim);
+        handleWindowInsets();
 
         sessionManager = new SessionManager(this);
 
         tvUserName = findViewById(R.id.tvUserName);
         tvUserEmail = findViewById(R.id.tvUserEmail);
-        btnLogout = findViewById(R.id.btnLogout);
+        tvLogout = findViewById(R.id.tvLogout);
         btnEditProfile = findViewById(R.id.btnEditProfile);
         btnChangePassword = findViewById(R.id.btnChangePassword);
 
@@ -39,8 +53,8 @@ public class UserAccountActivity extends AppCompatActivity {
         if (tvUserName != null) tvUserName.setText(sessionManager.getUserName() != null ? sessionManager.getUserName() : "");
         if (tvUserEmail != null) tvUserEmail.setText(sessionManager.getUserEmail() != null ? sessionManager.getUserEmail() : "");
 
-        if (btnLogout != null) {
-            btnLogout.setOnClickListener(v -> {
+        if (tvLogout != null) {
+            tvLogout.setOnClickListener(v -> {
                 sessionManager.logout();
                 Toast.makeText(this, "Đã đăng xuất", Toast.LENGTH_SHORT).show();
                 Intent intent = new Intent(UserAccountActivity.this, MainActivity.class);
@@ -92,14 +106,31 @@ public class UserAccountActivity extends AppCompatActivity {
                 }
             });
         }
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                Intent intent = new Intent(UserAccountActivity.this, MainActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                startActivity(intent);
+                finish();
+            }
+        });
     }
 
-    @Override
-    public void onBackPressed() {
-        // Navigate back to MainActivity instead of exiting app
-        Intent intent = new Intent(this, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        startActivity(intent);
-        finish();
+    private void handleWindowInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(appBarLayout, (v, insets) -> {
+            int statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top;
+            ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+            params.topMargin = statusBarHeight;
+            v.setLayoutParams(params);
+            if (statusBarScrim != null) {
+                ViewGroup.LayoutParams scrimParams = statusBarScrim.getLayoutParams();
+                scrimParams.height = statusBarHeight;
+                statusBarScrim.setLayoutParams(scrimParams);
+                statusBarScrim.setVisibility(statusBarHeight > 0 ? View.VISIBLE : View.GONE);
+            }
+            return insets;
+        });
     }
 }

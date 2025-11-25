@@ -118,7 +118,7 @@ public class EditProfileActivity extends AppCompatActivity {
 
         Integer userId = sessionManager.getUserId();
         if (userId != null) {
-            apiService.getUserProfile(userId).enqueue(new Callback<Map<String, Object>>() {
+            apiService.getUserInfo(userId).enqueue(new Callback<Map<String, Object>>() {
                 @Override
                 public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                     if (response.isSuccessful() && response.body() != null) {
@@ -188,13 +188,13 @@ public class EditProfileActivity extends AppCompatActivity {
 
         btnSaveProfile.setEnabled(false);
 
-        Map<String, Object> body = new HashMap<>();
+        Map<String, String> body = new HashMap<>();
         body.put("name", name);
         body.put("sdt", phone);
 
         Log.d(TAG, "Updating profile for userId: " + userId);
 
-        apiService.updateUserProfile(userId, body).enqueue(new Callback<Map<String, Object>>() {
+        apiService.updateUserInfo(userId, body).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 btnSaveProfile.setEnabled(true);

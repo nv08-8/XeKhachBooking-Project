@@ -12,6 +12,7 @@ public class SessionManager {
     private static final String KEY_NAME = "user_name";
     private static final String KEY_EMAIL = "user_email";
     private static final String KEY_PHONE = "user_phone";
+    private static final String KEY_TOKEN = "user_token";
 
     private final SharedPreferences prefs;
 
@@ -56,9 +57,12 @@ public class SessionManager {
         String name = (String) user.get("name");
         String email = (String) user.get("email");
         String phone = (String) user.get("phone");
+        String token = null;
+        if (user.get("token") instanceof String) token = (String) user.get("token");
 
         if (userId != -1) {
             saveSession(userId, name, email, phone);
+            if (token != null) prefs.edit().putString(KEY_TOKEN, token).apply();
         }
     }
 
@@ -92,6 +96,10 @@ public class SessionManager {
 
     public String getUserPhone() {
         return prefs.getString(KEY_PHONE, null);
+    }
+
+    public String getToken() {
+        return prefs.getString(KEY_TOKEN, null);
     }
 
     public boolean isLoggedIn() {

@@ -6,14 +6,16 @@ import retrofit2.Call;
 import retrofit2.http.*;
 
 import vn.hcmute.busbooking.model.Trip;
-import vn.hcmute.busbooking.model.Booking; // Added
+import vn.hcmute.busbooking.model.Booking;
+import vn.hcmute.busbooking.model.Location;
+import vn.hcmute.busbooking.model.Seat; // Added Seat import
 
 public interface ApiService {
 
     @GET("api/trips")
     Call<List<Trip>> getTrips(@Query("origin") String origin,
                               @Query("destination") String destination,
-                              @Query("date") String date); // Added date param
+                              @Query("date") String date);
 
     @GET("api/routes")
     Call<List<Map<String, Object>>> getRoutes(
@@ -23,7 +25,7 @@ public interface ApiService {
     );
 
     @GET("api/trips/{id}/seats")
-    Call<List<Map<String, Object>>> getSeats(
+    Call<List<Seat>> getSeats( // Changed to return List<Seat>
             @Path("id") int tripId,
             @Query("available") String available
     );
@@ -32,7 +34,7 @@ public interface ApiService {
     Call<Map<String, Object>> createBooking(@Body Map<String, Object> body);
 
     @GET("api/bookings/my")
-    Call<List<Booking>> getMyBookings(@Query("user_id") int userId); // Changed to List<Booking>
+    Call<List<Booking>> getMyBookings(@Query("user_id") int userId);
 
     @POST("api/bookings/{id}/cancel")
     Call<Map<String, Object>> cancelBooking(@Path("id") int bookingId);
@@ -58,67 +60,57 @@ public interface ApiService {
     @POST("api/auth/finish-register")
     Call<Map<String, Object>> finishRegister(@Body Map<String, String> body);
 
-    // Promotions
     @GET("api/promotions")
     Call<List<Map<String, Object>>> getPromotions();
 
     @GET("api/promotions/featured")
     Call<List<Map<String, Object>>> getFeaturedPromotions(@Query("limit") Integer limit);
 
-    // Meta locations
     @GET("api/meta/locations")
     Call<Map<String, Object>> getMetaLocations();
 
-    // Trip details
     @GET("api/trips/{id}")
     Call<Map<String, Object>> getTripDetails(@Path("id") int tripId);
 
-    // Bus image
     @GET("api/bus-image")
     Call<Map<String, Object>> getBusImage(
         @Query("operator") String operator,
         @Query("bus_type") String busType
     );
 
-    // Payment
     @POST("api/bookings/{id}/payment")
     Call<Map<String, Object>> confirmPayment(@Path("id") int bookingId, @Body Map<String, String> body);
 
-    // Booking details
     @GET("api/bookings/{id}")
     Call<Map<String, Object>> getBookingDetails(@Path("id") int bookingId);
 
-    // Verify booking payment status
     @POST("api/bookings/{id}/verify-payment")
     Call<Map<String, Object>> verifyBookingPayment(@Path("id") int bookingId);
 
-    // User profile
     @GET("api/auth/user/{id}")
     Call<Map<String, Object>> getUserInfo(@Path("id") int userId);
-
-    @GET("api/auth/user/{id}")
-    Call<Map<String, Object>> getUserProfile(@Path("id") int userId);
 
     @PUT("api/auth/user/{id}")
     Call<Map<String, Object>> updateUserInfo(@Path("id") int userId, @Body Map<String, String> body);
 
-    @PUT("api/auth/user/{id}")
-    Call<Map<String, Object>> updateUserProfile(@Path("id") int userId, @Body Map<String, Object> body);
-
     @POST("api/auth/change-password")
     Call<Map<String, Object>> changePassword(@Body Map<String, String> body);
 
-    // New: popular routes and reviews
     @GET("api/popular")
     Call<List<Map<String, Object>>> getPopularRoutes(@Query("limit") Integer limit);
 
     @GET("api/reviews")
     Call<List<Map<String, Object>>> getReviews(@Query("limit") Integer limit);
 
-    // PayOS payment
     @POST("api/payment/payos/create")
     Call<vn.hcmute.busbooking.model.PaymentResponse> createPayosPayment(@Body vn.hcmute.busbooking.model.PaymentRequest request);
 
     @POST("api/payment/payos/verify")
     Call<Map<String, Object>> verifyPayos(@Body Map<String, String> body);
+
+    @GET("api/trips/{id}/pickup-locations")
+    Call<List<Location>> getPickupLocations(@Path("id") int tripId);
+
+    @GET("api/trips/{id}/dropoff-locations")
+    Call<List<Location>> getDropoffLocations(@Path("id") int tripId);
 }
