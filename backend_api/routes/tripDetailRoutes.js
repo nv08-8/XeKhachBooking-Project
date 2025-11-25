@@ -70,11 +70,17 @@ router.get("/trips/:id", async (req, res) => {
             order: stop.order_index
         }));
 
-        // 'seat_layout' là một thuộc tính của 'trip'
+        // --- ĐOẠN ĐÃ SỬA LẠI CHO ĐÚNG ---
         if (trip.seat_layout) {
             try {
-                // Dùng JSON.parse() để chuyển chuỗi thành object
-                let seatLayoutObject = JSON.parse(trip.seat_layout);
+                let seatLayoutObject;
+                // Kiểm tra nếu seat_layout là chuỗi thì mới parse
+                if (typeof trip.seat_layout === 'string') {
+                    seatLayoutObject = JSON.parse(trip.seat_layout);
+                } else {
+                    // Nếu đã là object rồi thì dùng luôn
+                    seatLayoutObject = trip.seat_layout;
+                }
                 
                 // Gọi hàm sinh layout chi tiết và cập nhật lại vào chính 'trip'
                 trip.seat_layout = generateDetailedSeatLayout(trip.bus_type, seatLayoutObject);
