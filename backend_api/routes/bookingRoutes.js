@@ -35,11 +35,7 @@ router.post("/bookings", async (req, res) => {
     await client.query('BEGIN');
 
     // Ensure seats are generated before attempting to book, within the same transaction
-    const seatCheck = await client.query('SELECT 1 FROM seats WHERE trip_id = $1 LIMIT 1', [trip_id]);
-    if (seatCheck.rowCount === 0) {
-      console.log(`No seats found for trip ${trip_id} during booking. Generating...`);
-      await generateAndCacheSeats(client, trip_id);
-    }
+    await generateAndCacheSeats(client, trip_id);
 
     const tripResult = await client.query('SELECT price, seats_available FROM trips WHERE id=$1 FOR UPDATE', [trip_id]);
     if (!tripResult.rowCount) {
@@ -79,7 +75,7 @@ router.post("/bookings", async (req, res) => {
         [bookingId, label, tripPrice]
       );
       await client.query(
-        'UPDATE seats SET is_booked=true, booking_id=$1 WHERE trip_id=$2 AND label=$3',
+        'UPDATE seats SET is_booked=1, booking_id=$1 WHERE trip_id=$2 AND label=$3',
         [bookingId, trip_id, label]
       );
     }

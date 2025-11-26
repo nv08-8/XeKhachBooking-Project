@@ -21,12 +21,8 @@ router.get('/', async (req, res) => {
 
   const client = await db.connect();
   try {
-    const seatCheck = await client.query('SELECT 1 FROM seats WHERE trip_id = $1 LIMIT 1', [tripIdNum]);
-    if (seatCheck.rowCount === 0) {
-      console.log(`No seats found for trip ${tripIdNum}. Generating...`);
-      // We use the utility, but since this is a read-only endpoint, we do it in its own transaction.
-      await generateAndCacheSeats(tripIdNum); 
-    }
+    // The seat generator now handles its own transaction, so we just call it.
+    await generateAndCacheSeats(client, tripIdNum);
 
     let query = 'SELECT id, trip_id, label, type, is_booked, booking_id FROM seats WHERE trip_id=$1';
     const params = [tripIdNum];
