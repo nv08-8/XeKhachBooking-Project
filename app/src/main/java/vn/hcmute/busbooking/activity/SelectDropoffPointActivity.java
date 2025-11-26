@@ -68,8 +68,13 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
             Intent intent = new Intent(this, PaymentActivity.class);
             intent.putExtra("trip", trip);
             intent.putStringArrayListExtra("seat_labels", seatLabels);
-            intent.putExtra("pickup_location", selectedPickup);
-            intent.putExtra("dropoff_location", selectedDropoff);
+
+            // Pass IDs and names instead of the whole object
+            intent.putExtra("pickup_stop_id", selectedPickup.getId());
+            intent.putExtra("pickup_stop_name", formatLocationName(selectedPickup));
+            intent.putExtra("dropoff_stop_id", selectedDropoff.getId());
+            intent.putExtra("dropoff_stop_name", formatLocationName(selectedDropoff));
+
             startActivity(intent);
         });
     }

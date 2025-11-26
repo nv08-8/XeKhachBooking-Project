@@ -16,6 +16,7 @@ import com.google.gson.Gson;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -83,14 +84,16 @@ public class SeatSelectionActivity extends AppCompatActivity {
 
     private void fetchSeatStatuses() {
         ((ProgressBar) findViewById(R.id.progressBar)).setVisibility(View.VISIBLE);
+        // Revert to fetching all seats and checking their status on the client-side.
         ApiClient.getClient().create(ApiService.class).getSeats(trip.getId(), null).enqueue(new Callback<List<Seat>>() {
             @Override
             public void onResponse(Call<List<Seat>> call, Response<List<Seat>> response) {
                 ((ProgressBar) findViewById(R.id.progressBar)).setVisibility(View.GONE);
                 if (response.isSuccessful() && response.body() != null) {
                     Set<String> bookedSeats = new HashSet<>();
+                    // Iterate through all seats returned by the API and check their `isBooked` status.
                     for (Seat seat : response.body()) {
-                        if (seat.isBooked()) {
+                        if (seat.isBooked() && seat.getLabel() != null) {
                             bookedSeats.add(seat.getLabel());
                         }
                     }
@@ -103,7 +106,7 @@ public class SeatSelectionActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call<List<Seat>> call, Throwable t) {
                 ((ProgressBar) findViewById(R.id.progressBar)).setVisibility(View.GONE);
-                Toast.makeText(SeatSelectionActivity.this, "Lỗi mạng", Toast.LENGTH_SHORT).show();
+                Toast.makeText(SeatSelectionActivity.this, "Lỗi mạng: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -136,6 +139,7 @@ public class SeatSelectionActivity extends AppCompatActivity {
             floor2Adapter = new SeatAdapter(floor2Seats, this::onSeatSelected);
             floor2RecyclerView.setLayoutManager(new GridLayoutManager(this, floor2.cols));
             floor2RecyclerView.setAdapter(floor2Adapter);
+            findViewById(R.id.tvFloor2Header).setVisibility(View.VISIBLE);
         } else {
             findViewById(R.id.tvFloor2Header).setVisibility(View.GONE);
         }
@@ -144,34 +148,37 @@ public class SeatSelectionActivity extends AppCompatActivity {
     }
 
     private void populateFloor(Floor floor, List<Seat> seatList, Set<String> bookedSeats) {
-        char[] seatLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
-        for (int r = 0; r < floor.rows; r++) {
-            for (int c = 0; c < floor.cols; c++) {
-                String seatLabel;
-                String seatType = "bed";
+        if (floor.seats == null) return;
 
-                if (floor.cols == 3 && c == 1) {
-                    seatType = "aisle";
-                    seatLabel = "";
-                } else {
-                    int seatIndex = c;
-                    if (floor.cols == 3 && c > 1) {
-                        seatIndex = c - 1;
-                    }
-                    seatLabel = seatLetters[seatIndex] + String.valueOf(r + 1);
-                }
+        int totalCells = floor.rows * floor.cols;
+        Seat[] seatGrid = new Seat[totalCells];
 
-                Seat seat = new Seat(seatLabel);
-                seat.setSeatType(seatType);
-                if (bookedSeats.contains(seatLabel)) {
+        for (int i = 0; i < totalCells; i++) {
+            Seat aisle = new Seat("");
+            aisle.setSeatType("aisle");
+            seatGrid[i] = aisle;
+        }
+
+        for (SeatInfo seatInfo : floor.seats) {
+            int index = seatInfo.row * floor.cols + seatInfo.col;
+            if (index >= 0 && index < totalCells) {
+                Seat seat = new Seat(seatInfo.label);
+                seat.setSeatType(seatInfo.type);
+                if (bookedSeats.contains(seatInfo.label)) {
                     seat.setBooked(true);
                 }
-                seatList.add(seat);
+                seatGrid[index] = seat;
             }
         }
+
+        Collections.addAll(seatList, seatGrid);
     }
 
     private void onSeatSelected(Seat seat) {
+        if (seat.isBooked() || seat.getLabel() == null || seat.getLabel().isEmpty() || "aisle".equals(seat.getSeatType())) {
+            return;
+        }
+
         if (selectedSeats.contains(seat.getLabel())) {
             selectedSeats.remove(seat.getLabel());
         } else {
@@ -179,9 +186,15 @@ public class SeatSelectionActivity extends AppCompatActivity {
         }
         seat.setSelected(!seat.isSelected());
 
-        // Cập nhật lại cả 2 adapter để giao diện được đồng bộ
-        if (floor1Adapter != null) floor1Adapter.notifyDataSetChanged();
-        if (floor2Adapter != null) floor2Adapter.notifyDataSetChanged();
+        int indexInFloor1 = floor1Seats.indexOf(seat);
+        if (indexInFloor1 != -1 && floor1Adapter != null) {
+            floor1Adapter.notifyItemChanged(indexInFloor1);
+        } else {
+            int indexInFloor2 = floor2Seats.indexOf(seat);
+            if (indexInFloor2 != -1 && floor2Adapter != null) {
+                floor2Adapter.notifyItemChanged(indexInFloor2);
+            }
+        }
 
         updateSelectedInfo();
     }
@@ -193,7 +206,6 @@ public class SeatSelectionActivity extends AppCompatActivity {
         btnContinue.setEnabled(!selectedSeats.isEmpty());
     }
 
-    // Static inner classes for parsing seat_layout JSON
     static class SeatLayout {
         List<Floor> floors;
     }

@@ -13,6 +13,7 @@ import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
@@ -25,7 +26,6 @@ import com.google.android.material.card.MaterialCardView;
 
 import org.json.JSONObject;
 
-import java.io.IOException;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -42,10 +42,10 @@ import retrofit2.Response;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
-import vn.hcmute.busbooking.model.Location;
 import vn.hcmute.busbooking.model.PaymentRequest;
 import vn.hcmute.busbooking.model.PaymentResponse;
 import vn.hcmute.busbooking.model.Trip;
+import vn.hcmute.busbooking.utils.SessionManager;
 
 public class PaymentActivity extends AppCompatActivity {
 
@@ -61,15 +61,17 @@ public class PaymentActivity extends AppCompatActivity {
 
     private Trip trip;
     private ArrayList<String> seatLabels;
-    private int amount;
     private ApiService apiService;
-    private vn.hcmute.busbooking.utils.SessionManager sessionManager;
+    private SessionManager sessionManager;
 
-    private boolean isReturn, isPendingPayment;
+    private boolean isPendingPayment;
     private ArrayList<Integer> bookingIds;
-    private String returnOrigin, returnDestination, returnDate;
     private String fullName, phoneNumber, email;
-    private Location pickupLocation, dropoffLocation;
+
+    private int pickupStopId;
+    private int dropoffStopId;
+    private String pickupStopName;
+    private String dropoffStopName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,40 +95,34 @@ public class PaymentActivity extends AppCompatActivity {
         initializeViews();
 
         apiService = ApiClient.getClient().create(ApiService.class);
-        sessionManager = new vn.hcmute.busbooking.utils.SessionManager(this);
+        sessionManager = new SessionManager(this);
 
-        collectIntentData();
-        Log.d(TAG, "Intent data collected. isPendingPayment: " + isPendingPayment);
+        if (!collectIntentData()) {
+            Toast.makeText(this, "Lỗi: Dữ liệu đặt vé không hợp lệ.", Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
 
         populateBookingSummary();
-        Log.d(TAG, "Summary populated");
-
         setupPaymentMethodSelection();
 
         if (isPendingPayment) {
-            Log.d(TAG, "Pending payment flow: selecting QR payment and disabling other options.");
             selectPaymentMethod(R.id.rbQrPayment);
-
             cardCreditCard.setClickable(false);
             rbCreditCard.setEnabled(false);
             cardPayAtOffice.setClickable(false);
             rbPayAtOffice.setEnabled(false);
-
             cardCreditCard.setCardBackgroundColor(ContextCompat.getColor(this, R.color.backgroundLight));
             cardPayAtOffice.setCardBackgroundColor(ContextCompat.getColor(this, R.color.backgroundLight));
         }
 
         btnConfirmPayment.setOnClickListener(v -> {
             if (isPendingPayment) {
-                Log.d(TAG, "Confirm button clicked for PENDING payment. Forcing PayOS.");
                 processPayosPayment(bookingIds);
             } else {
-                Log.d(TAG, "Confirm button clicked for NEW booking.");
                 createBookingAndProcessPayment();
             }
         });
-
-        Log.d(TAG, "onCreate completed successfully");
     }
 
     private void initializeViews() {
@@ -140,7 +136,6 @@ public class PaymentActivity extends AppCompatActivity {
         tvArrivalTime = findViewById(R.id.tvArrivalTime);
         btnConfirmPayment = findViewById(R.id.btnConfirmPayment);
         progressBar = new ProgressBar(this);
-
         cardCreditCard = findViewById(R.id.cardCreditCard);
         cardQrPayment = findViewById(R.id.cardQrPayment);
         cardPayAtOffice = findViewById(R.id.cardPayAtOffice);
@@ -148,10 +143,9 @@ public class PaymentActivity extends AppCompatActivity {
         rbQrPayment = findViewById(R.id.rbQrPayment);
         rbPayAtOffice = findViewById(R.id.rbPayAtOffice);
         creditCardForm = findViewById(R.id.creditCardForm);
-        Log.d(TAG, "Views initialized");
     }
 
-    private void collectIntentData() {
+    private boolean collectIntentData() {
         Intent intent = getIntent();
         isPendingPayment = intent.getBooleanExtra("is_pending_payment", false);
 
@@ -161,58 +155,44 @@ public class PaymentActivity extends AppCompatActivity {
 
         trip = intent.getParcelableExtra("trip");
         seatLabels = intent.getStringArrayListExtra("seat_labels");
-        if (seatLabels == null) {
-            seatLabels = new ArrayList<>(); // Khởi tạo rỗng nếu không có dữ liệu
+
+        pickupStopId = intent.getIntExtra("pickup_stop_id", -1);
+        dropoffStopId = intent.getIntExtra("dropoff_stop_id", -1);
+        pickupStopName = intent.getStringExtra("pickup_stop_name");
+        dropoffStopName = intent.getStringExtra("dropoff_stop_name");
+
+        if (trip == null || seatLabels == null || seatLabels.isEmpty() || pickupStopId == -1 || dropoffStopId == -1 || pickupStopName == null || dropoffStopName == null) {
+            Log.e(TAG, "Missing critical booking data from Intent.");
+            return false;
         }
-        amount = intent.getIntExtra("amount", 0);
 
         fullName = intent.getStringExtra("fullName");
         phoneNumber = intent.getStringExtra("phoneNumber");
         email = intent.getStringExtra("email");
 
-        pickupLocation = intent.getParcelableExtra("pickup_location");
-        dropoffLocation = intent.getParcelableExtra("dropoff_location");
-
         if (fullName == null) fullName = sessionManager.getUserName();
         if (phoneNumber == null) phoneNumber = sessionManager.getUserPhone();
         if (email == null) email = sessionManager.getUserEmail();
-
-        isReturn = intent.getBooleanExtra("isReturn", false);
-        returnOrigin = intent.getStringExtra("returnOrigin");
-        returnDestination = intent.getStringExtra("returnDestination");
-        returnDate = intent.getStringExtra("returnDate");
+        
+        return true;
     }
 
     private void populateBookingSummary() {
-        if (trip == null) {
-            Log.e(TAG, "Trip object is null, cannot populate summary.");
-            // Optionally show an error message and finish the activity
-            Toast.makeText(this, "Lỗi: Không có thông tin chuyến đi.", Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
-
         tvBusOperator.setText(trip.getOperator());
         tvBusType.setText(trip.getBusType());
-        tvPickup.setText(trip.getOrigin());
-        tvDropoff.setText(trip.getDestination());
-
-        // Format date and time
+        tvPickup.setText(pickupStopName);
+        tvDropoff.setText(dropoffStopName);
         tvDate.setText(formatDisplayDate(trip.getDepartureTime()));
         tvDepartureTime.setText(formatDisplayTime(trip.getDepartureTime()));
         tvArrivalTime.setText(formatDisplayTime(trip.getArrivalTime()));
 
-        String seatText = (seatLabels != null && !seatLabels.isEmpty())
-                ? TextUtils.join(", ", seatLabels)
-                : "Đang cập nhật";
+        String seatText = TextUtils.join(", ", seatLabels);
         tvSeat.setText("Ghế: " + seatText);
 
         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
-        if (seatLabels != null) {
-            btnConfirmPayment.setText("Thanh toán " + formatter.format(trip.getPrice() * seatLabels.size()));
-        }
+        btnConfirmPayment.setText("Thanh toán " + formatter.format(trip.getPrice() * seatLabels.size()));
     }
-
+    
     private String formatDisplayDate(String isoDate) {
         if (isoDate == null) return "";
         try {
@@ -238,7 +218,6 @@ public class PaymentActivity extends AppCompatActivity {
             return "";
         }
     }
-
 
     private void setupPaymentMethodSelection() {
         View.OnClickListener listener = v -> {
@@ -314,6 +293,8 @@ public class PaymentActivity extends AppCompatActivity {
         body.put("user_id", userId);
         body.put("trip_id", trip.getId());
         body.put("seat_labels", seatLabels);
+        body.put("pickup_stop_id", pickupStopId);
+        body.put("dropoff_stop_id", dropoffStopId);
 
         apiService.createBooking(body).enqueue(new Callback<Map<String, Object>>() {
             @Override
@@ -349,6 +330,14 @@ public class PaymentActivity extends AppCompatActivity {
                             String errorString = response.errorBody().string();
                             JSONObject errorJson = new JSONObject(errorString);
                             errorMessage = errorJson.optString("message", errorMessage);
+
+                            // More specific check for seat availability error
+                            String lowerCaseError = errorMessage.toLowerCase();
+                            if (lowerCaseError.contains("seat") && lowerCaseError.contains("not available")) {
+                                showSeatNotAvailableDialog();
+                                return; // Stop further processing
+                            }
+
                         } catch (Exception e) {
                             Log.e(TAG, "Error parsing error body", e);
                         }
@@ -364,10 +353,26 @@ public class PaymentActivity extends AppCompatActivity {
         });
     }
 
+    private void showSeatNotAvailableDialog() {
+        setLoadingState(false);
+        new AlertDialog.Builder(this)
+                .setTitle("Ghế đã được đặt")
+                .setMessage("Rất tiếc, một hoặc nhiều ghế bạn chọn đã được người khác đặt trong lúc bạn thanh toán. Vui lòng quay lại để chọn ghế khác.")
+                .setPositiveButton("Chọn lại ghế", (dialog, which) -> {
+                    // Go back to SeatSelectionActivity
+                    Intent intent = new Intent(PaymentActivity.this, SeatSelectionActivity.class);
+                    intent.putExtra("trip", trip);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    startActivity(intent);
+                    finish();
+                })
+                .setNegativeButton("Hủy bỏ", (dialog, which) -> dialog.dismiss())
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
+    }
+
     private void processPayment(List<Integer> ids) {
         int selectedId = getSelectedPaymentMethodId();
-        Log.d(TAG, "Processing payment for booking IDs: " + ids.toString() + " with method ID: " + selectedId);
-
         if (selectedId == R.id.rbQrPayment) {
             processPayosPayment(ids);
         } else if (selectedId == R.id.rbCreditCard) {
@@ -388,7 +393,6 @@ public class PaymentActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     String checkoutUrl = response.body().getCheckoutUrl();
                     if (checkoutUrl != null && !checkoutUrl.isEmpty()) {
-                        Log.d(TAG, "Got checkout URL: " + checkoutUrl);
                         Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(checkoutUrl));
                         startActivity(browserIntent);
                         setLoadingState(false);
@@ -449,19 +453,9 @@ public class PaymentActivity extends AppCompatActivity {
         setLoadingState(false);
         Toast.makeText(PaymentActivity.this, "Đặt vé thành công!", Toast.LENGTH_LONG).show();
 
-        if (isReturn && returnOrigin != null && returnDestination != null) {
-            Intent intent = new Intent(PaymentActivity.this, TripListActivity.class);
-            intent.putExtra("origin", returnOrigin);
-            intent.putExtra("destination", returnDestination);
-            intent.putExtra("date", returnDate);
-            intent.putExtra("isReturn", false);
-            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            startActivity(intent);
-        } else {
-            Intent intent = new Intent(PaymentActivity.this, MyBookingsActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            startActivity(intent);
-        }
+        Intent intent = new Intent(PaymentActivity.this, MyBookingsActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(intent);
         finish();
     }
 

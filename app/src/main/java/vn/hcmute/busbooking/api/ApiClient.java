@@ -19,10 +19,9 @@ public class ApiClient {
             logging.setLevel(HttpLoggingInterceptor.Level.BODY);
 
             OkHttpClient client = new OkHttpClient.Builder()
-                    // Reasonable timeouts - if server takes >45s, it's likely down/cold-starting
-                    .connectTimeout(20, TimeUnit.SECONDS)
-                    .readTimeout(45, TimeUnit.SECONDS)
-                    .writeTimeout(45, TimeUnit.SECONDS)
+                    .connectTimeout(30, TimeUnit.SECONDS) // Increased connect timeout
+                    .readTimeout(60, TimeUnit.SECONDS)    // Increased read timeout
+                    .writeTimeout(60, TimeUnit.SECONDS)   // Increased write timeout
                     .retryOnConnectionFailure(true)
                     .addInterceptor(logging)
                     .build();

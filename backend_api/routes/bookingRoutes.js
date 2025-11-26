@@ -3,22 +3,31 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
+// Helper functions for transaction management
 const beginTransaction = () => db.connect();
 
 const commitAndRelease = async (client) => {
-  try { await client.query("COMMIT"); } finally { client.release(); }
+  try {
+    await client.query("COMMIT");
+  } finally {
+    client.release();
+  }
 };
 
 const rollbackAndRelease = async (client) => {
-  try { await client.query("ROLLBACK"); } finally { client.release(); }
+  try {
+    await client.query("ROLLBACK");
+  } finally {
+    client.release();
+  }
 };
 
-// POST /bookings - Create a new booking
+// POST /bookings - Create a new booking with multiple seats
 router.post("/bookings", async (req, res) => {
   const { user_id, trip_id, seat_labels, promotion_code, metadata, pickup_stop_id, dropoff_stop_id } = req.body;
 
   if (!user_id || !trip_id || !Array.isArray(seat_labels) || seat_labels.length === 0 || !pickup_stop_id || !dropoff_stop_id) {
-    return res.status(400).json({ message: "Missing required fields, including pickup/dropoff stops" });
+    return res.status(400).json({ message: "Missing required fields" });
   }
 
   const client = await beginTransaction();
@@ -28,7 +37,7 @@ router.post("/bookings", async (req, res) => {
     const tripResult = await client.query('SELECT price, seats_available FROM trips WHERE id=$1 FOR UPDATE', [trip_id]);
     if (!tripResult.rowCount) {
       await rollbackAndRelease(client);
-      return res.status(400).json({ message: 'Trip not found' });
+      return res.status(404).json({ message: 'Trip not found' });
     }
 
     const tripPrice = parseFloat(tripResult.rows[0].price) || 0;
@@ -36,33 +45,45 @@ router.post("/bookings", async (req, res) => {
 
     if (tripResult.rows[0].seats_available < requiredSeats) {
       await rollbackAndRelease(client);
-      return res.status(409).json({ message: 'Not enough seats left' });
+      return res.status(409).json({ message: 'Not enough seats available' });
     }
 
     for (const label of seat_labels) {
       const seatRes = await client.query('SELECT id, is_booked FROM seats WHERE trip_id=$1 AND label=$2 FOR UPDATE', [trip_id, label]);
-      if (!seatRes.rowCount || seatRes.rows[0].is_booked === 1) {
+      if (!seatRes.rowCount || seatRes.rows[0].is_booked) {
         await rollbackAndRelease(client);
         return res.status(409).json({ message: `Seat ${label} is not available` });
       }
     }
 
     const totalAmount = Number((tripPrice * requiredSeats).toFixed(2));
+    
+    // Create a single booking record for the entire transaction
     const bookingInsert = await client.query(
-      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, created_at, metadata, pickup_stop_id, dropoff_stop_id) 
-       VALUES ($1, $2, $3, $4, $5, 'pending', NOW(), $6, $7, $8) RETURNING id`,
+      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id) 
+       VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8) RETURNING id`,
       [user_id, trip_id, totalAmount, requiredSeats, promotion_code || null, metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id]
     );
     const bookingId = bookingInsert.rows[0].id;
-
+    
+    // Create booking_items for each seat and update seat status
+    const bookingIds = [bookingId]; // In case legacy systems expect an array
     for (const label of seat_labels) {
-      await client.query('UPDATE seats SET is_booked=1, booking_id=$1 WHERE trip_id=$2 AND label=$3', [bookingId, trip_id, label]);
+      await client.query(
+        `INSERT INTO booking_items (booking_id, seat_code, price) VALUES ($1, $2, $3)`,
+        [bookingId, label, tripPrice]
+      );
+      await client.query(
+        'UPDATE seats SET is_booked=true, booking_id=$1 WHERE trip_id=$2 AND label=$3',
+        [bookingId, trip_id, label]
+      );
     }
 
     await client.query('UPDATE trips SET seats_available = seats_available - $1 WHERE id=$2', [requiredSeats, trip_id]);
 
     await commitAndRelease(client);
-    res.json({ message: 'Booked successfully', booking_id: bookingId, seats_booked: requiredSeats, total_amount: totalAmount });
+    res.json({ message: 'Booking created successfully', booking_ids: bookingIds, total_amount: totalAmount });
+
   } catch (err) {
     console.error('Booking failed:', err.message || err);
     await rollbackAndRelease(client);
