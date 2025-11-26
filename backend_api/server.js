@@ -128,7 +128,7 @@ const EXPIRE_CHECK_INTERVAL_MS = 60 * 1000; // run every minute
 
 async function expirePendingBookings() {
     try {
-        console.log(`Running expirePendingBookings (TTL=${BOOKING_PENDING_TTL_MINUTES}min)`);
+        // console.log(`Running expirePendingBookings (TTL=${BOOKING_PENDING_TTL_MINUTES}min)`);
         // Find pending bookings older than TTL (fetch minimal columns; we'll re-select inside transaction)
         const sql = `SELECT id, user_id, trip_id FROM bookings WHERE status='pending' AND created_at < NOW() - INTERVAL '${BOOKING_PENDING_TTL_MINUTES} minutes'`;
         const { rows } = await db.query(sql);
@@ -188,7 +188,7 @@ async function expirePendingBookings() {
                         const r = await client.query('UPDATE seats SET is_booked=0, booking_id=NULL WHERE trip_id=$1 AND label=$2 RETURNING id', [booking.trip_id, label]);
                         if (r.rowCount) releasedCount += r.rowCount;
                     } catch (e) {
-                        console.warn(`Failed to release seat "${label}" for booking ${bookingId}: ${e.message || e}`);
+                        console.warn(`Failed to release seat \"${label}\" for booking ${bookingId}: ${e.message || e}`);
                     }
                 }
 

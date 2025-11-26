@@ -48,7 +48,7 @@
             android:clipChildren="false"
             android:clipToPadding="false"
             android:paddingBottom="24dp"
-            app:layout_constraintBottom_toTopOf="@+id/navPromoContainer"
+            app:layout_constraintBottom_toTopOf="@id/navPromoContainer"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
@@ -141,10 +141,7 @@
                             android:drawableStart="@drawable/ic_origin_dot_24"
                             android:drawablePadding="12dp"
                             android:dropDownHeight="250dp"
-                            android:dropDownWidth="match_parent"
-                            android:dropDownAnchor="@id/mainLayout"
-                            android:dropDownHorizontalOffset="0dp"
-                            android:dropDownVerticalOffset="8dp"
+                            android:dropDownAnchor="@id/etOrigin"
                             android:gravity="center_vertical"
                             android:hint="Chọn điểm đi"
                             android:padding="16dp"
@@ -190,11 +187,8 @@
                             android:background="@drawable/bg_search_field"
                             android:drawableStart="@drawable/ic_location_on_24"
                             android:drawablePadding="12dp"
-                            android:dropDownHeight="500dp"
-                            android:dropDownWidth="match_parent"
-                            android:dropDownAnchor="@id/mainLayout"
-                            android:dropDownHorizontalOffset="0dp"
-                            android:dropDownVerticalOffset="8dp"
+                            android:dropDownHeight="250dp"
+                            android:dropDownAnchor="@id/etDestination"
                             android:gravity="center_vertical"
                             android:hint="Chọn điểm đến"
                             android:padding="16dp"
@@ -231,7 +225,7 @@
                             android:text="Hôm nay"
                             android:textColor="@color/textPrimary"
                             android:textSize="16sp"
-                            app:layout_constraintEnd_toStartOf="@+id/switchReturnLayout"
+                            app:layout_constraintEnd_toStartOf="@id/switchReturnLayout"
                             app:layout_constraintStart_toStartOf="parent"
                             app:layout_constraintTop_toBottomOf="@+id/tvDateLabel" />
 
@@ -455,7 +449,7 @@
             app:layout_constraintBottom_toTopOf="@+id/bottom_navigation"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/contentScrollView" />
+            app:layout_constraintTop_toBottomOf="@+id/contentScrollView" />
 
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottom_navigation"

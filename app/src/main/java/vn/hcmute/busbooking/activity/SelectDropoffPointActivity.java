@@ -41,8 +41,8 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
         seatLabels = getIntent().getStringArrayListExtra("seat_labels");
         selectedPickup = getIntent().getParcelableExtra("pickup_location");
 
-        if (trip == null || selectedPickup == null) {
-            Toast.makeText(this, "Lỗi: Thiếu thông tin chuyến đi hoặc điểm đón.", Toast.LENGTH_SHORT).show();
+        if (trip == null || selectedPickup == null || seatLabels == null || seatLabels.isEmpty()) {
+            Toast.makeText(this, "Lỗi: Thiếu thông tin chuyến đi, điểm đón hoặc ghế đã chọn.", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }

@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import vn.hcmute.busbooking.activity.SelectPickupPointActivity;
+import vn.hcmute.busbooking.activity.SeatSelectionActivity;
 import vn.hcmute.busbooking.adapter.ImageSliderAdapter;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
@@ -166,7 +166,7 @@ public class TripDetailActivity extends AppCompatActivity {
         }
 
         btnBookNow.setOnClickListener(v -> {
-            Intent intent = new Intent(TripDetailActivity.this, SelectPickupPointActivity.class);
+            Intent intent = new Intent(TripDetailActivity.this, SeatSelectionActivity.class);
             trip.setSeatLayout(new Gson().toJson(data.get("seat_layout")));
             intent.putExtra("trip", trip);
             startActivity(intent);

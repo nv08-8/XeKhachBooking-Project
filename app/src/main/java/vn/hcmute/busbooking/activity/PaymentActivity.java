@@ -161,6 +161,9 @@ public class PaymentActivity extends AppCompatActivity {
 
         trip = intent.getParcelableExtra("trip");
         seatLabels = intent.getStringArrayListExtra("seat_labels");
+        if (seatLabels == null) {
+            seatLabels = new ArrayList<>(); // Khởi tạo rỗng nếu không có dữ liệu
+        }
         amount = intent.getIntExtra("amount", 0);
 
         fullName = intent.getStringExtra("fullName");
@@ -205,7 +208,9 @@ public class PaymentActivity extends AppCompatActivity {
         tvSeat.setText("Ghế: " + seatText);
 
         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
-        btnConfirmPayment.setText("Thanh toán " + formatter.format(trip.getPrice() * seatLabels.size()));
+        if (seatLabels != null) {
+            btnConfirmPayment.setText("Thanh toán " + formatter.format(trip.getPrice() * seatLabels.size()));
+        }
     }
 
     private String formatDisplayDate(String isoDate) {
