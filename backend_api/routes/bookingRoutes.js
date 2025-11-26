@@ -52,7 +52,19 @@ router.post("/bookings", async (req, res) => {
     }
 
     for (const label of seat_labels) {
-      const seatRes = await client.query('SELECT id, is_booked FROM seats WHERE trip_id=$1 AND label=$2 FOR UPDATE', [trip_id, label]);
+      // Try to lock the seat row if it exists
+      let seatRes = await client.query('SELECT id, is_booked FROM seats WHERE trip_id=$1 AND label=$2 FOR UPDATE', [trip_id, label]);
+      if (!seatRes.rowCount) {
+        // Seat row missing (no seat records generated). Create the seat record on-demand.
+        // Use ON CONFLICT DO NOTHING to avoid race errors if another tx creates it concurrently.
+        await client.query(
+          'INSERT INTO seats (trip_id, label, type, is_booked) VALUES ($1, $2, $3, 0) ON CONFLICT (trip_id, label) DO NOTHING',
+          [trip_id, label, 'seat']
+        );
+        // Re-select with FOR UPDATE to lock the row we just created (or the row created by another tx)
+        seatRes = await client.query('SELECT id, is_booked FROM seats WHERE trip_id=$1 AND label=$2 FOR UPDATE', [trip_id, label]);
+      }
+
       if (!seatRes.rowCount || seatRes.rows[0].is_booked) {
         await rollbackAndRelease(client);
         return res.status(409).json({ message: `Seat ${label} is not available` });
