@@ -30,6 +30,8 @@
         <activity android:name=".activity.TripListActivity" />
         <activity android:name=".TripDetailActivity" />
         <activity android:name=".activity.SeatSelectionActivity" />
+        <activity android:name=".activity.SelectPickupPointActivity" />
+        <activity android:name=".activity.SelectDropoffPointActivity" />
         <activity android:name=".activity.MyBookingsActivity" />
         <activity android:name=".activity.GuestMyBookingsActivity" />
         <activity android:name=".activity.LoginActivity" />
@@ -37,7 +39,6 @@
         <activity android:name=".activity.ForgotPasswordActivity" />
         <activity android:name=".activity.PaymentActivity" />
         <activity android:name=".activity.PassengerInfoActivity" />
-        <activity android:name=".activity.SelectLocationActivity" />
         <activity android:name=".activity.BookingDetailActivity" />
         <activity android:name=".activity.EditProfileActivity" />
         <activity android:name=".activity.ChangePasswordActivity" />
