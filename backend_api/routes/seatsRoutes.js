@@ -19,11 +19,13 @@ router.get('/', async (req, res) => {
     return res.status(400).json({ message: 'Invalid trip_id' });
   }
 
+  const client = await db.connect();
   try {
-    const seatCheck = await db.query('SELECT 1 FROM seats WHERE trip_id = $1 LIMIT 1', [tripIdNum]);
+    const seatCheck = await client.query('SELECT 1 FROM seats WHERE trip_id = $1 LIMIT 1', [tripIdNum]);
     if (seatCheck.rowCount === 0) {
       console.log(`No seats found for trip ${tripIdNum}. Generating...`);
-      await generateAndCacheSeats(tripIdNum);
+      // We use the utility, but since this is a read-only endpoint, we do it in its own transaction.
+      await generateAndCacheSeats(tripIdNum); 
     }
 
     let query = 'SELECT id, trip_id, label, type, is_booked, booking_id FROM seats WHERE trip_id=$1';
@@ -36,7 +38,7 @@ router.get('/', async (req, res) => {
     }
     query += ' ORDER BY LENGTH(label), label';
 
-    const { rows } = await db.query(query, params);
+    const { rows } = await client.query(query, params);
 
     const formatted = rows.map(r => ({
       id: r.id,
@@ -52,6 +54,8 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error(`Failed to fetch seats for trip ${tripIdNum}:`, err.message || err);
     res.status(500).json({ message: 'Failed to fetch or generate seats' });
+  } finally {
+    client.release();
   }
 });
 

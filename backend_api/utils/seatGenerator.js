@@ -1,16 +1,14 @@
 const db = require('../db');
 
 /**
- * Generates seat records for a given trip based on the seat_layout of its associated bus.
- * This function is idempotent; it will not create duplicates if seats already exist.
- * @param {number} tripId The ID of the trip to generate seats for.
+ * Generates seat records for a given trip using a provided database client.
+ * This function operates within an existing transaction and does not commit or rollback.
+ * @param {object} client - The database client from a pre-existing connection.
+ * @param {number} tripId - The ID of the trip to generate seats for.
  * @returns {Promise<{created_count: number}>} A summary of the operation.
  */
-async function generateAndCacheSeats(tripId) {
-  const client = await db.connect();
+async function generateAndCacheSeats(client, tripId) {
   try {
-    await client.query('BEGIN');
-
     const tripResult = await client.query(
       `SELECT t.bus_id, b.seat_layout 
        FROM trips t 
@@ -20,9 +18,8 @@ async function generateAndCacheSeats(tripId) {
     );
 
     if (tripResult.rowCount === 0 || !tripResult.rows[0].seat_layout) {
-      // This case is not an error, just a trip without a layout.
-      await client.query('ROLLBACK'); // Abort transaction
-      return { created_count: 0, message: 'No seat layout for trip.' };
+      console.warn(`Trip or seat layout not found for trip_id: ${tripId}. No seats generated.`);
+      return { created_count: 0 };
     }
 
     let layout = tripResult.rows[0].seat_layout;
@@ -44,7 +41,6 @@ async function generateAndCacheSeats(tripId) {
     }
 
     if (seatsToCreate.length === 0) {
-      await client.query('ROLLBACK');
       return { created_count: 0 };
     }
 
@@ -58,16 +54,11 @@ async function generateAndCacheSeats(tripId) {
         created_count++;
       }
     }
-
-    await client.query('COMMIT');
     return { created_count };
-
   } catch (err) {
-    await client.query('ROLLBACK');
-    console.error(`Error generating seats for trip ${tripId}:`, err.message);
+    console.error(`FATAL: Error during seat generation for trip ${tripId} inside a transaction:`, err.message);
+    // We must re-throw the error so the calling function can roll back the entire transaction.
     throw err;
-  } finally {
-    client.release();
   }
 }
 

@@ -34,10 +34,11 @@ router.post("/bookings", async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Ensure seats are generated before attempting to book
+    // Ensure seats are generated before attempting to book, within the same transaction
     const seatCheck = await client.query('SELECT 1 FROM seats WHERE trip_id = $1 LIMIT 1', [trip_id]);
     if (seatCheck.rowCount === 0) {
-        await generateAndCacheSeats(trip_id);
+      console.log(`No seats found for trip ${trip_id} during booking. Generating...`);
+      await generateAndCacheSeats(client, trip_id);
     }
 
     const tripResult = await client.query('SELECT price, seats_available FROM trips WHERE id=$1 FOR UPDATE', [trip_id]);
