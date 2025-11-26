@@ -1,4 +1,5 @@
 const db = require('../db');
+const { generateDetailedSeatLayout } = require('../data/seat_layout.js');
 
 /**
  * Generates seat records for a given trip using a provided database client.
@@ -16,7 +17,7 @@ async function generateAndCacheSeats(client, tripId) {
     }
 
     const tripResult = await client.query(
-      `SELECT b.seat_layout FROM trips t JOIN buses b ON b.id = t.bus_id WHERE t.id = $1`,
+      `SELECT t.bus_type, b.seat_layout FROM trips t JOIN buses b ON b.id = t.bus_id WHERE t.id = $1`,
       [tripId]
     );
 
@@ -26,17 +27,32 @@ async function generateAndCacheSeats(client, tripId) {
     }
 
     let layout = tripResult.rows[0].seat_layout;
+    const busType = tripResult.rows[0].bus_type || '';
     if (typeof layout === 'string') {
       layout = JSON.parse(layout);
     }
 
+    // If layout exists but floors are present without detailed seats, expand using generateDetailedSeatLayout
+    if (layout && Array.isArray(layout.floors)) {
+      const firstFloorHasSeats = layout.floors.some(f => Array.isArray(f.seats) && f.seats.length > 0);
+      if (!firstFloorHasSeats) {
+        try {
+          layout = generateDetailedSeatLayout(busType, layout);
+        } catch (e) {
+          console.warn(`Could not expand seat_layout for trip ${tripId}:`, e.message || e);
+        }
+      }
+    }
+
     const seatsToCreate = [];
     if (layout && Array.isArray(layout.floors)) {
-      for (const floor of layout.floors) {
+      for (let fi = 0; fi < layout.floors.length; fi++) {
+        const floor = layout.floors[fi];
+        const floorIndex = (typeof floor.floor === 'number') ? floor.floor : (fi + 1);
         if (Array.isArray(floor.seats)) {
           for (const seat of floor.seats) {
             if (seat.label && seat.type !== 'aisle') {
-              seatsToCreate.push({ label: seat.label, type: seat.type || 'seat' });
+              seatsToCreate.push({ label: seat.label, type: seat.type || 'seat', floor: floorIndex });
             }
           }
         }
@@ -47,15 +63,27 @@ async function generateAndCacheSeats(client, tripId) {
       return { created_count: 0 };
     }
 
+    // Detect if seats table has a 'floor' column so we can populate it.
+    const colCheck = await client.query(`
+      SELECT column_name FROM information_schema.columns WHERE table_name = 'seats' AND column_name = 'floor'
+    `);
+    const hasFloor = colCheck.rowCount > 0;
+
     let created_count = 0;
     for (const seat of seatsToCreate) {
-      // Use integer 0 for is_booked status, which corresponds to FALSE in PostgreSQL boolean context
-      const insertResult = await client.query(
-        'INSERT INTO seats (trip_id, label, type, is_booked) VALUES ($1, $2, $3, 0) ON CONFLICT (trip_id, label) DO NOTHING',
-        [tripId, seat.label, seat.type]
-      );
-      if (insertResult.rowCount > 0) {
-        created_count++;
+      if (hasFloor) {
+        const insertResult = await client.query(
+          'INSERT INTO seats (trip_id, label, type, is_booked, floor) VALUES ($1, $2, $3, 0, $4) ON CONFLICT (trip_id, floor, label) DO NOTHING',
+          [tripId, seat.label, seat.type, seat.floor]
+        );
+        if (insertResult.rowCount > 0) created_count++;
+      } else {
+        // fallback to legacy single-label-per-trip model
+        const insertResult = await client.query(
+          'INSERT INTO seats (trip_id, label, type, is_booked) VALUES ($1, $2, $3, 0) ON CONFLICT (trip_id, label) DO NOTHING',
+          [tripId, seat.label, seat.type]
+        );
+        if (insertResult.rowCount > 0) created_count++;
       }
     }
     console.log(`Successfully generated ${created_count} seats for trip ${tripId}`);

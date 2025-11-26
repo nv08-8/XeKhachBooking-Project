@@ -11,111 +11,105 @@ function generateDetailedSeatLayout(busType, seatLayout) {
 
     const seatLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-    // Hàm phụ trợ để sinh một lưới ghế chuẩn
-    const generateGrid = (rows, cols, startLetterIdx = 0) => {
+    // Hàm phụ trợ để sinh một lưới ghế chuẩn (không gán label trực tiếp)
+    const generateGridRaw = (rows, cols) => {
         const gridSeats = [];
         for (let r = 0; r < rows; r++) {
             for (let c = 0; c < cols; c++) {
-                gridSeats.push({
-                    row: r,
-                    col: c,
-                    label: `${seatLetters[c + startLetterIdx]}${r + 1}`,
-                    type: 'bed'
-                });
+                gridSeats.push({ row: r, col: c, label: '', type: 'bed' });
             }
         }
         return gridSeats;
     };
 
-    seatLayout.floors.forEach(floor => {
+    for (let fi = 0; fi < seatLayout.floors.length; fi++) {
+        const floor = seatLayout.floors[fi];
         let seats = [];
         const { rows, cols } = floor;
 
         switch (busType) {
             case 'Giường nằm 40 chỗ':
-                seats = generateGrid(5, 3); // 15 ghế (A,B,C)
+                seats = generateGridRaw(5, 3); // positions only
                 // Thêm 5 ghế băng cuối
                 for (let i = 0; i < 5; i++) {
-                    seats.push({ row: 5, col: i, label: `E${i + 1}`, type: 'bed' });
+                    seats.push({ row: 5, col: i, label: '', type: 'bed' });
                 }
                 break;
 
             case 'Giường nằm 41 chỗ':
-                seats = generateGrid(6, 3); // 18 ghế
+                seats = generateGridRaw(6, 3);
                 if (floor.floor === 2) {
-                    // Tầng trên thêm 5 ghế băng cuối
                     for (let i = 0; i < 5; i++) {
-                        seats.push({ row: 6, col: i, label: `E${i + 1}`, type: 'bed' });
+                        seats.push({ row: 6, col: i, label: '', type: 'bed' });
                     }
                 }
                 break;
 
             case 'Limousine 32 giường có WC':
             case 'Giường nằm 32 chỗ có WC':
-                seats = generateGrid(5, 3); // 15 ghế
-                // Thêm 1 ghế cuối
-                seats.push({ row: 5, col: 0, label: `E1`, type: 'bed' });
+                seats = generateGridRaw(5, 3);
+                seats.push({ row: 5, col: 0, label: '', type: 'bed' });
                 break;
 
             case 'Limousine 34 giường':
             case 'Giường nằm 34 chỗ':
-                // 5 hàng, 3 cột nhưng hàng đầu chỉ có 2 ghế
                 for (let r = 0; r < 5; r++) {
                     for (let c = 0; c < 3; c++) {
-                        // Bỏ qua ghế giữa của hàng đầu tiên
                         if (r === 0 && c === 1) continue;
-                        seats.push({
-                            row: r,
-                            col: c,
-                            label: `${seatLetters[c]}${r + 1}`,
-                            type: 'bed'
-                        });
+                        seats.push({ row: r, col: c, label: '', type: 'bed' });
                     }
                 }
-                // Thêm 3 ghế cuối để đủ 17 ghế/tầng (tổng 34)
-                // (34/2 = 17, 14 ghế ở trên + 3 ghế cuối = 17)
-                 for (let i = 0; i < 3; i++) {
-                    seats.push({ row: 5, col: i, label: `E${i + 1}`, type: 'bed' });
+                for (let i = 0; i < 3; i++) {
+                    seats.push({ row: 5, col: i, label: '', type: 'bed' });
                 }
                 break;
 
             case 'Giường nằm 38 chỗ có WC':
-                seats = generateGrid(5, 3); // 15 ghế
-                // Thêm 1 ghế gần cuối
-                seats.push({ row: 4, col: 3, label: `D5`, type: 'bed' });
-                // Thêm băng 3 ghế cuối
+                seats = generateGridRaw(5, 3);
+                seats.push({ row: 4, col: 3, label: '', type: 'bed' });
                 for (let i = 0; i < 3; i++) {
-                    seats.push({ row: 5, col: i, label: `E${i + 1}`, type: 'bed' });
+                    seats.push({ row: 5, col: i, label: '', type: 'bed' });
                 }
                 break;
 
             case 'Limousine 24 giường phòng':
             case 'Limousine 24 chỗ':
-                seats = generateGrid(6, 2); // 12 ghế/tầng
+                seats = generateGridRaw(6, 2);
                 break;
 
             case 'Limousine 22 giường phòng':
             case 'Limousine 22 giường phòng có WC':
-                seats = generateGrid(floor.rows, floor.cols); // Tầng 1: 5x2, Tầng 2: 6x2
+                seats = generateGridRaw(floor.rows, floor.cols);
                 break;
 
             default:
-                // Fallback: Nếu không có loại xe nào khớp, tạo theo rows và cols
-                 for (let r = 0; r < rows; r++) {
+                for (let r = 0; r < rows; r++) {
                     for (let c = 0; c < cols; c++) {
-                         // Giả định layout 3 cột có lối đi ở giữa
                         if (cols === 3 && c === 1) {
-                             seats.push({ row: r, col: c, label: '', type: 'aisle' });
+                            seats.push({ row: r, col: c, label: '', type: 'aisle' });
                         } else {
-                            let letterIdx = c > 1 ? c -1 : c;
-                            seats.push({ row: r, col: c, label: `${seatLetters[letterIdx]}${r + 1}`, type: 'bed'});
+                            seats.push({ row: r, col: c, label: '', type: 'bed'});
                         }
                     }
                 }
                 break;
         }
-        floor.seats = seats; // Gán mảng seats chi tiết vào
-    });
+
+        // Assign unique labels per floor: prefix letter by floor (A, B, C...) and sequential numbers per floor
+        const floorPrefix = seatLetters[fi] || seatLetters[seatLetters.length - 1];
+        let seq = 1;
+        seats = seats.map(s => {
+            if (!s.label && s.type === 'bed') {
+                const label = `${floorPrefix}${seq}`;
+                seq++;
+                return { ...s, label };
+            }
+            // keep aisles or empty labels as-is
+            return s;
+        });
+
+        floor.seats = seats; // set detailed seats on this floor
+    }
     return seatLayout;
 }
 

@@ -126,7 +126,7 @@ public class SeatSelectionActivity extends AppCompatActivity {
         // Tầng 1 (Tầng dưới)
         if (layout.floors.size() > 0) {
             Floor floor1 = layout.floors.get(0);
-            populateFloor(floor1, floor1Seats, bookedSeats);
+            populateFloor(floor1, floor1Seats, bookedSeats, 0);
             floor1Adapter = new SeatAdapter(floor1Seats, this::onSeatSelected);
             floor1RecyclerView.setLayoutManager(new GridLayoutManager(this, floor1.cols));
             floor1RecyclerView.setAdapter(floor1Adapter);
@@ -135,7 +135,7 @@ public class SeatSelectionActivity extends AppCompatActivity {
         // Tầng 2 (Tầng trên)
         if (layout.floors.size() > 1) {
             Floor floor2 = layout.floors.get(1);
-            populateFloor(floor2, floor2Seats, bookedSeats);
+            populateFloor(floor2, floor2Seats, bookedSeats, 1);
             floor2Adapter = new SeatAdapter(floor2Seats, this::onSeatSelected);
             floor2RecyclerView.setLayoutManager(new GridLayoutManager(this, floor2.cols));
             floor2RecyclerView.setAdapter(floor2Adapter);
@@ -147,7 +147,7 @@ public class SeatSelectionActivity extends AppCompatActivity {
         updateSelectedInfo();
     }
 
-    private void populateFloor(Floor floor, List<Seat> seatList, Set<String> bookedSeats) {
+    private void populateFloor(Floor floor, List<Seat> seatList, Set<String> bookedSeats, int floorIndex) {
         if (floor.seats == null) return;
 
         int totalCells = floor.rows * floor.cols;
@@ -159,12 +159,25 @@ public class SeatSelectionActivity extends AppCompatActivity {
             seatGrid[i] = aisle;
         }
 
-        for (SeatInfo seatInfo : floor.seats) {
+        // Sort seat infos by row then col so numbering is consistent
+        List<SeatInfo> seatInfos = new ArrayList<>(floor.seats);
+        Collections.sort(seatInfos, (a, b) -> {
+            if (a.row != b.row) return Integer.compare(a.row, b.row);
+            return Integer.compare(a.col, b.col);
+        });
+
+        String seatLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        String prefix = floorIndex >= 0 && floorIndex < seatLetters.length() ? String.valueOf(seatLetters.charAt(floorIndex)) : "A";
+        int seq = 1;
+        for (SeatInfo seatInfo : seatInfos) {
             int index = seatInfo.row * floor.cols + seatInfo.col;
             if (index >= 0 && index < totalCells) {
-                Seat seat = new Seat(seatInfo.label);
+                String displayLabel = prefix + seq;
+                seq++;
+                Seat seat = new Seat(displayLabel);
                 seat.setSeatType(seatInfo.type);
-                if (bookedSeats.contains(seatInfo.label)) {
+                // Mark booked if API returned booking using either original label or the display label
+                if ((seatInfo.label != null && bookedSeats.contains(seatInfo.label)) || bookedSeats.contains(displayLabel)) {
                     seat.setBooked(true);
                 }
                 seatGrid[index] = seat;
