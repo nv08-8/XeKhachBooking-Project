@@ -1,7 +1,7 @@
-// backend_api/routes/bookingRoutes.js
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
+const { generateAndCacheSeats } = require("../utils/seatGenerator");
 
 // Helper functions for transaction management
 const beginTransaction = () => db.connect();
@@ -34,6 +34,12 @@ router.post("/bookings", async (req, res) => {
   try {
     await client.query('BEGIN');
 
+    // Ensure seats are generated before attempting to book
+    const seatCheck = await client.query('SELECT 1 FROM seats WHERE trip_id = $1 LIMIT 1', [trip_id]);
+    if (seatCheck.rowCount === 0) {
+        await generateAndCacheSeats(trip_id);
+    }
+
     const tripResult = await client.query('SELECT price, seats_available FROM trips WHERE id=$1 FOR UPDATE', [trip_id]);
     if (!tripResult.rowCount) {
       await rollbackAndRelease(client);
@@ -58,7 +64,6 @@ router.post("/bookings", async (req, res) => {
 
     const totalAmount = Number((tripPrice * requiredSeats).toFixed(2));
     
-    // Create a single booking record for the entire transaction
     const bookingInsert = await client.query(
       `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id) 
        VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8) RETURNING id`,
@@ -66,8 +71,7 @@ router.post("/bookings", async (req, res) => {
     );
     const bookingId = bookingInsert.rows[0].id;
     
-    // Create booking_items for each seat and update seat status
-    const bookingIds = [bookingId]; // In case legacy systems expect an array
+    const bookingIds = [bookingId];
     for (const label of seat_labels) {
       await client.query(
         `INSERT INTO booking_items (booking_id, seat_code, price) VALUES ($1, $2, $3)`,
