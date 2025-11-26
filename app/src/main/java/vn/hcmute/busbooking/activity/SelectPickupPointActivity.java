@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -77,10 +78,14 @@ public class SelectPickupPointActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<List<Location>> call, Response<List<Location>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    pickupLocations = response.body();
+                    // Filter for pickup points
+                    pickupLocations = response.body().stream()
+                            .filter(location -> "pickup".equalsIgnoreCase(location.getType()) || "both".equalsIgnoreCase(location.getType()))
+                            .collect(Collectors.toList());
+
                     List<String> pickupNames = new ArrayList<>();
                     for (Location location : pickupLocations) {
-                        pickupNames.add(location.getName() + " - " + location.getAddress());
+                        pickupNames.add(formatLocationName(location));
                     }
                     ArrayAdapter<String> adapter = new ArrayAdapter<>(SelectPickupPointActivity.this,
                             android.R.layout.simple_list_item_single_choice, pickupNames);
@@ -96,5 +101,19 @@ public class SelectPickupPointActivity extends AppCompatActivity {
                 Toast.makeText(SelectPickupPointActivity.this, "Lỗi mạng.", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+    private String formatLocationName(Location location) {
+        String name = location.getName();
+        String address = location.getAddress();
+
+        if (name != null && !name.isEmpty() && address != null && !address.isEmpty()) {
+            return name + " - " + address;
+        } else if (name != null && !name.isEmpty()) {
+            return name;
+        } else if (address != null && !address.isEmpty()) {
+            return address;
+        } else {
+            return "Điểm dừng không tên";
+        }
     }
 }

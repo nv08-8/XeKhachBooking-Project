@@ -38,6 +38,8 @@ public class SeatAdapter extends RecyclerView.Adapter<SeatAdapter.SeatViewHolder
     @Override
     public void onBindViewHolder(@NonNull SeatViewHolder holder, int position) {
         Seat seat = seatList.get(position);
+        if (seat == null) return; // Add null check for the seat object itself
+
         if ("aisle".equals(seat.getSeatType())) {
             holder.itemView.setVisibility(View.INVISIBLE);
         } else {
@@ -60,7 +62,8 @@ public class SeatAdapter extends RecyclerView.Adapter<SeatAdapter.SeatViewHolder
         }
 
         void bind(final Seat seat, final OnSeatClickListener listener) {
-            seatTextView.setText(seat.getLabel());
+            // Set text safely, defaulting to empty string if label is null
+            seatTextView.setText(seat.getLabel() != null ? seat.getLabel() : "");
             seatTextView.setEnabled(!seat.isBooked());
             seatTextView.setSelected(seat.isSelected());
 
@@ -76,6 +79,9 @@ public class SeatAdapter extends RecyclerView.Adapter<SeatAdapter.SeatViewHolder
 
             if (!seat.isBooked()) {
                 itemView.setOnClickListener(v -> listener.onSeatClick(seat));
+            } else {
+                // Remove listener for booked seats to avoid unintended clicks on recycled views
+                itemView.setOnClickListener(null);
             }
         }
     }

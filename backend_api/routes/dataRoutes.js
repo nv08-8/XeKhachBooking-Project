@@ -74,7 +74,7 @@ router.get("/trips/:id/pickup-locations", async (req, res) => {
     const { id } = req.params;
     try {
         const result = await db.query(
-            `SELECT rs.id, rs.name, rs.address 
+            `SELECT rs.id, rs.name, rs.address, rs.type 
              FROM route_stops rs
              JOIN trips t ON t.route_id = rs.route_id
              WHERE t.id = $1 AND (rs.type = 'pickup' OR rs.type = 'both')
@@ -93,7 +93,7 @@ router.get("/trips/:id/dropoff-locations", async (req, res) => {
     const { id } = req.params;
     try {
         const result = await db.query(
-            `SELECT rs.id, rs.name, rs.address 
+            `SELECT rs.id, rs.name, rs.address, rs.type 
              FROM route_stops rs
              JOIN trips t ON t.route_id = rs.route_id
              WHERE t.id = $1 AND (rs.type = 'dropoff' OR rs.type = 'both')

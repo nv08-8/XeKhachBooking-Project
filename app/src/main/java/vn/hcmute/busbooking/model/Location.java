@@ -7,17 +7,20 @@ public class Location implements Parcelable {
     private int id;
     private String name;
     private String address;
+    private String type;
 
-    public Location(int id, String name, String address) {
+    public Location(int id, String name, String address, String type) {
         this.id = id;
         this.name = name;
         this.address = address;
+        this.type = type;
     }
 
     protected Location(Parcel in) {
         id = in.readInt();
         name = in.readString();
         address = in.readString();
+        type = in.readString();
     }
 
     public static final Creator<Location> CREATOR = new Creator<Location>() {
@@ -56,6 +59,14 @@ public class Location implements Parcelable {
         this.address = address;
     }
 
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
     @Override
     public int describeContents() {
         return 0;
@@ -66,5 +77,6 @@ public class Location implements Parcelable {
         dest.writeInt(id);
         dest.writeString(name);
         dest.writeString(address);
+        dest.writeString(type);
     }
 }
