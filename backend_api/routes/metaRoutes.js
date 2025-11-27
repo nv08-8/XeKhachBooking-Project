@@ -17,6 +17,18 @@ router.get("/meta/locations", async (req, res) => {
   }
 });
 
+// GET /api/meta/operators - distinct operators (nhà xe)
+router.get('/meta/operators', async (req, res) => {
+  try {
+    const { rows } = await db.query("SELECT DISTINCT operator FROM trips WHERE operator IS NOT NULL ORDER BY operator");
+    const operators = (rows || []).map(r => r.operator).filter(Boolean);
+    res.json(operators);
+  } catch (err) {
+    console.error('Failed to fetch operators:', err.message || err);
+    res.status(500).json({ message: 'Failed to fetch operators' });
+  }
+});
+
 // GET /api/popular - compute popular routes by seats booked
 router.get("/popular", async (req, res) => {
   const aggQuery = `
