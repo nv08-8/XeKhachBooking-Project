@@ -230,4 +230,45 @@ router.post('/bookings/:id/cancel', async (req, res) => {
   }
 });
 
+// POST /bookings/:id/payment - confirm payment for a booking (e.g., card)
+router.post('/bookings/:id/payment', async (req, res) => {
+  const { id } = req.params;
+  const { payment_method } = req.body || {};
+  const client = await beginTransaction();
+  try {
+    await client.query('BEGIN');
+    const bookingRes = await client.query(
+      `SELECT b.id, b.trip_id, b.status, b.total_amount, b.price_paid
+       FROM bookings b WHERE b.id=$1 FOR UPDATE`,
+      [id]
+    );
+    if (!bookingRes.rowCount) {
+      await rollbackAndRelease(client);
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+    const booking = bookingRes.rows[0];
+    // Only allow confirming pending bookings
+    if (!['pending'].includes(booking.status)) {
+      await rollbackAndRelease(client);
+      return res.status(409).json({ message: 'Booking cannot be confirmed', status: booking.status });
+    }
+
+    // Mark as confirmed, record payment info. For simplicity we treat card as full payment.
+    const paidAmount = Number(booking.total_amount) || 0;
+    const paymentMeta = { method: payment_method || 'card', note: 'Client confirmed payment' };
+
+    await client.query(
+      `UPDATE bookings SET status=$1, price_paid=$2, payment_method=$3, paid_at=NOW(), metadata = COALESCE(metadata, '{}'::jsonb) || $4::jsonb WHERE id=$5`,
+      ['confirmed', paidAmount, payment_method || 'card', JSON.stringify({ payment: paymentMeta }), id]
+    );
+
+    await commitAndRelease(client);
+    res.json({ message: 'Payment confirmed', booking_id: Number(id), status: 'confirmed', paidAmount });
+  } catch (err) {
+    console.error('Confirm payment failed:', err.message || err);
+    await rollbackAndRelease(client);
+    res.status(500).json({ message: 'Could not confirm payment' });
+  }
+});
+
 module.exports = router;
