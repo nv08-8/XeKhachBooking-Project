@@ -198,9 +198,18 @@ router.post('/bookings/:id/cancel', async (req, res) => {
     else if (hoursUntilDeparture >= 12) refundPercentage = 70;
     else if (hoursUntilDeparture >= 6) refundPercentage = 50;
 
-    const baseForRefund = Number(booking.price_paid) > 0 ? Number(booking.price_paid) : Number(booking.total_amount);
-    const refundAmount = Math.floor((baseForRefund * refundPercentage) / 100);
-    const newStatus = refundAmount > 0 ? 'pending_refund' : 'cancelled';
+    // If there's a recorded paid amount, compute refund; otherwise (unpaid/pending) mark as cancelled
+    let refundAmount = 0;
+    let newStatus = 'cancelled';
+    if (Number(booking.price_paid) > 0) {
+        const baseForRefund = Number(booking.price_paid);
+        refundAmount = Math.floor((baseForRefund * refundPercentage) / 100);
+        newStatus = refundAmount > 0 ? 'pending_refund' : 'cancelled';
+    } else {
+        // unpaid booking: cancel without refund
+        refundAmount = 0;
+        newStatus = 'cancelled';
+    }
 
     await client.query(
         'UPDATE bookings SET status=$1, cancelled_at=NOW(), metadata = metadata || $2::jsonb WHERE id=$3',

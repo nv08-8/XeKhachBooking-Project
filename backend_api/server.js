@@ -122,8 +122,9 @@ io.on('connection', async (socket) => {
   }
 });
 
-// Background job: expire pending bookings older than configured TTL (default 5 minutes)
-const BOOKING_PENDING_TTL_MINUTES = parseInt(process.env.BOOKING_PENDING_TTL_MINUTES || '5', 10);
+// Background job: expire pending bookings older than configured TTL (default 10 minutes)
+// You can override this by setting BOOKING_PENDING_TTL_MINUTES in your environment (e.g., .env).
+const BOOKING_PENDING_TTL_MINUTES = parseInt(process.env.BOOKING_PENDING_TTL_MINUTES || '10', 10);
 const EXPIRE_CHECK_INTERVAL_MS = 60 * 1000; // run every minute
 
 async function expirePendingBookings() {
@@ -188,7 +189,7 @@ async function expirePendingBookings() {
                         const r = await client.query('UPDATE seats SET is_booked=0, booking_id=NULL WHERE trip_id=$1 AND label=$2 RETURNING id', [booking.trip_id, label]);
                         if (r.rowCount) releasedCount += r.rowCount;
                     } catch (e) {
-                        console.warn(`Failed to release seat \"${label}\" for booking ${bookingId}: ${e.message || e}`);
+                        console.warn(`Failed to release seat "${label}" for booking ${bookingId}: ${e.message || e}`);
                     }
                 }
 
