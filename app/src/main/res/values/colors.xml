@@ -34,10 +34,18 @@
     <!-- Seat Colors -->
     <color name="seat_available_background">#F0F4F7</color>
     <color name="seat_available_stroke">#D0D8E0</color>
-    <color name="seat_booked_background">#EAECEF</color>
+    <color name="seat_booked_background">#BDBDBD</color> <!-- Darker gray for booked seats -->
+    <color name="seat_booked_text">#FFFFFF</color> <!-- White text for booked seats -->
     <color name="seat_selected_background">#0077FF</color>
     
     <color name="textForgotPassword">#0077FF</color>
     <color name="gradientCenter">#00000000</color>
     <color name="red">#FF0000</color>
+
+    <!-- Filter toolbar theme colors -->
+    <!-- Deep navy similar to the reference pill -->
+    <color name="filterToolbarBackground">#0F3B5A</color>
+    <!-- subtle light divider inside the pill -->
+    <color name="filterToolbarDivider">#66FFFFFF</color>
+    <color name="countdownCardBackground">#FFFCECEB</color>
 </resources>

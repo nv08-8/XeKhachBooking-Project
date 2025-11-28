@@ -9,6 +9,6 @@
     android:paddingTop="12dp"
     android:paddingBottom="12dp"
     android:layout_margin="4dp"
-    android:textColor="@color/white"
+    android:textColor="@drawable/seat_text_color"
     android:textSize="14sp"
     android:textStyle="bold" />

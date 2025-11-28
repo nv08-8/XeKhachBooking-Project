@@ -11,10 +11,15 @@
 
     <!-- Trạng thái Ghế đã được đặt -->
     <item android:state_enabled="false">
-        <shape android:shape="rectangle">
-            <solid android:color="@color/seat_booked_background" />
-            <corners android:radius="8dp" />
-        </shape>
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="#E0E0E0"/>
+                    <corners android:radius="8dp" />
+                </shape>
+            </item>
+            <item android:drawable="@drawable/ic_close" android:gravity="center"/>
+        </layer-list>
     </item>
 
     <!-- Trạng thái Ghế trống (mặc định) -->

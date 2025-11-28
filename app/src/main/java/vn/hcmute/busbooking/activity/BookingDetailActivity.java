@@ -69,7 +69,12 @@ public class BookingDetailActivity extends AppCompatActivity {
         btnCancelTicket.setOnClickListener(v -> showCancelConfirmationDialog());
         btnPayTicket.setOnClickListener(v -> {
             Intent intent = new Intent(BookingDetailActivity.this, PaymentActivity.class);
-            intent.putExtra("booking_id", bookingId);
+            intent.putExtra("is_pending_payment", true);
+            java.util.ArrayList<Integer> ids = new java.util.ArrayList<>();
+            ids.add(bookingId);
+            intent.putIntegerArrayListExtra("booking_ids", ids);
+            // also include booking-specific seat labels if present - the PaymentActivity expects seat_labels when creating payment flow
+            // we can fetch seat labels from the loaded booking details via tvSeatNumber or from data map; but here we rely on PaymentActivity's pending flow which doesn't require seat_labels for pending payment
             startActivity(intent);
         });
 
@@ -154,7 +159,22 @@ public class BookingDetailActivity extends AppCompatActivity {
         // Passenger and Seat Info
         tvPassengerName.setText((String) data.get("passenger_name"));
         tvPhoneNumber.setText((String) data.get("passenger_phone"));
-        tvSeatNumber.setText((String) data.get("seat_label"));
+        // seat_labels may be an array (new schema) or legacy seat_label string
+        try {
+            Object seatLabelsObj = data.get("seat_labels");
+            String seatText = "";
+            if (seatLabelsObj instanceof java.util.List) {
+                java.util.List<?> list = (java.util.List<?>) seatLabelsObj;
+                seatText = android.text.TextUtils.join(", ", list);
+            } else if (seatLabelsObj instanceof String) {
+                seatText = (String) seatLabelsObj;
+            } else if (data.get("seat_label") instanceof String) {
+                seatText = (String) data.get("seat_label");
+            }
+            tvSeatNumber.setText(seatText);
+        } catch (Exception e) {
+            tvSeatNumber.setText( (String) data.get("seat_label") );
+        }
         tvLicensePlate.setText("51F-123.45"); // Placeholder, needs to come from API
 
         // Total Amount

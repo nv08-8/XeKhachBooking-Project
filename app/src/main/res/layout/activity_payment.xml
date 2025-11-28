@@ -20,7 +20,7 @@
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="@drawable/ic_arrow_back"
             app:navigationIconTint="@color/textPrimary"
-            app:title="Thanh toán"
+            app:title="@string/title_payment"
             app:titleCentered="true"
             app:titleTextColor="@color/textPrimary" />
     </com.google.android.material.appbar.AppBarLayout>
@@ -43,7 +43,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="16dp"/>
 
                 <!-- Trip Info Card -->
                 <com.google.android.material.card.MaterialCardView
@@ -64,6 +64,7 @@
                             android:layout_width="40dp"
                             android:layout_height="40dp"
                             android:src="@drawable/ic_futa_logo_placeholder"
+                            android:contentDescription="@null"
                             app:layout_constraintStart_toStartOf="parent"
                             app:layout_constraintTop_toTopOf="parent" />
 
@@ -72,7 +73,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="12dp"
-                            android:text="Futa Bus Lines"
+                            android:text="@string/app_name"
                             android:textColor="@android:color/black"
                             android:textStyle="bold"
                             app:layout_constraintStart_toEndOf="@id/ivBusLogo"
@@ -82,7 +83,7 @@
                             android:id="@+id/tvBusType"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Limousine 34 chỗ"
+                            android:text="@string/pm_card"
                             android:textColor="@color/textSecondary"
                             app:layout_constraintStart_toStartOf="@id/tvBusOperator"
                             app:layout_constraintTop_toBottomOf="@id/tvBusOperator" />
@@ -93,6 +94,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="24dp"
                             android:src="@drawable/ic_dot_blue"
+                            android:contentDescription="@null"
                             app:layout_constraintStart_toStartOf="parent"
                             app:layout_constraintTop_toBottomOf="@id/ivBusLogo" />
 
@@ -113,7 +115,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="12dp"
-                            android:text="Điểm đi"
+                            android:text="@string/label_pickup"
                             android:textColor="@color/textSecondary"
                             app:layout_constraintStart_toEndOf="@id/ivStartDot"
                             app:layout_constraintTop_toTopOf="@id/ivStartDot" />
@@ -122,7 +124,7 @@
                             android:id="@+id/tvPickup"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Bến xe Miền Tây"
+                            android:text="@string/label_pickup"
                             android:textColor="@android:color/black"
                             android:textStyle="bold"
                             app:layout_constraintStart_toStartOf="@id/tvDepartureLabel"
@@ -132,7 +134,7 @@
                             android:id="@+id/tvDepartureTime"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="07:00"
+                            android:text=""
                             android:textColor="@android:color/black"
                             android:textStyle="bold"
                             app:layout_constraintEnd_toEndOf="parent"
@@ -144,6 +146,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="16dp"
                             android:src="@drawable/ic_pin_blue"
+                            android:contentDescription="@null"
                             app:layout_constraintStart_toStartOf="parent"
                             app:layout_constraintTop_toBottomOf="@id/tvPickup" />
 
@@ -152,7 +155,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="12dp"
-                            android:text="Điểm đến"
+                            android:text="@string/label_dropoff"
                             android:textColor="@color/textSecondary"
                             app:layout_constraintStart_toEndOf="@id/ivEndDot"
                             app:layout_constraintTop_toTopOf="@id/ivEndDot" />
@@ -161,7 +164,7 @@
                             android:id="@+id/tvDropoff"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Bến xe Đà Lạt"
+                            android:text="@string/label_dropoff"
                             android:textColor="@android:color/black"
                             android:textStyle="bold"
                             app:layout_constraintStart_toStartOf="@id/tvArrivalLabel"
@@ -171,7 +174,7 @@
                             android:id="@+id/tvArrivalTime"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="15:00"
+                            android:text=""
                             android:textColor="@android:color/black"
                             android:textStyle="bold"
                             app:layout_constraintEnd_toEndOf="parent"
@@ -190,10 +193,10 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="16dp"
-                            android:drawableStart="@drawable/ic_calendar"
+                            app:drawableStartCompat="@drawable/ic_calendar"
                             android:drawablePadding="8dp"
                             android:gravity="center_vertical"
-                            android:text="25/07/2024"
+                            android:text=""
                             android:textColor="@color/textSecondary"
                             app:layout_constraintStart_toStartOf="parent"
                             app:layout_constraintTop_toBottomOf="@id/divider1" />
@@ -202,10 +205,10 @@
                             android:id="@+id/tvSeat"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:drawableStart="@drawable/ic_seat"
+                            app:drawableStartCompat="@drawable/ic_seat"
                             android:drawablePadding="8dp"
                             android:gravity="center_vertical"
-                            android:text="Ghế: A05, A06"
+                            android:text="@string/label_seats"
                             android:textColor="@color/textSecondary"
                             app:layout_constraintEnd_toEndOf="parent"
                             app:layout_constraintTop_toTopOf="@id/tvDate" />
@@ -213,20 +216,171 @@
                     </androidx.constraintlayout.widget.ConstraintLayout>
                 </com.google.android.material.card.MaterialCardView>
 
+                <!-- Countdown for pending payment (visible only when booking is pending) -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardCountdown"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="@color/countdownCardBackground"
+                    android:visibility="gone">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="12dp"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/label_hold_time"
+                            android:textColor="@android:color/black"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvCountdown"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text=""
+                            android:textColor="@android:color/holo_red_dark"
+                            android:textStyle="bold"
+                            android:textSize="16sp" />
+
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
                 <!-- Price Breakdown Card -->
                 <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardPriceBreakdown"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
                     app:cardBackgroundColor="@color/white"
                     app:cardCornerRadius="16dp"
-                    app:cardElevation="0dp"/>
+                    app:cardElevation="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/label_subtotal"
+                                android:textColor="@color/textSecondary" />
+
+                            <TextView
+                                android:id="@+id/tvSubtotal"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text=""
+                                android:textColor="@android:color/black"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <View android:layout_width="match_parent" android:layout_height="8dp" />
+
+                        <!-- Promo input row -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <EditText
+                                android:id="@+id/etPromoCode"
+                                android:layout_width="0dp"
+                                android:layout_height="48dp"
+                                android:layout_weight="1"
+                                android:hint="@string/hint_promo_code"
+                                android:background="@drawable/bg_edit_text"
+                                android:padding="12dp"
+                                android:inputType="text"
+                                android:autofillHints="creditCardNumber" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnApplyPromo"
+                                android:layout_width="wrap_content"
+                                android:layout_height="48dp"
+                                android:layout_marginStart="8dp"
+                                android:text="@string/apply_promo"
+                                app:cornerRadius="8dp" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvPromoDetails"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/view_promo_details"
+                            android:textColor="@color/colorPrimary"
+                            android:visibility="gone"
+                            android:layout_marginTop="8dp" />
+
+                        <TextView
+                            android:id="@+id/tvDiscountApplied"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text=""
+                            android:textColor="@android:color/holo_green_dark"
+                            android:textStyle="bold"
+                            android:visibility="gone"
+                            android:layout_marginTop="8dp" />
+
+                        <View android:layout_width="match_parent" android:layout_height="8dp" />
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#F0F0F0" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginTop="12dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/label_total"
+                                android:textColor="@color/textSecondary" />
+
+                            <TextView
+                                android:id="@+id/tvTotal"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text=""
+                                android:textColor="@android:color/black"
+                                android:textStyle="bold"
+                                android:textSize="18sp" />
+                        </LinearLayout>
+
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
                 <!-- Payment Method Section -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Chọn phương thức thanh toán"
+                    android:text="@string/label_payment_methods"
                     android:textColor="@android:color/black"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -264,10 +418,10 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_centerVertical="true"
-                                android:drawableStart="@drawable/ic_credit_card_gray"
+                                app:drawableStartCompat="@drawable/ic_credit_card_gray"
                                 android:drawablePadding="12dp"
                                 android:gravity="center_vertical"
-                                android:text="Thẻ Tín dụng/Ghi nợ"
+                                android:text="@string/pm_card"
                                 android:textColor="@android:color/black" />
                         </RelativeLayout>
                     </com.google.android.material.card.MaterialCardView>
@@ -298,10 +452,10 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_centerVertical="true"
-                                android:drawableStart="@drawable/ic_qr_code"
+                                app:drawableStartCompat="@drawable/ic_qr_code"
                                 android:drawablePadding="12dp"
                                 android:gravity="center_vertical"
-                                android:text="QR chuyển khoản/Ví điện tử"
+                                android:text="@string/pm_qr"
                                 android:textColor="@android:color/black"/>
                         </RelativeLayout>
                     </com.google.android.material.card.MaterialCardView>
@@ -332,10 +486,10 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_centerVertical="true"
-                                android:drawableStart="@drawable/ic_bus_payment"
+                                app:drawableStartCompat="@drawable/ic_bus_payment"
                                 android:drawablePadding="12dp"
                                 android:gravity="center_vertical"
-                                android:text="Thanh toán tại nhà xe"
+                                android:text="@string/pm_cash"
                                 android:textColor="@android:color/black"/>
                         </RelativeLayout>
                     </com.google.android.material.card.MaterialCardView>
@@ -352,7 +506,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Số thẻ"
+                        android:text="@string/card_number_hint"
                         android:layout_marginBottom="8dp"/>
                     <EditText
                         android:id="@+id/etCardNumber"
@@ -361,9 +515,11 @@
                         android:background="@drawable/bg_edit_text"
                         android:drawableStart="@drawable/ic_credit_card_gray"
                         android:drawablePadding="12dp"
-                        android:hint="**** **** **** ****"
+                        android:hint="@string/card_number_hint"
                         android:padding="16dp"
-                        android:layout_marginBottom="16dp"/>
+                        android:layout_marginBottom="16dp"
+                        android:inputType="number"
+                        android:autofillHints="creditCardNumber"/>
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -380,15 +536,17 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Ngày hết hạn"
+                                android:text="@string/expiry_hint"
                                 android:layout_marginBottom="8dp"/>
                             <EditText
                                 android:id="@+id/etExpiryDate"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:hint="MM/YY"
+                                android:hint="@string/expiry_hint"
                                 android:background="@drawable/bg_edit_text"
-                                android:padding="16dp"/>
+                                android:padding="16dp"
+                                android:inputType="text"
+                                android:autofillHints="creditCardExpirationDate"/>
                         </LinearLayout>
 
                         <LinearLayout
@@ -400,51 +558,53 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="CVV"
+                                android:text="@string/cvv_hint"
                                 android:layout_marginBottom="8dp"/>
                             <EditText
                                 android:id="@+id/etCvv"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:hint="***"
+                                android:hint="@string/cvv_hint"
                                 android:background="@drawable/bg_edit_text"
-                                android:padding="16dp"/>
+                                android:padding="16dp"
+                                android:inputType="numberPassword"
+                                android:autofillHints="creditCardSecurityCode"/>
                         </LinearLayout>
                     </LinearLayout>
+
                 </LinearLayout>
 
-            </LinearLayout>
-        </androidx.core.widget.NestedScrollView>
+            </androidx.core.widget.NestedScrollView>
 
-        <LinearLayout
-            android:id="@+id/bottom_bar"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp"
-            android:background="@android:color/white"
-            android:elevation="8dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
-
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/bottom_bar"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Giao dịch của bạn được bảo mật"
-                android:drawableStart="@drawable/ic_lock_green"
-                android:drawablePadding="8dp"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="12dp"/>
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:background="@android:color/white"
+                android:elevation="8dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnConfirmPayment"
-                android:layout_width="match_parent"
-                android:layout_height="60dp"
-                android:text="Thanh toán 250.000đ"
-                app:cornerRadius="16dp"/>
-        </LinearLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/app_name"
+                    android:drawableStart="@drawable/ic_lock_green"
+                    android:drawablePadding="8dp"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginBottom="12dp"/>
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnConfirmPayment"
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:text="@string/btn_confirm_payment"
+                    app:cornerRadius="16dp"/>
+            </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

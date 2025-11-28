@@ -66,8 +66,14 @@ public interface ApiService {
     @GET("api/promotions/featured")
     Call<List<Map<String, Object>>> getFeaturedPromotions(@Query("limit") Integer limit);
 
+    @POST("api/promotions/validate")
+    Call<vn.hcmute.busbooking.model.PromotionValidateResponse> validatePromotion(@Body Map<String, Object> body);
+
     @GET("api/meta/locations")
     Call<Map<String, Object>> getMetaLocations();
+
+    @GET("api/meta/operators")
+    Call<List<String>> getOperators();
 
     @GET("api/trips/{id}")
     Call<Map<String, Object>> getTripDetails(@Path("id") int tripId);

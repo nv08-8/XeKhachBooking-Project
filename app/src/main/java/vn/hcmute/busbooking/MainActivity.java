@@ -207,8 +207,12 @@ public class MainActivity extends AppCompatActivity {
         tvDate.setOnClickListener(v -> showDatePickerDialog());
 
         btnSearchTrips.setOnClickListener(v -> {
-            String from = etOrigin.getText().toString();
-            String to = etDestination.getText().toString();
+            String from = etOrigin.getText().toString().trim();
+            String to = etDestination.getText().toString().trim();
+            if (from.isEmpty() || to.isEmpty()) {
+                Toast.makeText(MainActivity.this, "Vui lòng chọn điểm đi và điểm đến", Toast.LENGTH_SHORT).show();
+                return;
+            }
             SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
             String date = sdf.format(selectedDate.getTime());
             boolean isReturn = switchReturn.isChecked();

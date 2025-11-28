@@ -71,4 +71,6 @@ dependencies {
         // excluding org.json to avoid conflicts on Android
         exclude(group = "org.json", module = "json")
     }
+    //map
+    implementation("com.google.android.gms:play-services-maps:18.1.0")
 }

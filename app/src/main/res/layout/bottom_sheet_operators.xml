@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <EditText
+        android:id="@+id/et_search_operator"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="Tìm nhà xe trong danh sách dưới"
+        android:padding="12dp"
+        android:background="@drawable/bg_search_field" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_operators"
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:paddingTop="8dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end"
+        android:paddingTop="8dp">
+
+        <Button
+            android:id="@+id/btn_clear_operators"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Xóa lọc" />
+
+        <Button
+            android:id="@+id/btn_apply_operators"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Áp dụng"
+            android:layout_marginStart="12dp" />
+    </LinearLayout>
+</LinearLayout>

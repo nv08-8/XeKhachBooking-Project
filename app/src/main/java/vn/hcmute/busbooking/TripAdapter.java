@@ -1,6 +1,7 @@
 package vn.hcmute.busbooking;
 
 import android.content.Context;
+import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -128,6 +129,17 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
             } else {
                 favoriteTripDb.addFavoriteTrip(trip);
                 holder.btnFavorite.setColorFilter(ContextCompat.getColor(context, R.color.red));
+            }
+        });
+
+        holder.btnSelectSeats.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onItemClick(trip);
+            } else {
+                Context ctx = v.getContext();
+                Intent intent = new Intent(ctx, vn.hcmute.busbooking.TripDetailActivity.class);
+                intent.putExtra("trip", trip);
+                ctx.startActivity(intent);
             }
         });
 
