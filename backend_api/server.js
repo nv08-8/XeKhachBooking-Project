@@ -66,7 +66,11 @@ function listRoutes(app) {
 app.get("/", (req, res) => {
     res.send("XeKhachBooking API chạy bằng PostgreSQL trên Render nè!");
 });
-
+app.get("/api/config/maps-key", (req, res) => {
+    res.json({
+        maps_api_key: process.env.GOOGLE_MAPS_API_KEY || null
+    });
+});
 // Initialize socket.io server
 const server = http.createServer(app);
 const io = new Server(server, {

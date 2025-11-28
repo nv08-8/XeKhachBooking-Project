@@ -43,14 +43,27 @@ router.get("/promotions/featured", async (req, res) => {
 // New: validate promo code and calculate discount
 router.post('/promotions/validate', async (req, res) => {
   const { code, amount } = req.body;
+  console.debug('PROMO validate payload:', { code, amount });
+
+  // parse amount robustly: accept numbers or formatted strings like "183.000" or "183.000 đ"
+  const parseAmount = (a) => {
+    if (typeof a === 'number') return a;
+    if (!a) return 0;
+    const s = String(a);
+    // Remove any non-digit or minus sign characters (strip thousands separators, currency symbols, spaces)
+    const cleaned = s.replace(/[^\d-]/g, '');
+    const n = Number(cleaned);
+    return isNaN(n) ? 0 : n;
+  };
+
   if (!code || typeof code !== 'string') return res.status(400).json({ message: 'Missing promotion code' });
-  const amountNum = Number(amount || 0);
+  const amountNum = parseAmount(amount || 0);
   if (isNaN(amountNum) || amountNum < 0) return res.status(400).json({ message: 'Invalid amount' });
 
   const sql = `
     SELECT id, code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status
     FROM promotions
-    WHERE code = $1
+    WHERE LOWER(code) = LOWER($1)
     LIMIT 1
   `;
   try {

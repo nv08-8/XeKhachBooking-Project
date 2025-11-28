@@ -928,14 +928,38 @@ public class PaymentActivity extends AppCompatActivity {
             }
             // compute current subtotal
             double subtotal = (bookingTotalAmount != null) ? bookingTotalAmount : (trip.getPrice() * seatLabels.size());
+
+            // DEBUG: log click and subtotal
+            Log.i(TAG, "PROMO apply clicked: code=" + code + ", subtotal=" + subtotal + ", appliedPromotionCode=" + appliedPromotionCode);
+
             btnApplyPromo.setEnabled(false);
             Map<String, Object> body = new HashMap<>();
             body.put("code", code);
             body.put("amount", subtotal);
+
+            // DEBUG: log request body
+            Log.d(TAG, "PROMO request body: " + body.toString());
+
             apiService.validatePromotion(body).enqueue(new Callback<vn.hcmute.busbooking.model.PromotionValidateResponse>() {
                 @Override
                 public void onResponse(Call<vn.hcmute.busbooking.model.PromotionValidateResponse> call, Response<vn.hcmute.busbooking.model.PromotionValidateResponse> response) {
                     btnApplyPromo.setEnabled(true);
+                    // DEBUG: log response code and whether body present
+                    try {
+                        Log.i(TAG, "PROMO response: successful=" + response.isSuccessful() + ", code=" + response.code());
+                        if (!response.isSuccessful()) {
+                            String err = response.errorBody() != null ? response.errorBody().string() : "(no error body)";
+                            Log.w(TAG, "PROMO response error body: " + err);
+                        } else if (response.body() == null) {
+                            Log.w(TAG, "PROMO response body is null");
+                        } else {
+                            vn.hcmute.busbooking.model.PromotionValidateResponse resDbg = response.body();
+                            Log.i(TAG, "PROMO response body: valid=" + resDbg.isValid() + ", discount=" + resDbg.getDiscount() + ", final_amount=" + resDbg.getFinal_amount());
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "PROMO response logging error", e);
+                    }
+
                     if (response.isSuccessful() && response.body() != null) {
                         vn.hcmute.busbooking.model.PromotionValidateResponse res = response.body();
                         if (res.isValid()) {
@@ -987,6 +1011,7 @@ public class PaymentActivity extends AppCompatActivity {
                 @Override
                 public void onFailure(Call<vn.hcmute.busbooking.model.PromotionValidateResponse> call, Throwable t) {
                     btnApplyPromo.setEnabled(true);
+                    Log.e(TAG, "PROMO request failed", t);
                     Toast.makeText(PaymentActivity.this, getString(R.string.msg_network_error), Toast.LENGTH_SHORT).show();
                 }
             });
