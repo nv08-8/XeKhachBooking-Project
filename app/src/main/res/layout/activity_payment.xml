@@ -1,7 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -43,7 +42,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp"/>
+                android:padding="16dp">
 
                 <!-- Trip Info Card -->
                 <com.google.android.material.card.MaterialCardView
@@ -380,7 +379,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/label_payment_methods"
+                    android.text="@string/label_payment_methods"
                     android:textColor="@android:color/black"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -513,7 +512,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:background="@drawable/bg_edit_text"
-                        android:drawableStart="@drawable/ic_credit_card_gray"
+                        app:drawableStartCompat="@drawable/ic_credit_card_gray"
                         android:drawablePadding="12dp"
                         android:hint="@string/card_number_hint"
                         android:padding="16dp"
@@ -545,7 +544,7 @@
                                 android:hint="@string/expiry_hint"
                                 android:background="@drawable/bg_edit_text"
                                 android:padding="16dp"
-                                android:inputType="text"
+                                android:inputType="date"
                                 android:autofillHints="creditCardExpirationDate"/>
                         </LinearLayout>
 
@@ -574,37 +573,39 @@
 
                 </LinearLayout>
 
-            </androidx.core.widget.NestedScrollView>
-
-            <LinearLayout
-                android:id="@+id/bottom_bar"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp"
-                android:background="@android:color/white"
-                android:elevation="8dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/app_name"
-                    android:drawableStart="@drawable/ic_lock_green"
-                    android:drawablePadding="8dp"
-                    android:layout_gravity="center_horizontal"
-                    android:layout_marginBottom="12dp"/>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnConfirmPayment"
-                    android:layout_width="match_parent"
-                    android:layout_height="60dp"
-                    android:text="@string/btn_confirm_payment"
-                    app:cornerRadius="16dp"/>
             </LinearLayout>
 
-        </androidx.constraintlayout.widget.ConstraintLayout>
+        </androidx.core.widget.NestedScrollView>
+
+        <LinearLayout
+            android:id="@+id/bottom_bar"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:background="@android:color/white"
+            android:elevation="8dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/app_name"
+                app:drawableStartCompat="@drawable/ic_lock_green"
+                android:drawablePadding="8dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="12dp"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnConfirmPayment"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:text="@string/btn_confirm_payment"
+                app:cornerRadius="16dp"/>
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
