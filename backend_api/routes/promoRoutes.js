@@ -15,8 +15,8 @@ router.get("/promotions", async (req, res) => {
     const { rows } = await db.query(nowSql);
     res.json(rows);
   } catch (err) {
-    console.error("Failed to fetch promotions:", err);
-    res.status(500).json({ message: "Failed to fetch promotions" });
+    console.error("Failed to fetch promotions:", err.stack || err);
+    res.status(500).json({ message: "Failed to fetch promotions", error: (err && err.message) || String(err) });
   }
 });
 
@@ -101,8 +101,8 @@ router.post('/promotions/validate', async (req, res) => {
     return res.json({ valid: true, promotion: promo, discount: Number(discount.toFixed(2)), final_amount: finalAmount });
 
   } catch (err) {
-    console.error('Failed to validate promotion:', err);
-    res.status(500).json({ message: 'Failed to validate promotion' });
+    console.error('Failed to validate promotion:', err.stack || err);
+    res.status(500).json({ message: 'Failed to validate promotion', error: (err && err.message) || String(err) });
   }
 });
 
