@@ -72,11 +72,46 @@ router.post("/bookings", async (req, res) => {
     }
 
     const totalAmount = Number((tripPrice * requiredSeats).toFixed(2));
-    
+
+    // If a promotion_code is provided, re-validate it server-side and compute discount
+    let finalAmount = totalAmount;
+    if (promotion_code) {
+      try {
+        const promoRes = await client.query(
+          `SELECT id, code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status FROM promotions WHERE code=$1 LIMIT 1`,
+          [promotion_code]
+        );
+        if (promoRes.rowCount) {
+          const promo = promoRes.rows[0];
+          const nowRes = await client.query('SELECT NOW() as now');
+          const now = nowRes.rows && nowRes.rows[0] && nowRes.rows[0].now ? new Date(nowRes.rows[0].now) : new Date();
+          // Check status and dates
+          if (promo.status === 'active' && (!promo.start_date || new Date(promo.start_date) <= now) && (!promo.end_date || new Date(promo.end_date) >= now)) {
+            const minPrice = Number(promo.min_price || 0);
+            if (!minPrice || totalAmount >= minPrice) {
+              // compute discount
+              const type = (promo.discount_type || '').toLowerCase();
+              const value = Number(promo.discount_value || 0);
+              let rawDiscount = 0;
+              if (type === 'percent' || type === 'percentage') rawDiscount = totalAmount * (value/100);
+              else rawDiscount = value;
+              const maxDiscount = Number(promo.max_discount || 0);
+              let discount = rawDiscount;
+              if (maxDiscount > 0) discount = Math.min(discount, maxDiscount);
+              discount = Math.max(0, Math.min(discount, totalAmount));
+              finalAmount = Number((totalAmount - discount).toFixed(2));
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to validate promotion while creating booking:', e);
+      }
+    }
+
     const bookingInsert = await client.query(
       `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id) 
        VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8) RETURNING id`,
-      [user_id, trip_id, totalAmount, requiredSeats, promotion_code || null, metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id]
+      [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id]
     );
     const bookingId = bookingInsert.rows[0].id;
     
@@ -95,7 +130,7 @@ router.post("/bookings", async (req, res) => {
     await client.query('UPDATE trips SET seats_available = seats_available - $1 WHERE id=$2', [requiredSeats, trip_id]);
 
     await commitAndRelease(client);
-    res.json({ message: 'Booking created successfully', booking_ids: bookingIds, total_amount: totalAmount });
+    res.json({ message: 'Booking created successfully', booking_ids: bookingIds, total_amount: finalAmount });
 
   } catch (err) {
     console.error('Booking failed:', err.message || err);
