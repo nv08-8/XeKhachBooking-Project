@@ -88,7 +88,7 @@ public class BackupBookingAdapter extends RecyclerView.Adapter<BackupBookingAdap
                 break;
             case "cancelled":
             case "refunded":
-                colorResId = R.color.colorError;
+                colorResId = R.color.darkRed;
                 break;
             case "pending":
                 colorResId = R.color.colorAccent;
@@ -132,4 +132,3 @@ public class BackupBookingAdapter extends RecyclerView.Adapter<BackupBookingAdap
         }
     }
 }
-

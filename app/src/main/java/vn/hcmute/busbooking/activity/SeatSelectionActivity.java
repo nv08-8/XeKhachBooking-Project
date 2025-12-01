@@ -1,11 +1,9 @@
 package vn.hcmute.busbooking.activity;
 
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -14,299 +12,228 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.gson.Gson;
+
 import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 import vn.hcmute.busbooking.R;
-import vn.hcmute.busbooking.adapter.SeatSelectionAdapter;
+import vn.hcmute.busbooking.adapter.SeatAdapter;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.Seat;
 import vn.hcmute.busbooking.model.Trip;
-import vn.hcmute.busbooking.utils.SessionManager;
 
 public class SeatSelectionActivity extends AppCompatActivity {
 
-    private RecyclerView seatRecyclerView;
-    private TextView tvTripDetails, tvSelectedSeatsInfo;
-    private Button btnConfirmSeat;
-    private ImageButton backButton;
-    private ProgressBar progressBar;
-
-    private SeatSelectionAdapter seatAdapter;
-    private ApiService apiService;
-    private SessionManager sessionManager;
-
+    private RecyclerView floor1RecyclerView, floor2RecyclerView;
+    private TextView tvSubtotal;
+    private Button btnContinue;
     private Trip trip;
-    private final List<Seat> seatList = new ArrayList<>();
+    private SeatAdapter floor1Adapter, floor2Adapter;
+    private final List<Seat> floor1Seats = new ArrayList<>();
+    private final List<Seat> floor2Seats = new ArrayList<>();
     private final Set<String> selectedSeats = new HashSet<>();
-    private int seatPrice = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_seat_selection);
 
-        apiService = ApiClient.getClient().create(ApiService.class);
-        sessionManager = new SessionManager(this);
-
-        // Initialize views
-        seatRecyclerView = findViewById(R.id.seatRecyclerView);
-        tvTripDetails = findViewById(R.id.tvTripDetails);
-        tvSelectedSeatsInfo = findViewById(R.id.tvSelectedSeatsInfo);
-        btnConfirmSeat = findViewById(R.id.btnConfirmSeat);
-        backButton = findViewById(R.id.backButton);
-        progressBar = findViewById(R.id.progressBar);
-
-        // Get trip from intent (Parcelable-safe)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            trip = getIntent().getParcelableExtra("trip", Trip.class);
-        } else {
-            trip = getIntent().getParcelableExtra("trip");
-        }
-
-        if (trip == null) {
-            Toast.makeText(this, "Không tìm thấy thông tin chuyến đi", Toast.LENGTH_SHORT).show();
+        trip = getIntent().getParcelableExtra("trip");
+        if (trip == null || trip.getSeatLayout() == null || trip.getSeatLayout().isEmpty()) {
+            Toast.makeText(this, "Sơ đồ ghế không có sẵn", Toast.LENGTH_LONG).show();
             finish();
             return;
         }
 
-        seatPrice = (int) trip.getPrice();
-
-        // Display trip details
-        String tripInfo = trip.getOrigin() + " → " + trip.getDestination() + "\n" +
-                trip.getDepartureTime() + " - " + trip.getArrivalTime() + "\n" +
-                "Nhà xe: " + trip.getOperator();
-        tvTripDetails.setText(tripInfo);
-
-        // Setup RecyclerView
-        seatRecyclerView.setLayoutManager(new GridLayoutManager(this, 4));
-        seatAdapter = new SeatSelectionAdapter(seatList, this::onSeatSelected);
-        seatRecyclerView.setAdapter(seatAdapter);
-
-        backButton.setOnClickListener(v -> finish());
-        btnConfirmSeat.setOnClickListener(v -> confirmBooking());
-
-        loadSeats();
+        initViews();
+        setupToolbar();
+        fetchSeatStatuses();
     }
 
-    private void loadSeats() {
-        progressBar.setVisibility(View.VISIBLE);
+    private void initViews() {
+        floor1RecyclerView = findViewById(R.id.floor1RecyclerView);
+        floor2RecyclerView = findViewById(R.id.floor2RecyclerView);
+        tvSubtotal = findViewById(R.id.tvSubtotal);
+        btnContinue = findViewById(R.id.btnContinue);
 
-        apiService.getSeats(trip.getId(), null).enqueue(new Callback<List<Map<String, Object>>>() {
+        btnContinue.setOnClickListener(v -> {
+            if (selectedSeats.isEmpty()) {
+                Toast.makeText(this, "Vui lòng chọn ít nhất một ghế", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            Intent intent = new Intent(this, SelectPickupPointActivity.class);
+            intent.putExtra("trip", trip);
+            intent.putStringArrayListExtra("seat_labels", new ArrayList<>(selectedSeats));
+            startActivity(intent);
+        });
+    }
+
+    private void setupToolbar() {
+        findViewById(R.id.toolbar).setOnClickListener(v -> finish());
+    }
+
+    private void fetchSeatStatuses() {
+        ((ProgressBar) findViewById(R.id.progressBar)).setVisibility(View.VISIBLE);
+        // Revert to fetching all seats and checking their status on the client-side.
+        ApiClient.getClient().create(ApiService.class).getSeats(trip.getId(), null).enqueue(new Callback<List<Seat>>() {
             @Override
-            public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
-                progressBar.setVisibility(View.GONE);
-
+            public void onResponse(Call<List<Seat>> call, Response<List<Seat>> response) {
+                ((ProgressBar) findViewById(R.id.progressBar)).setVisibility(View.GONE);
                 if (response.isSuccessful() && response.body() != null) {
-                    seatList.clear();
-
-                    // 1. Parse dữ liệu từ API
-                    for (Map<String, Object> seatData : response.body()) {
-                        Seat seat = new Seat();
-                        String label = (String) seatData.get("label"); // Ví dụ: A01, B01...
-                        seat.setLabel(label);
-
-                        Object isBookedObj = seatData.get("is_booked");
-                        boolean isBooked = false;
-                        if (isBookedObj instanceof Boolean) {
-                            isBooked = (Boolean) isBookedObj;
-                        } else if (isBookedObj instanceof Number) {
-                            // Cột is_booked trên DB là Integer (1 hoặc 0)
-                            isBooked = ((Number) isBookedObj).intValue() == 1;
+                    Set<String> bookedSeats = new HashSet<>();
+                    // Iterate through all seats returned by the API and check their `isBooked` status.
+                    for (Seat seat : response.body()) {
+                        if (seat.isBooked() && seat.getLabel() != null) {
+                            bookedSeats.add(seat.getLabel());
                         }
-                        seat.setBooked(isBooked);
-
-                        seatList.add(seat);
                     }
-
-                    // 2. SẮP XẾP LẠI DANH SÁCH ĐỂ HIỂN THỊ THEO CỘT DỌC (A B C D)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        seatList.sort((s1, s2) -> {
-                            String label1 = s1.getLabel(); // VD: A1, A10
-                            String label2 = s2.getLabel(); // VD: A2
-
-                            // Tách phần chữ cái đầu tiên
-                            String char1 = label1.replaceAll("[0-9]", "");
-                            String char2 = label2.replaceAll("[0-9]", "");
-
-                            // Tách phần số (dùng regex lấy số)
-                            String numStr1 = label1.replaceAll("[^0-9]", "");
-                            String numStr2 = label2.replaceAll("[^0-9]", "");
-
-                            int num1 = numStr1.isEmpty() ? 0 : Integer.parseInt(numStr1);
-                            int num2 = numStr2.isEmpty() ? 0 : Integer.parseInt(numStr2);
-
-                            // --- LOGIC SẮP XẾP THEO CỘT DỌC (A B C D) ---
-                            // Muốn A1, B1, C1, D1 nằm ngang hàng nhau trên Grid 4 cột
-                            // Thì thứ tự trong List phải là: A1, B1, C1, D1, A2, B2, C2, D2...
-
-                            // Ưu tiên so sánh số ghế trước (1 vs 1, 1 vs 2)
-                            int numCompare = Integer.compare(num1, num2);
-                            if (numCompare != 0) {
-                                return numCompare;
-                            }
-
-                            // Nếu số ghế bằng nhau (cùng là hàng 1), so sánh chữ cái (A vs B)
-                            return char1.compareTo(char2);
-                        });
-                    }
-
-                    seatAdapter.notifyDataSetChanged();
+                    generateSeatMap(bookedSeats);
                 } else {
-                    Toast.makeText(SeatSelectionActivity.this, "Không thể tải danh sách ghế", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(SeatSelectionActivity.this, "Không thể tải trạng thái ghế", Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
-            public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
-                progressBar.setVisibility(View.GONE);
-                Toast.makeText(SeatSelectionActivity.this, "Lỗi tải ghế: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            public void onFailure(Call<List<Seat>> call, Throwable t) {
+                ((ProgressBar) findViewById(R.id.progressBar)).setVisibility(View.GONE);
+                Toast.makeText(SeatSelectionActivity.this, "Lỗi mạng: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }
 
+    private void generateSeatMap(Set<String> bookedSeats) {
+        floor1Seats.clear();
+        floor2Seats.clear();
+
+        Gson gson = new Gson();
+        SeatLayout layout = gson.fromJson(trip.getSeatLayout(), SeatLayout.class);
+
+        if (layout == null || layout.floors == null || layout.floors.isEmpty()) {
+            Toast.makeText(this, "Lỗi đọc sơ đồ ghế", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Tầng 1 (Tầng dưới)
+        if (layout.floors.size() > 0) {
+            Floor floor1 = layout.floors.get(0);
+            populateFloor(floor1, floor1Seats, bookedSeats, 0);
+            floor1Adapter = new SeatAdapter(floor1Seats, this::onSeatSelected);
+            floor1RecyclerView.setLayoutManager(new GridLayoutManager(this, floor1.cols));
+            floor1RecyclerView.setAdapter(floor1Adapter);
+        }
+
+        // Tầng 2 (Tầng trên)
+        if (layout.floors.size() > 1) {
+            Floor floor2 = layout.floors.get(1);
+            populateFloor(floor2, floor2Seats, bookedSeats, 1);
+            floor2Adapter = new SeatAdapter(floor2Seats, this::onSeatSelected);
+            floor2RecyclerView.setLayoutManager(new GridLayoutManager(this, floor2.cols));
+            floor2RecyclerView.setAdapter(floor2Adapter);
+            findViewById(R.id.tvFloor2Header).setVisibility(View.VISIBLE);
+        } else {
+            findViewById(R.id.tvFloor2Header).setVisibility(View.GONE);
+        }
+
+        updateSelectedInfo();
+    }
+
+    private void populateFloor(Floor floor, List<Seat> seatList, Set<String> bookedSeats, int floorIndex) {
+        if (floor.seats == null) return;
+
+        int totalCells = floor.rows * floor.cols;
+        Seat[] seatGrid = new Seat[totalCells];
+
+        for (int i = 0; i < totalCells; i++) {
+            Seat aisle = new Seat("");
+            aisle.setSeatType("aisle");
+            seatGrid[i] = aisle;
+        }
+
+        // Sort seat infos by row then col so numbering is consistent
+        List<SeatInfo> seatInfos = new ArrayList<>(floor.seats);
+        Collections.sort(seatInfos, (a, b) -> {
+            if (a.row != b.row) return Integer.compare(a.row, b.row);
+            return Integer.compare(a.col, b.col);
+        });
+
+        String seatLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        String prefix = floorIndex >= 0 && floorIndex < seatLetters.length() ? String.valueOf(seatLetters.charAt(floorIndex)) : "A";
+        int seq = 1;
+        for (SeatInfo seatInfo : seatInfos) {
+            int index = seatInfo.row * floor.cols + seatInfo.col;
+            if (index >= 0 && index < totalCells) {
+                String displayLabel = prefix + seq;
+                seq++;
+                Seat seat = new Seat(displayLabel);
+                seat.setSeatType(seatInfo.type);
+                // Mark booked if API returned booking using either original label or the display label
+                if ((seatInfo.label != null && bookedSeats.contains(seatInfo.label)) || bookedSeats.contains(displayLabel)) {
+                    seat.setBooked(true);
+                }
+                seatGrid[index] = seat;
+            }
+        }
+
+        Collections.addAll(seatList, seatGrid);
+    }
+
     private void onSeatSelected(Seat seat) {
+        if (seat.isBooked() || seat.getLabel() == null || seat.getLabel().isEmpty() || "aisle".equals(seat.getSeatType())) {
+            return;
+        }
+
         if (selectedSeats.contains(seat.getLabel())) {
             selectedSeats.remove(seat.getLabel());
         } else {
             selectedSeats.add(seat.getLabel());
         }
+        seat.setSelected(!seat.isSelected());
+
+        int indexInFloor1 = floor1Seats.indexOf(seat);
+        if (indexInFloor1 != -1 && floor1Adapter != null) {
+            floor1Adapter.notifyItemChanged(indexInFloor1);
+        } else {
+            int indexInFloor2 = floor2Seats.indexOf(seat);
+            if (indexInFloor2 != -1 && floor2Adapter != null) {
+                floor2Adapter.notifyItemChanged(indexInFloor2);
+            }
+        }
+
         updateSelectedInfo();
     }
 
     private void updateSelectedInfo() {
-        int totalAmount = selectedSeats.size() * seatPrice;
-        // Sử dụng Locale Việt Nam để hiển thị tiền tệ (₫)
+        double totalAmount = selectedSeats.size() * trip.getPrice();
         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
-
-        String info = "Đã chọn: " + selectedSeats.size() + " ghế\n" +
-                "Tổng tiền: " + formatter.format(totalAmount);
-        tvSelectedSeatsInfo.setText(info);
-
-        btnConfirmSeat.setEnabled(!selectedSeats.isEmpty());
+        tvSubtotal.setText(formatter.format(totalAmount));
+        btnContinue.setEnabled(!selectedSeats.isEmpty());
     }
 
-    private void confirmBooking() {
-        if (selectedSeats.isEmpty()) {
-            Toast.makeText(this, "Vui lòng chọn ít nhất 1 ghế", Toast.LENGTH_SHORT).show();
-            return;
-        }
+    static class SeatLayout {
+        List<Floor> floors;
+    }
 
-        Integer userId = sessionManager.getUserId();
-        if (userId == null) {
-            Toast.makeText(this, "Vui lòng đăng nhập để đặt vé", Toast.LENGTH_SHORT).show();
-            // Redirect to login
-            Intent intent = new Intent(this, vn.hcmute.busbooking.activity.LoginActivity.class);
-            startActivity(intent);
-            return;
-        }
+    static class Floor {
+        int floor;
+        int rows;
+        int cols;
+        List<SeatInfo> seats;
+    }
 
-        // LẤY DANH SÁCH TẤT CẢ CÁC GHẾ ĐÃ CHỌN
-        List<String> seatsToBook = new ArrayList<>(selectedSeats);
-        int totalAmount = selectedSeats.size() * seatPrice;
-
-        progressBar.setVisibility(View.VISIBLE);
-        btnConfirmSeat.setEnabled(false);
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("user_id", userId);
-        body.put("trip_id", trip.getId());
-
-        // GỬI MẢNG GHẾ LÊN SERVER
-        body.put("seat_labels", seatsToBook);
-
-        apiService.createBooking(body).enqueue(new Callback<Map<String, Object>>() {
-            @Override
-            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                progressBar.setVisibility(View.GONE);
-                btnConfirmSeat.setEnabled(true);
-
-                if (response.isSuccessful() && response.body() != null) {
-                    Map<String, Object> result = response.body();
-
-                    // ⭐ KHỐI SỬA LỖI ClassCastException (Dòng 248)
-                    List<Integer> bookingIds = new ArrayList<>();
-                    Object bookingIdsObj = result.get("booking_ids"); // Lấy object từ key
-
-                    if (bookingIdsObj instanceof List) {
-                        List<?> rawList = (List<?>) bookingIdsObj;
-
-                        try {
-                            for (Object idObj : rawList) {
-                                if (idObj instanceof String) {
-                                    // Trường hợp backend trả về List<String> (ví dụ: ["312", "313"])
-                                    bookingIds.add(Integer.parseInt((String) idObj));
-                                } else if (idObj instanceof Number) {
-                                    // Trường hợp backend trả về List<Number> (ví dụ: [312.0, 313.0] hoặc [312, 313])
-                                    bookingIds.add(((Number) idObj).intValue());
-                                } else {
-                                    // Nếu kiểu dữ liệu không mong muốn
-                                    throw new ClassCastException("Unexpected type for booking ID: " +
-                                            (idObj != null ? idObj.getClass().getSimpleName() : "null"));
-                                }
-                            }
-                        } catch (Exception e) {
-                            // Báo lỗi nếu việc chuyển đổi thất bại
-                            Toast.makeText(SeatSelectionActivity.this, "Lỗi định dạng ID từ server. Vấn đề ép kiểu.", Toast.LENGTH_LONG).show();
-                            return;
-                        }
-                    } else {
-                        // Nếu 'booking_ids' không phải là List
-                        Toast.makeText(SeatSelectionActivity.this, "Lỗi: Không tìm thấy danh sách Booking ID hợp lệ.", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    if (bookingIds.isEmpty()) {
-                        Toast.makeText(SeatSelectionActivity.this, "Đặt vé thành công nhưng không có Booking ID nào được tạo.", Toast.LENGTH_LONG).show();
-                        return;
-                    }
-                    // ⭐ END KHỐI SỬA LỖI
-
-
-                    Toast.makeText(SeatSelectionActivity.this, "Đặt " + seatsToBook.size() + " vé thành công! Đang chuyển hướng thanh toán.", Toast.LENGTH_SHORT).show();
-
-                    // Chuyển sang PaymentActivity
-                    Intent intent = new Intent(SeatSelectionActivity.this, PaymentActivity.class);
-
-                    // TRUYỀN DANH SÁCH BOOKING ID VÀ TỔNG TIỀN
-                    intent.putIntegerArrayListExtra("booking_ids", (ArrayList<Integer>) bookingIds);
-                    intent.putStringArrayListExtra("seat_labels", (ArrayList<String>) seatsToBook);
-                    intent.putExtra("amount", totalAmount);
-
-                    // Thêm thông tin chuyến đi cần thiết cho màn hình thanh toán/chi tiết
-                    intent.putExtra("origin", trip.getOrigin());
-                    intent.putExtra("destination", trip.getDestination());
-                    intent.putExtra("departure_time", trip.getDepartureTime());
-                    intent.putExtra("operator", trip.getOperator());
-
-                    startActivity(intent);
-                    finish();
-                } else {
-                    // Xử lý lỗi từ server (Ví dụ: 409 Conflict, 400 Bad Request)
-                    String errorMessage = "Đặt vé thất bại. Vui lòng thử lại.";
-                    if (response.errorBody() != null) {
-                        // Thêm logic đọc errorBody nếu cần chi tiết hơn
-                    }
-                    Toast.makeText(SeatSelectionActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                progressBar.setVisibility(View.GONE);
-                btnConfirmSeat.setEnabled(true);
-                Toast.makeText(SeatSelectionActivity.this, "Lỗi kết nối: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
+    static class SeatInfo {
+        String label;
+        String type;
+        int row;
+        int col;
     }
 }

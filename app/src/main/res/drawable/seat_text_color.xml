@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Text color for booked (disabled) seats -->
+    <item android:state_enabled="false" android:color="@color/seat_booked_text" />
+    <!-- Default text color for available seats -->
+    <item android:color="@color/textPrimary" />
+</selector>

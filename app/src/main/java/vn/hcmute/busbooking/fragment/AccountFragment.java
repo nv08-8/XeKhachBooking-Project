@@ -1,5 +1,6 @@
 package vn.hcmute.busbooking.fragment;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -32,7 +33,7 @@ public class AccountFragment extends Fragment {
 
             TextView tvUserName = view.findViewById(R.id.tvUserName);
             TextView tvUserEmail = view.findViewById(R.id.tvUserEmail);
-            Button btnLogout = view.findViewById(R.id.btnLogout);
+            TextView tvLogout = view.findViewById(R.id.tvLogout);
             Button btnEditProfile = view.findViewById(R.id.btnEditProfile);
             Button btnChangePassword = view.findViewById(R.id.btnChangePassword);
 
@@ -56,9 +57,12 @@ public class AccountFragment extends Fragment {
                 });
             }
 
-            btnLogout.setOnClickListener(v -> {
+            tvLogout.setOnClickListener(v -> {
                 sessionManager.clearSession();
-                requireActivity().recreate(); // refresh to guest view
+                Activity activity = getActivity();
+                if (activity != null) {
+                    activity.recreate(); // refresh to guest view
+                }
             });
 
             return view;

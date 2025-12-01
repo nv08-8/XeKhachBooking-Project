@@ -1,6 +1,6 @@
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android") version "1.9.22"
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
 }
 
 android {
@@ -41,6 +41,8 @@ dependencies {
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
+    implementation(libs.play.services.maps)
+    implementation(libs.core.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
@@ -62,6 +64,23 @@ dependencies {
     // Glide for async image loading and decoding off the main thread
     implementation("com.github.bumptech.glide:glide:4.15.1")
     annotationProcessor("com.github.bumptech.glide:compiler:4.15.1")
+
+    // FlexboxLayout for flexible layouts
+    implementation("com.google.android.flexbox:flexbox:3.0.0")
+
+    // ViewPager2 for image carousel
+    implementation("androidx.viewpager2:viewpager2:1.0.0")
+
+    // Socket.IO client for realtime events
+    implementation("io.socket:socket.io-client:2.0.1") {
+        // excluding org.json to avoid conflicts on Android
+        exclude(group = "org.json", module = "json")
+    }
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    //map
+    implementation("com.google.android.gms:play-services-maps:18.1.0")
 
     // MPAndroidChart
     implementation("com.github.PhilJay:MPAndroidChart:3.1.0")

@@ -23,6 +23,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 import vn.hcmute.busbooking.MainActivity;
 import vn.hcmute.busbooking.R;
+import vn.hcmute.busbooking.activity.admin.AdminHomeActivity;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.utils.SessionManager;
@@ -122,6 +123,10 @@ public class LoginActivity extends AppCompatActivity {
                 if (msg != null && msg.toString().contains("Đăng nhập thành công")) {
 
                     Map<String, Object> user = (Map<String, Object>) res.get("user");
+                    // If server returned token at top-level, include it in the user map so SessionManager can persist it
+                    if (res.get("token") instanceof String) {
+                        user.put("token", (String) res.get("token"));
+                    }
                     sessionManager.saveUser(user);
 
                     Toast.makeText(LoginActivity.this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();

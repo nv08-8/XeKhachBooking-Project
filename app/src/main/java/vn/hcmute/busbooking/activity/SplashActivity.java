@@ -10,6 +10,7 @@ import android.os.Looper;
 
 import vn.hcmute.busbooking.MainActivity;
 import vn.hcmute.busbooking.R;
+import vn.hcmute.busbooking.activity.guest.GuestHomeActivity;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class SplashActivity extends AppCompatActivity {

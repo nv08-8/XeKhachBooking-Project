@@ -1,8 +1,9 @@
-// backend_api/routes/bookingRoutes.js
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
+const { generateAndCacheSeats } = require("../utils/seatGenerator");
 
+// Helper functions for transaction management
 const beginTransaction = () => db.connect();
 
 const commitAndRelease = async (client) => {
@@ -21,228 +22,287 @@ const rollbackAndRelease = async (client) => {
   }
 };
 
-// ==========================================================
-// ⭐ SỬA ĐỔI ROUTE ĐẶT VÉ ĐỂ HỖ TRỢ NHIỀU GHẾ (is_booked=1)
-// ==========================================================
+// POST /bookings - Create a new booking with multiple seats
 router.post("/bookings", async (req, res) => {
-  // Chuyển từ 'seat_label' đơn lẻ sang 'seat_labels' là mảng
-  const { user_id, trip_id, seat_labels } = req.body;
+  const { user_id, trip_id, seat_labels, promotion_code, metadata, pickup_stop_id, dropoff_stop_id } = req.body;
 
-  // Kiểm tra đầu vào: seat_labels phải là mảng và không rỗng
-  if (
-    !user_id ||
-    !trip_id ||
-    !Array.isArray(seat_labels) ||
-    seat_labels.length === 0
-  )
-    return res.status(400).json({ message: "Missing or invalid fields" });
+  if (!user_id || !trip_id || !Array.isArray(seat_labels) || seat_labels.length === 0 || !pickup_stop_id || !dropoff_stop_id) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
 
   const client = await beginTransaction();
   try {
-    await client.query("BEGIN");
+    await client.query('BEGIN');
 
-    // 1. Khóa và lấy thông tin chuyến đi
-    const tripResult = await client.query(
-      "SELECT id, price, seats_available FROM trips WHERE id = $1 FOR UPDATE",
-      [trip_id]
-    );
+    // Ensure seats are generated before attempting to book, within the same transaction
+    await generateAndCacheSeats(client, trip_id);
+
+    const tripResult = await client.query('SELECT price, seats_available FROM trips WHERE id=$1 FOR UPDATE', [trip_id]);
     if (!tripResult.rowCount) {
       await rollbackAndRelease(client);
-      return res.status(400).json({ message: "Trip not found" });
+      return res.status(404).json({ message: 'Trip not found' });
     }
-    const tripPrice = tripResult.rows[0].price;
+
+    const tripPrice = parseFloat(tripResult.rows[0].price) || 0;
     const requiredSeats = seat_labels.length;
 
-    // 2. Kiểm tra đủ chỗ trống
     if (tripResult.rows[0].seats_available < requiredSeats) {
       await rollbackAndRelease(client);
-      return res.status(409).json({ message: "Not enough seats left for all selections" });
+      return res.status(409).json({ message: 'Not enough seats available' });
     }
 
-    const createdBookingIds = [];
-
-    // 3. LẶP QUA TỪNG GHẾ ĐÃ CHỌN
     for (const label of seat_labels) {
-
-      // a. Khóa và kiểm tra ghế
-      const seatResult = await client.query(
-        "SELECT id, is_booked FROM seats WHERE trip_id=$1 AND label=$2 FOR UPDATE",
-        [trip_id, label]
-      );
-      if (!seatResult.rowCount) {
-        await rollbackAndRelease(client);
-        return res.status(400).json({ message: `Seat ${label} not found` });
-      }
-      // ⭐ Sửa lỗi: Kiểm tra giá trị Integer (1) thay vì Boolean (TRUE)
-      if (seatResult.rows[0].is_booked === 1) {
-        await rollbackAndRelease(client);
-        return res.status(409).json({ message: `Seat ${label} already booked` });
+      // Try to lock the seat row if it exists
+      let seatRes = await client.query('SELECT id, is_booked FROM seats WHERE trip_id=$1 AND label=$2 FOR UPDATE', [trip_id, label]);
+      if (!seatRes.rowCount) {
+        // Seat row missing (no seat records generated). Create the seat record on-demand.
+        // Use ON CONFLICT DO NOTHING to avoid race errors if another tx creates it concurrently.
+        await client.query(
+          'INSERT INTO seats (trip_id, label, type, is_booked) VALUES ($1, $2, $3, 0) ON CONFLICT (trip_id, label) DO NOTHING',
+          [trip_id, label, 'seat']
+        );
+        // Re-select with FOR UPDATE to lock the row we just created (or the row created by another tx)
+        seatRes = await client.query('SELECT id, is_booked FROM seats WHERE trip_id=$1 AND label=$2 FOR UPDATE', [trip_id, label]);
       }
 
-      // b. Tạo booking cho từng ghế
-      const bookingInsert = await client.query(
-        `INSERT INTO bookings (user_id, trip_id, seat_label, price_paid, status, created_at)
-         VALUES ($1, $2, $3, $4, 'pending', NOW())
-         RETURNING id`,
-        [user_id, trip_id, label, tripPrice]
-      );
-      const bookingId = bookingInsert.rows[0].id;
-      createdBookingIds.push(bookingId);
+      if (!seatRes.rowCount || seatRes.rows[0].is_booked) {
+        await rollbackAndRelease(client);
+        return res.status(409).json({ message: `Seat ${label} is not available` });
+      }
+    }
 
-      // c. Cập nhật trạng thái ghế
+    const totalAmount = Number((tripPrice * requiredSeats).toFixed(2));
+
+    // If a promotion_code is provided, re-validate it server-side and compute discount
+    let finalAmount = totalAmount;
+    if (promotion_code) {
+      try {
+        const promoRes = await client.query(
+          `SELECT id, code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status FROM promotions WHERE code=$1 LIMIT 1`,
+          [promotion_code]
+        );
+        if (promoRes.rowCount) {
+          const promo = promoRes.rows[0];
+          const nowRes = await client.query('SELECT NOW() as now');
+          const now = nowRes.rows && nowRes.rows[0] && nowRes.rows[0].now ? new Date(nowRes.rows[0].now) : new Date();
+          // Check status and dates
+          if (promo.status === 'active' && (!promo.start_date || new Date(promo.start_date) <= now) && (!promo.end_date || new Date(promo.end_date) >= now)) {
+            const minPrice = Number(promo.min_price || 0);
+            if (!minPrice || totalAmount >= minPrice) {
+              // compute discount
+              const type = (promo.discount_type || '').toLowerCase();
+              const value = Number(promo.discount_value || 0);
+              let rawDiscount = 0;
+              if (type === 'percent' || type === 'percentage') rawDiscount = totalAmount * (value/100);
+              else rawDiscount = value;
+              const maxDiscount = Number(promo.max_discount || 0);
+              let discount = rawDiscount;
+              if (maxDiscount > 0) discount = Math.min(discount, maxDiscount);
+              discount = Math.max(0, Math.min(discount, totalAmount));
+              finalAmount = Number((totalAmount - discount).toFixed(2));
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to validate promotion while creating booking:', e);
+      }
+    }
+
+    const bookingInsert = await client.query(
+      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id) 
+       VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8) RETURNING id`,
+      [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id]
+    );
+    const bookingId = bookingInsert.rows[0].id;
+    
+    const bookingIds = [bookingId];
+    for (const label of seat_labels) {
       await client.query(
-        "UPDATE seats SET is_booked=1, booking_id=$1 WHERE id=$2", // ⭐ Dùng '1'
-        [bookingId, seatResult.rows[0].id]
+        `INSERT INTO booking_items (booking_id, seat_code, price) VALUES ($1, $2, $3)`,
+        [bookingId, label, tripPrice]
+      );
+      await client.query(
+        'UPDATE seats SET is_booked=1, booking_id=$1 WHERE trip_id=$2 AND label=$3',
+        [bookingId, trip_id, label]
       );
     }
 
-    // 4. Cập nhật số ghế trống (chỉ 1 lần)
-    await client.query(
-      "UPDATE trips SET seats_available = seats_available - $1 WHERE id=$2",
-      [requiredSeats, trip_id]
-    );
+    await client.query('UPDATE trips SET seats_available = seats_available - $1 WHERE id=$2', [requiredSeats, trip_id]);
 
     await commitAndRelease(client);
-
-    // Trả về danh sách các booking ID đã tạo
-    res.json({
-        message: "Booked successfully",
-        booking_ids: createdBookingIds,
-        total_bookings: requiredSeats
-    });
+    res.json({ message: 'Booking created successfully', booking_ids: bookingIds, total_amount: finalAmount });
 
   } catch (err) {
-    console.error("Booking failed:", err.message || err);
+    console.error('Booking failed:', err.message || err);
     await rollbackAndRelease(client);
-    // Trả về lỗi 500 nếu có lỗi xảy ra trong quá trình lặp
-    res.status(500).json({ message: "Booking failed due to a server error" });
+    res.status(500).json({ message: 'Booking failed due to a server error' });
   }
 });
 
-// ==========================================================
-// ⭐ ROUTE HỦY (Cần sửa lỗi is_booked)
-// ==========================================================
-router.post("/bookings/:id/cancel", async (req, res) => {
-  const { id } = req.params;
-  const client = await beginTransaction();
-  try {
-    await client.query("BEGIN");
-
-    const bookingResult = await client.query(
-      "SELECT * FROM bookings WHERE id=$1 FOR UPDATE",
-      [id]
-    );
-    if (!bookingResult.rowCount) {
-      await rollbackAndRelease(client);
-      return res.status(404).json({ message: "Booking not found" });
-    }
-    if (!["confirmed", "pending"].includes(bookingResult.rows[0].status)) {
-      await rollbackAndRelease(client);
-      return res.status(409).json({ message: "Cannot cancel" });
-    }
-
-    await client.query("UPDATE bookings SET status='cancelled' WHERE id=$1", [id]);
-    await client.query(
-      "UPDATE seats SET is_booked=0, booking_id=NULL WHERE trip_id=$1 AND label=$2", // ⭐ Dùng '0' thay vì FALSE
-      [bookingResult.rows[0].trip_id, bookingResult.rows[0].seat_label]
-    );
-    await client.query(
-      "UPDATE trips SET seats_available = seats_available + 1 WHERE id=$1",
-      [bookingResult.rows[0].trip_id]
-    );
-
-    await commitAndRelease(client);
-    res.json({ message: "Cancelled" });
-  } catch (err) {
-    console.error("Cancel booking failed:", err.message || err);
-    await rollbackAndRelease(client);
-    res.status(500).json({ message: "Cancel booking failed" });
-  }
-});
-
-router.get("/bookings/my", async (req, res) => {
+// GET /bookings/my - Get user's bookings
+router.get('/bookings/my', async (req, res) => {
   const { user_id } = req.query;
-  if (!user_id) return res.status(400).json({ message: "Missing user_id" });
+  if (!user_id) return res.status(400).json({ message: 'Missing user_id' });
+  
   const sql = `
-    SELECT b.id, b.seat_label, b.status, b.price_paid, b.created_at, b.payment_method, b.qr_code,
-           t.departure_time, t.arrival_time, t.operator, t.bus_type,
-           r.origin, r.destination, r.distance_km AS distance, r.duration_min AS duration
+    SELECT b.id, b.status, b.price_paid, b.created_at, b.total_amount,
+           t.departure_time, t.arrival_time, t.operator,
+           r.origin, r.destination,
+           pickup_stop.name AS pickup_location,
+           dropoff_stop.name AS dropoff_location,
+           COALESCE(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]) AS seat_labels
     FROM bookings b
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
-    WHERE b.user_id=$1
+    LEFT JOIN booking_items bi ON bi.booking_id = b.id
+    LEFT JOIN route_stops pickup_stop ON pickup_stop.id = b.pickup_stop_id
+    LEFT JOIN route_stops dropoff_stop ON dropoff_stop.id = b.dropoff_stop_id
+    WHERE b.user_id = $1
+    GROUP BY b.id, t.id, r.id, pickup_stop.id, dropoff_stop.id
     ORDER BY b.created_at DESC
   `;
   try {
     const { rows } = await db.query(sql, [user_id]);
     res.json(rows);
   } catch (err) {
-    console.error("Failed to fetch my bookings:", err);
-    res.status(500).json({ message: "Failed to fetch bookings" });
+    console.error('Failed to fetch bookings:', err);
+    res.status(500).json({ message: 'Failed to fetch bookings' });
   }
 });
 
-router.post("/bookings/:id/payment", async (req, res) => {
-  const { id } = req.params;
-  const { payment_method } = req.body;
-  if (!payment_method) {
-    return res.status(400).json({ message: "Missing payment_method" });
-  }
-
-  const client = await beginTransaction();
-  try {
-    await client.query("BEGIN");
-
-    const bookingResult = await client.query(
-      "SELECT * FROM bookings WHERE id=$1 FOR UPDATE",
-      [id]
-    );
-    if (!bookingResult.rowCount) {
-      await rollbackAndRelease(client);
-      return res.status(404).json({ message: "Booking not found" });
-    }
-    if (bookingResult.rows[0].status !== "pending") {
-      await rollbackAndRelease(client);
-      return res.status(409).json({ message: "Booking already processed" });
-    }
-
-    const qrData = `BOOKING-${id}-${Date.now()}`;
-    await client.query(
-      "UPDATE bookings SET status='confirmed', payment_method=$1, qr_code=$2, payment_time=NOW() WHERE id=$3",
-      [payment_method, qrData, id]
-    );
-
-    await commitAndRelease(client);
-    res.json({
-      message: "Payment confirmed",
-      qr_code: qrData,
-      booking_id: id
-    });
-  } catch (err) {
-    console.error("Payment confirmation failed:", err.message || err);
-    await rollbackAndRelease(client);
-    res.status(500).json({ message: "Payment confirmation failed" });
-  }
-});
-
-router.get("/bookings/:id", async (req, res) => {
+// GET /bookings/:id - Get specific booking details
+router.get('/bookings/:id', async (req, res) => {
   const { id } = req.params;
   const sql = `
-    SELECT b.id, b.user_id, b.trip_id, b.seat_label, b.price_paid, b.status, b.created_at, b.payment_method, b.payment_time, b.qr_code,
-           t.departure_time, t.arrival_time, t.operator, t.bus_type,
-           r.origin, r.destination, r.distance_km AS distance, r.duration_min AS duration
+    SELECT b.*, 
+           t.departure_time, t.arrival_time, t.operator, 
+           r.origin, r.destination, 
+           u.name AS passenger_name, u.phone AS passenger_phone,
+           pickup_stop.name AS pickup_location, pickup_stop.address AS pickup_address,
+           dropoff_stop.name AS dropoff_location, dropoff_stop.address AS dropoff_address,
+           COALESCE(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]) AS seat_labels
     FROM bookings b
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
+    JOIN users u ON u.id = b.user_id
+    LEFT JOIN booking_items bi ON bi.booking_id = b.id
+    LEFT JOIN route_stops pickup_stop ON pickup_stop.id = b.pickup_stop_id
+    LEFT JOIN route_stops dropoff_stop ON dropoff_stop.id = b.dropoff_stop_id
     WHERE b.id=$1
+    GROUP BY b.id, t.id, r.id, u.id, pickup_stop.id, dropoff_stop.id
   `;
   try {
     const { rows } = await db.query(sql, [id]);
-    if (!rows.length) return res.status(404).json({ message: "Booking not found" });
+    if (!rows.length) return res.status(404).json({ message: 'Booking not found' });
     res.json(rows[0]);
   } catch (err) {
-    console.error("Failed to fetch booking:", err);
-    res.status(500).json({ message: "Failed to fetch booking" });
+    console.error('Failed to fetch booking:', err);
+    res.status(500).json({ message: 'Failed to fetch booking' });
+  }
+});
+
+// POST /bookings/:id/cancel
+router.post('/bookings/:id/cancel', async (req, res) => {
+  const { id } = req.params;
+  const client = await beginTransaction();
+  try {
+    await client.query('BEGIN');
+    const bookingRes = await client.query(
+      `SELECT b.id, b.trip_id, b.status, b.total_amount, b.price_paid, t.departure_time
+       FROM bookings b JOIN trips t ON t.id = b.trip_id WHERE b.id=$1 FOR UPDATE`,
+      [id]
+    );
+    if (!bookingRes.rowCount) {
+      await rollbackAndRelease(client);
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+    const booking = bookingRes.rows[0];
+    if (!['confirmed', 'pending'].includes(booking.status)) {
+      await rollbackAndRelease(client);
+      return res.status(409).json({ message: 'Cannot cancel this booking' });
+    }
+
+    const hoursUntilDeparture = (new Date(booking.departure_time) - new Date()) / 36e5;
+    if (hoursUntilDeparture <= 2) {
+        await rollbackAndRelease(client);
+        return res.status(409).json({ message: 'Cannot cancel within 2 hours of departure', canCancel: false });
+    }
+
+    let refundPercentage = 0;
+    if (hoursUntilDeparture >= 24) refundPercentage = 90;
+    else if (hoursUntilDeparture >= 12) refundPercentage = 70;
+    else if (hoursUntilDeparture >= 6) refundPercentage = 50;
+
+    // If there's a recorded paid amount, compute refund; otherwise (unpaid/pending) mark as cancelled
+    let refundAmount = 0;
+    let newStatus = 'cancelled';
+    if (Number(booking.price_paid) > 0) {
+        const baseForRefund = Number(booking.price_paid);
+        refundAmount = Math.floor((baseForRefund * refundPercentage) / 100);
+        newStatus = refundAmount > 0 ? 'pending_refund' : 'cancelled';
+    } else {
+        // unpaid booking: cancel without refund
+        refundAmount = 0;
+        newStatus = 'cancelled';
+    }
+
+    await client.query(
+        'UPDATE bookings SET status=$1, cancelled_at=NOW(), metadata = metadata || $2::jsonb WHERE id=$3',
+        [newStatus, JSON.stringify({ cancellation: { refundAmount, refundPercentage } }), id]
+    );
+
+    const { rowCount: releasedCount } = await client.query('UPDATE seats SET is_booked=0, booking_id=NULL WHERE booking_id=$1', [id]);
+    if (releasedCount > 0) {
+      await client.query('UPDATE trips SET seats_available = seats_available + $1 WHERE id=$2', [releasedCount, booking.trip_id]);
+    }
+
+    await commitAndRelease(client);
+    res.json({ message: 'Booking cancelled successfully', status: newStatus, refundAmount });
+  } catch (err) {
+    console.error('Cancel booking failed:', err.message || err);
+    await rollbackAndRelease(client);
+    res.status(500).json({ message: 'Could not cancel booking' });
+  }
+});
+
+// POST /bookings/:id/payment - confirm payment for a booking (e.g., card)
+router.post('/bookings/:id/payment', async (req, res) => {
+  const { id } = req.params;
+  const { payment_method } = req.body || {};
+  const client = await beginTransaction();
+  try {
+    await client.query('BEGIN');
+    const bookingRes = await client.query(
+      `SELECT b.id, b.trip_id, b.status, b.total_amount, b.price_paid
+       FROM bookings b WHERE b.id=$1 FOR UPDATE`,
+      [id]
+    );
+    if (!bookingRes.rowCount) {
+      await rollbackAndRelease(client);
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+    const booking = bookingRes.rows[0];
+    // Only allow confirming pending bookings
+    if (!['pending'].includes(booking.status)) {
+      await rollbackAndRelease(client);
+      return res.status(409).json({ message: 'Booking cannot be confirmed', status: booking.status });
+    }
+
+    // Mark as confirmed, record payment info. For simplicity we treat card as full payment.
+    const paidAmount = Number(booking.total_amount) || 0;
+    const paymentMeta = { method: payment_method || 'card', note: 'Client confirmed payment' };
+
+    await client.query(
+      `UPDATE bookings SET status=$1, price_paid=$2, payment_method=$3, paid_at=NOW(), metadata = COALESCE(metadata, '{}'::jsonb) || $4::jsonb WHERE id=$5`,
+      ['confirmed', paidAmount, payment_method || 'card', JSON.stringify({ payment: paymentMeta }), id]
+    );
+
+    await commitAndRelease(client);
+    res.json({ message: 'Payment confirmed', booking_id: Number(id), status: 'confirmed', paidAmount });
+  } catch (err) {
+    console.error('Confirm payment failed:', err.message || err);
+    await rollbackAndRelease(client);
+    res.status(500).json({ message: 'Could not confirm payment' });
   }
 });
 

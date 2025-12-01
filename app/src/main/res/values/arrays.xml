@@ -1,32 +1,28 @@
 <resources>
-    <!-- Other arrays can be defined here -->
-    <string-array name="price_ranges">
-        <item>Dưới 100.000đ</item>
-        <item>100.000đ - 200.000đ</item>
-        <item>200.000đ - 300.000đ</item>
-        <item>Trên 300.000đ</item>
-    </string-array>
-
-    <!-- Missing arrays -->
     <string-array name="price_filters">
         <item>Giá</item>
-        <item>Dưới 100.000đ</item>
-        <item>100.000đ - 200.000đ</item>
-        <item>Trên 200.000đ</item>
+        <item>Thấp đến cao</item>
+        <item>Cao đến thấp</item>
     </string-array>
-
     <string-array name="seat_type_filters">
         <item>Loại ghế</item>
         <item>Ghế ngồi</item>
         <item>Giường nằm</item>
     </string-array>
-
     <string-array name="time_filters">
         <item>Giờ đi</item>
         <item>Sáng</item>
         <item>Chiều</item>
         <item>Tối</item>
     </string-array>
+    <array name="initial_price_range">
+        <item>0</item>
+        <item>2000000</item>
+    </array>
+    <array name="initial_time_range">
+        <item>0</item>
+        <item>24</item>
+    </array>
 
     <string-array name="revenue_group_by">
         <item>Theo ngày</item>

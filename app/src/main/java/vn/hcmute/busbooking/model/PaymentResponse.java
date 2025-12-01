@@ -1,9 +1,17 @@
 package vn.hcmute.busbooking.model;
 
 public class PaymentResponse {
+    private String checkoutUrl;
     private String message;
-    private String qr_code;
-    private int booking_id;
+    private String error;
+
+    public String getCheckoutUrl() {
+        return checkoutUrl;
+    }
+
+    public void setCheckoutUrl(String checkoutUrl) {
+        this.checkoutUrl = checkoutUrl;
+    }
 
     public String getMessage() {
         return message;
@@ -13,20 +21,12 @@ public class PaymentResponse {
         this.message = message;
     }
 
-    public String getQr_code() {
-        return qr_code;
+    public String getError() {
+        return error;
     }
 
-    public void setQr_code(String qr_code) {
-        this.qr_code = qr_code;
-    }
-
-    public int getBooking_id() {
-        return booking_id;
-    }
-
-    public void setBooking_id(int booking_id) {
-        this.booking_id = booking_id;
+    public void setError(String error) {
+        this.error = error;
     }
 }
 

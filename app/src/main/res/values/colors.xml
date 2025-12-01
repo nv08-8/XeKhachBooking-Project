@@ -1,32 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Orix Pet Theme Colors -->
-    <color name="colorPrimary">#4D8DFF</color> <!-- Main Blue -->
-    <color name="colorPrimaryDark">#3A7AE0</color> <!-- Darker Blue -->
-    <color name="colorAccent">#FACC15</color> <!-- Yellow Accent -->
-    <color name="colorError">#D32F2F</color> <!-- Red for errors/cancel -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
 
-    <!-- Harmonious Background Gradient -->
-    <color name="gradientStart">#EBF7FF</color> <!-- Very Soft Blue/Cyan -->
-    <color name="gradientCenter">#F1F8E8</color> <!-- Very Soft Green -->
-    <color name="gradientEnd">#FFFFFF</color>   <!-- White -->
+    <color name="colorPrimary">#0077FF</color>
+    <color name="colorPrimaryDark">#0052CC</color>
+    <color name="colorAccent">#FF4081</color>
 
     <color name="textPrimary">#212121</color>
     <color name="textSecondary">#757575</color>
-    <color name="colorSecondary">#616161</color>
-    <color name="textHint">#BDBDBD</color>
-    <color name="textForgotPassword">#FF9800</color> <!-- Bold Orange -->
 
-    <color name="white">#FFFFFF</color>
-    <color name="black">#000000</color>
+    <color name="background">#FFFFFF</color>
+    <color name="backgroundLight">#F5F5F5</color>
 
-    <!-- Missing colors -->
-    <color name="background">#F5F5F5</color>
-    <color name="backgroundPrimary">#F5F5F5</color>
-    <color name="selected_seat">#4CAF50</color>
-    <color name="booked_seat">#F44336</color>
-    <color name="available_seat">#BDBDBD</color>
-    <color name="backgroundGradientEnd">#FFFFFF</color>
-    <color name="backgroundGradientMid">#F1F8E8</color>
-    <color name="backgroundGradientStart">#EBF7FF</color>
+    <color name="appBarBackground">#99FFFFFF</color> <!-- 60% Opaque White -->
+
+    <color name="Green">#4CAF50</color>
+    <color name="lightGreen">#D4EDDA</color>
+    <color name="darkGreen">#155724</color>
+    <color name="lightYellow">#FFF3CD</color>
+    <color name="darkYellow">#856404</color>
+    <color name="lightRed">#F8D7DA</color>
+    <color name="darkRed">#721C24</color>
+    <color name="lightGray">#E2E3E5</color>
+    <color name="darkGray">#383D41</color>
+
+    <color name="bottomNavBackground">#FFFFFF</color>
+    <color name="bottomNavStroke">#E0E0E0</color>
+    <color name="iconCircleBackground">#F0F0F0</color>
+    <color name="backgroundPrimary">#FFFFFF</color>
+    <color name="textHint">#9E9E9E</color>
+    
+    <!-- Seat Colors -->
+    <color name="seat_available_background">#F0F4F7</color>
+    <color name="seat_available_stroke">#D0D8E0</color>
+    <color name="seat_booked_background">#BDBDBD</color> <!-- Darker gray for booked seats -->
+    <color name="seat_booked_text">#FFFFFF</color> <!-- White text for booked seats -->
+    <color name="seat_selected_background">#0077FF</color>
+    
+    <color name="textForgotPassword">#0077FF</color>
+    <color name="gradientCenter">#00000000</color>
+    <color name="red">#FF0000</color>
+
+    <!-- Filter toolbar theme colors -->
+    <!-- Deep navy similar to the reference pill -->
+    <color name="filterToolbarBackground">#0F3B5A</color>
+    <!-- subtle light divider inside the pill -->
+    <color name="filterToolbarDivider">#66FFFFFF</color>
+    <color name="countdownCardBackground">#FFFCECEB</color>
 </resources>

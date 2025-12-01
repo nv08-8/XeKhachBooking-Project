@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_selected="true" android:drawable="@color/selected_seat" />
-    <item android:state_enabled="false" android:drawable="@color/booked_seat" />
-    <item android:drawable="@color/available_seat" />
+    <item android:state_selected="true" android:drawable="@color/seat_selected_background" />
+    <item android:state_enabled="false" android:drawable="@color/seat_booked_background" />
+    <item android:drawable="@color/seat_available_background" />
 </selector>

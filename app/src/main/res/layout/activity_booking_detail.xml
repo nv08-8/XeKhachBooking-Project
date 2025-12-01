@@ -1,203 +1,360 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white">
+    android:background="@drawable/background"
+    tools:context=".activity.BookingDetailActivity">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="24dp">
+        android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Chi tiết vé"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="@color/black"
-            android:layout_marginBottom="16dp"/>
-
-        <ProgressBar
-            android:id="@+id/progressBar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:visibility="gone"/>
-
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.appbar.AppBarLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp">
+            android:background="@android:color/transparent"
+            app:elevation="0dp">
 
-            <LinearLayout
+            <com.google.android.material.appbar.MaterialToolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                app:navigationIcon="@drawable/ic_arrow_back"
+                app:title="Chi tiết vé"
+                app:titleCentered="true"
+                app:titleTextColor="@android:color/black" />
+        </com.google.android.material.appbar.AppBarLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="@android:color/white"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="20dp">
+
+                <!-- Bus Operator Info -->
+                <ImageView
+                    android:id="@+id/ivOperatorLogo"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@android:drawable/ic_menu_gallery"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
 
                 <TextView
-                    android:id="@+id/tvBookingId"
-                    android:layout_width="wrap_content"
+                    android:id="@+id/tvOperatorName"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="Mã vé: #123"
+                    android:layout_marginStart="12dp"
+                    android:text="Hãng xe Phương Trang"
+                    android:textColor="@android:color/black"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/colorPrimary"/>
+                    app:layout_constraintStart_toEndOf="@+id/ivOperatorLogo"
+                    app:layout_constraintTop_toTopOf="@+id/ivOperatorLogo"
+                    app:layout_constraintBottom_toBottomOf="@+id/ivOperatorLogo"/>
 
                 <TextView
                     android:id="@+id/tvStatus"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:background="@drawable/bg_status_confirmed"
+                    android:paddingStart="12dp"
+                    android:paddingTop="6dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="6dp"
                     android:text="Đã xác nhận"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:layout_marginTop="8dp"/>
+                    android:textColor="#34C759"
+                    android:textSize="12sp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="@+id/ivOperatorLogo"
+                    app:layout_constraintBottom_toBottomOf="@+id/ivOperatorLogo"/>
 
                 <View
-                    android:layout_width="match_parent"
+                    android:id="@+id/divider1"
+                    android:layout_width="0dp"
                     android:layout_height="1dp"
-                    android:background="@color/textSecondary"
-                    android:alpha="0.3"
-                    android:layout_marginVertical="12dp"/>
+                    android:layout_marginTop="20dp"
+                    android:background="#E5E5EA"
+                    app:layout_constraintTop_toBottomOf="@id/ivOperatorLogo"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
 
+                <!-- Route Info -->
                 <TextView
-                    android:id="@+id/tvRoute"
+                    android:id="@+id/tvOriginLabel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="TP.HCM → Đà Lạt"
-                    android:textSize="20sp"
+                    android:layout_marginTop="20dp"
+                    android:text="Điểm đi"
+                    android:textColor="@color/textSecondary"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/divider1" />
+
+                <TextView
+                    android:id="@+id/tvOrigin"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Sài Gòn"
+                    android:textColor="@android:color/black"
+                    android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"/>
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/tvOriginLabel" />
 
                 <TextView
                     android:id="@+id/tvDepartureTime"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Khởi hành: 08:00 - 20/11/2024"
-                    android:textSize="14sp"
+                    android:text="08:00"
                     android:textColor="@color/textSecondary"
-                    android:layout_marginTop="8dp"/>
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/tvOrigin" />
+
+                <ImageView
+                    android:id="@+id/ivArrow"
+                    android:layout_width="63dp"
+                    android:layout_height="39dp"
+                    android:src="@drawable/ic_arrow_forward_24"
+                    app:layout_constraintBottom_toBottomOf="@+id/tvOrigin"
+                    app:layout_constraintEnd_toStartOf="@+id/tvDestination"
+                    app:layout_constraintStart_toEndOf="@+id/tvOrigin"
+                    app:layout_constraintTop_toTopOf="@+id/tvOrigin"
+                    app:tint="#007AFF" />
 
                 <TextView
-                    android:id="@+id/tvArrivalTime"
+                    android:id="@+id/tvDestinationLabel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Đến nơi: 14:00 - 20/11/2024"
-                    android:textSize="14sp"
+                    android:text="Điểm đến"
                     android:textColor="@color/textSecondary"
-                    android:layout_marginTop="4dp"/>
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="@+id/tvOriginLabel" />
 
                 <TextView
-                    android:id="@+id/tvOperator"
+                    android:id="@+id/tvDestination"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Nhà xe: Phương Trang"
-                    android:textSize="14sp"
-                    android:textColor="@color/textSecondary"
-                    android:layout_marginTop="4dp"/>
-
-                <TextView
-                    android:id="@+id/tvSeat"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Ghế: A1"
-                    android:textSize="14sp"
-                    android:textColor="@color/textSecondary"
-                    android:layout_marginTop="4dp"/>
-
-                <TextView
-                    android:id="@+id/tvAmount"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Giá vé: 250,000đ"
-                    android:textSize="18sp"
+                    android:text="Đà Lạt"
+                    android:textColor="@android:color/black"
+                    android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="@color/colorPrimary"
-                    android:layout_marginTop="12dp"/>
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/tvDestinationLabel" />
 
                 <TextView
-                    android:id="@+id/tvPaymentMethod"
+                    android:id="@+id/tvArrivalDate"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Thanh toán: MoMo"
-                    android:textSize="14sp"
+                    android:text="Thứ Sáu, 26/07"
                     android:textColor="@color/textSecondary"
-                    android:layout_marginTop="8dp"/>
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/tvDestination" />
+
+                <View
+                    android:id="@+id/divider2"
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="20dp"
+                    android:background="#E5E5EA"
+                    app:layout_constraintTop_toBottomOf="@+id/tvDepartureTime"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+                <!-- Passenger & Seat Info -->
+                <TextView
+                    android:id="@+id/tvPassengerLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="Hành khách"
+                    android:textColor="@color/textSecondary"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/divider2" />
 
                 <TextView
-                    android:id="@+id/tvCreatedAt"
+                    android:id="@+id/tvPassengerName"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Đặt lúc: 07:30 - 19/11/2024"
-                    android:textSize="12sp"
+                    android:text="Nguyễn Văn A"
+                    android:textColor="@android:color/black"
+                    android:textStyle="bold"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="@+id/tvPassengerLabel" />
+
+                <TextView
+                    android:id="@+id/tvPhoneLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Số điện thoại"
                     android:textColor="@color/textSecondary"
-                    android:layout_marginTop="8dp"/>
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/tvPassengerLabel" />
 
-            </LinearLayout>
+                <TextView
+                    android:id="@+id/tvPhoneNumber"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0901234567"
+                    android:textColor="@android:color/black"
+                    android:textStyle="bold"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="@+id/tvPhoneLabel" />
 
-        </androidx.cardview.widget.CardView>
+                <TextView
+                    android:id="@+id/tvSeatLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Số ghế"
+                    android:textColor="@color/textSecondary"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/tvPhoneLabel" />
+
+                <TextView
+                    android:id="@+id/tvSeatNumber"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="A05"
+                    android:textColor="@android:color/black"
+                    android:textStyle="bold"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="@+id/tvSeatLabel" />
+
+                <TextView
+                    android:id="@+id/tvLicensePlateLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Biển số xe"
+                    android:textColor="@color/textSecondary"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/tvSeatLabel" />
+
+                <TextView
+                    android:id="@+id/tvLicensePlate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="51F-123.45"
+                    android:textColor="@android:color/black"
+                    android:textStyle="bold"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="@+id/tvLicensePlateLabel" />
+
+                 <View
+                    android:id="@+id/divider3"
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="20dp"
+                    android:background="#E5E5EA"
+                    app:layout_constraintTop_toBottomOf="@+id/tvLicensePlate"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+                <!-- Total Amount -->
+                <TextView
+                    android:id="@+id/tvTotalLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="Tổng thanh toán"
+                    android:textColor="@color/textSecondary"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/divider3" />
+
+                <TextView
+                    android:id="@+id/tvTotalAmount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="350.000đ"
+                    android:textColor="#007AFF"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="@+id/tvTotalLabel"
+                    app:layout_constraintBottom_toBottomOf="@+id/tvTotalLabel" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </com.google.android.material.card.MaterialCardView>
 
         <!-- QR Code Section -->
         <LinearLayout
-            android:id="@+id/layoutQrCode"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
             android:orientation="vertical"
-            android:gravity="center"
-            android:padding="16dp"
-            android:visibility="visible">
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp">
 
-            <TextView
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Mã QR của bạn"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="@color/black"
-                android:layout_marginBottom="12dp"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Vui lòng xuất trình mã này tại bến xe"
-                android:textSize="12sp"
-                android:textColor="@color/textSecondary"
-                android:layout_marginBottom="12dp"/>
-
-            <androidx.cardview.widget.CardView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="4dp">
+                app:cardBackgroundColor="@android:color/white"
+                app:cardCornerRadius="36dp"
+                app:cardElevation="4dp"
+                app:cardUseCompatPadding="true">
 
                 <ImageView
                     android:id="@+id/ivQrCode"
-                    android:layout_width="300dp"
-                    android:layout_height="300dp"
-                    android:padding="16dp"
-                    android:scaleType="fitCenter"/>
+                    android:layout_width="120dp"
+                    android:layout_height="120dp"
+                    android:layout_margin="30dp" />
 
-            </androidx.cardview.widget.CardView>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:id="@+id/tvQrHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="Đưa mã này cho nhà xe để quét và lên xe"
+                android:textColor="@color/textSecondary" />
+        </LinearLayout>
+
+        <!-- Action Buttons: Pay and Cancel -->
+        <LinearLayout
+            android:id="@+id/actionButtonsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="32dp">
+
+            <Button
+                android:id="@+id/btnPayTicket"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Thanh toán"
+                android:backgroundTint="@color/colorPrimary"
+                android:textColor="@android:color/white"
+                android:visibility="gone"
+                android:layout_marginEnd="12dp" />
+
+            <Button
+                android:id="@+id/btnCancelTicket"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Hủy vé"
+                android:textColor="#FF3B30"
+                android:visibility="gone" />
 
         </LinearLayout>
 
-        <Button
-            android:id="@+id/btnBack"
-            android:layout_width="match_parent"
-            android:layout_height="55dp"
-            android:text="Quay lại"
-            android:textColor="@color/white"
-            android:textSize="16sp"
-            android:backgroundTint="@color/colorPrimary"
-            android:layout_marginTop="16dp"
-            app:cornerRadius="28dp"/>
-
     </LinearLayout>
-
 </ScrollView>
-

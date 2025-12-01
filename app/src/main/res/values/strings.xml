@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">GoUTE</string>
     <string name="slogan">Đặt vé xe khách nhanh chóng</string>
@@ -6,64 +5,96 @@
     <string name="content_description_footer">Footer decoration</string>
 
     <!-- General -->
-    <string name="home">Trang chủ</string>
-    <string name="search_trips">Tìm tuyến xe</string>
-    <string name="my_tickets">Vé của tôi</string>
-    <string name="favorites">Yêu thích</string>
-    <string name="notifications">Thông báo</string>
-    <string name="account">Tài khoản</string>
-    <string name="from">Từ</string>
-    <string name="to">Đến</string>
-    <string name="departure_date">Ngày đi</string>
-    <string name="search">Tìm kiếm</string>
-    <string name="popular_trips">Tuyến phổ biến</string>
-    <string name="promotions">Ưu đãi nổi bật</string>
-    <string name="reviews">Khách hàng nói gì</string>
-    <string name="select_seat">Chọn ghế</string>
-    <string name="pickup_dropoff">Điểm đón/trả</string>
-    <string name="passenger_info">Thông tin hành khách</string>
-    <string name="payment">Thanh toán</string>
-    <string name="continue_button">Tiếp tục</string>
-    <string name="pay">Thanh toán</string>
-
-    <!-- Authentication -->
-    <string name="login_required">Yêu cầu đăng nhập</string>
-    <string name="login">Đăng nhập</string>
-    <string name="register">Đăng ký</string>
     <string name="email">Email</string>
     <string name="password">Mật khẩu</string>
     <string name="confirm_password">Xác nhận mật khẩu</string>
-    <string name="forgot_password">Quên mật khẩu?</string>
-    <string name="password_recovery">Đặt lại mật khẩu</string>
-    <string name="recover_password">Quên mật khẩu</string>
     <string name="full_name">Họ và tên</string>
     <string name="phone_number">Số điện thoại</string>
-    <string name="signup_prompt">Chưa có tài khoản? </string>
-    <string name="signup_link">Đăng ký ▸</string>
-    <string name="login_prompt">Đã có tài khoản? </string>
-    <string name="login_link">Đăng nhập ▸</string>
-    <string name="login_subtitle">Nhập email và mật khẩu của bạn</string>
-    <string name="remember_me">Ghi nhớ đăng nhập</string>
-    <string name="register_subtitle">Tạo tài khoản mới của bạn</string>
-    <string name="create_account">Tạo tài khoản</string>
-    <string name="reset_password_title">Đặt lại mật khẩu</string>
-    <string name="reset_password_instruction">Vui lòng nhập mật khẩu mới cho tài khoản của bạn.</string>
-    <string name="new_password_hint">Mật khẩu mới</string>
-    <string name="confirm_new_password_hint">Nhập lại mật khẩu mới</string>
+    <string name="back_button">Quay lại</string>
     <string name="confirm">Xác nhận</string>
-    <string name="back_button">Back</string>
+    <string name="cancel">Hủy bỏ</string>
+
+    <!-- Authentication (Login, Register, Forgot Password) -->
+    <string name="login">Đăng nhập</string>
+    <string name="login_subtitle">Vui lòng đăng nhập để tiếp tục</string>
+    <string name="remember_me">Ghi nhớ đăng nhập</string>
+    <string name="forgot_password">Quên mật khẩu?</string>
+    <string name="signup_prompt">Chưa có tài khoản?</string>
+    <string name="signup_link">Đăng ký ngay</string>
+    <string name="register">Đăng ký</string>
+    <string name="register_subtitle">Tạo tài khoản mới</string>
+    <string name="create_account">Tạo tài khoản</string>
+    <string name="login_prompt">Đã có tài khoản?</string>
+    <string name="login_link">Đăng nhập</string>
+    <string name="recover_password">Khôi phục mật khẩu</string>
+    <string name="password_recovery">Khôi phục mật khẩu</string>
+    <string name="reset_password_title">Đặt lại mật khẩu</string>
+    <string name="reset_password_instruction">Nhập mật khẩu mới của bạn.</string>
+    <string name="new_password_hint">Mật khẩu mới</string>
+    <string name="confirm_new_password_hint">Xác nhận mật khẩu mới</string>
+
+    <!-- Trip List -->
+    <string name="filter">Lọc</string>
+    <string name="sort">Sắp xếp</string>
+    <string name="filter_empty_state">Không tìm thấy chuyến đi phù hợp.</string>
+    <string name="departure_time">Giờ đi</string>
+    <string name="operator">Nhà xe</string>
+
+    <!-- Trip card -->
+    <string name="label_pickup">Điểm đi</string>
+    <string name="label_dropoff">Điểm đến</string>
+    <string name="label_seats">Ghế: %1$s</string>
+    <string name="select_seat">Chọn ghế</string>
+    <string name="content_description_save_trip">Lưu chuyến đi</string>
 
 
-    <!-- Guest Home -->
-    <string name="origin_hint">Nơi xuất phát</string>
-    <string name="destination_hint">Bạn muốn đến đâu?</string>
-    <string name="return_trip">Khứ hồi</string>
-    <string name="popular_routes">Tuyến đường phổ biến</string>
-    <string name="featured_promotions">Ưu đãi nổi bật</string>
-    <string name="customer_reviews">Đánh giá từ khách hàng</string>
-    <string name="content_description_origin_icon">Origin Icon</string>
-    <string name="content_description_destination_icon">Destination Icon</string>
+    <!-- Booking List -->
+    <string name="no_bookings">Chưa có vé</string>
+    <string name="no_bookings_yet">Bạn chưa có vé nào. Hãy bắt đầu đặt vé ngay!</string>
+    <string name="book_your_first_trip">Đặt chuyến đi đầu tiên</string>
 
+    <!-- Image Slider -->
+    <string name="bus_image_description">Hình ảnh xe</string>
+
+    <!-- Payment -->
+    <string name="title_payment">Thanh toán</string>
+    <string name="label_hold_time">Thời gian giữ vé còn lại</string>
+    <string name="label_subtotal">Tạm tính</string>
+    <string name="hint_promo_code">Mã khuyến mãi</string>
+    <string name="apply_promo">Áp dụng</string>
+    <string name="remove_promo">Xóa</string>
+    <string name="view_promo_details">Xem chi tiết</string>
+    <string name="discount_applied">Giảm %1$s — Tổng: %2$s</string>
+    <string name="label_total">Tổng cộng</string>
+    <string name="label_payment_methods">Chọn phương thức thanh toán</string>
+    <string name="pm_card">Thẻ Tín dụng/Ghi nợ</string>
+    <string name="pm_qr">QR chuyển khoản/Ví điện tử</string>
+    <string name="pm_cash">Thanh toán tại nhà xe</string>
+    <string name="card_number_hint">**** **** **** ****</string>
+    <string name="expiry_hint">MM/YY</string>
+    <string name="cvv_hint">***</string>
+    <string name="btn_confirm_payment">Thanh toán %1$s</string>
+
+    <!-- Messages and Toasts -->
+    <string name="msg_enter_promo">Vui lòng nhập mã giảm giá</string>
+    <string name="msg_invalid_promo">Mã không hợp lệ</string>
+    <string name="msg_network_error">Lỗi mạng khi kiểm tra mã</string>
+    <string name="msg_promo_not_found">Mã không tồn tại</string>
+    <string name="msg_promo_inactive">Mã không còn hiệu lực</string>
+    <string name="msg_promo_expired">Mã đã hết hạn</string>
+    <string name="msg_promo_not_started">Mã chưa có hiệu lực</string>
+    <string name="msg_promo_min_price">Đơn hàng phải &gt;= %1$s để dùng mã</string>
+    <string name="msg_booking_error">Lỗi: %1$s</string>
+    <string name="open_payment_for_booking">Mở trang thanh toán cho vé #%1$d</string>
+    <string name="loading_booking_details">Đang tải chi tiết vé... Đếm ngược sẽ hiển thị ngay sau khi tải.</string>
+    <string name="booking_saved_pay_at_office">Đặt vé lưu thành công. Thanh toán tại nhà xe.</string>
+    <string name="seat_unavailable_title">Ghế đã được đặt</string>
+    <string name="seat_unavailable_message">Rất tiếc, một hoặc nhiều ghế bạn chọn đã được người khác đặt trong lúc bạn thanh toán. Vui lòng quay lại để chọn ghế khác.</string>
+    <string name="select_seats">Chọn lại ghế</string>
+    <string name="payment_success">Đặt vé thành công!</string>
+    <string name="payment_received_message">Cảm ơn bạn! Hệ thống đã nhận thanh toán. Bạn có thể xem vé trong mục \"Vé của tôi\".</string>
+    <string name="view_tickets">Xem vé</string>
+    <string name="hold_started_toast">Bắt đầu đếm ngược: %1$s</string>
     <!-- Account screen texts -->
     <string name="account_title">Thông tin tài khoản</string>
     <string name="account_edit_profile">Chỉnh sửa thông tin</string>
