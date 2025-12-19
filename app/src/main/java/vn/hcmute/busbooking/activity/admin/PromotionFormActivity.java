@@ -29,6 +29,7 @@ public class PromotionFormActivity extends AppCompatActivity {
 
     private ApiService apiService;
     private SessionManager sessionManager;
+    private int editingPromotionId = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,25 +53,81 @@ public class PromotionFormActivity extends AppCompatActivity {
         spinnerStatus = findViewById(R.id.spinnerStatus);
         btnSavePromotion = findViewById(R.id.btnSavePromotion);
 
+        if (getIntent() != null && getIntent().hasExtra("promotion_id")) {
+            editingPromotionId = getIntent().getIntExtra("promotion_id", -1);
+            if (editingPromotionId != -1) {
+                setTitle("Sửa Khuyến mãi");
+                loadPromotionDetails(editingPromotionId);
+            } else {
+                setTitle("Thêm Khuyến mãi");
+            }
+        } else {
+            setTitle("Thêm Khuyến mãi");
+        }
+
         btnSavePromotion.setOnClickListener(v -> savePromotion());
+    }
+
+    private void loadPromotionDetails(int promotionId) {
+        apiService.getPromotionById(sessionManager.getUserId(), promotionId).enqueue(new Callback<Promotion>() {
+            @Override
+            public void onResponse(Call<Promotion> call, Response<Promotion> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Promotion promotion = response.body();
+                    etCode.setText(promotion.getCode());
+                    etDiscountValue.setText(String.valueOf(promotion.getDiscount_value()));
+                    etMinPrice.setText(String.valueOf(promotion.getMin_price()));
+                    etMaxDiscount.setText(String.valueOf(promotion.getMax_discount()));
+                    etStartDate.setText(promotion.getStart_date());
+                    etEndDate.setText(promotion.getEnd_date());
+
+                    // Set spinner selections
+                    if ("percent".equalsIgnoreCase(promotion.getDiscount_type())) {
+                        spinnerDiscountType.setSelection(0);
+                    } else {
+                        spinnerDiscountType.setSelection(1);
+                    }
+
+                    if ("active".equalsIgnoreCase(promotion.getStatus())) {
+                        spinnerStatus.setSelection(0);
+                    } else {
+                        spinnerStatus.setSelection(1);
+                    }
+                } else {
+                    Toast.makeText(PromotionFormActivity.this, "Không thể tải thông tin khuyến mãi", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Promotion> call, Throwable t) {
+                Toast.makeText(PromotionFormActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void savePromotion() {
         Promotion promotion = new Promotion();
         promotion.setCode(etCode.getText().toString());
-        promotion.setDiscountType(spinnerDiscountType.getSelectedItem().toString());
-        promotion.setDiscountValue(Double.parseDouble(etDiscountValue.getText().toString()));
-        promotion.setMinPrice(Double.parseDouble(etMinPrice.getText().toString()));
-        promotion.setMaxDiscount(Double.parseDouble(etMaxDiscount.getText().toString()));
-        promotion.setStartDate(etStartDate.getText().toString());
-        promotion.setEndDate(etEndDate.getText().toString());
+        promotion.setDiscount_type(spinnerDiscountType.getSelectedItem().toString());
+        promotion.setDiscount_value(Double.parseDouble(etDiscountValue.getText().toString()));
+        promotion.setMin_price(Double.parseDouble(etMinPrice.getText().toString()));
+        promotion.setMax_discount(Double.parseDouble(etMaxDiscount.getText().toString()));
+        promotion.setStart_date(etStartDate.getText().toString());
+        promotion.setEnd_date(etEndDate.getText().toString());
         promotion.setStatus(spinnerStatus.getSelectedItem().toString());
 
-        apiService.createPromotion(sessionManager.getUserId(), promotion).enqueue(new Callback<Promotion>() {
+        Call<Promotion> call;
+        if (editingPromotionId != -1) {
+            call = apiService.updatePromotion(sessionManager.getUserId(), editingPromotionId, promotion);
+        } else {
+            call = apiService.createPromotion(sessionManager.getUserId(), promotion);
+        }
+
+        call.enqueue(new Callback<Promotion>() {
             @Override
             public void onResponse(Call<Promotion> call, Response<Promotion> response) {
                 if (response.isSuccessful()) {
-                    Toast.makeText(PromotionFormActivity.this, "Lưu khuyến mãi thành công", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(PromotionFormActivity.this, "Lưu thành công", Toast.LENGTH_SHORT).show();
                     finish();
                 } else {
                     Toast.makeText(PromotionFormActivity.this, "Lưu thất bại", Toast.LENGTH_SHORT).show();

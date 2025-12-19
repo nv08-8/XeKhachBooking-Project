@@ -215,6 +215,13 @@ public interface ApiService {
     @POST("api/admin/promotions")
     Call<Promotion> createPromotion(@Header("user-id") int userId, @Body Promotion promotion);
 
+    @PUT("api/admin/promotions/{id}")
+    Call<Promotion> updatePromotion(@Header("user-id") int userId, @Path("id") int promotionId, @Body Promotion promotion);
+
+    @GET("api/admin/promotions/{id}")
+    Call<Promotion> getPromotionById(@Header("user-id") int userId, @Path("id") int promotionId);
+
     @DELETE("api/admin/promotions/{id}")
     Call<Void> deletePromotion(@Header("user-id") int userId, @Path("id") int promotionId);
+
 }

@@ -19,6 +19,7 @@ public class PromotionsAdapter extends RecyclerView.Adapter<PromotionsAdapter.Pr
     private OnPromotionClickListener listener;
 
     public interface OnPromotionClickListener {
+        void onEditPromotion(Promotion promotion);
         void onDeletePromotion(Promotion promotion);
     }
 
@@ -30,7 +31,7 @@ public class PromotionsAdapter extends RecyclerView.Adapter<PromotionsAdapter.Pr
     @NonNull
     @Override
     public PromotionViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_promotion, parent, false);
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_admin_promotion, parent, false);
         return new PromotionViewHolder(view);
     }
 
@@ -38,8 +39,14 @@ public class PromotionsAdapter extends RecyclerView.Adapter<PromotionsAdapter.Pr
     public void onBindViewHolder(@NonNull PromotionViewHolder holder, int position) {
         Promotion promotion = promotionList.get(position);
         holder.tvPromoCode.setText(promotion.getCode());
-        holder.tvPromoDetails.setText("Giảm " + promotion.getDiscountValue() + (promotion.getDiscountType().equals("percent") ? "%" : "đ"));
-        holder.tvPromoDate.setText("Hết hạn: " + promotion.getEndDate());
+        holder.tvPromoDetails.setText("Giảm " + promotion.getDiscount_value() + (promotion.getDiscount_type().equals("percent") ? "%" : "đ"));
+        holder.tvPromoDate.setText("Hết hạn: " + promotion.getEnd_date());
+
+        holder.btnEditPromotion.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onEditPromotion(promotion);
+            }
+        });
 
         holder.btnDeletePromotion.setOnClickListener(v -> {
             if (listener != null) {
@@ -55,13 +62,14 @@ public class PromotionsAdapter extends RecyclerView.Adapter<PromotionsAdapter.Pr
 
     static class PromotionViewHolder extends RecyclerView.ViewHolder {
         TextView tvPromoCode, tvPromoDetails, tvPromoDate;
-        ImageButton btnDeletePromotion;
+        ImageButton btnEditPromotion, btnDeletePromotion;
 
         public PromotionViewHolder(@NonNull View itemView) {
             super(itemView);
             tvPromoCode = itemView.findViewById(R.id.tvPromoCode);
             tvPromoDetails = itemView.findViewById(R.id.tvPromoDetails);
             tvPromoDate = itemView.findViewById(R.id.tvPromoDate);
+            btnEditPromotion = itemView.findViewById(R.id.btnEditPromotion);
             btnDeletePromotion = itemView.findViewById(R.id.btnDeletePromotion);
         }
     }

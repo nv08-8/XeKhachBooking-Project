@@ -34,7 +34,7 @@ public class PromotionsAdapter extends RecyclerView.Adapter<PromotionsAdapter.Vi
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Promotion promotion = promotionList.get(position);
         Glide.with(holder.ivPromotionImage.getContext())
-                .load(promotion.getImageResource())
+                .load(promotion.getImageResId()) // Corrected method name
                 .centerCrop()
                 .into(holder.ivPromotionImage);
     }

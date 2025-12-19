@@ -27,7 +27,7 @@ import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.Promotion;
 import vn.hcmute.busbooking.utils.SessionManager;
 
-public class ManagePromotionsActivity extends AppCompatActivity {
+public class ManagePromotionsActivity extends AppCompatActivity implements PromotionsAdapter.OnPromotionClickListener {
 
     private RecyclerView rvPromotions;
     private PromotionsAdapter adapter;
@@ -66,14 +66,7 @@ public class ManagePromotionsActivity extends AppCompatActivity {
     }
 
     private void setupRecyclerView() {
-        adapter = new PromotionsAdapter(promotionList, promotion -> {
-            new AlertDialog.Builder(this)
-                    .setTitle("Xác nhận xóa")
-                    .setMessage("Bạn có chắc chắn muốn xóa khuyến mãi " + promotion.getCode() + "?")
-                    .setPositiveButton("Xóa", (dialog, which) -> deletePromotion(promotion.getId()))
-                    .setNegativeButton("Hủy", null)
-                    .show();
-        });
+        adapter = new PromotionsAdapter(promotionList, this);
         rvPromotions.setLayoutManager(new LinearLayoutManager(this));
         rvPromotions.setAdapter(adapter);
     }
@@ -109,6 +102,23 @@ public class ManagePromotionsActivity extends AppCompatActivity {
                 Toast.makeText(ManagePromotionsActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    @Override
+    public void onEditPromotion(Promotion promotion) {
+        Intent intent = new Intent(this, PromotionFormActivity.class);
+        intent.putExtra("promotion_id", promotion.getId());
+        startActivity(intent);
+    }
+
+    @Override
+    public void onDeletePromotion(Promotion promotion) {
+        new AlertDialog.Builder(this)
+                .setTitle("Xác nhận xóa")
+                .setMessage("Bạn có chắc chắn muốn xóa khuyến mãi " + promotion.getCode() + "?")
+                .setPositiveButton("Xóa", (dialog, which) -> deletePromotion(promotion.getId()))
+                .setNegativeButton("Hủy", null)
+                .show();
     }
 
     private void deletePromotion(int promotionId) {

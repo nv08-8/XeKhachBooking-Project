@@ -1,34 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string-array name="price_filters">
-        <item>Giá</item>
-        <item>Thấp đến cao</item>
-        <item>Cao đến thấp</item>
+    <string-array name="discount_types">
+        <item>percent</item>
+        <item>fixed</item>
     </string-array>
-    <string-array name="seat_type_filters">
-        <item>Loại ghế</item>
-        <item>Ghế ngồi</item>
-        <item>Giường nằm</item>
-    </string-array>
-    <string-array name="time_filters">
-        <item>Giờ đi</item>
-        <item>Sáng</item>
-        <item>Chiều</item>
-        <item>Tối</item>
-    </string-array>
-    <array name="initial_price_range">
-        <item>0</item>
-        <item>2000000</item>
-    </array>
-    <array name="initial_time_range">
-        <item>0</item>
-        <item>24</item>
-    </array>
 
-    <string-array name="revenue_group_by">
-        <item>Theo ngày</item>
-        <item>Theo tháng</item>
-        <item>Theo năm</item>
-        <item>Theo tuyến</item>
+    <string-array name="promotion_statuses">
+        <item>active</item>
+        <item>inactive</item>
     </string-array>
 
     <string-array name="booking_status">
@@ -36,5 +15,21 @@
         <item>Chờ xác nhận</item>
         <item>Đã xác nhận</item>
         <item>Đã hủy</item>
+    </string-array>
+
+    <string-array name="revenue_group_by">
+        <item>Ngày</item>
+        <item>Tháng</item>
+        <item>Năm</item>
+    </string-array>
+
+    <string-array name="initial_price_range">
+        <item>0</item>
+        <item>2000000</item>
+    </string-array>
+
+    <string-array name="initial_time_range">
+        <item>0</item>
+        <item>24</item>
     </string-array>
 </resources>
