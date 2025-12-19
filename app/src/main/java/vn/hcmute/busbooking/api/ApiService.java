@@ -5,10 +5,11 @@ import java.util.Map;
 import retrofit2.Call;
 import retrofit2.http.*;
 
-import vn.hcmute.busbooking.model.Trip;
 import vn.hcmute.busbooking.model.Booking;
+import vn.hcmute.busbooking.model.Driver;
 import vn.hcmute.busbooking.model.Location;
-import vn.hcmute.busbooking.model.Seat; // Added Seat import
+import vn.hcmute.busbooking.model.Seat;
+import vn.hcmute.busbooking.model.Trip;
 import vn.hcmute.busbooking.model.User;
 
 public interface ApiService {
@@ -189,5 +190,15 @@ public interface ApiService {
 
     @GET("api/admin/revenue/by-year")
     Call<List<Map<String, Object>>> getRevenueByYear(@Header("user-id") int userId);
+
+    // ========== DRIVERS MANAGEMENT ==========
+    @GET("api/admin/drivers")
+    Call<List<Driver>> getAllDrivers(@Header("user-id") int userId);
+
+    @POST("api/admin/drivers")
+    Call<Driver> createDriver(@Header("user-id") int userId, @Body Map<String, String> body);
+
+    @DELETE("api/admin/drivers/{id}")
+    Call<Void> deleteDriver(@Header("user-id") int userId, @Path("id") int driverId);
 
 }
