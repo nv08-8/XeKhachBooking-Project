@@ -31,6 +31,21 @@ const checkAdminRole = async (req, res, next) => {
 // ROUTES: QUẢN LÝ TUYẾN XE
 // ============================================================
 
+// Lấy một tuyến xe theo ID
+router.get("/routes/:id", checkAdminRole, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await db.query("SELECT * FROM routes WHERE id = $1", [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "Tuyến xe không tìm thấy" });
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(`Error fetching route with id ${id}:`, err);
+        res.status(500).json({ message: "Lỗi khi lấy thông tin tuyến xe" });
+    }
+});
+
 // 1. Thêm tuyến xe mới
 router.post("/routes", checkAdminRole, async (req, res) => {
   const { origin, destination, distance_km, duration_min } = req.body;

@@ -56,8 +56,16 @@ public class ManageRoutesActivity extends AppCompatActivity {
             @Override
             public void onEditRoute(Map<String, Object> route) {
                 Intent intent = new Intent(ManageRoutesActivity.this, RouteFormActivity.class);
-                intent.putExtra("route_id", (Integer) route.get("id"));
-                startActivity(intent);
+                Object idObj = route.get("id");
+                if (idObj != null) {
+                    try {
+                        int routeId = Integer.parseInt(idObj.toString());
+                        intent.putExtra("route_id", routeId);
+                        startActivity(intent);
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(ManageRoutesActivity.this, "ID tuyến đường không hợp lệ", Toast.LENGTH_SHORT).show();
+                    }
+                }
             }
 
             @Override
@@ -67,24 +75,31 @@ public class ManageRoutesActivity extends AppCompatActivity {
                         .setMessage("Bạn có chắc chắn muốn xóa tuyến đường này?")
                         .setPositiveButton("Xóa", (dialog, which) -> {
                             int adminId = sessionManager.getUserId();
-                            int routeId = ((Number) route.get("id")).intValue();
-                            Call<Map<String, Object>> call = apiService.deleteRoute(adminId, routeId);
-                            call.enqueue(new Callback<Map<String, Object>>() {
-                                @Override
-                                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                                    if (response.isSuccessful()) {
-                                        Toast.makeText(ManageRoutesActivity.this, "Xóa thành công", Toast.LENGTH_SHORT).show();
-                                        fetchRoutes();
-                                    } else {
-                                        Toast.makeText(ManageRoutesActivity.this, "Xóa thất bại", Toast.LENGTH_SHORT).show();
-                                    }
-                                }
+                            Object idObj = route.get("id");
+                            if (idObj != null) {
+                                try {
+                                    int routeId = Integer.parseInt(idObj.toString());
+                                    Call<Map<String, Object>> call = apiService.deleteRoute(adminId, routeId);
+                                    call.enqueue(new Callback<Map<String, Object>>() {
+                                        @Override
+                                        public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                                            if (response.isSuccessful()) {
+                                                Toast.makeText(ManageRoutesActivity.this, "Xóa thành công", Toast.LENGTH_SHORT).show();
+                                                fetchRoutes();
+                                            } else {
+                                                Toast.makeText(ManageRoutesActivity.this, "Xóa thất bại", Toast.LENGTH_SHORT).show();
+                                            }
+                                        }
 
-                                @Override
-                                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                                    Toast.makeText(ManageRoutesActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                                        @Override
+                                        public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                                            Toast.makeText(ManageRoutesActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                                        }
+                                    });
+                                } catch (NumberFormatException e) {
+                                    Toast.makeText(ManageRoutesActivity.this, "ID tuyến đường không hợp lệ", Toast.LENGTH_SHORT).show();
                                 }
-                            });
+                            }
                         })
                         .setNegativeButton("Hủy", null)
                         .show();
