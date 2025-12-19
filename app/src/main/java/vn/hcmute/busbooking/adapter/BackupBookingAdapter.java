@@ -5,24 +5,18 @@ import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
-import java.util.TimeZone;
 
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.model.Booking;
 
-// DEPRECATED: Use BookingsAdapter instead for admin bookings with Map data
+// DEPRECATED: This adapter is not fully compatible with the item_booking layout.
 public class BackupBookingAdapter extends RecyclerView.Adapter<BackupBookingAdapter.BookingViewHolder> {
 
     private List<Booking> bookings;
@@ -62,16 +56,24 @@ public class BackupBookingAdapter extends RecyclerView.Adapter<BackupBookingAdap
 
         String origin = booking.getOrigin();
         String destination = booking.getDestination();
-        String seatLabel = booking.getSeat_label();
         String status = booking.getStatus();
-        String departureTimeStr = booking.getDeparture_time();
-        int price = booking.getPrice_paid();
+        String operator = booking.getOperator(); // Assuming Booking model has getOperator()
 
-        holder.tvRoute.setText(origin + " → " + destination);
-        holder.tvSeat.setText("Ghế: " + seatLabel);
+        // The layout has separate TextViews for origin and destination
+        if (holder.tvOrigin != null) {
+            holder.tvOrigin.setText(origin);
+        }
+        if (holder.tvDestination != null) {
+            holder.tvDestination.setText(destination);
+        }
+        if (holder.tvOperator != null) {
+            holder.tvOperator.setText(operator);
+        }
 
-        holder.tvStatus.setText(getStatusText(status));
-        updateStatusBackground(holder.tvStatus, status);
+        if (holder.tvStatus != null) {
+            holder.tvStatus.setText(getStatusText(status));
+            updateStatusBackground(holder.tvStatus, status);
+        }
 
         holder.itemView.setOnClickListener(v -> {
             if (itemClickListener != null) {
@@ -81,7 +83,9 @@ public class BackupBookingAdapter extends RecyclerView.Adapter<BackupBookingAdap
     }
 
     private void updateStatusBackground(TextView textView, String status) {
+        if (textView == null || textView.getBackground() == null) return;
         int colorResId;
+        if (status == null) status = "";
         switch (status) {
             case "confirmed":
                 colorResId = R.color.colorPrimary;
@@ -97,13 +101,18 @@ public class BackupBookingAdapter extends RecyclerView.Adapter<BackupBookingAdap
                 colorResId = R.color.textSecondary;
                 break;
         }
-        GradientDrawable background = (GradientDrawable) textView.getBackground();
-        background.setColor(ContextCompat.getColor(context, colorResId));
+        if (textView.getBackground() instanceof GradientDrawable) {
+            GradientDrawable background = (GradientDrawable) textView.getBackground();
+            background.setColor(ContextCompat.getColor(context, colorResId));
+        } else {
+             // Fallback for other drawables if needed
+             textView.setBackgroundColor(ContextCompat.getColor(context, colorResId));
+        }
     }
 
     @Override
     public int getItemCount() {
-        return bookings.size();
+        return bookings != null ? bookings.size() : 0;
     }
 
     public void updateBookings(List<Booking> newBookings) {
@@ -112,6 +121,7 @@ public class BackupBookingAdapter extends RecyclerView.Adapter<BackupBookingAdap
     }
 
     private String getStatusText(String status) {
+        if (status == null) return "";
         switch (status) {
             case "confirmed": return "Đã xác nhận";
             case "pending": return "Chờ xác nhận";
@@ -122,13 +132,15 @@ public class BackupBookingAdapter extends RecyclerView.Adapter<BackupBookingAdap
     }
 
     static class BookingViewHolder extends RecyclerView.ViewHolder {
-        TextView tvRoute, tvSeat, tvStatus;
+        // Use IDs that actually exist in item_booking.xml
+        TextView tvOrigin, tvDestination, tvStatus, tvOperator;
 
         BookingViewHolder(@NonNull View itemView) {
             super(itemView);
-            tvRoute = itemView.findViewById(R.id.tvBookingRoute);
-            tvSeat = itemView.findViewById(R.id.tvBookingSeat);
-            tvStatus = itemView.findViewById(R.id.tvBookingStatus);
+            tvOrigin = itemView.findViewById(R.id.tvOrigin);
+            tvDestination = itemView.findViewById(R.id.tvDestination);
+            tvStatus = itemView.findViewById(R.id.tvStatus);
+            tvOperator = itemView.findViewById(R.id.tvOperator);
         }
     }
 }

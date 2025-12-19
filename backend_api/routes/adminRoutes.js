@@ -230,7 +230,7 @@ router.put("/bookings/:id/confirm", checkAdminRole, async (req, res) => {
 
   try {
     const result = await db.query(
-      `UPDATE bookings SET status='confirmed', updated_at=NOW() WHERE id=$1 RETURNING *`,
+      `UPDATE bookings SET status='confirmed' WHERE id=$1 RETURNING *`,
       [id]
     );
     if (!result.rows.length) {
@@ -253,7 +253,7 @@ router.put("/bookings/:id/cancel", checkAdminRole, async (req, res) => {
 
     // Lấy thông tin booking
     const bookingResult = await client.query(
-      "SELECT seat_label, trip_id FROM bookings WHERE id=$1",
+      "SELECT trip_id, seats_count FROM bookings WHERE id=$1",
       [id]
     );
 
@@ -263,25 +263,21 @@ router.put("/bookings/:id/cancel", checkAdminRole, async (req, res) => {
       return res.status(404).json({ message: "Đặt vé không tìm thấy" });
     }
 
-    const { seat_label, trip_id } = bookingResult.rows[0];
+    const { trip_id, seats_count } = bookingResult.rows[0];
 
     // Cập nhật trạng thái booking
     await client.query(
-      "UPDATE bookings SET status='cancelled', updated_at=NOW() WHERE id=$1",
+      "UPDATE bookings SET status='cancelled' WHERE id=$1",
       [id]
     );
 
-    // Giải phóng ghế
-    await client.query(
-      "UPDATE seats SET is_booked=0, booking_id=NULL WHERE trip_id=$1 AND label=$2",
-      [trip_id, seat_label]
-    );
-
-    // Tăng số ghế trống
-    await client.query(
-      "UPDATE trips SET seats_available = seats_available + 1 WHERE id=$1",
-      [trip_id]
-    );
+    // Tăng số ghế trống (nếu seats_count > 0)
+    if (seats_count > 0) {
+        await client.query(
+          "UPDATE trips SET seats_available = seats_available + $1 WHERE id=$2",
+          [seats_count, trip_id]
+        );
+    }
 
     await client.query("COMMIT");
     client.release();
@@ -359,7 +355,7 @@ router.get("/revenue/by-route", checkAdminRole, async (req, res) => {
         r.origin,
         r.destination,
         COUNT(b.id) as total_bookings,
-        SUM(b.total_price) as total_revenue
+        SUM(b.total_amount) as total_revenue
       FROM routes r
       JOIN trips t ON t.route_id = r.id
       JOIN bookings b ON b.trip_id = t.id AND b.status = 'confirmed'
@@ -381,7 +377,7 @@ router.get("/revenue/by-date", checkAdminRole, async (req, res) => {
     SELECT
       DATE(b.created_at) as date,
       COUNT(b.id) as total_bookings,
-      SUM(b.total_price) as total_revenue
+      SUM(b.total_amount) as total_revenue
     FROM bookings b
     WHERE b.status = 'confirmed'
   `;
@@ -414,7 +410,7 @@ router.get("/revenue/by-month", checkAdminRole, async (req, res) => {
       SELECT
         TO_CHAR(b.created_at, 'YYYY-MM') as month,
         COUNT(b.id) as total_bookings,
-        SUM(b.total_price) as total_revenue
+        SUM(b.total_amount) as total_revenue
       FROM bookings b
       WHERE b.status = 'confirmed'
       GROUP BY TO_CHAR(b.created_at, 'YYYY-MM')
@@ -434,7 +430,7 @@ router.get("/revenue/by-year", checkAdminRole, async (req, res) => {
       SELECT
         EXTRACT(YEAR FROM b.created_at) as year,
         COUNT(b.id) as total_bookings,
-        SUM(b.total_price) as total_revenue
+        SUM(b.total_amount) as total_revenue
       FROM bookings b
       WHERE b.status = 'confirmed'
       GROUP BY EXTRACT(YEAR FROM b.created_at)

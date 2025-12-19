@@ -29,7 +29,7 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
 
     @Override
     public BookingViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_booking, parent, false);
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_admin_booking, parent, false);
         return new BookingViewHolder(view);
     }
 
@@ -40,15 +40,24 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
         Object idObj = booking.get("id");
         Object originObj = booking.get("origin");
         Object destObj = booking.get("destination");
-        Object seatObj = booking.get("seat_label");
-        Object priceObj = booking.get("price_paid");
+        Object seatObj = booking.get("seat_label"); // Make sure your API returns this key
+        Object priceObj = booking.get("total_price"); // Use total_price as per API response
         Object statusObj = booking.get("status");
 
-        holder.tvBookingId.setText("Đơn #" + (idObj != null ? idObj : "?"));
-        holder.tvBookingRoute.setText((originObj != null ? originObj : "?") + " → " + (destObj != null ? destObj : "?"));
-        holder.tvBookingSeat.setText(seatObj != null ? seatObj.toString() : "?");
-        holder.tvBookingPrice.setText((priceObj != null ? priceObj : "0") + " VNĐ");
+        holder.tvBookingId.setText("Đơn #" + (idObj != null ? idObj.toString() : "?"));
+        holder.tvBookingRoute.setText((originObj != null ? originObj.toString() : "?") + " → " + (destObj != null ? destObj.toString() : "?"));
+        holder.tvBookingSeat.setText("Ghế: " + (seatObj != null ? seatObj.toString() : "?"));
+        holder.tvBookingPrice.setText((priceObj != null ? priceObj.toString() : "0") + " VNĐ");
         holder.tvBookingStatus.setText(statusObj != null ? statusObj.toString() : "");
+
+        // Handle button visibility based on status
+        if ("pending".equalsIgnoreCase(String.valueOf(statusObj))) {
+            holder.btnConfirmBooking.setVisibility(View.VISIBLE);
+            holder.btnCancelBooking.setVisibility(View.VISIBLE);
+        } else {
+            holder.btnConfirmBooking.setVisibility(View.GONE);
+            holder.btnCancelBooking.setVisibility(View.GONE);
+        }
 
         holder.btnConfirmBooking.setOnClickListener(v -> {
             if (listener != null) listener.onConfirmBooking(booking);
@@ -74,10 +83,9 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
             tvBookingRoute = itemView.findViewById(R.id.tvBookingRoute);
             tvBookingSeat = itemView.findViewById(R.id.tvBookingSeat);
             tvBookingPrice = itemView.findViewById(R.id.tvBookingPrice);
-            tvBookingStatus = itemView.findViewById(R.id.tvBookingStatus);
+            tvBookingStatus = itemView.findViewById(R.id.tvStatus);
             btnConfirmBooking = itemView.findViewById(R.id.btnConfirmBooking);
             btnCancelBooking = itemView.findViewById(R.id.btnCancelBooking);
         }
     }
 }
-

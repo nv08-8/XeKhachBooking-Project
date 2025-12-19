@@ -127,7 +127,10 @@ public class ManageBookingsActivity extends AppCompatActivity {
     }
 
     private void handleConfirmBooking(Map<String, Object> booking) {
-        int bookingId = ((Double) booking.get("id")).intValue();
+        Object idObj = booking.get("id");
+        if (idObj == null) return;
+        int bookingId = (int) Double.parseDouble(idObj.toString());
+
         int userId = sessionManager.getUserId();
 
         apiService.confirmAdminBooking(userId, bookingId).enqueue(new Callback<Map<String, Object>>() {
@@ -149,7 +152,10 @@ public class ManageBookingsActivity extends AppCompatActivity {
     }
 
     private void handleCancelBooking(Map<String, Object> booking) {
-        int bookingId = ((Double) booking.get("id")).intValue();
+        Object idObj = booking.get("id");
+        if (idObj == null) return;
+        int bookingId = (int) Double.parseDouble(idObj.toString());
+        
         int userId = sessionManager.getUserId();
 
         apiService.cancelAdminBooking(userId, bookingId).enqueue(new Callback<Map<String, Object>>() {
