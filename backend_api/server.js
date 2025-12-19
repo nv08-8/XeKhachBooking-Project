@@ -38,7 +38,7 @@ app.use("/api/payment", paymentRoutes);
 app.use("/api", busImageRoutes);
 app.use("/api", tripDetailRoutes);
 app.use('/api/seats', seatsRoutes);
-app.use("/api", adminRoutes);
+app.use("/api/admin", adminRoutes);
 
 // small helper to list registered routes (useful for debugging 404s/method mismatches)
 function listRoutes(app) {

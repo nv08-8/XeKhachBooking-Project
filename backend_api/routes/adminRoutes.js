@@ -32,7 +32,7 @@ const checkAdminRole = async (req, res, next) => {
 // ============================================================
 
 // 1. Thêm tuyến xe mới
-router.post("/admin/routes", checkAdminRole, async (req, res) => {
+router.post("/routes", checkAdminRole, async (req, res) => {
   const { origin, destination, distance_km, duration_min } = req.body;
 
   if (!origin || !destination || distance_km === undefined || duration_min === undefined) {
@@ -54,7 +54,7 @@ router.post("/admin/routes", checkAdminRole, async (req, res) => {
 });
 
 // 2. Cập nhật tuyến xe
-router.put("/admin/routes/:id", checkAdminRole, async (req, res) => {
+router.put("/routes/:id", checkAdminRole, async (req, res) => {
   const { id } = req.params;
   const { origin, destination, distance_km, duration_min } = req.body;
 
@@ -77,7 +77,7 @@ router.put("/admin/routes/:id", checkAdminRole, async (req, res) => {
 });
 
 // 3. Xóa tuyến xe
-router.delete("/admin/routes/:id", checkAdminRole, async (req, res) => {
+router.delete("/routes/:id", checkAdminRole, async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -97,7 +97,7 @@ router.delete("/admin/routes/:id", checkAdminRole, async (req, res) => {
 // ============================================================
 
 // 1. Thêm chuyến xe mới
-router.post("/admin/trips", checkAdminRole, async (req, res) => {
+router.post("/trips", checkAdminRole, async (req, res) => {
   const {
     route_id,
     operator,
@@ -135,7 +135,7 @@ router.post("/admin/trips", checkAdminRole, async (req, res) => {
 });
 
 // 2. Cập nhật chuyến xe
-router.put("/admin/trips/:id", checkAdminRole, async (req, res) => {
+router.put("/trips/:id", checkAdminRole, async (req, res) => {
   const { id } = req.params;
   const {
     operator,
@@ -165,7 +165,7 @@ router.put("/admin/trips/:id", checkAdminRole, async (req, res) => {
 });
 
 // 3. Xóa chuyến xe
-router.delete("/admin/trips/:id", checkAdminRole, async (req, res) => {
+router.delete("/trips/:id", checkAdminRole, async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -185,7 +185,7 @@ router.delete("/admin/trips/:id", checkAdminRole, async (req, res) => {
 // ============================================================
 
 // 1. Lấy danh sách tất cả đặt vé (có thể lọc)
-router.get("/admin/bookings", checkAdminRole, async (req, res) => {
+router.get("/bookings", checkAdminRole, async (req, res) => {
   const { trip_id, user_id, status, page = 1, page_size = 50 } = req.query;
   const offset = (page - 1) * page_size;
 
@@ -225,7 +225,7 @@ router.get("/admin/bookings", checkAdminRole, async (req, res) => {
 });
 
 // 2. Xác nhận đặt vé (chuyển từ pending → confirmed)
-router.put("/admin/bookings/:id/confirm", checkAdminRole, async (req, res) => {
+router.put("/bookings/:id/confirm", checkAdminRole, async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -244,7 +244,7 @@ router.put("/admin/bookings/:id/confirm", checkAdminRole, async (req, res) => {
 });
 
 // 3. Hủy đặt vé
-router.put("/admin/bookings/:id/cancel", checkAdminRole, async (req, res) => {
+router.put("/bookings/:id/cancel", checkAdminRole, async (req, res) => {
   const { id } = req.params;
   const client = await db.connect();
 
@@ -299,7 +299,7 @@ router.put("/admin/bookings/:id/cancel", checkAdminRole, async (req, res) => {
 // ROUTES: QUẢN LÝ NGƯỜI DÙNG
 // ============================================================
 
-router.get("/admin/users", checkAdminRole, async (req, res) => {
+router.get("/users", checkAdminRole, async (req, res) => {
   try {
     const result = await db.query("SELECT id, name, email, phone, role, status FROM users ORDER BY id ASC");
     res.json(result.rows);
@@ -309,7 +309,7 @@ router.get("/admin/users", checkAdminRole, async (req, res) => {
   }
 });
 
-router.put("/admin/users/:id", checkAdminRole, async (req, res) => {
+router.put("/users/:id", checkAdminRole, async (req, res) => {
   const { id } = req.params;
   const { name, email, phone, role, status } = req.body;
 
@@ -331,7 +331,7 @@ router.put("/admin/users/:id", checkAdminRole, async (req, res) => {
   }
 });
 
-router.delete("/admin/users/:id", checkAdminRole, async (req, res) => {
+router.delete("/users/:id", checkAdminRole, async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -351,7 +351,7 @@ router.delete("/admin/users/:id", checkAdminRole, async (req, res) => {
 // ============================================================
 
 // 1. Doanh thu theo tuyến xe
-router.get("/admin/revenue/by-route", checkAdminRole, async (req, res) => {
+router.get("/revenue/by-route", checkAdminRole, async (req, res) => {
   try {
     const result = await db.query(`
       SELECT
@@ -359,7 +359,7 @@ router.get("/admin/revenue/by-route", checkAdminRole, async (req, res) => {
         r.origin,
         r.destination,
         COUNT(b.id) as total_bookings,
-        SUM(b.price_paid) as total_revenue
+        SUM(b.total_price) as total_revenue
       FROM routes r
       JOIN trips t ON t.route_id = r.id
       JOIN bookings b ON b.trip_id = t.id AND b.status = 'confirmed'
@@ -374,14 +374,14 @@ router.get("/admin/revenue/by-route", checkAdminRole, async (req, res) => {
 });
 
 // 2. Doanh thu theo ngày
-router.get("/admin/revenue/by-date", checkAdminRole, async (req, res) => {
+router.get("/revenue/by-date", checkAdminRole, async (req, res) => {
   const { from_date, to_date } = req.query;
 
   let sql = `
     SELECT
       DATE(b.created_at) as date,
       COUNT(b.id) as total_bookings,
-      SUM(b.price_paid) as total_revenue
+      SUM(b.total_price) as total_revenue
     FROM bookings b
     WHERE b.status = 'confirmed'
   `;
@@ -408,13 +408,13 @@ router.get("/admin/revenue/by-date", checkAdminRole, async (req, res) => {
 });
 
 // 3. Doanh thu theo tháng
-router.get("/admin/revenue/by-month", checkAdminRole, async (req, res) => {
+router.get("/revenue/by-month", checkAdminRole, async (req, res) => {
   try {
     const result = await db.query(`
       SELECT
         TO_CHAR(b.created_at, 'YYYY-MM') as month,
         COUNT(b.id) as total_bookings,
-        SUM(b.price_paid) as total_revenue
+        SUM(b.total_price) as total_revenue
       FROM bookings b
       WHERE b.status = 'confirmed'
       GROUP BY TO_CHAR(b.created_at, 'YYYY-MM')
@@ -428,13 +428,13 @@ router.get("/admin/revenue/by-month", checkAdminRole, async (req, res) => {
 });
 
 // 4. Doanh thu theo năm
-router.get("/admin/revenue/by-year", checkAdminRole, async (req, res) => {
+router.get("/revenue/by-year", checkAdminRole, async (req, res) => {
   try {
     const result = await db.query(`
       SELECT
         EXTRACT(YEAR FROM b.created_at) as year,
         COUNT(b.id) as total_bookings,
-        SUM(b.price_paid) as total_revenue
+        SUM(b.total_price) as total_revenue
       FROM bookings b
       WHERE b.status = 'confirmed'
       GROUP BY EXTRACT(YEAR FROM b.created_at)
@@ -448,4 +448,3 @@ router.get("/admin/revenue/by-year", checkAdminRole, async (req, res) => {
 });
 
 module.exports = router;
-
