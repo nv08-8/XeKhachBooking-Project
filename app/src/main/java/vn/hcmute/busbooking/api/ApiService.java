@@ -198,7 +198,12 @@ public interface ApiService {
     @POST("api/admin/drivers")
     Call<Driver> createDriver(@Header("user-id") int userId, @Body Map<String, String> body);
 
+    @GET("api/admin/drivers/{id}")
+    Call<Driver> getDriverById(@Header("user-id") int userId, @Path("id") int driverId);
+
+    @PUT("api/admin/drivers/{id}")
+    Call<Driver> updateDriver(@Header("user-id") int userId, @Path("id") int driverId, @Body Map<String, String> body);
+
     @DELETE("api/admin/drivers/{id}")
     Call<Void> deleteDriver(@Header("user-id") int userId, @Path("id") int driverId);
-
 }

@@ -19,6 +19,7 @@ public class DriversAdapter extends RecyclerView.Adapter<DriversAdapter.DriverVi
     private OnDriverClickListener listener;
 
     public interface OnDriverClickListener {
+        void onEditDriver(Driver driver);
         void onDeleteDriver(Driver driver);
     }
 
@@ -41,6 +42,12 @@ public class DriversAdapter extends RecyclerView.Adapter<DriversAdapter.DriverVi
         holder.tvDriverPhone.setText(driver.getPhone());
         holder.tvDriverLicense.setText("GPLX: " + driver.getLicenseNumber());
 
+        holder.btnEditDriver.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onEditDriver(driver);
+            }
+        });
+
         holder.btnDeleteDriver.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onDeleteDriver(driver);
@@ -55,13 +62,14 @@ public class DriversAdapter extends RecyclerView.Adapter<DriversAdapter.DriverVi
 
     static class DriverViewHolder extends RecyclerView.ViewHolder {
         TextView tvDriverName, tvDriverPhone, tvDriverLicense;
-        ImageButton btnDeleteDriver;
+        ImageButton btnEditDriver, btnDeleteDriver;
 
         public DriverViewHolder(@NonNull View itemView) {
             super(itemView);
             tvDriverName = itemView.findViewById(R.id.tvDriverName);
             tvDriverPhone = itemView.findViewById(R.id.tvDriverPhone);
             tvDriverLicense = itemView.findViewById(R.id.tvDriverLicense);
+            btnEditDriver = itemView.findViewById(R.id.btnEditDriver);
             btnDeleteDriver = itemView.findViewById(R.id.btnDeleteDriver);
         }
     }

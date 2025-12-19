@@ -88,9 +88,20 @@ public class ManageBookingsActivity extends AppCompatActivity {
         tvEmptyBookings.setVisibility(View.GONE);
 
         int userId = sessionManager.getUserId();
-        String status = spinnerBookingStatus.getSelectedItem().toString();
-        if (spinnerBookingStatus.getSelectedItemPosition() == 0) {
-            status = "";
+        String status = null;
+        int selectedPosition = spinnerBookingStatus.getSelectedItemPosition();
+        // Assuming the spinner items are: ["Tất cả", "Chờ xác nhận", "Đã xác nhận", "Đã hủy"]
+        switch (selectedPosition) {
+            case 1: // Chờ xác nhận
+                status = "pending";
+                break;
+            case 2: // Đã xác nhận
+                status = "confirmed";
+                break;
+            case 3: // Đã hủy
+                status = "cancelled";
+                break;
+            // case 0 ("Tất cả") will leave status as null, which the API interprets as no filter
         }
 
         Call<List<Map<String, Object>>> call = apiService.getAdminBookings(userId, null, null, status, 1, 50);
@@ -129,50 +140,56 @@ public class ManageBookingsActivity extends AppCompatActivity {
     private void handleConfirmBooking(Map<String, Object> booking) {
         Object idObj = booking.get("id");
         if (idObj == null) return;
-        int bookingId = (int) Double.parseDouble(idObj.toString());
+        try {
+            int bookingId = Integer.parseInt(idObj.toString());
+            int userId = sessionManager.getUserId();
 
-        int userId = sessionManager.getUserId();
-
-        apiService.confirmAdminBooking(userId, bookingId).enqueue(new Callback<Map<String, Object>>() {
-            @Override
-            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                if (response.isSuccessful()) {
-                    Toast.makeText(ManageBookingsActivity.this, "Xác nhận đơn đặt vé thành công", Toast.LENGTH_SHORT).show();
-                    fetchAdminBookings(); // Refresh the list
-                } else {
-                    Toast.makeText(ManageBookingsActivity.this, "Lỗi khi xác nhận", Toast.LENGTH_SHORT).show();
+            apiService.confirmAdminBooking(userId, bookingId).enqueue(new Callback<Map<String, Object>>() {
+                @Override
+                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                    if (response.isSuccessful()) {
+                        Toast.makeText(ManageBookingsActivity.this, "Xác nhận đơn đặt vé thành công", Toast.LENGTH_SHORT).show();
+                        fetchAdminBookings(); // Refresh the list
+                    } else {
+                        Toast.makeText(ManageBookingsActivity.this, "Lỗi khi xác nhận", Toast.LENGTH_SHORT).show();
+                    }
                 }
-            }
 
-            @Override
-            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                Toast.makeText(ManageBookingsActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
+                @Override
+                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                    Toast.makeText(ManageBookingsActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, "ID đặt vé không hợp lệ", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void handleCancelBooking(Map<String, Object> booking) {
         Object idObj = booking.get("id");
         if (idObj == null) return;
-        int bookingId = (int) Double.parseDouble(idObj.toString());
-        
-        int userId = sessionManager.getUserId();
+        try {
+            int bookingId = Integer.parseInt(idObj.toString());
+            int userId = sessionManager.getUserId();
 
-        apiService.cancelAdminBooking(userId, bookingId).enqueue(new Callback<Map<String, Object>>() {
-            @Override
-            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                if (response.isSuccessful()) {
-                    Toast.makeText(ManageBookingsActivity.this, "Hủy đơn đặt vé thành công", Toast.LENGTH_SHORT).show();
-                    fetchAdminBookings(); // Refresh the list
-                } else {
-                    Toast.makeText(ManageBookingsActivity.this, "Lỗi khi hủy", Toast.LENGTH_SHORT).show();
+            apiService.cancelAdminBooking(userId, bookingId).enqueue(new Callback<Map<String, Object>>() {
+                @Override
+                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                    if (response.isSuccessful()) {
+                        Toast.makeText(ManageBookingsActivity.this, "Hủy đơn đặt vé thành công", Toast.LENGTH_SHORT).show();
+                        fetchAdminBookings(); // Refresh the list
+                    } else {
+                        Toast.makeText(ManageBookingsActivity.this, "Lỗi khi hủy", Toast.LENGTH_SHORT).show();
+                    }
                 }
-            }
 
-            @Override
-            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                Toast.makeText(ManageBookingsActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
+                @Override
+                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                    Toast.makeText(ManageBookingsActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, "ID đặt vé không hợp lệ", Toast.LENGTH_SHORT).show();
+        }
     }
 }

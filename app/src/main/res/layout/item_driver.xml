@@ -32,7 +32,7 @@
             android:textColor="@color/textPrimary"
             android:textSize="16sp"
             android:textStyle="bold"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btnEditDriver"
             app:layout_constraintStart_toEndOf="@id/ivDriverIcon"
             app:layout_constraintTop_toTopOf="@id/ivDriverIcon"
             tools:text="Nguyễn Văn A" />
@@ -42,7 +42,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:textColor="@color/textSecondary"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btnEditDriver"
             app:layout_constraintStart_toStartOf="@id/tvDriverName"
             app:layout_constraintTop_toBottomOf="@id/tvDriverName"
             tools:text="0901234567" />
@@ -52,7 +52,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:textColor="@color/textSecondary"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btnEditDriver"
             app:layout_constraintStart_toStartOf="@id/tvDriverName"
             app:layout_constraintTop_toBottomOf="@id/tvDriverPhone"
             tools:text="GPLX: A123456789" />
@@ -67,6 +67,17 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:tint="@color/darkRed" />
+
+        <ImageButton
+            android:id="@+id/btnEditDriver"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_edit"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btnDeleteDriver"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/textSecondary" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>

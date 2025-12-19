@@ -10,7 +10,11 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import vn.hcmute.busbooking.R;
@@ -46,18 +50,51 @@ public class TripsAdapter extends RecyclerView.Adapter<TripsAdapter.TripViewHold
         Map<String, Object> trip = tripList.get(position);
 
         // Set text for the views
-        holder.tvRoute.setText(trip.get("origin") + " → " + trip.get("destination"));
-        holder.tvOperatorAndBusType.setText(trip.get("operator") + " - " + trip.get("bus_type"));
-        holder.tvDepartureTime.setText("Đi: " + trip.get("departure_time")); // You might want to format this date
-        holder.tvPrice.setText(trip.get("price") + " VNĐ");
+        holder.tvOperator.setText(String.valueOf(trip.get("operator")));
+        holder.tvVehicleType.setText(String.valueOf(trip.get("bus_type")));
+        holder.tvOrigin.setText(String.valueOf(trip.get("origin")));
+        holder.tvDestination.setText(String.valueOf(trip.get("destination")));
 
-        // Only show admin actions if the user is an admin
-        if (sessionManager.isAdmin()) {
-            holder.adminActionsLayout.setVisibility(View.VISIBLE);
-        } else {
-            holder.adminActionsLayout.setVisibility(View.GONE);
+        // Format price and time
+        try {
+             holder.tvPrice.setText(String.format(Locale.GERMANY, "%,.0fđ", Double.parseDouble(String.valueOf(trip.get("price")))));
+        } catch(Exception e) {
+            holder.tvPrice.setText(trip.get("price") + "đ");
         }
 
+        String departureTimeStr = String.valueOf(trip.get("departure_time"));
+        String arrivalTimeStr = String.valueOf(trip.get("arrival_time"));
+
+        try {
+            SimpleDateFormat sdfIn = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
+            SimpleDateFormat sdfOutTime = new SimpleDateFormat("HH:mm", Locale.getDefault());
+            SimpleDateFormat sdfOutDate = new SimpleDateFormat("EEE, dd MMM", Locale.getDefault());
+
+            Date departureDate = sdfIn.parse(departureTimeStr);
+            Date arrivalDate = sdfIn.parse(arrivalTimeStr);
+
+            if (departureDate != null) {
+                holder.tvDepartureTime.setText(sdfOutTime.format(departureDate));
+                holder.tvDate.setText(sdfOutDate.format(departureDate));
+            }
+            if (arrivalDate != null) {
+                holder.tvArrivalTime.setText(sdfOutTime.format(arrivalDate));
+            }
+
+            // Calculate and set duration
+            if (departureDate != null && arrivalDate != null) {
+                long diff = arrivalDate.getTime() - departureDate.getTime();
+                long hours = diff / (1000 * 60 * 60);
+                long minutes = (diff / (1000 * 60)) % 60;
+                holder.tvDuration.setText(String.format(Locale.getDefault(), "%d giờ %02d phút", hours, minutes));
+            }
+
+        } catch (ParseException e) {
+            holder.tvDepartureTime.setText(departureTimeStr);
+            holder.tvArrivalTime.setText(arrivalTimeStr);
+        }
+
+        // Set click listeners for the buttons
         holder.btnEdit.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onEditTrip(trip);
@@ -69,6 +106,13 @@ public class TripsAdapter extends RecyclerView.Adapter<TripsAdapter.TripViewHold
                 listener.onDeleteTrip(trip);
             }
         });
+
+        // Only show admin actions if the user is an admin
+        if (sessionManager.isAdmin()) {
+            holder.adminActionsLayout.setVisibility(View.VISIBLE);
+        } else {
+            holder.adminActionsLayout.setVisibility(View.GONE);
+        }
     }
 
     @Override
@@ -77,16 +121,21 @@ public class TripsAdapter extends RecyclerView.Adapter<TripsAdapter.TripViewHold
     }
 
     static class TripViewHolder extends RecyclerView.ViewHolder {
-        TextView tvRoute, tvOperatorAndBusType, tvDepartureTime, tvPrice;
+        TextView tvOperator, tvVehicleType, tvPrice, tvDepartureTime, tvOrigin, tvArrivalTime, tvDestination, tvDuration, tvDate;
         LinearLayout adminActionsLayout;
         Button btnEdit, btnDelete;
 
         public TripViewHolder(@NonNull View itemView) {
             super(itemView);
-            tvRoute = itemView.findViewById(R.id.tvRoute);
-            tvOperatorAndBusType = itemView.findViewById(R.id.tvOperatorAndBusType);
-            tvDepartureTime = itemView.findViewById(R.id.tvDepartureTime);
+            tvOperator = itemView.findViewById(R.id.tvOperator);
+            tvVehicleType = itemView.findViewById(R.id.tvVehicleType);
             tvPrice = itemView.findViewById(R.id.tvPrice);
+            tvDepartureTime = itemView.findViewById(R.id.tvDepartureTime);
+            tvOrigin = itemView.findViewById(R.id.tvOrigin);
+            tvArrivalTime = itemView.findViewById(R.id.tvArrivalTime);
+            tvDestination = itemView.findViewById(R.id.tvDestination);
+            tvDuration = itemView.findViewById(R.id.tvDuration);
+            tvDate = itemView.findViewById(R.id.tvDate);
             adminActionsLayout = itemView.findViewById(R.id.adminActionsLayout);
             btnEdit = itemView.findViewById(R.id.btnEdit);
             btnDelete = itemView.findViewById(R.id.btnDelete);
