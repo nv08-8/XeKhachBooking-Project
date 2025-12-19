@@ -458,4 +458,50 @@ router.get("/revenue/by-year", checkAdminRole, async (req, res) => {
   }
 });
 
+// ============================================================
+// ROUTES: QUẢN LÝ KHUYẾN MÃI
+// ============================================================
+
+// GET all promotions
+router.get("/promotions", checkAdminRole, async (req, res) => {
+    try {
+        const { rows } = await db.query("SELECT * FROM promotions ORDER BY id ASC");
+        res.json(rows);
+    } catch (err) {
+        console.error("Error fetching promotions:", err);
+        res.status(500).json({ message: "Lỗi khi lấy danh sách khuyến mãi" });
+    }
+});
+
+// POST a new promotion
+router.post("/promotions", checkAdminRole, async (req, res) => {
+    const { code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status } = req.body;
+    try {
+        const { rows } = await db.query(
+            `INSERT INTO promotions (code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+            [code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status]
+        );
+        res.status(201).json(rows[0]);
+    } catch (err) {
+        console.error("Error creating promotion:", err);
+        res.status(500).json({ message: "Lỗi khi thêm khuyến mãi" });
+    }
+});
+
+// DELETE a promotion
+router.delete("/promotions/:id", checkAdminRole, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await db.query("DELETE FROM promotions WHERE id = $1 RETURNING *", [id]);
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Không tìm thấy khuyến mãi" });
+        }
+        res.status(200).json({ message: "Xóa khuyến mãi thành công" });
+    } catch (err) {
+        console.error("Error deleting promotion:", err);
+        res.status(500).json({ message: "Lỗi khi xóa khuyến mãi" });
+    }
+});
+
 module.exports = router;

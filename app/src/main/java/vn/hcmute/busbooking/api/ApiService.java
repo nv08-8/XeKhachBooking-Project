@@ -8,6 +8,7 @@ import retrofit2.http.*;
 import vn.hcmute.busbooking.model.Booking;
 import vn.hcmute.busbooking.model.Driver;
 import vn.hcmute.busbooking.model.Location;
+import vn.hcmute.busbooking.model.Promotion;
 import vn.hcmute.busbooking.model.Seat;
 import vn.hcmute.busbooking.model.Trip;
 import vn.hcmute.busbooking.model.User;
@@ -206,4 +207,14 @@ public interface ApiService {
 
     @DELETE("api/admin/drivers/{id}")
     Call<Void> deleteDriver(@Header("user-id") int userId, @Path("id") int driverId);
+
+    // ========== PROMOTIONS MANAGEMENT ==========
+    @GET("api/admin/promotions")
+    Call<List<Promotion>> getAdminPromotions(@Header("user-id") int userId);
+
+    @POST("api/admin/promotions")
+    Call<Promotion> createPromotion(@Header("user-id") int userId, @Body Promotion promotion);
+
+    @DELETE("api/admin/promotions/{id}")
+    Call<Void> deletePromotion(@Header("user-id") int userId, @Path("id") int promotionId);
 }

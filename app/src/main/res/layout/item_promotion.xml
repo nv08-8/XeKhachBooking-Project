@@ -1,17 +1,72 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="300dp"
-    android:layout_height="150dp"
-    android:layout_margin="8dp"
-    app:cardCornerRadius="16dp"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginTop="8dp"
+    android:layout_marginBottom="8dp"
+    app:cardCornerRadius="12dp"
     app:cardElevation="4dp">
 
-    <ImageView
-        android:id="@+id/ivPromotionImage"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:src="@drawable/ic_goute_logo" /> 
+        android:layout_height="wrap_content"
+        android:padding="16dp">
 
-</androidx.cardview.widget.CardView>
+        <ImageView
+            android:id="@+id/ivPromoIcon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_promotions"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/colorPrimary" />
+
+        <TextView
+            android:id="@+id/tvPromoCode"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:textColor="@color/textPrimary"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toStartOf="@+id/btnDeletePromotion"
+            app:layout_constraintStart_toEndOf="@id/ivPromoIcon"
+            app:layout_constraintTop_toTopOf="@id/ivPromoIcon"
+            tools:text="SALE10" />
+
+        <TextView
+            android:id="@+id/tvPromoDetails"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:textColor="@color/textSecondary"
+            app:layout_constraintEnd_toStartOf="@id/btnDeletePromotion"
+            app:layout_constraintStart_toStartOf="@id/tvPromoCode"
+            app:layout_constraintTop_toBottomOf="@id/tvPromoCode"
+            tools:text="Giảm 10% (tối đa 30,000đ)" />
+
+        <TextView
+            android:id="@+id/tvPromoDate"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:textColor="@color/textSecondary"
+            app:layout_constraintEnd_toStartOf="@id/btnDeletePromotion"
+            app:layout_constraintStart_toStartOf="@id/tvPromoCode"
+            app:layout_constraintTop_toBottomOf="@id/tvPromoDetails"
+            tools:text="Hết hạn: 31/12/2025" />
+
+        <ImageButton
+            android:id="@+id/btnDeletePromotion"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_delete"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/darkRed" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>

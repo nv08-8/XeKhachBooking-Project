@@ -39,10 +39,10 @@ public class AdminHomeActivity extends AppCompatActivity {
         if (btnRevenueStats != null) btnRevenueStats.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, RevenueStatsActivity.class)));
         if (btnManageUsers != null) btnManageUsers.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageUsersActivity.class)));
         if (btnManageDrivers != null) btnManageDrivers.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageDriversActivity.class)));
+        if (btnManagePromotions != null) btnManagePromotions.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManagePromotionsActivity.class)));
 
         // TODO: Create these activities
         if (btnManageReviews != null) btnManageReviews.setOnClickListener(v -> showToast("Chức năng đang được phát triển"));
-        if (btnManagePromotions != null) btnManagePromotions.setOnClickListener(v -> showToast("Chức năng đang được phát triển"));
 
         if (btnLogout != null) btnLogout.setOnClickListener(v -> {
             Intent intent = new Intent(AdminHomeActivity.this, LoginActivity.class);
