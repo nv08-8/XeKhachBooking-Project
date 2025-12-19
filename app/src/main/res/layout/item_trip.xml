@@ -258,7 +258,7 @@
         android:padding="8dp"
         android:src="@drawable/ic_favorite_filled"
         app:layout_constraintBottom_toTopOf="@+id/cardView"
-        app:layout_constraintEnd_toEndOf="@+id/cardView"
+        app:layout_constraintEnd_toEndOf="@id/cardView"
         app:layout_constraintTop_toTopOf="@+id/cardView"
         app:tint="@color/textSecondary" />
 

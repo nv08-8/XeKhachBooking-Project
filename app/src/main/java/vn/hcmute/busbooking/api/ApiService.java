@@ -14,9 +14,9 @@ import vn.hcmute.busbooking.model.User;
 public interface ApiService {
 
     @GET("api/trips")
-    Call<List<Trip>> getTrips(@Query("origin") String origin,
-                              @Query("destination") String destination,
-                              @Query("date") String date);
+    Call<List<Map<String, Object>>> getTrips(@Query("origin") String origin,
+                                            @Query("destination") String destination,
+                                            @Query("date") String date);
 
     @GET("api/routes")
     Call<List<Map<String, Object>>> getRoutes(

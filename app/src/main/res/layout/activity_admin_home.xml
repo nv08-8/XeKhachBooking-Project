@@ -1,309 +1,269 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/admin_root"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/background">
+    android:padding="16dp"
+    tools:context=".activity.admin.AdminHomeActivity">
 
-    <!-- Header with Primary Background -->
-    <FrameLayout
+    <TextView
+        android:id="@+id/tvGreeting"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/admin_panel_title"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
+    <GridLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/colorPrimary">
+        android:layout_marginTop="24dp"
+        android:columnCount="2">
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnManageRoutes"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="24dp">
+            android:layout_columnWeight="1"
+            android:layout_margin="8dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
 
-            <TextView
-                android:id="@+id/tvGreeting"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/admin_panel_title"
-                android:textColor="@color/white"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="8dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Quản lý hệ thống đặt vé xe khách"
-                android:textColor="#E0E0E0"
-                android:textSize="14sp" />
-
-        </LinearLayout>
-    </FrameLayout>
-
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="16dp"
-        android:clipToPadding="false">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <!-- Action Grid -->
-            <GridLayout
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:columnCount="2"
-                android:rowCount="3"
-                android:alignmentMode="alignMargins"
-                android:columnOrderPreserved="false"
-                android:useDefaultMargins="true">
+                android:orientation="vertical"
+                android:padding="16dp">
 
-                <!-- Manage Routes -->
-                <androidx.cardview.widget.CardView
-                    android:id="@+id/btnManageRoutes"
-                    android:layout_width="0dp"
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_route"
+                    app:tint="@color/colorPrimary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:layout_rowWeight="1"
-                    android:layout_marginEnd="8dp"
-                    android:layout_marginBottom="16dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="6dp"
-                    android:clickable="true"
-                    android:foreground="?attr/selectableItemBackground">
+                    android:layout_marginTop="8dp"
+                    android:text="Quản lý Tuyến" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="20dp"
-                        android:background="#E8F5E9">
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnManageTrips"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="8dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
 
-                        <ImageView
-                            android:layout_width="44dp"
-                            android:layout_height="44dp"
-                            android:src="@drawable/ic_bus"
-                            app:tint="#2E7D32"
-                            android:layout_marginBottom="10dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/btn_manage_routes"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:textColor="#2E7D32"
-                            android:gravity="center" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_trip"
+                    app:tint="@color/colorPrimary" />
 
-                <!-- Manage Trips -->
-                <androidx.cardview.widget.CardView
-                    android:id="@+id/btnManageTrips"
-                    android:layout_width="0dp"
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:layout_rowWeight="1"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginBottom="16dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="6dp"
-                    android:clickable="true"
-                    android:foreground="?attr/selectableItemBackground">
+                    android:layout_marginTop="8dp"
+                    android:text="Quản lý Chuyến" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="20dp"
-                        android:background="#FFF3E0">
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnManageBookings"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="8dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
 
-                        <ImageView
-                            android:layout_width="44dp"
-                            android:layout_height="44dp"
-                            android:src="@drawable/ic_trip"
-                            app:tint="#EF6C00"
-                            android:layout_marginBottom="10dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Quản lý chuyến đi"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:textColor="#EF6C00"
-                            android:gravity="center" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_booking"
+                    app:tint="@color/colorPrimary" />
 
-                <!-- Manage Bookings -->
-                <androidx.cardview.widget.CardView
-                    android:id="@+id/btnManageBookings"
-                    android:layout_width="0dp"
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:layout_rowWeight="1"
-                    android:layout_marginEnd="8dp"
-                    android:layout_marginBottom="16dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="6dp"
-                    android:clickable="true"
-                    android:foreground="?attr/selectableItemBackground">
+                    android:layout_marginTop="8dp"
+                    android:text="Quản lý Đặt vé" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="20dp"
-                        android:background="#E3F2FD">
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnRevenueStats"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="8dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
 
-                        <ImageView
-                            android:layout_width="44dp"
-                            android:layout_height="44dp"
-                            android:src="@drawable/ic_ticket"
-                            app:tint="#1565C0"
-                            android:layout_marginBottom="10dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/btn_manage_bookings"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:textColor="#1565C0"
-                            android:gravity="center" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_revenue"
+                    app:tint="@color/colorPrimary" />
 
-                <!-- Revenue Stats -->
-                <androidx.cardview.widget.CardView
-                    android:id="@+id/btnRevenueStats"
-                    android:layout_width="0dp"
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:layout_rowWeight="1"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginBottom="16dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="6dp"
-                    android:clickable="true"
-                    android:foreground="?attr/selectableItemBackground">
+                    android:layout_marginTop="8dp"
+                    android:text="Doanh thu" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="20dp"
-                        android:background="#FFF8E1">
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnManageUsers"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="8dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
 
-                        <ImageView
-                            android:layout_width="44dp"
-                            android:layout_height="44dp"
-                            android:src="@drawable/ic_chart_bar"
-                            app:tint="#F9A825"
-                            android:layout_marginBottom="10dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/btn_revenue_stats"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:textColor="#F9A825"
-                            android:gravity="center" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_manage_accounts"
+                    app:tint="@color/colorPrimary" />
 
-                <!-- Manage Users -->
-                <androidx.cardview.widget.CardView
-                    android:id="@+id/btnManageUsers"
-                    android:layout_width="0dp"
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:layout_rowWeight="1"
-                    android:layout_marginEnd="8dp"
-                    android:layout_marginBottom="16dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="6dp"
-                    android:clickable="true"
-                    android:foreground="?attr/selectableItemBackground">
+                    android:layout_marginTop="8dp"
+                    android:text="Người dùng" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="20dp"
-                        android:background="#F3E5F5">
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnManageDrivers"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="8dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
 
-                        <ImageView
-                            android:layout_width="44dp"
-                            android:layout_height="44dp"
-                            android:src="@drawable/ic_manage_accounts"
-                            app:tint="#6A1B9A"
-                            android:layout_marginBottom="10dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Quản lý người dùng"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:textColor="#6A1B9A"
-                            android:gravity="center" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_driver"
+                    app:tint="@color/colorPrimary" />
 
-                <!-- Logout -->
-                <androidx.cardview.widget.CardView
-                    android:id="@+id/btnLogout"
-                    android:layout_width="0dp"
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:layout_rowWeight="1"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginBottom="16dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="6dp"
-                    android:clickable="true"
-                    android:foreground="?attr/selectableItemBackground">
+                    android:layout_marginTop="8dp"
+                    android:text="Tài xế" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="20dp"
-                        android:background="#FFEBEE">
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnManageReviews"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="8dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
 
-                        <ImageView
-                            android:layout_width="44dp"
-                            android:layout_height="44dp"
-                            android:src="@drawable/ic_logout"
-                            app:tint="#D32F2F"
-                            android:layout_marginBottom="10dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/login_out"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:textColor="#D32F2F"
-                            android:gravity="center" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_reviews"
+                    app:tint="@color/colorPrimary" />
 
-            </GridLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Đánh giá" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnManagePromotions"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_margin="8dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
 
-        </LinearLayout>
-    </ScrollView>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_promotions"
+                    app:tint="@color/colorPrimary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Khuyến mãi" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+    </GridLayout>
+
+    <Button
+        android:id="@+id/btnLogout"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Đăng xuất"
+        app:icon="@drawable/ic_logout"
+        app:iconTint="@color/colorPrimary" />
 
 </LinearLayout>
