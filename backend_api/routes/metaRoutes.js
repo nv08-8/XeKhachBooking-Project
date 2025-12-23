@@ -124,18 +124,14 @@ router.get("/popular", async (req, res) => {
         duration_min: row.duration_min ? Number(row.duration_min) : null,
         sample_operator: sampleTrip?.operator || null,
         sample_bus_type: sampleTrip?.bus_type || null,
-        image_url: imageUrl
+        image_url: imageUrl,
+        image: imageUrl
       };
     }));
 
     console.log(`\n📤 [/api/popular] Sending response with ${routesWithImages.length} routes:`);
     routesWithImages.forEach((r, i) => {
       console.log(`  ${i + 1}. ${r.name} - ${r.image_url ? '✅ Has image' : '❌ No image'}`);
-    });
-
-    res.json(routesWithImages || []);
-    routesWithImages.forEach((r, i) => {
-      console.log(`  ${i + 1}. ${r.name}: ${r.image_url ? '✅ Has image' : '❌ No image'}`);
     });
 
     res.json(routesWithImages || []);
