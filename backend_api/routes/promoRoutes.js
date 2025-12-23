@@ -13,7 +13,14 @@ router.get("/promotions", async (req, res) => {
   `;
   try {
     const { rows } = await db.query(nowSql);
-    res.json(rows);
+    // Convert numeric strings to actual numbers for mobile app compatibility
+    const converted = rows.map(row => ({
+      ...row,
+      discount_value: row.discount_value ? Number(row.discount_value) : 0,
+      min_price: row.min_price ? Number(row.min_price) : 0,
+      max_discount: row.max_discount ? Number(row.max_discount) : null
+    }));
+    res.json(converted);
   } catch (err) {
     console.error("Failed to fetch promotions:", err.stack || err);
     res.status(500).json({ message: "Failed to fetch promotions", error: (err && err.message) || String(err) });
@@ -33,7 +40,14 @@ router.get("/promotions/featured", async (req, res) => {
   `;
   try {
     const { rows } = await db.query(sql, [limit]);
-    res.json(rows);
+    // Convert numeric strings to actual numbers for mobile app compatibility
+    const converted = rows.map(row => ({
+      ...row,
+      discount_value: row.discount_value ? Number(row.discount_value) : 0,
+      min_price: row.min_price ? Number(row.min_price) : 0,
+      max_discount: row.max_discount ? Number(row.max_discount) : null
+    }));
+    res.json(converted);
   } catch (err) {
     console.error("Failed to fetch featured promotions:", err);
     res.status(500).json({ message: "Failed to fetch featured promotions" });

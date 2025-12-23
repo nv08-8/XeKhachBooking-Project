@@ -40,17 +40,42 @@ router.get("/popular", async (req, res) => {
       ROUND(AVG(t.price), 2) AS avg_price,
       COUNT(DISTINCT t.id) AS trip_count,
       r.distance_km,
-      r.duration_min
+      r.duration_min,
+      r.id as route_id
     FROM trips t
     JOIN routes r ON r.id = t.route_id
-    GROUP BY r.origin, r.destination, r.distance_km, r.duration_min
+    GROUP BY r.id, r.origin, r.destination, r.distance_km, r.duration_min
     HAVING SUM(t.seats_total - t.seats_available) > 0
     ORDER BY seats_booked DESC
     LIMIT 10;
   `;
   try {
     const { rows } = await db.query(aggQuery);
-    res.json(rows || []);
+
+    // For each route, get a sample trip to extract operator and bus_type for image
+    const routesWithImages = await Promise.all(rows.map(async (row) => {
+      const sampleTripQuery = `
+        SELECT operator, bus_type
+        FROM trips
+        WHERE route_id = $1
+        LIMIT 1
+      `;
+      const { rows: tripRows } = await db.query(sampleTripQuery, [row.route_id]);
+      const sampleTrip = tripRows && tripRows[0];
+
+      return {
+        ...row,
+        seats_booked: row.seats_booked ? Number(row.seats_booked) : 0,
+        avg_price: row.avg_price ? Number(row.avg_price) : 0,
+        trip_count: row.trip_count ? Number(row.trip_count) : 0,
+        distance_km: row.distance_km ? Number(row.distance_km) : null,
+        duration_min: row.duration_min ? Number(row.duration_min) : null,
+        sample_operator: sampleTrip?.operator || null,
+        sample_bus_type: sampleTrip?.bus_type || null
+      };
+    }));
+
+    res.json(routesWithImages || []);
   } catch (err) {
     console.error("Failed computing popular routes:", err.message || err);
     return res.status(500).json({ error: "Failed to fetch popular routes" });
