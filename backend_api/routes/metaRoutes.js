@@ -63,6 +63,43 @@ router.get("/popular", async (req, res) => {
       const { rows: tripRows } = await db.query(sampleTripQuery, [row.route_id]);
       const sampleTrip = tripRows && tripRows[0];
 
+      // Fetch a valid image URL from bus_images table
+      let imageUrl = null;
+      if (sampleTrip?.bus_type) {
+        try {
+          const imageQuery = `
+            SELECT image_urls
+            FROM bus_images
+            WHERE LOWER(TRIM(bus_type)) = LOWER(TRIM($1))
+            LIMIT 1
+          `;
+          const { rows: imageRows } = await db.query(imageQuery, [sampleTrip.bus_type]);
+
+          if (imageRows && imageRows[0]) {
+            let imageUrls = [];
+            const foundUrls = imageRows[0].image_urls;
+
+            // Parse image_urls from JSONB
+            if (typeof foundUrls === 'string') {
+              imageUrls = JSON.parse(foundUrls);
+            } else if (Array.isArray(foundUrls)) {
+              imageUrls = foundUrls;
+            }
+
+            // Filter out TikTok URLs and pick the first valid one
+            const nonTikTokUrls = imageUrls.filter(url =>
+              url && typeof url === 'string' && !url.includes('tiktok.com')
+            );
+
+            if (nonTikTokUrls.length > 0) {
+              imageUrl = nonTikTokUrls[0];
+            }
+          }
+        } catch (imgErr) {
+          console.error(`Error fetching image for bus_type ${sampleTrip.bus_type}:`, imgErr);
+        }
+      }
+
       return {
         ...row,
         seats_booked: row.seats_booked ? Number(row.seats_booked) : 0,
@@ -71,7 +108,8 @@ router.get("/popular", async (req, res) => {
         distance_km: row.distance_km ? Number(row.distance_km) : null,
         duration_min: row.duration_min ? Number(row.duration_min) : null,
         sample_operator: sampleTrip?.operator || null,
-        sample_bus_type: sampleTrip?.bus_type || null
+        sample_bus_type: sampleTrip?.bus_type || null,
+        image_url: imageUrl
       };
     }));
 
