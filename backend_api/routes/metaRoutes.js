@@ -99,11 +99,17 @@ router.get("/popular", async (req, res) => {
             );
             console.log(`  ✅ Non-TikTok URLs: ${nonTikTokUrls.length}`);
 
-            if (nonTikTokUrls.length > 0) {
-              imageUrl = nonTikTokUrls[0];
+            // Prefer common raster formats (png/jpg/jpeg/webp), skip svg/html-like to avoid decoder errors
+            const rasterUrls = nonTikTokUrls.filter(url =>
+              /\.(png|jpe?g|webp)(\?.*)?$/i.test(url.trim())
+            );
+            const candidates = rasterUrls.length > 0 ? rasterUrls : nonTikTokUrls;
+
+            if (candidates.length > 0) {
+              imageUrl = candidates[0].trim();
               console.log(`  🎯 Selected image: ${imageUrl.substring(0, 80)}...`);
             } else {
-              console.log(`  ⚠️ All URLs are TikTok links, no valid image`);
+              console.log(`  ⚠️ No usable raster image URLs after filtering`);
             }
           } else {
             console.log(`  ❌ No matching bus_type in bus_images table`);
@@ -133,6 +139,7 @@ router.get("/popular", async (req, res) => {
     routesWithImages.forEach((r, i) => {
       console.log(`  ${i + 1}. ${r.name} - ${r.image_url ? '✅ Has image' : '❌ No image'}`);
     });
+
 
     res.json(routesWithImages || []);
   } catch (err) {
