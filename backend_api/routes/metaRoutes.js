@@ -51,9 +51,12 @@ router.get("/popular", async (req, res) => {
   `;
   try {
     const { rows } = await db.query(aggQuery);
+    console.log(`\n📊 [/api/popular] Found ${rows.length} popular routes`);
 
     // For each route, get a sample trip to extract operator and bus_type for image
-    const routesWithImages = await Promise.all(rows.map(async (row) => {
+    const routesWithImages = await Promise.all(rows.map(async (row, index) => {
+      console.log(`\n🔍 Route ${index + 1}: ${row.name}`);
+
       const sampleTripQuery = `
         SELECT operator, bus_type
         FROM trips
@@ -62,10 +65,12 @@ router.get("/popular", async (req, res) => {
       `;
       const { rows: tripRows } = await db.query(sampleTripQuery, [row.route_id]);
       const sampleTrip = tripRows && tripRows[0];
+      console.log(`  📍 Sample trip - operator: "${sampleTrip?.operator}", bus_type: "${sampleTrip?.bus_type}"`);
 
       // Fetch a valid image URL from bus_images table
       let imageUrl = null;
       if (sampleTrip?.bus_type) {
+        console.log(`  🖼️ Querying bus_images for bus_type: "${sampleTrip.bus_type}"`);
         try {
           const imageQuery = `
             SELECT image_urls
@@ -74,6 +79,7 @@ router.get("/popular", async (req, res) => {
             LIMIT 1
           `;
           const { rows: imageRows } = await db.query(imageQuery, [sampleTrip.bus_type]);
+          console.log(`  📦 Query result: ${imageRows && imageRows.length > 0 ? 'Found' : 'Not found'}`);
 
           if (imageRows && imageRows[0]) {
             let imageUrls = [];
@@ -85,19 +91,28 @@ router.get("/popular", async (req, res) => {
             } else if (Array.isArray(foundUrls)) {
               imageUrls = foundUrls;
             }
+            console.log(`  🔗 Total image URLs found: ${imageUrls.length}`);
 
             // Filter out TikTok URLs and pick the first valid one
             const nonTikTokUrls = imageUrls.filter(url =>
               url && typeof url === 'string' && !url.includes('tiktok.com')
             );
+            console.log(`  ✅ Non-TikTok URLs: ${nonTikTokUrls.length}`);
 
             if (nonTikTokUrls.length > 0) {
               imageUrl = nonTikTokUrls[0];
+              console.log(`  🎯 Selected image: ${imageUrl.substring(0, 80)}...`);
+            } else {
+              console.log(`  ⚠️ All URLs are TikTok links, no valid image`);
             }
+          } else {
+            console.log(`  ❌ No matching bus_type in bus_images table`);
           }
         } catch (imgErr) {
-          console.error(`Error fetching image for bus_type ${sampleTrip.bus_type}:`, imgErr);
+          console.error(`  ❌ Error fetching image for bus_type ${sampleTrip.bus_type}:`, imgErr.message);
         }
+      } else {
+        console.log(`  ⚠️ No bus_type available, skipping image lookup`);
       }
 
       return {
@@ -112,6 +127,16 @@ router.get("/popular", async (req, res) => {
         image_url: imageUrl
       };
     }));
+
+    console.log(`\n📤 [/api/popular] Sending response with ${routesWithImages.length} routes:`);
+    routesWithImages.forEach((r, i) => {
+      console.log(`  ${i + 1}. ${r.name} - ${r.image_url ? '✅ Has image' : '❌ No image'}`);
+    });
+
+    res.json(routesWithImages || []);
+    routesWithImages.forEach((r, i) => {
+      console.log(`  ${i + 1}. ${r.name}: ${r.image_url ? '✅ Has image' : '❌ No image'}`);
+    });
 
     res.json(routesWithImages || []);
   } catch (err) {
