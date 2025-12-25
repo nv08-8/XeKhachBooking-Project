@@ -15,7 +15,6 @@ const promoRoutes = require("./routes/promoRoutes");
 const metaRoutes = require("./routes/metaRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const busImageRoutes = require("./routes/busImageRoutes");
-const tripDetailRoutes = require("./routes/tripDetailRoutes");
 const seatsRoutes = require("./routes/seatsRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 
@@ -36,7 +35,6 @@ app.use("/api", promoRoutes);
 app.use("/api", metaRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api", busImageRoutes);
-app.use("/api", tripDetailRoutes);
 app.use('/api/seats', seatsRoutes);
 app.use("/api/admin", adminRoutes);
 
