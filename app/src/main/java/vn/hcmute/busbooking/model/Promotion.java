@@ -1,7 +1,9 @@
 package vn.hcmute.busbooking.model;
 
+import java.util.Map;
+
 public class Promotion {
-    private long id;
+    private int id;
     private String code;
     private String discount_type;
     private double discount_value;
@@ -110,14 +112,6 @@ public class Promotion {
     public void setDescription(String description) { this.description = description; }
     public int getImageResId() { return imageResId; }
     public void setImageResId(int imageResId) { this.imageResId = imageResId; }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public String getDescription() {
-        return description;
-    }
 
     public int getImageResource() {
         return imageResource;
