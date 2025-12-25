@@ -448,6 +448,52 @@ router.get("/revenue/by-year", checkAdminRole, async (req, res) => {
   }
 });
 
+// 5. Chi tiết doanh thu
+router.get("/revenue/details", checkAdminRole, async (req, res) => {
+  const { group_by, value } = req.query;
+  let sql = `
+    SELECT
+      b.id AS booking_id,
+      u.name AS user_name,
+      r.origin || ' - ' || r.destination AS route_info,
+      t.departure_time,
+      b.seats_count AS ticket_count,
+      b.total_amount AS total_price
+    FROM bookings b
+    JOIN users u ON u.id = b.user_id
+    JOIN trips t ON t.id = b.trip_id
+    JOIN routes r ON r.id = t.route_id
+    WHERE b.status = 'confirmed'
+  `;
+  const params = [];
+
+  if (group_by === "day") {
+    sql += ` AND DATE(b.created_at) = $1`;
+    params.push(value);
+  } else if (group_by === "month") {
+    sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $1`;
+    params.push(value);
+  } else if (group_by === "year") {
+    sql += ` AND EXTRACT(YEAR FROM b.created_at) = $1`;
+    params.push(value);
+  } else if (group_by === "route") {
+    // Assuming value is route_id
+    sql += ` AND t.route_id = $1`;
+    params.push(value);
+  }
+
+  sql += " ORDER BY t.departure_time DESC";
+
+  try {
+    const result = await db.query(sql, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching revenue details:", err);
+    res.status(500).json({ message: "Lỗi khi lấy chi tiết doanh thu" });
+  }
+});
+
+
 // ======================// ROUTES: QUẢN LÝ KHUYẾN MÃI// ============================================================
 
 // GET all promotions

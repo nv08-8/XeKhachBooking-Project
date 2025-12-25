@@ -7,7 +7,11 @@ import android.widget.Button;
 import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import vn.hcmute.busbooking.R;
@@ -33,13 +37,27 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
         return new BookingViewHolder(view);
     }
 
+    private String formatDateTime(String dateTimeStr) {
+        if (dateTimeStr == null) return "";
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+            Date date = sdf.parse(dateTimeStr);
+            SimpleDateFormat newSdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
+            return newSdf.format(date);
+        } catch (ParseException e) {
+            return dateTimeStr; // Return original if parsing fails
+        }
+    }
+
     @Override
     public void onBindViewHolder(BookingViewHolder holder, int position) {
         Map<String, Object> booking = bookings.get(position);
 
         Object idObj = booking.get("id");
+        Object userNameObj = booking.get("name");
         Object originObj = booking.get("origin");
         Object destObj = booking.get("destination");
+        Object departureTimeObj = booking.get("departure_time");
         Object seatLabelsObj = booking.get("seat_labels");
         Object priceObj = booking.get("total_amount");
         Object statusObj = booking.get("status");
@@ -47,8 +65,14 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
         if (holder.tvBookingId != null) {
             holder.tvBookingId.setText("Đơn #" + (idObj != null ? idObj.toString() : "?"));
         }
+        if (holder.tvUserName != null) {
+            holder.tvUserName.setText(userNameObj != null ? userNameObj.toString() : "");
+        }
         if (holder.tvBookingRoute != null) {
             holder.tvBookingRoute.setText((originObj != null ? originObj.toString() : "?") + " → " + (destObj != null ? destObj.toString() : "?"));
+        }
+        if (holder.tvDepartureTime != null) {
+            holder.tvDepartureTime.setText("Khởi hành: " + (departureTimeObj != null ? formatDateTime(departureTimeObj.toString()) : ""));
         }
 
         String seats = "?";
@@ -115,13 +139,15 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
     }
 
     public static class BookingViewHolder extends RecyclerView.ViewHolder {
-        TextView tvBookingId, tvBookingRoute, tvBookingSeat, tvBookingPrice, tvBookingStatus;
+        TextView tvBookingId, tvUserName, tvBookingRoute, tvDepartureTime, tvBookingSeat, tvBookingPrice, tvBookingStatus;
         Button btnConfirmBooking, btnCancelBooking;
 
         public BookingViewHolder(View itemView) {
             super(itemView);
             tvBookingId = itemView.findViewById(R.id.tvBookingId);
+            tvUserName = itemView.findViewById(R.id.tvUserName);
             tvBookingRoute = itemView.findViewById(R.id.tvBookingRoute);
+            tvDepartureTime = itemView.findViewById(R.id.tvDepartureTime);
             tvBookingSeat = itemView.findViewById(R.id.tvBookingSeat);
             tvBookingPrice = itemView.findViewById(R.id.tvBookingPrice);
             tvBookingStatus = itemView.findViewById(R.id.tvStatus);

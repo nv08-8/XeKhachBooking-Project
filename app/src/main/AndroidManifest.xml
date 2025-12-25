@@ -70,6 +70,7 @@
         <activity android:name=".activity.admin.ManageBookingsActivity" />
         <activity android:name=".activity.admin.BookingAdminDetailActivity" />
         <activity android:name=".activity.RevenueStatsActivity" />
+        <activity android:name=".activity.RevenueDetailsActivity" />
         <activity android:name=".activity.admin.ManageUsersActivity" />
         <activity android:name=".activity.EditUserActivity" />
         <activity android:name=".activity.admin.ManageTripsActivity" />

@@ -192,6 +192,14 @@ public interface ApiService {
     @GET("api/admin/revenue/by-year")
     Call<List<Map<String, Object>>> getRevenueByYear(@Header("user-id") int userId);
 
+    @GET("api/admin/revenue/details")
+    Call<List<Map<String, Object>>> getRevenueDetails(
+        @Header("user-id") int userId,
+        @Query("group_by") String groupBy,
+        @Query("value") String value
+    );
+
+
     // ========== DRIVERS MANAGEMENT ==========
     @GET("api/admin/drivers")
     Call<List<Driver>> getAllDrivers(@Header("user-id") int userId);
