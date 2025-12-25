@@ -14,6 +14,7 @@ public class Promotion {
     private String title;
     private String description;
     private int imageResource;
+    private int backgroundResource;
 
     public Promotion(String title, String description, int imageResource) {
         this.title = title;
@@ -58,5 +59,17 @@ public class Promotion {
 
     public int getImageResource() {
         return imageResource;
+    }
+
+    public int getBackgroundResource() {
+        return backgroundResource;
+    }
+
+    public void setBackgroundResource(int backgroundResource) {
+        this.backgroundResource = backgroundResource;
+    }
+
+    public void setImageResource(int imageResource) {
+        this.imageResource = imageResource;
     }
 }

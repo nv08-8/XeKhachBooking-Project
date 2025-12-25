@@ -2,11 +2,11 @@
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="180dp"
-    android:layout_height="200dp"
+    android:layout_width="200dp"
+    android:layout_height="220dp"
     android:layout_margin="8dp"
     app:cardCornerRadius="16dp"
-    app:cardElevation="4dp">
+    app:cardElevation="6dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -17,24 +17,27 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            android:background="@color/gradientCenter" 
+            android:contentDescription="@string/bus_image_description"
             tools:src="@tools:sample/backgrounds/scenic"/>
 
+        <!-- Gradient overlay for better text readability -->
         <View
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="#66000000" />
+            android:background="@drawable/gradient_bottom" />
 
         <TextView
             android:id="@+id/tvRouteName"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="12dp"
+            android:layout_marginHorizontal="16dp"
             android:layout_marginBottom="4dp"
             android:text="Hồ Chí Minh - Nha Trang"
             android:textColor="@color/white"
-            android:textSize="18sp"
+            android:textSize="16sp"
             android:textStyle="bold"
+            android:maxLines="2"
+            android:ellipsize="end"
             app:layout_constraintBottom_toTopOf="@+id/tvRoutePrice"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
@@ -43,11 +46,12 @@
             android:id="@+id/tvRoutePrice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_marginBottom="12dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginBottom="16dp"
             android:text="Từ 199.000đ"
             android:textColor="@color/white"
             android:textSize="14sp"
+            android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 

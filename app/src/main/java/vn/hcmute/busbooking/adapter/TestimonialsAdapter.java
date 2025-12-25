@@ -35,7 +35,9 @@ public class TestimonialsAdapter extends RecyclerView.Adapter<TestimonialsAdapte
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Testimonial testimonial = testimonialList.get(position);
         holder.tvCustomerName.setText(testimonial.getCustomerName());
+        holder.tvCustomerTitle.setText(testimonial.getCustomerTitle());
         holder.tvTestimonialText.setText(testimonial.getTestimonialText());
+        holder.ratingBar.setRating(testimonial.getRating());
         Glide.with(holder.ivCustomerImage.getContext())
                 .load(testimonial.getCustomerImage())
                 .circleCrop()
@@ -85,13 +87,17 @@ public class TestimonialsAdapter extends RecyclerView.Adapter<TestimonialsAdapte
     public static class ViewHolder extends RecyclerView.ViewHolder {
         ImageView ivCustomerImage;
         TextView tvCustomerName;
+        TextView tvCustomerTitle;
         TextView tvTestimonialText;
+        android.widget.RatingBar ratingBar;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
             ivCustomerImage = itemView.findViewById(R.id.ivCustomerImage);
             tvCustomerName = itemView.findViewById(R.id.tvCustomerName);
+            tvCustomerTitle = itemView.findViewById(R.id.tvCustomerTitle);
             tvTestimonialText = itemView.findViewById(R.id.tvTestimonialText);
+            ratingBar = itemView.findViewById(R.id.ratingBar);
         }
     }
 }

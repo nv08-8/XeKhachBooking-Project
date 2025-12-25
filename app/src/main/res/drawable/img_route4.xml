@@ -4,9 +4,9 @@
     <item>
         <shape android:shape="rectangle">
             <gradient
-                android:startColor="#00BCD4"
-                android:endColor="#26C6DA"
-                android:angle="135" />
+                android:angle="135"
+                android:startColor="#FFA726"
+                android:endColor="#FFB74D" />
         </shape>
     </item>
     <!-- Bus icon overlay -->

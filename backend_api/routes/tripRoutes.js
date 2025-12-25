@@ -6,14 +6,17 @@ const { generateDetailedSeatLayout } = require('../data/seat_layout.js');
 /* ============================================================
     1. GET TRIPS (with optional search)
        - GET /api/trips
+       - GET /api/trips/search (alias for /api/trips to fix Auth/Route issues)
        - Query: route_id, origin, destination, date, status, bus_type, page, page_size
    ============================================================ */
 
-router.get("/trips", async (req, res) => {
+const getTrips = async (req, res) => {
   const { route_id, origin, destination, date, status, bus_type } = req.query;
   const page = Math.max(parseInt(req.query.page || "1", 10), 1);
   const pageSize = Math.min(Math.max(parseInt(req.query.page_size || "50", 10), 1), 200);
   const offset = (page - 1) * pageSize;
+
+  console.log('\n🔍 [GET /api/trips] Query params:', { route_id, origin, destination, date, status, bus_type, page, pageSize });
 
   let sql = `
     SELECT
@@ -47,6 +50,10 @@ router.get("/trips", async (req, res) => {
 
   try {
     const { rows } = await db.query(sql, params);
+    console.log(`✅ [GET /api/trips] Query returned ${rows.length} trips`);
+    if (rows.length > 0) {
+      console.log('   First trip:', { id: rows[0].id, route: `${rows[0].origin} → ${rows[0].destination}`, departure: rows[0].departure_time });
+    }
 
     // Process images
     const results = rows.map(row => {
@@ -88,7 +95,12 @@ router.get("/trips", async (req, res) => {
     console.error("Lỗi khi truy vấn danh sách chuyến xe:", err);
     return res.status(500).json({ message: "Lỗi phía server." });
   }
-});
+};
+
+// Explicitly define /trips/search BEFORE /trips/:id to avoid ID conflict
+// and to ensure both Guest and User can access it without middleware issues.
+router.get("/trips/search", getTrips);
+router.get("/trips", getTrips);
 
 /* ============================================================
     2. GET TRIP DETAILS

@@ -1,17 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="300dp"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="320dp"
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
     app:cardCornerRadius="16dp"
-    app:cardElevation="4dp">
+    app:cardElevation="6dp"
+    app:cardBackgroundColor="@color/white">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="20dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -19,18 +21,28 @@
             android:orientation="horizontal"
             android:gravity="center_vertical">
 
-            <ImageView
-                android:id="@+id/ivCustomerImage"
-                android:layout_width="60dp"
-                android:layout_height="60dp"
-                android:scaleType="centerCrop"
-                android:src="@drawable/ic_goute_logo"/>
-
-            <LinearLayout
+            <androidx.cardview.widget.CardView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                app:cardCornerRadius="30dp"
+                app:cardElevation="2dp">
+
+                <ImageView
+                    android:id="@+id/ivCustomerImage"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="@string/account_title"
+                    tools:src="@drawable/user1"/>
+
+            </androidx.cardview.widget.CardView>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginStart="12dp">
+                android:layout_marginStart="12dp"
+                android:layout_weight="1">
 
                 <TextView
                     android:id="@+id/tvCustomerName"
@@ -45,21 +57,43 @@
                     android:id="@+id/tvCustomerTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
                     android:text="CEO Saigon Books"
                     android:textColor="@color/textSecondary"
-                    android:textSize="14sp" />
+                    android:textSize="13sp" />
             </LinearLayout>
+
+            <RatingBar
+                android:id="@+id/ratingBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:numStars="5"
+                android:rating="5"
+                android:stepSize="1"
+                android:isIndicator="true"
+                android:progressTint="#FFD700"
+                android:progressBackgroundTint="#E0E0E0"
+                android:scaleX="0.7"
+                android:scaleY="0.7"
+                android:transformPivotX="0dp"
+                android:transformPivotY="0dp"
+                style="?android:attr/ratingBarStyleSmall" />
+
         </LinearLayout>
 
         <TextView
             android:id="@+id/tvTestimonialText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="16dp"
             android:text="Lần trước tôi có việc gấp phải đi công tác, lên mạng tìm vé xe thì tình cờ tìm thấy GoUTE. Sau khi tham khảo, tôi quyết định đặt vé và thanh toán. Công nhận rất tiện và nhanh chóng."
             android:textColor="@color/textSecondary"
-            android:textSize="14sp" />
+            android:textSize="14sp"
+            android:lineSpacingExtra="4dp"
+            android:fontFamily="sans-serif"
+            android:textStyle="italic" />
 
     </LinearLayout>
 
 </androidx.cardview.widget.CardView>
+
