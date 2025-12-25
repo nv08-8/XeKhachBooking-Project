@@ -21,7 +21,7 @@ import retrofit2.Response;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
-import vn.hcmute.busbooking.model.Trip;
+import vn.hcmute.busbooking.util.LoadingUtil;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class TripFormActivity extends AppCompatActivity {
@@ -62,7 +62,6 @@ public class TripFormActivity extends AppCompatActivity {
             currentTripId = getIntent().getIntExtra("trip_id", -1);
             if (currentTripId != -1) {
                 setTitle("Sửa chuyến đi");
-                loadTripDetails(currentTripId);
             } else {
                 setTitle("Thêm chuyến đi");
             }
@@ -74,6 +73,7 @@ public class TripFormActivity extends AppCompatActivity {
     }
 
     private void loadRoutes() {
+        LoadingUtil.showLoading(this, "Đang tải danh sách tuyến...");
         apiService.getRoutes(null, null, null).enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
             public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
@@ -89,27 +89,41 @@ public class TripFormActivity extends AppCompatActivity {
                     adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                     spinnerRoute.setAdapter(adapter);
 
-                    // If editing, load details after routes are loaded to set spinner correctly
                     if (currentTripId != -1) {
                         loadTripDetails(currentTripId);
+                    } else {
+                        LoadingUtil.hideLoading();
                     }
+                } else {
+                    LoadingUtil.hideLoading();
+                    Toast.makeText(TripFormActivity.this, "Không thể tải danh sách tuyến", Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
+                LoadingUtil.hideLoading();
                 Toast.makeText(TripFormActivity.this, "Không thể tải danh sách tuyến", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private int getIntFromObject(Object obj) {
+        if (obj == null) return -1;
+        try {
+            return (int) Double.parseDouble(String.valueOf(obj));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
     }
 
     private void loadTripDetails(int tripId) {
         apiService.getTripDetails(tripId).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                LoadingUtil.hideLoading();
                 if (response.isSuccessful() && response.body() != null) {
                     Map<String, Object> responseData = response.body();
-                    // The actual trip data is nested inside the "data" key
                     if (responseData.get("data") instanceof Map) {
                         Map<String, Object> trip = (Map<String, Object>) responseData.get("data");
 
@@ -120,22 +134,13 @@ public class TripFormActivity extends AppCompatActivity {
                         etPrice.setText(String.valueOf(trip.get("price")));
                         etSeatsTotal.setText(String.valueOf(trip.get("seats_total")));
 
-                        // Set spinner selection
-                        Object routeIdObj = trip.get("route_id");
-                        if (routeIdObj instanceof Number) {
-                            int routeId = ((Number) routeIdObj).intValue();
+                        int routeIdToSelect = getIntFromObject(trip.get("route_id"));
+                        if (routeIdToSelect != -1) {
                             for (int i = 0; i < routesList.size(); i++) {
-                                Object idObj = routesList.get(i).get("id");
-                                if (idObj instanceof String) { // IDs from API are strings
-                                    if (Integer.parseInt((String) idObj) == routeId) {
-                                        spinnerRoute.setSelection(i);
-                                        break;
-                                    }
-                                } else if (idObj instanceof Number) {
-                                     if (((Number) idObj).intValue() == routeId) {
-                                        spinnerRoute.setSelection(i);
-                                        break;
-                                    }
+                                int listRouteId = getIntFromObject(routesList.get(i).get("id"));
+                                if (listRouteId == routeIdToSelect) {
+                                    spinnerRoute.setSelection(i);
+                                    break;
                                 }
                             }
                         }
@@ -145,6 +150,7 @@ public class TripFormActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                LoadingUtil.hideLoading();
                 Toast.makeText(TripFormActivity.this, "Không thể tải thông tin chuyến đi", Toast.LENGTH_SHORT).show();
             }
         });
@@ -157,16 +163,10 @@ public class TripFormActivity extends AppCompatActivity {
             return;
         }
         Map<String, Object> selectedRoute = routesList.get(selectedRoutePosition);
-        int routeId = -1;
-        Object idObj = selectedRoute.get("id");
-         if (idObj instanceof String) { 
-            routeId = Integer.parseInt((String) idObj);
-        } else if (idObj instanceof Number) {
-            routeId = ((Number) idObj).intValue();
-        }
-        
-        if(routeId == -1) {
-             Toast.makeText(this, "ID tuyến đường không hợp lệ", Toast.LENGTH_SHORT).show();
+        int routeId = getIntFromObject(selectedRoute.get("id"));
+
+        if (routeId == -1) {
+            Toast.makeText(this, "ID tuyến đường không hợp lệ", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -176,23 +176,31 @@ public class TripFormActivity extends AppCompatActivity {
         tripData.put("bus_type", etBusType.getText().toString());
         tripData.put("departure_time", etDepartureTime.getText().toString());
         tripData.put("arrival_time", etArrivalTime.getText().toString());
-        tripData.put("price", Double.parseDouble(etPrice.getText().toString()));
-        tripData.put("seats_total", Integer.parseInt(etSeatsTotal.getText().toString()));
+        tripData.put("status", "scheduled");
+
+        try {
+            tripData.put("price", Double.parseDouble(etPrice.getText().toString().replace(",", "")));
+            double seatsDouble = Double.parseDouble(etSeatsTotal.getText().toString());
+            tripData.put("seats_total", (int) seatsDouble);
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, "Giá hoặc Số ghế không hợp lệ", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         int userId = sessionManager.getUserId();
 
+        LoadingUtil.showLoading(this, "Đang lưu chuyến đi...");
         Call<Map<String, Object>> call;
         if (currentTripId != -1) {
-            // Update existing trip
             call = apiService.updateTrip(userId, currentTripId, tripData);
         } else {
-            // Create new trip
             call = apiService.createTrip(userId, tripData);
         }
 
         call.enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                LoadingUtil.hideLoading();
                 if (response.isSuccessful()) {
                     Toast.makeText(TripFormActivity.this, "Lưu thành công", Toast.LENGTH_SHORT).show();
                     finish();
@@ -203,6 +211,7 @@ public class TripFormActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                LoadingUtil.hideLoading();
                 Toast.makeText(TripFormActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });

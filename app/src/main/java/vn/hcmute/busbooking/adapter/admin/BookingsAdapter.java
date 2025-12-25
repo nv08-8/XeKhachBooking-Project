@@ -40,32 +40,73 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
         Object idObj = booking.get("id");
         Object originObj = booking.get("origin");
         Object destObj = booking.get("destination");
-        Object seatObj = booking.get("seat_label"); // Make sure your API returns this key
-        Object priceObj = booking.get("total_price"); // Use total_price as per API response
+        Object seatLabelsObj = booking.get("seat_labels");
+        Object priceObj = booking.get("total_amount");
         Object statusObj = booking.get("status");
 
-        holder.tvBookingId.setText("Đơn #" + (idObj != null ? idObj.toString() : "?"));
-        holder.tvBookingRoute.setText((originObj != null ? originObj.toString() : "?") + " → " + (destObj != null ? destObj.toString() : "?"));
-        holder.tvBookingSeat.setText("Ghế: " + (seatObj != null ? seatObj.toString() : "?"));
-        holder.tvBookingPrice.setText((priceObj != null ? priceObj.toString() : "0") + " VNĐ");
-        holder.tvBookingStatus.setText(statusObj != null ? statusObj.toString() : "");
-
-        // Handle button visibility based on status
-        if ("pending".equalsIgnoreCase(String.valueOf(statusObj))) {
-            holder.btnConfirmBooking.setVisibility(View.VISIBLE);
-            holder.btnCancelBooking.setVisibility(View.VISIBLE);
-        } else {
-            holder.btnConfirmBooking.setVisibility(View.GONE);
-            holder.btnCancelBooking.setVisibility(View.GONE);
+        if (holder.tvBookingId != null) {
+            holder.tvBookingId.setText("Đơn #" + (idObj != null ? idObj.toString() : "?"));
+        }
+        if (holder.tvBookingRoute != null) {
+            holder.tvBookingRoute.setText((originObj != null ? originObj.toString() : "?") + " → " + (destObj != null ? destObj.toString() : "?"));
         }
 
-        holder.btnConfirmBooking.setOnClickListener(v -> {
-            if (listener != null) listener.onConfirmBooking(booking);
-        });
+        String seats = "?";
+        if (seatLabelsObj instanceof List) {
+            List<?> seatList = (List<?>) seatLabelsObj;
+            if (!seatList.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < seatList.size(); i++) {
+                    sb.append(seatList.get(i).toString());
+                    if (i < seatList.size() - 1) {
+                        sb.append(", ");
+                    }
+                }
+                seats = sb.toString();
+            }
+        } else if (seatLabelsObj != null) {
+            seats = seatLabelsObj.toString();
+        }
+        if (holder.tvBookingSeat != null) {
+            holder.tvBookingSeat.setText("Ghế: " + seats);
+        }
 
-        holder.btnCancelBooking.setOnClickListener(v -> {
-            if (listener != null) listener.onCancelBooking(booking);
-        });
+        String priceString = "0";
+        if (priceObj != null) {
+            try {
+                double price = Double.parseDouble(priceObj.toString());
+                priceString = String.format("%,.0f", price);
+            } catch (NumberFormatException e) {
+                priceString = priceObj.toString();
+            }
+        }
+        if (holder.tvBookingPrice != null) {
+            holder.tvBookingPrice.setText(priceString + " VNĐ");
+        }
+
+        if (holder.tvBookingStatus != null) {
+            holder.tvBookingStatus.setText(statusObj != null ? statusObj.toString() : "");
+        }
+
+        if ("pending".equalsIgnoreCase(String.valueOf(statusObj))) {
+            if (holder.btnConfirmBooking != null) holder.btnConfirmBooking.setVisibility(View.VISIBLE);
+            if (holder.btnCancelBooking != null) holder.btnCancelBooking.setVisibility(View.VISIBLE);
+        } else {
+            if (holder.btnConfirmBooking != null) holder.btnConfirmBooking.setVisibility(View.GONE);
+            if (holder.btnCancelBooking != null) holder.btnCancelBooking.setVisibility(View.GONE);
+        }
+
+        if (holder.btnConfirmBooking != null) {
+            holder.btnConfirmBooking.setOnClickListener(v -> {
+                if (listener != null) listener.onConfirmBooking(booking);
+            });
+        }
+
+        if (holder.btnCancelBooking != null) {
+            holder.btnCancelBooking.setOnClickListener(v -> {
+                if (listener != null) listener.onCancelBooking(booking);
+            });
+        }
     }
 
     @Override
