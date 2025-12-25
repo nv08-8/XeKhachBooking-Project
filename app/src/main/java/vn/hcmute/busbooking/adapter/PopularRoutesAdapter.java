@@ -11,6 +11,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.DecodeFormat;
 import java.util.ArrayList;
 import java.util.List;
 import vn.hcmute.busbooking.R;
@@ -36,11 +37,38 @@ public class PopularRoutesAdapter extends RecyclerView.Adapter<PopularRoutesAdap
         PopularRoute route = routeList.get(position);
         holder.tvRouteName.setText(route.getName());
         holder.tvRoutePrice.setText(route.getPrice());
-        // Load image asynchronously with Glide (handles decoding off the UI thread)
-        Glide.with(holder.ivRouteImage.getContext())
-                .load(route.getImageResource())
-                .centerCrop()
-                .into(holder.ivRouteImage);
+
+        // Load image from URL if available, otherwise use drawable resource
+        if (route.hasImageUrl()) {
+            android.util.Log.d("PopularRoutesAdapter", "Loading image for: " + route.getName() + " from URL: " + route.getImageUrl());
+            Glide.with(holder.ivRouteImage.getContext())
+                    .load(route.getImageUrl())
+                    .override(600, 350)
+                    .format(DecodeFormat.PREFER_RGB_565)
+                    .disallowHardwareConfig()
+                    .centerCrop()
+                    .placeholder(R.drawable.img_route1) // Show placeholder while loading
+                    .error(R.drawable.img_route1) // Show fallback if URL fails
+                    .timeout(10000) // 10 second timeout
+                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                    .listener(new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
+                        @Override
+                        public boolean onLoadFailed(@androidx.annotation.Nullable com.bumptech.glide.load.engine.GlideException e, Object model, com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, boolean isFirstResource) {
+                            android.util.Log.e("PopularRoutesAdapter", "Failed to load image: " + route.getImageUrl(), e);
+                            return false; // Return false to allow error placeholder to be shown
+                        }
+
+                        @Override
+                        public boolean onResourceReady(android.graphics.drawable.Drawable resource, Object model, com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, com.bumptech.glide.load.DataSource dataSource, boolean isFirstResource) {
+                            android.util.Log.d("PopularRoutesAdapter", "Successfully loaded image for: " + route.getName());
+                            return false; // Return false to allow Glide to handle the resource
+                        }
+                    })
+                    .into(holder.ivRouteImage);
+        } else {
+            android.util.Log.d("PopularRoutesAdapter", "Using fallback drawable for: " + route.getName());
+            holder.ivRouteImage.setImageResource(route.getImageResource());
+        }
     }
 
     @Override

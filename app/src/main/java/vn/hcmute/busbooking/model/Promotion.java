@@ -1,10 +1,7 @@
 package vn.hcmute.busbooking.model;
 
-import java.io.Serializable;
-import java.util.Map;
-
-public class Promotion implements Serializable {
-    private int id;
+public class Promotion {
+    private long id;
     private String code;
     private String discount_type;
     private double discount_value;
@@ -17,6 +14,8 @@ public class Promotion implements Serializable {
     // UI fields
     private String title;
     private String description;
+    private int imageResource;
+    private int backgroundResource;
     private int imageResId;
 
     public Promotion() {}
@@ -111,4 +110,28 @@ public class Promotion implements Serializable {
     public void setDescription(String description) { this.description = description; }
     public int getImageResId() { return imageResId; }
     public void setImageResId(int imageResId) { this.imageResId = imageResId; }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public int getImageResource() {
+        return imageResource;
+    }
+
+    public int getBackgroundResource() {
+        return backgroundResource;
+    }
+
+    public void setBackgroundResource(int backgroundResource) {
+        this.backgroundResource = backgroundResource;
+    }
+
+    public void setImageResource(int imageResource) {
+        this.imageResource = imageResource;
+    }
 }

@@ -56,6 +56,15 @@ public class SessionManager {
         }
 
         String name = (String) user.get("name");
+        if (name == null || name.trim().isEmpty()) {
+            if (user.get("full_name") instanceof String) {
+                name = ((String) user.get("full_name")).trim();
+            } else if (user.get("fullName") instanceof String) {
+                name = ((String) user.get("fullName")).trim();
+            } else if (user.get("fullname") instanceof String) {
+                name = ((String) user.get("fullname")).trim();
+            }
+        }
         String email = (String) user.get("email");
         String phone = (String) user.get("phone");
         String role = (String) user.get("role"); // Get role from user map

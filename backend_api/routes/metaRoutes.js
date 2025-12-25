@@ -40,17 +40,108 @@ router.get("/popular", async (req, res) => {
       ROUND(AVG(t.price), 2) AS avg_price,
       COUNT(DISTINCT t.id) AS trip_count,
       r.distance_km,
-      r.duration_min
+      r.duration_min,
+      r.id as route_id
     FROM trips t
     JOIN routes r ON r.id = t.route_id
-    GROUP BY r.origin, r.destination, r.distance_km, r.duration_min
+    GROUP BY r.id, r.origin, r.destination, r.distance_km, r.duration_min
     HAVING SUM(t.seats_total - t.seats_available) > 0
     ORDER BY seats_booked DESC
     LIMIT 10;
   `;
   try {
     const { rows } = await db.query(aggQuery);
-    res.json(rows || []);
+    console.log(`\n📊 [/api/popular] Found ${rows.length} popular routes`);
+
+    // For each route, get a sample trip to extract operator and bus_type for image
+    const routesWithImages = await Promise.all(rows.map(async (row, index) => {
+      console.log(`\n🔍 Route ${index + 1}: ${row.name}`);
+
+      const sampleTripQuery = `
+        SELECT operator, bus_type
+        FROM trips
+        WHERE route_id = $1
+        LIMIT 1
+      `;
+      const { rows: tripRows } = await db.query(sampleTripQuery, [row.route_id]);
+      const sampleTrip = tripRows && tripRows[0];
+      console.log(`  📍 Sample trip - operator: "${sampleTrip?.operator}", bus_type: "${sampleTrip?.bus_type}"`);
+
+      // Fetch a valid image URL from bus_images table
+      let imageUrl = null;
+      if (sampleTrip?.bus_type) {
+        console.log(`  🖼️ Querying bus_images for bus_type: "${sampleTrip.bus_type}"`);
+        try {
+          const imageQuery = `
+            SELECT image_urls
+            FROM bus_images
+            WHERE LOWER(TRIM(bus_type)) = LOWER(TRIM($1))
+            LIMIT 1
+          `;
+          const { rows: imageRows } = await db.query(imageQuery, [sampleTrip.bus_type]);
+          console.log(`  📦 Query result: ${imageRows && imageRows.length > 0 ? 'Found' : 'Not found'}`);
+
+          if (imageRows && imageRows[0]) {
+            let imageUrls = [];
+            const foundUrls = imageRows[0].image_urls;
+
+            // Parse image_urls from JSONB
+            if (typeof foundUrls === 'string') {
+              imageUrls = JSON.parse(foundUrls);
+            } else if (Array.isArray(foundUrls)) {
+              imageUrls = foundUrls;
+            }
+            console.log(`  🔗 Total image URLs found: ${imageUrls.length}`);
+
+            // Filter out TikTok URLs and pick the first valid one
+            const nonTikTokUrls = imageUrls.filter(url =>
+              url && typeof url === 'string' && !url.includes('tiktok.com')
+            );
+            console.log(`  ✅ Non-TikTok URLs: ${nonTikTokUrls.length}`);
+
+            // Prefer common raster formats (png/jpg/jpeg/webp), skip svg/html-like to avoid decoder errors
+            const rasterUrls = nonTikTokUrls.filter(url =>
+              /\.(png|jpe?g|webp)(\?.*)?$/i.test(url.trim())
+            );
+            const candidates = rasterUrls.length > 0 ? rasterUrls : nonTikTokUrls;
+
+            if (candidates.length > 0) {
+              imageUrl = candidates[0].trim();
+              console.log(`  🎯 Selected image: ${imageUrl.substring(0, 80)}...`);
+            } else {
+              console.log(`  ⚠️ No usable raster image URLs after filtering`);
+            }
+          } else {
+            console.log(`  ❌ No matching bus_type in bus_images table`);
+          }
+        } catch (imgErr) {
+          console.error(`  ❌ Error fetching image for bus_type ${sampleTrip.bus_type}:`, imgErr.message);
+        }
+      } else {
+        console.log(`  ⚠️ No bus_type available, skipping image lookup`);
+      }
+
+      return {
+        ...row,
+        seats_booked: row.seats_booked ? Number(row.seats_booked) : 0,
+        avg_price: row.avg_price ? Number(row.avg_price) : 0,
+        trip_count: row.trip_count ? Number(row.trip_count) : 0,
+        distance_km: row.distance_km ? Number(row.distance_km) : null,
+        duration_min: row.duration_min ? Number(row.duration_min) : null,
+        sample_operator: sampleTrip?.operator || null,
+        sample_bus_type: sampleTrip?.bus_type || null,
+        image_url: imageUrl,
+        image: imageUrl
+      };
+    }));
+
+    console.log(`\n📤 [/api/popular] Sending response with ${routesWithImages.length} routes:`);
+    routesWithImages.forEach((r, i) => {
+      console.log(`  ${i + 1}. ${r.name} - ${r.image_url ? '✅ Has image' : '❌ No image'}`);
+    });
+
+
+    res.json(routesWithImages || []);
   } catch (err) {
     console.error("Failed computing popular routes:", err.message || err);
     return res.status(500).json({ error: "Failed to fetch popular routes" });

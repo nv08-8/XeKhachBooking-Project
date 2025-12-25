@@ -306,4 +306,36 @@ router.post('/bookings/:id/payment', async (req, res) => {
   }
 });
 
+// Force expire a booking (admin/debug)
+router.post('/bookings/:id/expire', async (req, res) => {
+  const { id } = req.params;
+  // TODO: Add admin auth check here
+  const client = await beginTransaction();
+  try {
+    await client.query('BEGIN');
+    const bookingRes = await client.query('SELECT b.id, b.trip_id, b.status FROM bookings b WHERE b.id=$1 FOR UPDATE', [id]);
+    if (!bookingRes.rowCount) {
+      await rollbackAndRelease(client);
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+    const booking = bookingRes.rows[0];
+    if (booking.status !== 'pending') {
+      await rollbackAndRelease(client);
+      return res.status(400).json({ message: 'Only pending bookings can be expired' });
+    }
+
+    await client.query("UPDATE bookings SET status='expired', expired_at=NOW() WHERE id=$1", [id]);
+    const { rowCount: releasedCount } = await client.query('UPDATE seats SET is_booked=0, booking_id=NULL WHERE booking_id=$1', [id]);
+    if (releasedCount > 0) {
+      await client.query('UPDATE trips SET seats_available = seats_available + $1 WHERE id=$2', [releasedCount, booking.trip_id]);
+    }
+    await commitAndRelease(client);
+    res.json({ message: 'Booking manually expired' });
+  } catch (err) {
+    console.error('Expire booking failed:', err);
+    await rollbackAndRelease(client);
+    res.status(500).json({ message: 'Failed to expire booking' });
+  }
+});
+
 module.exports = router;

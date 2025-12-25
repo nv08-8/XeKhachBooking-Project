@@ -3,7 +3,7 @@
     <!-- Background gradient circle -->
     <item>
         <shape android:shape="oval">
-            <solid android:color="#42A5F5" />
+            <solid android:color="#FFA726" />
         </shape>
     </item>
     <!-- Person icon overlay -->

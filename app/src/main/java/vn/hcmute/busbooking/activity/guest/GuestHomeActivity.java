@@ -162,11 +162,19 @@ public class GuestHomeActivity extends AppCompatActivity {
             etOrigin.setDropDownAnchor(R.id.mainLayout);
             etDestination.setDropDownAnchor(R.id.mainLayout);
             int screenWidth = getResources().getDisplayMetrics().widthPixels;
+            int screenHeight = getResources().getDisplayMetrics().heightPixels;
             int horizontalMarginDp = 48; // leave some margin on both sides
             int horizontalPaddingPx = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, horizontalMarginDp, getResources().getDisplayMetrics());
             int dropDownWidth = Math.max(screenWidth - horizontalPaddingPx, screenWidth / 2);
             etOrigin.setDropDownWidth(dropDownWidth);
             etDestination.setDropDownWidth(dropDownWidth);
+            // CRITICAL: Set maximum dropdown height to prevent ANR from oversized texture
+            int maxDropDownHeightDp = 300; // Maximum 300dp height
+            int maxDropDownHeight = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, maxDropDownHeightDp, getResources().getDisplayMetrics());
+            // Also ensure it doesn't exceed half the screen height
+            maxDropDownHeight = Math.min(maxDropDownHeight, screenHeight / 2);
+            etOrigin.setDropDownHeight(maxDropDownHeight);
+            etDestination.setDropDownHeight(maxDropDownHeight);
             int verticalOffset = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics());
             etOrigin.setDropDownVerticalOffset(verticalOffset);
             etDestination.setDropDownVerticalOffset(verticalOffset);
@@ -296,23 +304,68 @@ public class GuestHomeActivity extends AppCompatActivity {
     }
 
     private void fetchPopularRoutes() {
+        Log.d("GuestHomeActivity", "=== fetchPopularRoutes called ===");
         apiService.getPopularRoutes(10).enqueue(new Callback<java.util.List<java.util.Map<String, Object>>>() {
             @Override
             public void onResponse(Call<java.util.List<java.util.Map<String, Object>>> call, Response<java.util.List<java.util.Map<String, Object>>> response) {
+                Log.d("GuestHomeActivity", "Popular routes response: successful=" + response.isSuccessful() + ", code=" + response.code());
                 if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
                     java.util.List<java.util.Map<String, Object>> rows = response.body();
+                    Log.d("GuestHomeActivity", "Popular routes count: " + rows.size());
                     java.util.List<vn.hcmute.busbooking.model.PopularRoute> routes = new java.util.ArrayList<>();
+                    int imageIndex = 0;
+                    int[] routeImages = {
+                        R.drawable.img_route1,
+                        R.drawable.img_route2,
+                        R.drawable.img_route3,
+                        R.drawable.img_route4,
+                        R.drawable.img_route5
+                    };
+
                     for (java.util.Map<String, Object> r : rows) {
-                        String name = r.get("name") != null ? String.valueOf(r.get("name")) : "";
+                        final String name = r.get("name") != null ? String.valueOf(r.get("name")) : "";
+                        Log.d("GuestHomeActivity", "Processing route: " + name);
+
+                        // Parse and format price properly
                         Object priceObj = r.get("avg_price");
-                        String price = priceObj != null ? "Từ " + priceObj.toString() : "";
-                        // Use a default drawable for server-provided routes
-                        int img = R.drawable.img_route1;
-                        routes.add(new vn.hcmute.busbooking.model.PopularRoute(name, price, img));
+                        String priceTemp = "Liên hệ";
+                        if (priceObj != null) {
+                            try {
+                                String priceStr = String.valueOf(priceObj).trim().replace("\"", "");
+                                double priceValue = Double.parseDouble(priceStr);
+                                priceTemp = "Từ " + String.format("%,.0f", priceValue) + "đ";
+                                Log.d("GuestHomeActivity", "  Price parsed: " + priceTemp);
+                            } catch (Exception e) {
+                                Log.e("GuestHomeActivity", "Error parsing avg_price: " + priceObj, e);
+                            }
+                        }
+                        final String price = priceTemp;
+
+                        // Get image_url directly from API response
+                        String imageUrl = r.get("image_url") != null ? String.valueOf(r.get("image_url")) : null;
+                        Log.d("GuestHomeActivity", "  image_url=" + imageUrl);
+
+                        if (imageUrl != null && !imageUrl.equals("null") && !imageUrl.isEmpty()) {
+                            // Use image URL from API
+                            Log.d("GuestHomeActivity", "  Using image URL from API");
+                            routes.add(new vn.hcmute.busbooking.model.PopularRoute(name, price, imageUrl));
+                        } else {
+                            // No image URL, use fallback drawable
+                            Log.d("GuestHomeActivity", "  Using fallback drawable");
+                            int img = routeImages[imageIndex % routeImages.length];
+                            routes.add(new vn.hcmute.busbooking.model.PopularRoute(name, price, img));
+                        }
+                        Log.d("GuestHomeActivity", "  Route added (total now: " + routes.size() + ")");
+
+                        imageIndex++;
                     }
+
+                    // Update adapter with all routes
+                    Log.d("GuestHomeActivity", "All routes loaded, updating adapter with " + routes.size() + " routes");
                     popularRoutesAdapter = new PopularRoutesAdapter(routes);
                     rvPopularRoutes.setAdapter(popularRoutesAdapter);
                 } else {
+                    Log.w("GuestHomeActivity", "Popular routes response failed or empty: successful=" + response.isSuccessful() + ", body=" + (response.body() != null ? response.body().size() : "null"));
                     // fallback to mock data
                     setupMockData();
                 }
@@ -320,6 +373,7 @@ public class GuestHomeActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<java.util.List<java.util.Map<String, Object>>> call, Throwable t) {
+                Log.e("GuestHomeActivity", "Failed to fetch popular routes", t);
                 setupMockData();
             }
         });
@@ -332,21 +386,105 @@ public class GuestHomeActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
                     java.util.List<java.util.Map<String, Object>> rows = response.body();
                     java.util.List<vn.hcmute.busbooking.model.Promotion> promos = new java.util.ArrayList<>();
+                    int imageIndex = 0;
+                    int[] promoImages = {R.drawable.promo1, R.drawable.promo2};
+
                     for (java.util.Map<String, Object> p : rows) {
-                        String title = p.get("title") != null ? String.valueOf(p.get("title")) : "";
-                        String desc = p.get("description") != null ? String.valueOf(p.get("description")) : "";
-                        promos.add(new vn.hcmute.busbooking.model.Promotion(title, desc, R.drawable.promo1));
+                        // Log raw data for debugging
+                        Log.d("GuestHomeActivity", "Promotion data: " + p.toString());
+
+                        // Generate title and description from promotion data
+                        String code = p.get("code") != null ? String.valueOf(p.get("code")) : "";
+                        String discountType = p.get("discount_type") != null ? String.valueOf(p.get("discount_type")) : "";
+
+                        // Parse discount_value more robustly
+                        Object discountValueObj = p.get("discount_value");
+                        double discountValue = 0;
+                        if (discountValueObj != null) {
+                            try {
+                                String valueStr = String.valueOf(discountValueObj).trim();
+                                // Remove any quotes if present
+                                valueStr = valueStr.replace("\"", "");
+                                discountValue = Double.parseDouble(valueStr);
+                            } catch (Exception e) {
+                                Log.e("GuestHomeActivity", "Error parsing discount_value: '" + discountValueObj + "'", e);
+                            }
+                        }
+
+                        Log.d("GuestHomeActivity", "Parsed values - code: " + code + ", type: " + discountType + ", value: " + discountValue);
+
+                        // Skip if discount value is 0 or invalid
+                        if (discountValue <= 0) {
+                            Log.w("GuestHomeActivity", "Skipping promotion with invalid discount_value: " + code);
+                            continue;
+                        }
+
+                        // Create title based on discount type and value
+                        String title;
+                        if ("percent".equalsIgnoreCase(discountType)) {
+                            title = "Giảm " + (int)discountValue + "%";
+                        } else {
+                            // Format as currency (VND)
+                            title = "Giảm " + String.format("%,.0f", discountValue) + "đ";
+                        }
+
+                        // Create description from code
+                        String desc = "Mã: " + code;
+
+                        // Get min_price if available
+                        Object minPriceObj = p.get("min_price");
+                        if (minPriceObj != null) {
+                            try {
+                                String minPriceStr = String.valueOf(minPriceObj).trim();
+                                minPriceStr = minPriceStr.replace("\"", "");
+                                double minPrice = Double.parseDouble(minPriceStr);
+                                if (minPrice > 0) {
+                                    desc += " • Đơn tối thiểu " + String.format("%,.0f", minPrice) + "đ";
+                                }
+                            } catch (Exception e) {
+                                Log.e("GuestHomeActivity", "Error parsing min_price: '" + minPriceObj + "'", e);
+                            }
+                        }
+
+                        // Rotate between available promo images
+                        int imageRes = promoImages[imageIndex % promoImages.length];
+                        imageIndex++;
+
+                        promos.add(new vn.hcmute.busbooking.model.Promotion(title, desc, imageRes));
                     }
+
+                    Log.d("GuestHomeActivity", "Loaded " + promos.size() + " valid promotions");
+
+                    // If no valid promotions loaded, show mock data
+                    if (promos.isEmpty()) {
+                        Log.w("GuestHomeActivity", "No valid promotions from API, using mock data");
+                        setupMockPromotions();
+                        return;
+                    }
+
                     promotionsAdapter = new PromotionsAdapter(promos);
                     rvPromotions.setAdapter(promotionsAdapter);
+                } else {
+                    Log.w("GuestHomeActivity", "API response not successful or empty, using mock data");
+                    setupMockPromotions();
                 }
             }
 
             @Override
             public void onFailure(Call<java.util.List<java.util.Map<String, Object>>> call, Throwable t) {
-                // Leave existing (or mock) promotions
+                Log.e("GuestHomeActivity", "Failed to fetch promotions", t);
+                setupMockPromotions();
             }
         });
+    }
+
+    private void setupMockPromotions() {
+        List<Promotion> promotions = new ArrayList<>();
+        promotions.add(new Promotion("Giảm 30%", "Mã: SALE30 • Ưu đãi tháng 12", R.drawable.promo1));
+        promotions.add(new Promotion("Giảm 50.000đ", "Mã: GIAM50K • Cuối tuần", R.drawable.promo2));
+
+        promotionsAdapter = new PromotionsAdapter(promotions);
+        rvPromotions.setAdapter(promotionsAdapter);
     }
 
     private void fetchReviews() {
@@ -357,9 +495,19 @@ public class GuestHomeActivity extends AppCompatActivity {
                     java.util.List<java.util.Map<String, Object>> rows = response.body();
                     java.util.List<vn.hcmute.busbooking.model.Testimonial> list = new java.util.ArrayList<>();
                     for (java.util.Map<String, Object> r : rows) {
-                        String name = r.get("customer_name") != null ? String.valueOf(r.get("customer_name")) : "Khách";
+                        String name = r.get("user_name") != null ? String.valueOf(r.get("user_name")) : "Khách";
                         String comment = r.get("comment") != null ? String.valueOf(r.get("comment")) : "";
-                        list.add(new vn.hcmute.busbooking.model.Testimonial(name, comment, R.drawable.user1));
+                        String route = "";
+                        if (r.get("origin") != null && r.get("destination") != null) {
+                            route = r.get("origin") + " - " + r.get("destination");
+                        }
+                        int rating = 5;
+                        if (r.get("rating") != null) {
+                            try {
+                                rating = ((Number) r.get("rating")).intValue();
+                            } catch (Exception ignored) {}
+                        }
+                        list.add(new vn.hcmute.busbooking.model.Testimonial(name, route, comment, R.drawable.user1, rating));
                     }
                     testimonialsAdapter = new TestimonialsAdapter(list);
                     rvTestimonials.setAdapter(testimonialsAdapter);
@@ -390,8 +538,8 @@ public class GuestHomeActivity extends AppCompatActivity {
         rvPromotions.setAdapter(promotionsAdapter);
 
         List<Testimonial> testimonials = new ArrayList<>();
-        testimonials.add(new Testimonial("Nguyễn Văn A", "Xe sạch, tài xế vui vẻ!", R.drawable.user1));
-        testimonials.add(new Testimonial("Trần Thị B", "Giá ok, đặt vé nhanh chóng!", R.drawable.user2));
+        testimonials.add(new Testimonial("Nguyễn Văn A", "TP.HCM - Nha Trang", "Xe sạch, tài xế vui vẻ!", R.drawable.user1, 5));
+        testimonials.add(new Testimonial("Trần Thị B", "TP.HCM - Đà Lạt", "Giá ok, đặt vé nhanh chóng!", R.drawable.user2, 5));
 
         testimonialsAdapter = new TestimonialsAdapter(testimonials);
         rvTestimonials.setAdapter(testimonialsAdapter);
@@ -414,7 +562,11 @@ public class GuestHomeActivity extends AppCompatActivity {
             int y = loc[1];
             int h = actv.getHeight();
             int screenHeight = getResources().getDisplayMetrics().heightPixels;
-            int desired = actv.getDropDownHeight() > 0 ? actv.getDropDownHeight() : (screenHeight / 3);
+            // Use fixed max height to prevent ANR
+            int maxDropDownHeightDp = 300;
+            int maxDropDownHeight = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, maxDropDownHeightDp, getResources().getDisplayMetrics());
+            maxDropDownHeight = Math.min(maxDropDownHeight, screenHeight / 2);
+            int desired = actv.getDropDownHeight() > 0 ? Math.min(actv.getDropDownHeight(), maxDropDownHeight) : maxDropDownHeight;
             int spaceBelow = screenHeight - (y + h);
             int margin = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics());
             if (spaceBelow < desired + margin) {

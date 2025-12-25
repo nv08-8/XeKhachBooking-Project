@@ -13,7 +13,14 @@ router.get("/promotions", async (req, res) => {
   `;
   try {
     const { rows } = await db.query(nowSql);
-    res.json(rows);
+    // Convert numeric strings to actual numbers for mobile app compatibility
+    const converted = rows.map(row => ({
+      ...row,
+      discount_value: row.discount_value ? Number(row.discount_value) : 0,
+      min_price: row.min_price ? Number(row.min_price) : 0,
+      max_discount: row.max_discount ? Number(row.max_discount) : null
+    }));
+    res.json(converted);
   } catch (err) {
     console.error("Failed to fetch promotions:", err.stack || err);
     res.status(500).json({ message: "Failed to fetch promotions", error: (err && err.message) || String(err) });
@@ -22,6 +29,8 @@ router.get("/promotions", async (req, res) => {
 
 router.get("/promotions/featured", async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || "5", 10), 20) || 5;
+  console.log(`\n🎁 [GET /api/promotions/featured] Requesting ${limit} promotions`);
+
   const sql = `
     SELECT id, code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status
     FROM promotions
@@ -31,11 +40,43 @@ router.get("/promotions/featured", async (req, res) => {
     ORDER BY start_date DESC, id DESC
     LIMIT $1
   `;
+
   try {
+    // First check total promotions
+    const totalCheck = await db.query('SELECT COUNT(*) as total FROM promotions');
+    console.log(`   📊 Total promotions in DB: ${totalCheck.rows[0]?.total || 0}`);
+
+    // Check active promotions
+    const activeCheck = await db.query("SELECT COUNT(*) as active FROM promotions WHERE status = 'active'");
+    console.log(`   ✅ Active promotions: ${activeCheck.rows[0]?.active || 0}`);
+
+    // Check date range
+    const dateCheck = await db.query(`
+      SELECT COUNT(*) as in_range
+      FROM promotions
+      WHERE status = 'active'
+        AND start_date <= NOW()
+        AND end_date >= NOW()
+    `);
+    console.log(`   📅 In date range: ${dateCheck.rows[0]?.in_range || 0}`);
+
     const { rows } = await db.query(sql, [limit]);
-    res.json(rows);
+    console.log(`   ✅ Query returned ${rows.length} promotions`);
+
+    if (rows.length > 0) {
+      console.log('   First promo:', { code: rows[0].code, type: rows[0].discount_type, value: rows[0].discount_value });
+    }
+
+    // Convert numeric strings to actual numbers for mobile app compatibility
+    const converted = rows.map(row => ({
+      ...row,
+      discount_value: row.discount_value ? Number(row.discount_value) : 0,
+      min_price: row.min_price ? Number(row.min_price) : 0,
+      max_discount: row.max_discount ? Number(row.max_discount) : null
+    }));
+    res.json(converted);
   } catch (err) {
-    console.error("Failed to fetch featured promotions:", err);
+    console.error("❌ Failed to fetch featured promotions:", err);
     res.status(500).json({ message: "Failed to fetch featured promotions" });
   }
 });
