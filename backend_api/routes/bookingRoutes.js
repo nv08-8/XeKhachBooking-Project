@@ -140,12 +140,30 @@ router.post("/bookings", async (req, res) => {
 });
 
 // GET /bookings/my - Get user's bookings
+// Query params:
+//   - user_id (required): user ID
+//   - tab (optional): 'current' | 'completed'
+//     - 'current': all bookings in last 3 months (all statuses)
+//     - 'completed': bookings with arrival_time < NOW() and status = 'completed' (excludes cancelled)
 router.get('/bookings/my', async (req, res) => {
-  const { user_id } = req.query;
-  console.log(`\n📋 [GET /api/bookings/my] Request from user_id: ${user_id}`);
+  const { user_id, tab } = req.query;
+  console.log(`\n📋 [GET /api/bookings/my] Request from user_id: ${user_id}, tab: ${tab || 'all'}`);
 
   if (!user_id) return res.status(400).json({ message: 'Missing user_id' });
   
+  // Build WHERE clause based on tab parameter
+  let whereClause = 'WHERE b.user_id = $1';
+
+  if (tab === 'current') {
+    // Tab "Hiện tại": All bookings in last 3 months (all statuses including cancelled, pending, etc.)
+    whereClause += ` AND b.created_at >= NOW() - INTERVAL '3 months'`;
+  } else if (tab === 'completed') {
+    // Tab "Đã đi": Only completed trips (arrival_time passed and status = 'completed')
+    // Excludes cancelled bookings
+    whereClause += ` AND t.arrival_time < NOW() AND b.status = 'completed'`;
+  }
+  // If no tab specified, return all bookings (backwards compatibility)
+
   const sql = `
     SELECT b.id, b.status, b.price_paid, b.created_at, b.total_amount,
            t.departure_time, t.arrival_time, t.operator, t.bus_type,
@@ -159,13 +177,13 @@ router.get('/bookings/my', async (req, res) => {
     LEFT JOIN booking_items bi ON bi.booking_id = b.id
     LEFT JOIN route_stops pickup_stop ON pickup_stop.id = b.pickup_stop_id
     LEFT JOIN route_stops dropoff_stop ON dropoff_stop.id = b.dropoff_stop_id
-    WHERE b.user_id = $1
+    ${whereClause}
     GROUP BY b.id, t.id, r.id, pickup_stop.id, dropoff_stop.id
     ORDER BY b.created_at DESC
   `;
   try {
     const { rows } = await db.query(sql, [user_id]);
-    console.log(`   ✅ Found ${rows.length} bookings for user ${user_id}`);
+    console.log(`   ✅ Found ${rows.length} bookings for user ${user_id} (tab: ${tab || 'all'})`);
     if (rows.length > 0) {
       console.log(`   First booking: #${rows[0].id}, status: ${rows[0].status}, route: ${rows[0].origin} → ${rows[0].destination}`);
     }

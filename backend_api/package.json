@@ -8,18 +8,19 @@
     "migrate": "node run-migration.js"
   },
   "dependencies": {
+    "@payos/node": "^1.0.2",
     "@sendgrid/mail": "^8.1.6",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.0",
     "mongoose": "^8.20.0",
+    "node-cron": "^4.2.1",
     "nodemailer": "^7.0.10",
     "pg": "^8.16.3",
     "resend": "^6.4.2",
-    "@payos/node": "^1.0.2",
-    "socket.io": "^4.7.2",
-    "jsonwebtoken": "^9.0.0"
+    "socket.io": "^4.7.2"
   },
   "author": "",
   "license": "ISC",

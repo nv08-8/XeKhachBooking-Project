@@ -19,6 +19,9 @@ const seatsRoutes = require("./routes/seatsRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const driversRoutes = require("./routes/driversRoutes"); // Import new routes
 
+// Initialize cron jobs (auto-complete bookings)
+const bookingStatusJob = require("./jobs/bookingStatus.job");
+
 app.use(express.json());
 app.use(cors());
 
@@ -83,6 +86,9 @@ const io = new Server(server, {
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me';
+
+// Connect Socket.IO to cron job for real-time updates
+bookingStatusJob.setSocketIO(io);
 
 // Simple socket auth: client passes ?token=JWT; server verifies token and lets socket join user room
 io.on('connection', async (socket) => {
@@ -260,6 +266,10 @@ async function expirePendingBookings() {
     }
 }
 
+// ====================================================================
+// OLD BACKGROUND JOB - COMMENTED OUT (Replaced by cron job)
+// ====================================================================
+/*
 // Background job: mark confirmed bookings as completed when arrival_time has passed
 const COMPLETE_CHECK_INTERVAL_MS = 60 * 1000; // run every minute
 
@@ -299,14 +309,16 @@ async function completeFinishedBookings() {
         console.error('completeFinishedBookings failed:', err.message || err);
     }
 }
+*/
+// ====================================================================
 
 // Start intervals
 setInterval(expirePendingBookings, EXPIRE_CHECK_INTERVAL_MS);
-setInterval(completeFinishedBookings, COMPLETE_CHECK_INTERVAL_MS);
+// setInterval(completeFinishedBookings, COMPLETE_CHECK_INTERVAL_MS); // Commented out - using cron job instead
 
 // Run once at startup
 expirePendingBookings();
-completeFinishedBookings();
+// completeFinishedBookings(); // Commented out - using cron job instead
 
 // Start HTTP server (Express + Socket.IO)
 const PORT = process.env.PORT || 10000;
