@@ -182,12 +182,35 @@ async function expirePendingBookings() {
                 // - If Offline: Do NOT cancel
                 
                 let isOnlinePayment = false;
-                if (booking.metadata && booking.metadata.payment && booking.metadata.payment.orderCode) {
-                    isOnlinePayment = true;
-                } else if (booking.metadata && booking.metadata.payment && booking.metadata.payment.method && ['card', 'qr', 'payos'].includes(booking.metadata.payment.method)) {
-                    isOnlinePayment = true;
-                } else if (booking.payment_method && ['card', 'qr', 'payos', 'credit_card'].includes(booking.payment_method.toLowerCase())) {
-                    isOnlinePayment = true;
+
+                // Check payment_method field first (most reliable)
+                if (booking.payment_method) {
+                    const method = String(booking.payment_method).toLowerCase();
+                    // Offline methods: cash, offline, cod, counter
+                    const offlineMethods = ['cash', 'offline', 'cod', 'counter'];
+                    const onlineMethods = ['card', 'qr', 'payos', 'credit_card', 'momo', 'vnpay'];
+
+                    if (offlineMethods.includes(method)) {
+                        isOnlinePayment = false;
+                    } else if (onlineMethods.includes(method)) {
+                        isOnlinePayment = true;
+                    }
+                }
+
+                // Fallback to metadata checks if payment_method is not set or unclear
+                if (!booking.payment_method || (!isOnlinePayment && !['cash', 'offline', 'cod', 'counter'].includes(String(booking.payment_method).toLowerCase()))) {
+                    if (booking.metadata && booking.metadata.payment) {
+                        if (booking.metadata.payment.orderCode) {
+                            isOnlinePayment = true;
+                        } else if (booking.metadata.payment.method) {
+                            const metaMethod = String(booking.metadata.payment.method).toLowerCase();
+                            if (['card', 'qr', 'payos', 'credit_card', 'momo', 'vnpay'].includes(metaMethod)) {
+                                isOnlinePayment = true;
+                            } else if (['cash', 'offline', 'cod', 'counter'].includes(metaMethod)) {
+                                isOnlinePayment = false;
+                            }
+                        }
+                    }
                 }
 
                 const now = new Date();
