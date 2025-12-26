@@ -150,10 +150,21 @@ public class PersonalInfoActivity extends AppCompatActivity {
 
                         Log.d(TAG, "API data: name=" + apiName + ", email=" + apiEmail +
                               ", phone=" + apiPhone + ", dob=" + apiDob + ", gender=" + apiGender);
+                        Log.d(TAG, "Session phone: " + sessionManager.getUserPhone() + ", API phone: " + apiPhone);
 
                         String mergedName = coalesce(apiName, sessionManager.getUserName());
                         String mergedEmail = coalesce(apiEmail, sessionManager.getUserEmail());
-                        String mergedPhone = coalesce(apiPhone, sessionManager.getUserPhone());
+
+                        // For phone: prefer session if API is empty (API may not have updated yet)
+                        String mergedPhone;
+                        if (!isEmpty(apiPhone)) {
+                            mergedPhone = apiPhone;
+                            Log.d(TAG, "Using API phone: " + mergedPhone);
+                        } else {
+                            mergedPhone = sessionManager.getUserPhone();
+                            Log.d(TAG, "Using session phone (API empty): " + mergedPhone);
+                        }
+
                         // Use DB dob/gender if API doesn't have them
                         String mergedDob = coalesce(apiDob, finalSessionDob);
                         String mergedGender = coalesce(apiGender, finalSessionGender);

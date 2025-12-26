@@ -135,7 +135,7 @@ public class EditProfileActivity extends AppCompatActivity {
                             edtEmail.setEnabled(false);
                         }
 
-                        String phone = normalizePhone(asString(userData.get("sdt")));
+                        String phone = normalizePhone(asString(userData.get("phone")));
                         if (!TextUtils.isEmpty(phone)) {
                             edtPhone.setText(phone);
                         }
@@ -277,7 +277,7 @@ public class EditProfileActivity extends AppCompatActivity {
 
         Map<String, String> body = new HashMap<>();
         body.put("name", name);
-        body.put("sdt", phone);
+        body.put("phone", phone);
         body.put("dob", dob);
         body.put("gender", gender);
 
@@ -305,7 +305,8 @@ public class EditProfileActivity extends AppCompatActivity {
                         userProfileDb.saveUserProfile(userId, dob, gender, null);
 
                         Log.d(TAG, "Profile saved: name=" + name + ", phone=" + phone + ", dob=" + dob + ", gender=" + gender);
-                        Log.d(TAG, "Verify after save - dob=" + sessionManager.getUserDob() + ", gender=" + sessionManager.getUserGender());
+                        Log.d(TAG, "Verify after save - phone=" + sessionManager.getUserPhone() +
+                              ", dob=" + sessionManager.getUserDob() + ", gender=" + sessionManager.getUserGender());
 
                         // Prepare full result for caller
                         Intent result = new Intent();
