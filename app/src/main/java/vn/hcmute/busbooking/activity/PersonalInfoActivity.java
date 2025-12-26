@@ -4,12 +4,14 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.bumptech.glide.Glide;
 import com.google.android.material.appbar.MaterialToolbar;
 
 import java.util.Map;
@@ -33,6 +35,7 @@ public class PersonalInfoActivity extends AppCompatActivity {
 
     private SessionManager sessionManager;
     private ApiService apiService;
+    private ImageView ivProfileImage;
     private TextView tvName, tvEmail, tvPhone, tvDob, tvGender, tvRole;
     private ActivityResultLauncher<Intent> editProfileLauncher;
 
@@ -46,6 +49,7 @@ public class PersonalInfoActivity extends AppCompatActivity {
 
         // Initialize views
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        ivProfileImage = findViewById(R.id.ivProfileImage);
         tvName = findViewById(R.id.tvName);
         tvEmail = findViewById(R.id.tvEmail);
         tvPhone = findViewById(R.id.tvPhone);
@@ -154,6 +158,39 @@ public class PersonalInfoActivity extends AppCompatActivity {
         tvDob.setText(!isEmpty(dob) ? dob : "Chưa cập nhật");
         tvGender.setText(!isEmpty(gender) ? gender : "Chưa cập nhật");
         tvRole.setText(!isEmpty(role) ? role.toUpperCase() : "USER");
+    }
+
+    private void loadProfileImage() {
+        Integer userId = sessionManager.getUserId();
+        if (userId != null) {
+            apiService.getUserInfo(userId).enqueue(new Callback<Map<String, Object>>() {
+                @Override
+                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        Map<String, Object> userData = extractUserPayload(response.body());
+                        if (userData != null) {
+                            String imageUrl = valueOrNull(userData.get("avatar"));
+                            if (!isEmpty(imageUrl)) {
+                                Glide.with(PersonalInfoActivity.this)
+                                        .load(imageUrl)
+                                        .circleCrop()
+                                        .placeholder(R.drawable.ic_default_profile)
+                                        .error(R.drawable.ic_default_profile)
+                                        .into(ivProfileImage);
+                            } else {
+                                ivProfileImage.setImageResource(R.drawable.ic_default_profile);
+                            }
+                        }
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                    Log.e(TAG, "Failed to load profile image", t);
+                    ivProfileImage.setImageResource(R.drawable.ic_default_profile);
+                }
+            });
+        }
     }
 
     private String coalesce(String preferred, String fallback) {
