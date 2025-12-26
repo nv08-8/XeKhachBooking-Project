@@ -144,4 +144,22 @@
         <item>suspended</item>
     </string-array>
 
+    <string name="terms_of_service_content">Đây là nội dung cho Điều khoản dịch vụ. Bạn có thể thay thế bằng nội dung thực tế của mình.</string>
+    <string name="privacy_policy_content">Đây là nội dung cho Chính sách bảo mật. Bạn có thể thay thế bằng nội dung thực tế của mình.</string>
+
+    <!-- Help Center -->
+    <string name="help_center_contact_info">Nếu bạn có bất kỳ câu hỏi hoặc gặp sự cố nào, vui lòng liên hệ với chúng tôi qua email support@goute.vn hoặc số điện thoại 1900 1234.</string>
+    <string-array name="faq_questions">
+        <item>Làm thế nào để đặt vé?</item>
+        <item>Tôi có thể hủy vé đã đặt không?</item>
+        <item>Làm thế nào để xem lại vé đã đặt?</item>
+        <item>Tôi có thể thanh toán bằng những hình thức nào?</item>
+    </string-array>
+    <string-array name="faq_answers">
+        <item>Để đặt vé, bạn chỉ cần làm theo các bước sau:\n1. Chọn điểm đi, điểm đến, và ngày đi.\n2. Nhấn \"Tìm kiếm chuyến đi\".\n3. Chọn chuyến đi và ghế ngồi phù hợp.\n4. Điền thông tin và tiến hành thanh toán.</item>
+        <item>Có, bạn có thể hủy vé trong mục \"Vé của tôi\". Tuy nhiên, chính sách hủy vé và hoàn tiền sẽ phụ thuộc vào từng nhà xe. Vui lòng xem chi tiết trong chính sách của nhà xe khi đặt vé.</item>
+        <item>Bạn có thể xem tất cả các vé đã đặt trong mục \"Vé của tôi\" ở thanh điều hướng dưới cùng.</item>
+        <item>Chúng tôi hỗ trợ nhiều hình thức thanh toán, bao gồm thẻ tín dụng/ghi nợ, ví điện tử, và thanh toán tại nhà xe.</item>
+    </string-array>
+
 </resources>
