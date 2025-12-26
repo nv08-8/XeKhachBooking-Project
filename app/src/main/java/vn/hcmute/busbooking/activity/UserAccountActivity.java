@@ -91,7 +91,10 @@ public class UserAccountActivity extends AppCompatActivity {
             Intent intent = new Intent(this, TermsServiceActivity.class);
             startActivity(intent);
         });
-        tvPrivacyPolicy.setOnClickListener(v -> openLegalContent("Chính sách bảo mật", getString(R.string.privacy_policy_content)));
+        tvPrivacyPolicy.setOnClickListener(v -> {
+            Intent intent = new Intent(this, PrivacyPolicyActivity.class);
+            startActivity(intent);
+        });
 
 
         bottomNav = findViewById(R.id.bottom_navigation);

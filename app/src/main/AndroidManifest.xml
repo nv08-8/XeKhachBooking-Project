@@ -57,6 +57,7 @@
             android:exported="false" />
         <activity android:name=".activity.HelpCenterActivity" />
         <activity android:name=".activity.TermsServiceActivity" />
+        <activity android:name=".activity.PrivacyPolicyActivity" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
