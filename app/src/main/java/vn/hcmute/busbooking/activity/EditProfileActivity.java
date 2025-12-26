@@ -1,11 +1,16 @@
 package vn.hcmute.busbooking.activity;
 
+import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
+import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -14,7 +19,10 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.textfield.TextInputEditText;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import retrofit2.Call;
@@ -29,11 +37,13 @@ public class EditProfileActivity extends AppCompatActivity {
 
     private static final String TAG = "EditProfileActivity";
 
-    private EditText edtName, edtEmail, edtPhone;
+    private TextInputEditText edtName, edtEmail, edtPhone, edtDob, edtRole;
+    private RadioGroup rgGender;
+    private RadioButton rbMale, rbFemale, rbOther;
     private Button btnSaveProfile;
-    private ImageView ivBack;
     private SessionManager sessionManager;
     private ApiService apiService;
+    private final Calendar myCalendar = Calendar.getInstance();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,7 +54,6 @@ public class EditProfileActivity extends AppCompatActivity {
         sessionManager = new SessionManager(this);
         apiService = ApiClient.getClient().create(ApiService.class);
 
-        // Toolbar navigation back
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         if (toolbar != null) {
             toolbar.setNavigationOnClickListener(v -> {
@@ -56,29 +65,29 @@ public class EditProfileActivity extends AppCompatActivity {
         edtName = findViewById(R.id.edtName);
         edtEmail = findViewById(R.id.edtEmail);
         edtPhone = findViewById(R.id.edtPhone);
+        edtDob = findViewById(R.id.edtDob);
+        rgGender = findViewById(R.id.rgGender);
+        rbMale = findViewById(R.id.rbMale);
+        rbFemale = findViewById(R.id.rbFemale);
+        rbOther = findViewById(R.id.rbOther);
+        edtRole = findViewById(R.id.edtRole);
         btnSaveProfile = findViewById(R.id.btnSaveProfile);
-        ivBack = findViewById(R.id.ivBack);
 
-
-
-        Log.d(TAG, "Views initialized, ivBack: " + (ivBack != null));
-
-        // Load current user info
         loadUserInfo();
 
         btnSaveProfile.setOnClickListener(v -> saveProfile());
 
-        if (ivBack != null) {
-            ivBack.setOnClickListener(v -> {
-                Log.d(TAG, "Back button clicked");
-                finish();
-            });
-            Log.d(TAG, "Back button click listener set");
-        } else {
-            Log.e(TAG, "ivBack is null!");
-        }
+        DatePickerDialog.OnDateSetListener date = (view, year, monthOfYear, dayOfMonth) -> {
+            myCalendar.set(Calendar.YEAR, year);
+            myCalendar.set(Calendar.MONTH, monthOfYear);
+            myCalendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+            updateLabel();
+        };
 
-        // Setup bottom navigation
+        edtDob.setOnClickListener(v -> new DatePickerDialog(EditProfileActivity.this,
+                date, myCalendar.get(Calendar.YEAR),
+                myCalendar.get(Calendar.MONTH), myCalendar.get(Calendar.DAY_OF_MONTH)).show());
+
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         if (bottomNav != null) {
             bottomNav.setSelectedItemId(R.id.nav_account);
@@ -122,9 +131,8 @@ public class EditProfileActivity extends AppCompatActivity {
                 @Override
                 public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                     if (response.isSuccessful() && response.body() != null) {
-                        Map<String, Object> userData = response.body(); // Đổi tên biến user -> userData để tránh nhầm lẫn
+                        Map<String, Object> userData = response.body();
 
-                        // --- XỬ LÝ SỐ ĐIỆN THOẠI ---
                         Object phoneObj = userData.get("sdt");
                         if (phoneObj != null) {
                             String phone;
@@ -139,16 +147,28 @@ public class EditProfileActivity extends AppCompatActivity {
                             edtPhone.setText(phone);
                         }
 
-                        // --- XỬ LÝ ROLE (MỚI THÊM) ---
-                        // Đảm bảo bạn đã ánh xạ edtRole trong onCreate hoặc ánh xạ tại đây
-                        TextInputEditText edtRole = findViewById(R.id.edtRole);
-                        Object roleObj = userData.get("role"); // Lấy key 'role' từ API trả về
+                        Object dobObj = userData.get("dob");
+                        if (dobObj != null) {
+                            edtDob.setText(dobObj.toString());
+                        }
 
+                        Object genderObj = userData.get("gender");
+                        if (genderObj != null) {
+                            String gender = genderObj.toString();
+                            if (gender.equalsIgnoreCase("male")) {
+                                rbMale.setChecked(true);
+                            } else if (gender.equalsIgnoreCase("female")) {
+                                rbFemale.setChecked(true);
+                            } else {
+                                rbOther.setChecked(true);
+                            }
+                        }
+
+                        Object roleObj = userData.get("role");
                         if (roleObj != null) {
                             String roleStr = roleObj.toString().toUpperCase();
                             edtRole.setText(roleStr);
                         } else {
-                            // Nếu không có role, mặc định là USER
                             edtRole.setText("USER");
                         }
 
@@ -164,18 +184,20 @@ public class EditProfileActivity extends AppCompatActivity {
         }
     }
 
-
     private void saveProfile() {
         String name = edtName.getText().toString().trim();
         String phone = edtPhone.getText().toString().trim();
+        String dob = edtDob.getText().toString().trim();
 
-        if (name.isEmpty()) {
-            Toast.makeText(this, "Vui lòng nhập tên", Toast.LENGTH_SHORT).show();
-            return;
+        int selectedGenderId = rgGender.getCheckedRadioButtonId();
+        RadioButton selectedRadioButton = findViewById(selectedGenderId);
+        String gender = "";
+        if (selectedRadioButton != null) {
+            gender = selectedRadioButton.getText().toString();
         }
 
-        if (phone.isEmpty()) {
-            Toast.makeText(this, "Vui lòng nhập số điện thoại", Toast.LENGTH_SHORT).show();
+        if (name.isEmpty() || phone.isEmpty() || dob.isEmpty() || gender.isEmpty()) {
+            Toast.makeText(this, "Vui lòng điền đầy đủ thông tin", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -191,6 +213,8 @@ public class EditProfileActivity extends AppCompatActivity {
         Map<String, String> body = new HashMap<>();
         body.put("name", name);
         body.put("sdt", phone);
+        body.put("dob", dob);
+        body.put("gender", gender);
 
         Log.d(TAG, "Updating profile for userId: " + userId);
 
@@ -209,7 +233,6 @@ public class EditProfileActivity extends AppCompatActivity {
                     boolean success = successObj != null && Boolean.TRUE.equals(successObj);
 
                     if (success) {
-                        // Update session with new name
                         String email = sessionManager.getUserEmail();
                         sessionManager.saveSession(userId, name, email);
 
@@ -232,5 +255,12 @@ public class EditProfileActivity extends AppCompatActivity {
                 Log.e(TAG, "Update error", t);
             }
         });
+    }
+
+    private void updateLabel() {
+        String myFormat = "dd/MM/yyyy"; //In which you need put here
+        SimpleDateFormat sdf = new SimpleDateFormat(myFormat, Locale.US);
+
+        edtDob.setText(sdf.format(myCalendar.getTime()));
     }
 }
