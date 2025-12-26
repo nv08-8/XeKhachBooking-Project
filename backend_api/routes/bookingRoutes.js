@@ -37,16 +37,32 @@ router.post("/bookings", async (req, res) => {
     // Ensure seats are generated before attempting to book, within the same transaction
     await generateAndCacheSeats(client, trip_id);
 
-    const tripResult = await client.query('SELECT price, seats_available FROM trips WHERE id=$1 FOR UPDATE', [trip_id]);
+    // Check if trip exists and hasn't departed yet
+    const tripResult = await client.query(
+      'SELECT t.price, t.seats_available, t.departure_time, t.arrival_time FROM trips t WHERE t.id=$1 FOR UPDATE',
+      [trip_id]
+    );
     if (!tripResult.rowCount) {
       await rollbackAndRelease(client);
       return res.status(404).json({ message: 'Trip not found' });
     }
 
-    const tripPrice = parseFloat(tripResult.rows[0].price) || 0;
+    const trip = tripResult.rows[0];
+    const tripPrice = parseFloat(trip.price) || 0;
     const requiredSeats = seat_labels.length;
 
-    if (tripResult.rows[0].seats_available < requiredSeats) {
+    // Prevent booking if trip has already departed
+    const now = new Date();
+    const departureTime = new Date(trip.departure_time);
+    if (departureTime <= now) {
+      await rollbackAndRelease(client);
+      return res.status(400).json({
+        message: 'Cannot book this trip - it has already departed',
+        departure_time: trip.departure_time
+      });
+    }
+
+    if (trip.seats_available < requiredSeats) {
       await rollbackAndRelease(client);
       return res.status(409).json({ message: 'Not enough seats available' });
     }
