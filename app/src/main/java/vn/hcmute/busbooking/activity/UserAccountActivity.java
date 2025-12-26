@@ -24,8 +24,8 @@ import vn.hcmute.busbooking.utils.SessionManager;
 
 public class UserAccountActivity extends AppCompatActivity {
 
-    private TextView tvUserName, tvUserEmail, tvLogout, tvHelpCenter, tvTerms, tvPrivacyPolicy;
-    private Button btnEditProfile, btnChangePassword;
+    private TextView tvUserName, tvUserEmail, tvLogout, tvHelpCenter, tvTerms, tvPrivacyPolicy, tvChangePassword;
+    private Button btnEditProfile;
     private SessionManager sessionManager;
     private AppBarLayout appBarLayout;
     private View statusBarScrim;
@@ -47,7 +47,7 @@ public class UserAccountActivity extends AppCompatActivity {
         tvUserEmail = findViewById(R.id.tvUserEmail);
         tvLogout = findViewById(R.id.tvLogout);
         btnEditProfile = findViewById(R.id.btnEditProfile);
-        btnChangePassword = findViewById(R.id.btnChangePassword);
+        tvChangePassword = findViewById(R.id.tvChangePassword);
         tvHelpCenter = findViewById(R.id.tvHelpCenter);
         tvTerms = findViewById(R.id.tvTerms);
         tvPrivacyPolicy = findViewById(R.id.tvPrivacyPolicy);
@@ -76,8 +76,8 @@ public class UserAccountActivity extends AppCompatActivity {
             });
         }
 
-        if (btnChangePassword != null) {
-            btnChangePassword.setOnClickListener(v -> {
+        if (tvChangePassword != null) {
+            tvChangePassword.setOnClickListener(v -> {
                 Intent intent = new Intent(UserAccountActivity.this, ChangePasswordActivity.class);
                 startActivity(intent);
             });
