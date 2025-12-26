@@ -246,7 +246,7 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav = findViewById(R.id.bottom_navigation);
         View navPromoContainer = findViewById(R.id.navPromoContainer);
         bottomNav.setSelectedItemId(R.id.nav_home);
         bottomNav.setOnItemSelectedListener(item -> {
@@ -287,6 +287,15 @@ public class MainActivity extends AppCompatActivity {
                 return false;
             }
         });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Ensure "Home" is selected when returning to this activity
+        if (bottomNav != null) {
+            bottomNav.setSelectedItemId(R.id.nav_home);
+        }
     }
 
     @Override

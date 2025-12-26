@@ -29,6 +29,7 @@ public class UserAccountActivity extends AppCompatActivity {
     private SessionManager sessionManager;
     private AppBarLayout appBarLayout;
     private View statusBarScrim;
+    private BottomNavigationView bottomNav;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -79,7 +80,7 @@ public class UserAccountActivity extends AppCompatActivity {
             });
         }
 
-        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav = findViewById(R.id.bottom_navigation);
         if (bottomNav != null) {
             bottomNav.setSelectedItemId(R.id.nav_account);
             bottomNav.setOnItemSelectedListener(item -> {
@@ -116,6 +117,14 @@ public class UserAccountActivity extends AppCompatActivity {
                 finish();
             }
         });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (bottomNav != null) {
+            bottomNav.setSelectedItemId(R.id.nav_account);
+        }
     }
 
     private void handleWindowInsets() {

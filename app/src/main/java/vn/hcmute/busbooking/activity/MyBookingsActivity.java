@@ -59,6 +59,7 @@ public class MyBookingsActivity extends AppCompatActivity {
     private AppBarLayout appBarLayout;
     private TabLayout tabLayout;
     private View statusBarScrim;
+    private BottomNavigationView bottomNav;
 
     private List<Booking> allBookings = new ArrayList<>();
     // Cached lists to display per tab
@@ -138,6 +139,10 @@ public class MyBookingsActivity extends AppCompatActivity {
         // Start polling when activity visible
         pollingHandler.removeCallbacks(pollingRunnable);
         pollingHandler.postDelayed(pollingRunnable, POLL_INTERVAL_MS);
+
+        if (bottomNav != null) {
+            bottomNav.setSelectedItemId(R.id.nav_tickets);
+        }
 
         // Register a global socket listener to show banner when booking expired
         socketListener = payload -> {
@@ -284,7 +289,7 @@ public class MyBookingsActivity extends AppCompatActivity {
     }
 
      private void setupBottomNavigation() {
-        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav = findViewById(R.id.bottom_navigation);
         bottomNav.setSelectedItemId(R.id.nav_tickets);
         bottomNav.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();

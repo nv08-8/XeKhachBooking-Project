@@ -38,6 +38,7 @@ public class FavoritesActivity extends AppCompatActivity {
     private AppBarLayout appBarLayout;
     private View statusBarScrim;
     private FavoriteTripDatabase favoriteTripDatabase;
+    private BottomNavigationView bottomNav;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -66,7 +67,7 @@ public class FavoritesActivity extends AppCompatActivity {
         }
         tvFavoritesEmpty = findViewById(R.id.tvFavoritesEmpty);
 
-        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav = findViewById(R.id.bottom_navigation);
         if (bottomNav != null) {
             bottomNav.setSelectedItemId(R.id.nav_favorites);
             bottomNav.setOnItemSelectedListener(item -> {
@@ -120,6 +121,9 @@ public class FavoritesActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         loadFavoriteTrips();
+        if (bottomNav != null) {
+            bottomNav.setSelectedItemId(R.id.nav_favorites);
+        }
     }
 
     private void loadFavoriteTrips() {
