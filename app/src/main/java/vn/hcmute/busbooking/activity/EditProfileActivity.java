@@ -30,6 +30,7 @@ import retrofit2.Response;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
+import vn.hcmute.busbooking.database.UserProfileDatabase;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class EditProfileActivity extends AppCompatActivity {
@@ -42,6 +43,7 @@ public class EditProfileActivity extends AppCompatActivity {
     private Button btnSaveProfile;
     private SessionManager sessionManager;
     private ApiService apiService;
+    private UserProfileDatabase userProfileDb;
     private final Calendar myCalendar = Calendar.getInstance();
 
     @Override
@@ -51,6 +53,7 @@ public class EditProfileActivity extends AppCompatActivity {
 
         sessionManager = new SessionManager(this);
         apiService = ApiClient.getClient().create(ApiService.class);
+        userProfileDb = new UserProfileDatabase(this);
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
@@ -297,6 +300,12 @@ public class EditProfileActivity extends AppCompatActivity {
                         // Save all fields to session
                         sessionManager.saveSession(userId, name, email);
                         sessionManager.updateUserInfo(name, email, phone, dob, gender);
+
+                        // Save dob/gender to local database (independent from backend)
+                        userProfileDb.saveUserProfile(userId, dob, gender, null);
+
+                        Log.d(TAG, "Profile saved: name=" + name + ", phone=" + phone + ", dob=" + dob + ", gender=" + gender);
+                        Log.d(TAG, "Verify after save - dob=" + sessionManager.getUserDob() + ", gender=" + sessionManager.getUserGender());
 
                         // Prepare full result for caller
                         Intent result = new Intent();

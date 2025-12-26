@@ -15,6 +15,7 @@ public class SessionManager {
     private static final String KEY_PHONE = "user_phone";
     private static final String KEY_DOB = "user_dob";
     private static final String KEY_GENDER = "user_gender";
+    private static final String KEY_AVATAR = "user_avatar";
     private static final String KEY_TOKEN = "user_token";
     private static final String KEY_ROLE = "user_role"; // Add key for role
 
@@ -49,12 +50,29 @@ public class SessionManager {
 
     public void updateUserInfo(String name, String email, String phone, String dob, String gender) {
         SharedPreferences.Editor editor = prefs.edit();
-        putIfHasText(editor, KEY_NAME, name);
-        putIfHasText(editor, KEY_EMAIL, email);
-        putIfHasText(editor, KEY_PHONE, phone);
-        putIfHasText(editor, KEY_DOB, dob);
-        putIfHasText(editor, KEY_GENDER, gender);
+
+        // Only update fields that have actual values
+        // Don't overwrite existing data with nulls/empty strings
+        if (!TextUtils.isEmpty(name)) {
+            editor.putString(KEY_NAME, name.trim());
+        }
+        if (!TextUtils.isEmpty(email)) {
+            editor.putString(KEY_EMAIL, email.trim());
+        }
+        if (!TextUtils.isEmpty(phone)) {
+            editor.putString(KEY_PHONE, phone.trim());
+        }
+        if (!TextUtils.isEmpty(dob)) {
+            editor.putString(KEY_DOB, dob.trim());
+        }
+        if (!TextUtils.isEmpty(gender)) {
+            editor.putString(KEY_GENDER, gender.trim());
+        }
         editor.apply();
+
+        android.util.Log.d("SessionManager", "updateUserInfo called: name=" + name + ", email=" + email +
+              ", phone=" + phone + ", dob=" + dob + ", gender=" + gender);
+        android.util.Log.d("SessionManager", "After updateUserInfo - stored dob=" + getUserDob() + ", gender=" + getUserGender());
     }
 
     private void putIfHasText(SharedPreferences.Editor editor, String key, String value) {
@@ -105,16 +123,26 @@ public class SessionManager {
         }
         String email = (String) user.get("email");
         String phone = (String) user.get("phone");
+        String dob = (String) user.get("dob");
+        String gender = (String) user.get("gender");
+        String avatar = (String) user.get("avatar");
         String role = (String) user.get("role"); // Get role from user map
         String token = null;
         if (user.get("token") instanceof String) token = (String) user.get("token");
 
+        android.util.Log.d("SessionManager", "saveUser: dob=" + dob + ", gender=" + gender + ", avatar=" + avatar);
+
         if (userId != -1) {
             saveSession(userId, name, email, phone);
             SharedPreferences.Editor editor = prefs.edit();
+            if (dob != null) editor.putString(KEY_DOB, dob.trim());
+            if (gender != null) editor.putString(KEY_GENDER, gender.trim());
+            if (avatar != null) editor.putString(KEY_AVATAR, avatar.trim());
             if (token != null) editor.putString(KEY_TOKEN, token);
             if (role != null) editor.putString(KEY_ROLE, role); // Save role
             editor.apply();
+
+            android.util.Log.d("SessionManager", "Saved - getUserDob=" + getUserDob() + ", getUserGender=" + getUserGender() + ", getUserAvatar=" + getUserAvatar());
         }
     }
 
@@ -156,6 +184,16 @@ public class SessionManager {
 
     public String getUserGender() {
         return prefs.getString(KEY_GENDER, null);
+    }
+
+    public String getUserAvatar() {
+        return prefs.getString(KEY_AVATAR, null);
+    }
+
+    public void setUserAvatar(String avatar) {
+        if (avatar != null && !avatar.isEmpty()) {
+            prefs.edit().putString(KEY_AVATAR, avatar.trim()).apply();
+        }
     }
 
     public String getRole() {

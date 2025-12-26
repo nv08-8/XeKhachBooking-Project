@@ -173,7 +173,7 @@ router.get("/user/:id", async (req, res) => {
     const { id } = req.params;
     try {
         const { rows } = await db.query(
-            "SELECT id, name, email, phone, status, role FROM users WHERE id=$1 AND status='active'",
+            "SELECT id, name, email, phone, dob, gender, status, role FROM users WHERE id=$1 AND status='active'",
             [id]
         );
         if (!rows.length) return res.status(404).json({ message: "User not found" });
@@ -217,8 +217,8 @@ router.post("/change-password", async (req, res) => {
 
 router.put("/user/:id", async (req, res) => {
     const { id } = req.params;
-    const { name, phone } = req.body;
-    if (!name && !phone) {
+    const { name, phone, dob, gender } = req.body;
+    if (!name && !phone && !dob && !gender) {
         return res.status(400).json({ success: false, message: "Không có thông tin để cập nhật!" });
     }
 
@@ -251,6 +251,16 @@ router.put("/user/:id", async (req, res) => {
 
         updateFields.push(`phone=$${updateValues.length + 1}`);
         updateValues.push(phoneStr);
+    }
+
+    if (dob) {
+        updateFields.push(`dob=$${updateValues.length + 1}`);
+        updateValues.push(dob);
+    }
+
+    if (gender) {
+        updateFields.push(`gender=$${updateValues.length + 1}`);
+        updateValues.push(gender);
     }
 
     const idPlaceholder = `$${updateValues.length + 1}`;

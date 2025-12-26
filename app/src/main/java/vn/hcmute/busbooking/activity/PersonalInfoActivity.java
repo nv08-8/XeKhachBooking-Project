@@ -22,6 +22,7 @@ import retrofit2.Response;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
+import vn.hcmute.busbooking.database.UserProfileDatabase;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class PersonalInfoActivity extends AppCompatActivity {
@@ -35,6 +36,7 @@ public class PersonalInfoActivity extends AppCompatActivity {
 
     private SessionManager sessionManager;
     private ApiService apiService;
+    private UserProfileDatabase userProfileDb;
     private ImageView ivProfileImage;
     private TextView tvName, tvEmail, tvPhone, tvDob, tvGender, tvRole;
     private ActivityResultLauncher<Intent> editProfileLauncher;
@@ -46,6 +48,7 @@ public class PersonalInfoActivity extends AppCompatActivity {
 
         sessionManager = new SessionManager(this);
         apiService = ApiClient.getClient().create(ApiService.class);
+        userProfileDb = new UserProfileDatabase(this);
 
         // Initialize views
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
@@ -94,15 +97,36 @@ public class PersonalInfoActivity extends AppCompatActivity {
     }
 
     private void loadUserData() {
-        applyUserData(
-                sessionManager.getUserName(),
-                sessionManager.getUserEmail(),
-                sessionManager.getUserPhone(),
-                sessionManager.getUserDob(),
-                sessionManager.getUserGender(),
-                sessionManager.getRole());
+        // Load profile image first
+        loadProfileImage();
 
+        // Log session data
+        String sessionName = sessionManager.getUserName();
+        String sessionEmail = sessionManager.getUserEmail();
+        String sessionPhone = sessionManager.getUserPhone();
+        String sessionDob = sessionManager.getUserDob();
+        String sessionGender = sessionManager.getUserGender();
+        String sessionRole = sessionManager.getRole();
+
+        Log.d(TAG, "Session data: name=" + sessionName + ", email=" + sessionEmail +
+              ", phone=" + sessionPhone + ", dob=" + sessionDob + ", gender=" + sessionGender);
+
+        // Try to get dob/gender from local database if not in session
         Integer userId = sessionManager.getUserId();
+        if (userId != null && isEmpty(sessionDob)) {
+            UserProfileDatabase.UserProfile dbProfile = userProfileDb.getUserProfile(userId);
+            if (dbProfile != null) {
+                sessionDob = dbProfile.dob;
+                sessionGender = dbProfile.gender;
+                Log.d(TAG, "Loaded from DB: dob=" + sessionDob + ", gender=" + sessionGender);
+            }
+        }
+
+        final String finalSessionDob = sessionDob;
+        final String finalSessionGender = sessionGender;
+
+        applyUserData(sessionName, sessionEmail, sessionPhone, sessionDob, sessionGender, sessionRole);
+
         if (userId != null) {
             apiService.getUserInfo(userId).enqueue(new Callback<Map<String, Object>>() {
                 @Override
@@ -121,21 +145,37 @@ public class PersonalInfoActivity extends AppCompatActivity {
                         String apiPhone = valueOrNull(userData.get("sdt"));
                         String apiDob = valueOrNull(userData.get("dob"));
                         String apiGender = valueOrNull(userData.get("gender"));
+                        String apiAvatar = valueOrNull(userData.get("avatar"));
                         String apiRole = valueOrNull(userData.get("role"));
+
+                        Log.d(TAG, "API data: name=" + apiName + ", email=" + apiEmail +
+                              ", phone=" + apiPhone + ", dob=" + apiDob + ", gender=" + apiGender);
 
                         String mergedName = coalesce(apiName, sessionManager.getUserName());
                         String mergedEmail = coalesce(apiEmail, sessionManager.getUserEmail());
                         String mergedPhone = coalesce(apiPhone, sessionManager.getUserPhone());
-                        String mergedDob = coalesce(apiDob, sessionManager.getUserDob());
-                        String mergedGender = coalesce(apiGender, sessionManager.getUserGender());
+                        // Use DB dob/gender if API doesn't have them
+                        String mergedDob = coalesce(apiDob, finalSessionDob);
+                        String mergedGender = coalesce(apiGender, finalSessionGender);
                         String mergedRole = coalesce(apiRole, sessionManager.getRole());
+
+                        Log.d(TAG, "Merged data: name=" + mergedName + ", email=" + mergedEmail +
+                              ", phone=" + mergedPhone + ", dob=" + mergedDob + ", gender=" + mergedGender);
 
                         sessionManager.updateUserInfo(mergedName, mergedEmail, mergedPhone, mergedDob, mergedGender);
                         if (!isEmpty(mergedRole)) {
                             sessionManager.updateRole(mergedRole);
                         }
+                        if (!isEmpty(apiAvatar)) {
+                            sessionManager.setUserAvatar(apiAvatar);
+                        }
 
                         applyUserData(mergedName, mergedEmail, mergedPhone, mergedDob, mergedGender, mergedRole);
+
+                        // Reload avatar image if updated from API
+                        if (!isEmpty(apiAvatar)) {
+                            loadImageWithGlide(apiAvatar);
+                        }
 
                         Log.d(TAG, "User info synced from API");
                     } else {
@@ -161,6 +201,14 @@ public class PersonalInfoActivity extends AppCompatActivity {
     }
 
     private void loadProfileImage() {
+        // First try to load avatar from session
+        String avatarUrl = sessionManager.getUserAvatar();
+        if (!isEmpty(avatarUrl)) {
+            loadImageWithGlide(avatarUrl);
+            return;
+        }
+
+        // If not in session, fetch from API
         Integer userId = sessionManager.getUserId();
         if (userId != null) {
             apiService.getUserInfo(userId).enqueue(new Callback<Map<String, Object>>() {
@@ -171,12 +219,8 @@ public class PersonalInfoActivity extends AppCompatActivity {
                         if (userData != null) {
                             String imageUrl = valueOrNull(userData.get("avatar"));
                             if (!isEmpty(imageUrl)) {
-                                Glide.with(PersonalInfoActivity.this)
-                                        .load(imageUrl)
-                                        .circleCrop()
-                                        .placeholder(R.drawable.ic_default_profile)
-                                        .error(R.drawable.ic_default_profile)
-                                        .into(ivProfileImage);
+                                sessionManager.setUserAvatar(imageUrl);
+                                loadImageWithGlide(imageUrl);
                             } else {
                                 ivProfileImage.setImageResource(R.drawable.ic_default_profile);
                             }
@@ -190,6 +234,19 @@ public class PersonalInfoActivity extends AppCompatActivity {
                     ivProfileImage.setImageResource(R.drawable.ic_default_profile);
                 }
             });
+        }
+    }
+
+    private void loadImageWithGlide(String imageUrl) {
+        if (!isEmpty(imageUrl)) {
+            Glide.with(PersonalInfoActivity.this)
+                    .load(imageUrl)
+                    .circleCrop()
+                    .placeholder(R.drawable.ic_default_profile)
+                    .error(R.drawable.ic_default_profile)
+                    .into(ivProfileImage);
+        } else {
+            ivProfileImage.setImageResource(R.drawable.ic_default_profile);
         }
     }
 
