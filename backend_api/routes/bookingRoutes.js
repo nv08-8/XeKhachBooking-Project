@@ -346,6 +346,105 @@ router.post('/bookings/:id/payment', async (req, res) => {
   }
 });
 
+// PUT/PATCH /bookings/:id/payment-method - Change payment method for a pending booking
+router.put('/bookings/:id/payment-method', async (req, res) => {
+  const { id } = req.params;
+  const { payment_method } = req.body || {};
+
+  if (!payment_method) {
+    return res.status(400).json({ message: 'payment_method is required' });
+  }
+
+  const client = await beginTransaction();
+  try {
+    await client.query('BEGIN');
+
+    const bookingRes = await client.query(
+      `SELECT b.id, b.trip_id, b.status, b.total_amount, b.metadata, t.departure_time
+       FROM bookings b
+       JOIN trips t ON t.id = b.trip_id
+       WHERE b.id=$1 FOR UPDATE`,
+      [id]
+    );
+
+    if (!bookingRes.rowCount) {
+      await rollbackAndRelease(client);
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    const booking = bookingRes.rows[0];
+
+    // Check if booking is in a state that allows payment method change
+    if (!['pending', 'expired'].includes(booking.status)) {
+      await rollbackAndRelease(client);
+      return res.status(409).json({
+        message: 'Cannot change payment method for this booking status',
+        status: booking.status
+      });
+    }
+
+    // Check if trip has not departed yet
+    const now = new Date();
+    const departureTime = new Date(booking.departure_time);
+    if (departureTime <= now) {
+      await rollbackAndRelease(client);
+      return res.status(400).json({
+        message: 'Cannot change payment method - trip has already departed',
+        departure_time: booking.departure_time
+      });
+    }
+
+    // Normalize payment method
+    const normalizedMethod = payment_method.toLowerCase();
+    const isOfflinePayment = ['cash', 'offline', 'cod', 'counter'].includes(normalizedMethod);
+
+    // If changing to offline payment and booking was expired, restore it to pending
+    let newStatus = booking.status;
+    if (booking.status === 'expired' && isOfflinePayment) {
+      newStatus = 'pending';
+      console.log(`Restoring expired booking ${id} to pending (changed to offline payment)`);
+    }
+
+    // Update payment method and status
+    const paymentMeta = {
+      method: normalizedMethod,
+      changed_at: new Date().toISOString(),
+      note: isOfflinePayment ? 'Payment at counter' : 'Online payment'
+    };
+
+    await client.query(
+      `UPDATE bookings
+       SET payment_method=$1,
+           status=$2,
+           metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
+       WHERE id=$4`,
+      [normalizedMethod, newStatus, JSON.stringify({ payment: paymentMeta }), id]
+    );
+
+    await commitAndRelease(client);
+
+    res.json({
+      message: 'Payment method updated successfully',
+      booking_id: Number(id),
+      payment_method: normalizedMethod,
+      status: newStatus,
+      note: isOfflinePayment ? 'Booking will not expire automatically. Please pay at the counter.' : 'Please complete payment within the time limit.'
+    });
+
+  } catch (err) {
+    console.error('Update payment method failed:', err.message || err);
+    await rollbackAndRelease(client);
+    res.status(500).json({ message: 'Could not update payment method' });
+  }
+});
+
+// PATCH alias for payment-method update
+router.patch('/bookings/:id/payment-method', async (req, res) => {
+  // Reuse PUT handler
+  req.method = 'PUT';
+  router.handle(req, res);
+});
+
 // Force expire a booking (admin/debug)
 router.post('/bookings/:id/expire', async (req, res) => {
   const { id } = req.params;
