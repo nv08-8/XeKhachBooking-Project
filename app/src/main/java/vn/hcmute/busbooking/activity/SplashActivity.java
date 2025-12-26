@@ -10,6 +10,7 @@ import android.os.Looper;
 
 import vn.hcmute.busbooking.MainActivity;
 import vn.hcmute.busbooking.R;
+import vn.hcmute.busbooking.activity.admin.AdminHomeActivity;
 import vn.hcmute.busbooking.activity.guest.GuestHomeActivity;
 import vn.hcmute.busbooking.utils.SessionManager;
 
@@ -31,11 +32,13 @@ public class SplashActivity extends AppCompatActivity {
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             Intent intent;
             try {
-                Integer userId = sessionManager.getUserId();
-
-                if (userId != null) {
-                    // User is logged in, go to MainActivity
-                    intent = new Intent(SplashActivity.this, MainActivity.class);
+                if (sessionManager.isLoggedIn()) {
+                    // User is logged in, check if they are an admin
+                    if (sessionManager.isAdmin()) {
+                        intent = new Intent(SplashActivity.this, AdminHomeActivity.class);
+                    } else {
+                        intent = new Intent(SplashActivity.this, MainActivity.class);
+                    }
                 } else {
                     // No user logged in, go to GuestHomeActivity
                     intent = new Intent(SplashActivity.this, GuestHomeActivity.class);

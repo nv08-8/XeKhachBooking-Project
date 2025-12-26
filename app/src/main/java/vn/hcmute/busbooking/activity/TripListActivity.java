@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.text.Normalizer;
@@ -296,11 +297,15 @@ public class TripListActivity extends AppCompatActivity implements FilterBottomS
             }
         }
 
-        apiService.getTrips(from, to, apiDate).enqueue(new Callback<List<Trip>>() {
+        apiService.getTrips(from, to, apiDate).enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
-            public void onResponse(Call<List<Trip>> call, Response<List<Trip>> response) {
+            public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    allTrips = response.body();
+                    List<Trip> trips = new ArrayList<>();
+                    for (Map<String, Object> map : response.body()) {
+                        trips.add(new Trip(map));
+                    }
+                    allTrips = trips;
                     applyFilters();
                 } else {
                     allTrips.clear();
@@ -309,7 +314,7 @@ public class TripListActivity extends AppCompatActivity implements FilterBottomS
             }
 
             @Override
-            public void onFailure(Call<List<Trip>> call, Throwable t) {
+            public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
                 allTrips.clear();
                 applyFilters();
             }

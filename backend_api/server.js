@@ -17,6 +17,7 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const busImageRoutes = require("./routes/busImageRoutes");
 const seatsRoutes = require("./routes/seatsRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const driversRoutes = require("./routes/driversRoutes"); // Import new routes
 
 app.use(express.json());
 app.use(cors());
@@ -37,6 +38,7 @@ app.use("/api/payment", paymentRoutes);
 app.use("/api", busImageRoutes);
 app.use('/api/seats', seatsRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin/drivers", driversRoutes); // Use new routes
 
 // small helper to list registered routes (useful for debugging 404s/method mismatches)
 function listRoutes(app) {
@@ -193,7 +195,7 @@ async function expirePendingBookings() {
                         const r = await client.query('UPDATE seats SET is_booked=0, booking_id=NULL WHERE trip_id=$1 AND label=$2 RETURNING id', [booking.trip_id, label]);
                         if (r.rowCount) releasedCount += r.rowCount;
                     } catch (e) {
-                        console.warn(`Failed to release seat "${label}" for booking ${bookingId}: ${e.message || e}`);
+                        console.warn(`Failed to release seat \"${label}\" for booking ${bookingId}: ${e.message || e}`);
                     }
                 }
 

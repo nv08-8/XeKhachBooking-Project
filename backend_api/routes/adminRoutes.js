@@ -27,9 +27,7 @@ const checkAdminRole = async (req, res, next) => {
   }
 };
 
-// ============================================================
-// ROUTES: QUẢN LÝ TUYẾN XE
-// ============================================================
+// ============================================================// ROUTES: QUẢN LÝ TUYẾN XE// ============================================================
 
 // Lấy một tuyến xe theo ID
 router.get("/routes/:id", checkAdminRole, async (req, res) => {
@@ -107,9 +105,7 @@ router.delete("/routes/:id", checkAdminRole, async (req, res) => {
   }
 });
 
-// ============================================================
-// ROUTES: QUẢN LÝ CHUYẾN XE
-// ============================================================
+// ============================================================// ROUTES: QUẢN LÝ CHUYẾN XE// ============================================================
 
 // 1. Thêm chuyến xe mới
 router.post("/trips", checkAdminRole, async (req, res) => {
@@ -195,9 +191,7 @@ router.delete("/trips/:id", checkAdminRole, async (req, res) => {
   }
 });
 
-// ============================================================
-// ROUTES: QUẢN LÝ ĐẶT VÉ
-// ============================================================
+// ============================================================// ROUTES: QUẢN LÝ ĐẶT VÉ// ============================================================
 
 // 1. Lấy danh sách tất cả đặt vé (có thể lọc)
 router.get("/bookings", checkAdminRole, async (req, res) => {
@@ -306,9 +300,7 @@ router.put("/bookings/:id/cancel", checkAdminRole, async (req, res) => {
   }
 });
 
-// ============================================================
-// ROUTES: QUẢN LÝ NGƯỜI DÙNG
-// ============================================================
+// ============================================================// ROUTES: QUẢN LÝ NGƯỜI DÙNG// ============================================================
 
 router.get("/users", checkAdminRole, async (req, res) => {
   try {
@@ -357,9 +349,7 @@ router.delete("/users/:id", checkAdminRole, async (req, res) => {
   }
 });
 
-// ============================================================
-// ROUTES: BÁO CÁO DOANH THU
-// ============================================================
+// ============================================================// ROUTES: BÁO CÁO DOANH THU// ============================================================
 
 // 1. Doanh thu theo tuyến xe
 router.get("/revenue/by-route", checkAdminRole, async (req, res) => {
@@ -456,6 +446,131 @@ router.get("/revenue/by-year", checkAdminRole, async (req, res) => {
     console.error("Error fetching revenue by year:", err);
     res.status(500).json({ message: "Lỗi khi lấy doanh thu theo năm" });
   }
+});
+
+// 5. Chi tiết doanh thu
+router.get("/revenue/details", checkAdminRole, async (req, res) => {
+  const { group_by, value } = req.query;
+  let sql = `
+    SELECT
+      b.id AS booking_id,
+      u.name AS user_name,
+      r.origin || ' - ' || r.destination AS route_info,
+      t.departure_time,
+      b.seats_count AS ticket_count,
+      b.total_amount AS total_price
+    FROM bookings b
+    JOIN users u ON u.id = b.user_id
+    JOIN trips t ON t.id = b.trip_id
+    JOIN routes r ON r.id = t.route_id
+    WHERE b.status = 'confirmed'
+  `;
+  const params = [];
+
+  if (group_by === "day") {
+    sql += ` AND DATE(b.created_at) = $1`;
+    params.push(value);
+  } else if (group_by === "month") {
+    sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $1`;
+    params.push(value);
+  } else if (group_by === "year") {
+    sql += ` AND EXTRACT(YEAR FROM b.created_at) = $1`;
+    params.push(value);
+  } else if (group_by === "route") {
+    // Assuming value is route_id
+    sql += ` AND t.route_id = $1`;
+    params.push(value);
+  }
+
+  sql += " ORDER BY t.departure_time DESC";
+
+  try {
+    const result = await db.query(sql, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching revenue details:", err);
+    res.status(500).json({ message: "Lỗi khi lấy chi tiết doanh thu" });
+  }
+});
+
+
+// ======================// ROUTES: QUẢN LÝ KHUYẾN MÃI// ============================================================
+
+// GET all promotions
+router.get("/promotions", checkAdminRole, async (req, res) => {
+    try {
+        const { rows } = await db.query("SELECT * FROM promotions ORDER BY id ASC");
+        res.json(rows);
+    } catch (err) {
+        console.error("Error fetching promotions:", err);
+        res.status(500).json({ message: "Lỗi khi lấy danh sách khuyến mãi" });
+    }
+});
+
+// GET promotion by ID
+router.get("/promotions/:id", checkAdminRole, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const { rows } = await db.query("SELECT * FROM promotions WHERE id = $1", [id]);
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "Không tìm thấy khuyến mãi" });
+        }
+        res.json(rows[0]);
+    } catch (err) {
+        console.error(`Error fetching promotion ${id}:`, err);
+        res.status(500).json({ message: "Lỗi khi lấy thông tin khuyến mãi" });
+    }
+});
+
+// POST a new promotion
+router.post("/promotions", checkAdminRole, async (req, res) => {
+    const { code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status } = req.body;
+    try {
+        const { rows } = await db.query(
+            `INSERT INTO promotions (code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+            [code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status]
+        );
+        res.status(201).json(rows[0]);
+    } catch (err) {
+        console.error("Error creating promotion:", err);
+        res.status(500).json({ message: "Lỗi khi thêm khuyến mãi" });
+    }
+});
+
+// PUT (update) a promotion
+router.put("/promotions/:id", checkAdminRole, async (req, res) => {
+    const { id } = req.params;
+    const { code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status } = req.body;
+    try {
+        const { rows } = await db.query(
+            `UPDATE promotions SET code=$1, discount_type=$2, discount_value=$3, min_price=$4, max_discount=$5, start_date=$6, end_date=$7, status=$8 
+             WHERE id=$9 RETURNING *`,
+            [code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status, id]
+        );
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "Không tìm thấy khuyến mãi" });
+        }
+        res.json(rows[0]);
+    } catch (err) {
+        console.error(`Error updating promotion ${id}:`, err);
+        res.status(500).json({ message: "Lỗi khi cập nhật khuyến mãi" });
+    }
+});
+
+// DELETE a promotion
+router.delete("/promotions/:id", checkAdminRole, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await db.query("DELETE FROM promotions WHERE id = $1 RETURNING *", [id]);
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Không tìm thấy khuyến mãi" });
+        }
+        res.status(200).json({ message: "Xóa khuyến mãi thành công" });
+    } catch (err) {
+        console.error("Error deleting promotion:", err);
+        res.status(500).json({ message: "Lỗi khi xóa khuyến mãi" });
+    }
 });
 
 module.exports = router;

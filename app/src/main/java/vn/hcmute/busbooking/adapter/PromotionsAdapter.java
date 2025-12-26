@@ -79,7 +79,7 @@ public class PromotionsAdapter extends RecyclerView.Adapter<PromotionsAdapter.Vi
                 @Override public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
                     Promotion o = oldList.get(oldItemPosition);
                     Promotion n = updated.get(newItemPosition);
-                    return o.getTitle() != null && o.getTitle().equals(n.getTitle());
+                    return o.getId() == n.getId();
                 }
                 @Override public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
                     Promotion o = oldList.get(oldItemPosition);

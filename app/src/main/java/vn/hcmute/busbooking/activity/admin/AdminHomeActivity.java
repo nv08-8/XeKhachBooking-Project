@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -25,6 +26,9 @@ public class AdminHomeActivity extends AppCompatActivity {
         View btnManageBookings = findViewById(R.id.btnManageBookings);
         View btnRevenueStats = findViewById(R.id.btnRevenueStats);
         View btnManageUsers = findViewById(R.id.btnManageUsers);
+        View btnManageDrivers = findViewById(R.id.btnManageDrivers);
+        View btnManageReviews = findViewById(R.id.btnManageReviews);
+        View btnManagePromotions = findViewById(R.id.btnManagePromotions);
         View btnLogout = findViewById(R.id.btnLogout);
 
         if (tvGreeting != null) tvGreeting.setText(R.string.admin_panel_title);
@@ -34,6 +38,11 @@ public class AdminHomeActivity extends AppCompatActivity {
         if (btnManageBookings != null) btnManageBookings.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageBookingsActivity.class)));
         if (btnRevenueStats != null) btnRevenueStats.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, RevenueStatsActivity.class)));
         if (btnManageUsers != null) btnManageUsers.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageUsersActivity.class)));
+        if (btnManageDrivers != null) btnManageDrivers.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageDriversActivity.class)));
+        if (btnManagePromotions != null) btnManagePromotions.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManagePromotionsActivity.class)));
+
+        // TODO: Create these activities
+        if (btnManageReviews != null) btnManageReviews.setOnClickListener(v -> showToast("Chức năng đang được phát triển"));
 
         if (btnLogout != null) btnLogout.setOnClickListener(v -> {
             Intent intent = new Intent(AdminHomeActivity.this, LoginActivity.class);
@@ -41,5 +50,9 @@ public class AdminHomeActivity extends AppCompatActivity {
             startActivity(intent);
             finish();
         });
+    }
+
+    private void showToast(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 }

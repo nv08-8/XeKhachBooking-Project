@@ -5,18 +5,20 @@ import java.util.Map;
 import retrofit2.Call;
 import retrofit2.http.*;
 
-import vn.hcmute.busbooking.model.Trip;
 import vn.hcmute.busbooking.model.Booking;
+import vn.hcmute.busbooking.model.Driver;
 import vn.hcmute.busbooking.model.Location;
-import vn.hcmute.busbooking.model.Seat; // Added Seat import
+import vn.hcmute.busbooking.model.Promotion;
+import vn.hcmute.busbooking.model.Seat;
+import vn.hcmute.busbooking.model.Trip;
 import vn.hcmute.busbooking.model.User;
 
 public interface ApiService {
 
     @GET("api/trips")
-    Call<List<Trip>> getTrips(@Query("origin") String origin,
-                              @Query("destination") String destination,
-                              @Query("date") String date);
+    Call<List<Map<String, Object>>> getTrips(@Query("origin") String origin,
+                                            @Query("destination") String destination,
+                                            @Query("date") String date);
 
     @GET("api/routes")
     Call<List<Map<String, Object>>> getRoutes(
@@ -189,5 +191,45 @@ public interface ApiService {
 
     @GET("api/admin/revenue/by-year")
     Call<List<Map<String, Object>>> getRevenueByYear(@Header("user-id") int userId);
+
+    @GET("api/admin/revenue/details")
+    Call<List<Map<String, Object>>> getRevenueDetails(
+        @Header("user-id") int userId,
+        @Query("group_by") String groupBy,
+        @Query("value") String value
+    );
+
+
+    // ========== DRIVERS MANAGEMENT ==========
+    @GET("api/admin/drivers")
+    Call<List<Driver>> getAllDrivers(@Header("user-id") int userId);
+
+    @POST("api/admin/drivers")
+    Call<Driver> createDriver(@Header("user-id") int userId, @Body Map<String, String> body);
+
+    @GET("api/admin/drivers/{id}")
+    Call<Driver> getDriverById(@Header("user-id") int userId, @Path("id") int driverId);
+
+    @PUT("api/admin/drivers/{id}")
+    Call<Driver> updateDriver(@Header("user-id") int userId, @Path("id") int driverId, @Body Map<String, String> body);
+
+    @DELETE("api/admin/drivers/{id}")
+    Call<Void> deleteDriver(@Header("user-id") int userId, @Path("id") int driverId);
+
+    // ========== PROMOTIONS MANAGEMENT ==========
+    @GET("api/admin/promotions")
+    Call<List<Promotion>> getAdminPromotions(@Header("user-id") int userId);
+
+    @POST("api/admin/promotions")
+    Call<Promotion> createPromotion(@Header("user-id") int userId, @Body Promotion promotion);
+
+    @PUT("api/admin/promotions/{id}")
+    Call<Promotion> updatePromotion(@Header("user-id") int userId, @Path("id") int promotionId, @Body Promotion promotion);
+
+    @GET("api/admin/promotions/{id}")
+    Call<Promotion> getPromotionById(@Header("user-id") int userId, @Path("id") int promotionId);
+
+    @DELETE("api/admin/promotions/{id}")
+    Call<Void> deletePromotion(@Header("user-id") int userId, @Path("id") int promotionId);
 
 }

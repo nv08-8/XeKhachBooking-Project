@@ -5,6 +5,8 @@ import android.os.Parcelable;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.util.Map;
+
 public class Trip implements Parcelable {
 
     @SerializedName("id")
@@ -65,6 +67,68 @@ public class Trip implements Parcelable {
     private String seatLayout;
 
     public Trip() {}
+
+    public Trip(Map<String, Object> map) {
+        if (map == null) {
+            return;
+        }
+
+        this.id = getInt(map, "id");
+        this.routeId = getInt(map, "route_id");
+        this.operator = getString(map, "operator");
+        this.departureTime = getString(map, "departure_time");
+        this.arrivalTime = getString(map, "arrival_time");
+        this.price = getDouble(map, "price");
+        this.seatsTotal = getInt(map, "seats_total");
+        this.seatsAvailable = getInt(map, "seats_available");
+        this.status = getString(map, "status");
+        this.origin = getString(map, "origin");
+        this.destination = getString(map, "destination");
+        this.busType = getString(map, "bus_type");
+        this.durationHours = getDouble(map, "duration_hours");
+        this.distanceKm = getInt(map, "distance_km");
+        this.pickupPoint = getString(map, "pickup_point");
+        this.dropoffPoint = getString(map, "dropoff_point");
+        this.createdAt = getString(map, "created_at");
+        this.durationMin = getInt(map, "duration_min");
+        this.seatLayout = getString(map, "seat_layout");
+    }
+
+    private String getString(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        return value != null ? value.toString() : null;
+    }
+
+    private int getInt(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        } else if (value instanceof String) {
+            try {
+                return Integer.parseInt((String) value);
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        } else {
+            return 0;
+        }
+    }
+
+    private double getDouble(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        } else if (value instanceof String) {
+            try {
+                return Double.parseDouble((String) value);
+            } catch (NumberFormatException e) {
+                return 0.0;
+            }
+        } else {
+            return 0.0;
+        }
+    }
+
 
     protected Trip(Parcel in) {
         id = in.readInt();

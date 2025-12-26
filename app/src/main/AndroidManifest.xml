@@ -70,10 +70,16 @@
         <activity android:name=".activity.admin.ManageBookingsActivity" />
         <activity android:name=".activity.admin.BookingAdminDetailActivity" />
         <activity android:name=".activity.RevenueStatsActivity" />
+        <activity android:name=".activity.RevenueDetailsActivity" />
         <activity android:name=".activity.admin.ManageUsersActivity" />
         <activity android:name=".activity.EditUserActivity" />
         <activity android:name=".activity.admin.ManageTripsActivity" />
         <activity android:name=".activity.TripFormActivity" />
+        <activity android:name=".activity.admin.ManageDriversActivity" />
+        <activity android:name=".activity.admin.DriverFormActivity" />
+        <activity android:name=".activity.admin.ManageReviewsActivity" />
+        <activity android:name=".activity.admin.ManagePromotionsActivity" />
+        <activity android:name=".activity.admin.PromotionFormActivity" />
     </application>
 
 </manifest>

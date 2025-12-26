@@ -13,6 +13,7 @@ public class SessionManager {
     private static final String KEY_EMAIL = "user_email";
     private static final String KEY_PHONE = "user_phone";
     private static final String KEY_TOKEN = "user_token";
+    private static final String KEY_ROLE = "user_role"; // Add key for role
 
     private final SharedPreferences prefs;
 
@@ -66,12 +67,16 @@ public class SessionManager {
         }
         String email = (String) user.get("email");
         String phone = (String) user.get("phone");
+        String role = (String) user.get("role"); // Get role from user map
         String token = null;
         if (user.get("token") instanceof String) token = (String) user.get("token");
 
         if (userId != -1) {
             saveSession(userId, name, email, phone);
-            if (token != null) prefs.edit().putString(KEY_TOKEN, token).apply();
+            SharedPreferences.Editor editor = prefs.edit();
+            if (token != null) editor.putString(KEY_TOKEN, token);
+            if (role != null) editor.putString(KEY_ROLE, role); // Save role
+            editor.apply();
         }
     }
 
@@ -114,6 +119,12 @@ public class SessionManager {
     public boolean isLoggedIn() {
         // A user is considered logged in if their user ID is saved.
         return getUserId() != null;
+    }
+
+    // Method to check if the current user is an admin
+    public boolean isAdmin() {
+        String role = prefs.getString(KEY_ROLE, "user"); // Default to "user"
+        return "admin".equalsIgnoreCase(role);
     }
 
     public void clearSession() {
