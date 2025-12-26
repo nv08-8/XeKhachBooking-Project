@@ -137,19 +137,21 @@ io.on('connection', async (socket) => {
 // Background job: expire pending bookings older than configured TTL (default 10 minutes)
 // You can override this by setting BOOKING_PENDING_TTL_MINUTES in your environment (e.g., .env).
 const BOOKING_PENDING_TTL_MINUTES = parseInt(process.env.BOOKING_PENDING_TTL_MINUTES || '10', 10);
-const EXPIRE_CHECK_INTERVAL_MS = 5 * 1000;
+const EXPIRE_CHECK_INTERVAL_MS = 5 * 1000; // run every 5 seconds
 
 async function expirePendingBookings() {
     try {
         // Find pending bookings that MIGHT need expiring
         // Criteria:
         // 1. Online Payment (QR/Card) -> expire after TTL (10 mins)
-        // 2. Offline Payment (Pay at Office) -> expire after arrival_time passed
+        // 2. Offline Payment -> NOT EXPIRED AUTOMATICALLY (as per request)
         const sql = `SELECT b.id, b.user_id, b.trip_id, t.arrival_time, b.metadata, b.created_at, b.payment_method
                      FROM bookings b
                      JOIN trips t ON t.id = b.trip_id
                      WHERE b.status='pending' 
-                     AND (b.created_at < NOW() - INTERVAL '${BOOKING_PENDING_TTL_MINUTES} minutes' OR t.arrival_time < NOW())`;
+                     AND (b.created_at < NOW() - INTERVAL '${BOOKING_PENDING_TTL_MINUTES} minutes')`; 
+                     // Removed "OR t.arrival_time < NOW()" from SQL to avoid fetching offline bookings unnecessarily
+        
         const { rows } = await db.query(sql);
         if (!rows || rows.length === 0) return;
 
@@ -177,7 +179,7 @@ async function expirePendingBookings() {
                 // Logic:
                 // - Is Online Payment? (Has orderCode in metadata OR explicit payment_method)
                 // - If Online: Cancel if created_at > TTL
-                // - If Offline: Cancel if NOW > arrival_time
+                // - If Offline: Do NOT cancel
                 
                 let isOnlinePayment = false;
                 if (booking.metadata && booking.metadata.payment && booking.metadata.payment.orderCode) {
@@ -191,8 +193,7 @@ async function expirePendingBookings() {
                 const now = new Date();
                 const createdAt = new Date(booking.created_at);
                 const ttlLimit = new Date(createdAt.getTime() + BOOKING_PENDING_TTL_MINUTES * 60000);
-                const arrivalTime = b.arrival_time ? new Date(b.arrival_time) : null;
-
+                
                 let shouldCancel = false;
                 let newStatus = 'cancelled'; // Default
 
@@ -200,15 +201,11 @@ async function expirePendingBookings() {
                     // Online payment: expire if TTL passed
                     if (now > ttlLimit) {
                         shouldCancel = true;
-                        newStatus = 'cancelled'; // Payment timed out
+                        newStatus = 'expired'; // More accurate status for timeout
                     }
                 } else {
-                    // Offline/Cash: expire only if arrival_time passed (user didn't show up / pay)
-                    if (arrivalTime && now > arrivalTime) {
-                         shouldCancel = true;
-                         // "nếu thanh toán tại nhà xe chỉ expire rồi cancel..." -> Cancelled
-                         newStatus = 'cancelled';
-                    }
+                    // Offline/Cash: Do NOT expire automatically
+                    shouldCancel = false;
                 }
 
                 if (!shouldCancel) {
