@@ -25,6 +25,7 @@
         <activity android:name=".activity.guest.GuestHomeActivity" />
         <activity android:name=".activity.guest.GuestAccountActivity" />
         <activity android:name=".activity.UserAccountActivity" />
+        <activity android:name=".activity.PersonalInfoActivity" />
         <activity android:name=".activity.OtpVerificationActivity" />
         <activity android:name=".activity.ResetPasswordActivity" />
         <activity android:name=".activity.TripListActivity" />

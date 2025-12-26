@@ -4,11 +4,8 @@ import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
 import android.widget.Button;
-import android.widget.DatePicker;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.Toast;
@@ -24,6 +21,8 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+
+import android.text.TextUtils;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -48,19 +47,13 @@ public class EditProfileActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Log.d(TAG, "onCreate() called");
         setContentView(R.layout.activity_edit_profile);
 
         sessionManager = new SessionManager(this);
         apiService = ApiClient.getClient().create(ApiService.class);
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
-        if (toolbar != null) {
-            toolbar.setNavigationOnClickListener(v -> {
-                Log.d(TAG, "Toolbar navigation clicked");
-                finish();
-            });
-        }
+        toolbar.setNavigationOnClickListener(v -> finish());
 
         edtName = findViewById(R.id.edtName);
         edtEmail = findViewById(R.id.edtEmail);
@@ -73,6 +66,7 @@ public class EditProfileActivity extends AppCompatActivity {
         edtRole = findViewById(R.id.edtRole);
         btnSaveProfile = findViewById(R.id.btnSaveProfile);
 
+        prefillFromSession();
         loadUserInfo();
 
         btnSaveProfile.setOnClickListener(v -> saveProfile());
@@ -95,7 +89,7 @@ public class EditProfileActivity extends AppCompatActivity {
                 int itemId = item.getItemId();
                 if (itemId == R.id.nav_home) {
                     Intent intent = new Intent(this, vn.hcmute.busbooking.MainActivity.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                     startActivity(intent);
                     return true;
                 } else if (itemId == R.id.nav_tickets) {
@@ -104,9 +98,8 @@ public class EditProfileActivity extends AppCompatActivity {
                     startActivity(intent);
                     return true;
                 } else if (itemId == R.id.nav_account) {
-                    Intent intent = new Intent(this, UserAccountActivity.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-                    startActivity(intent);
+                    // Already in the account section, just finish this activity to go back
+                    finish();
                     return true;
                 } else {
                     return false;
@@ -116,63 +109,58 @@ public class EditProfileActivity extends AppCompatActivity {
     }
 
     private void loadUserInfo() {
-        String name = sessionManager.getUserName();
-        String email = sessionManager.getUserEmail();
-
-        if (name != null) edtName.setText(name);
-        if (email != null) {
-            edtEmail.setText(email);
-            edtEmail.setEnabled(false);
-        }
-
         Integer userId = sessionManager.getUserId();
         if (userId != null) {
             apiService.getUserInfo(userId).enqueue(new Callback<Map<String, Object>>() {
                 @Override
                 public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                     if (response.isSuccessful() && response.body() != null) {
-                        Map<String, Object> userData = response.body();
+                        Map<String, Object> userData = extractUserPayload(response.body());
+                        if (userData == null) {
+                            Log.w(TAG, "User info payload is empty");
+                            return;
+                        }
 
-                        Object phoneObj = userData.get("sdt");
-                        if (phoneObj != null) {
-                            String phone;
-                            if (phoneObj instanceof Number) {
-                                phone = String.format("%.0f", ((Number) phoneObj).doubleValue());
-                            } else {
-                                phone = phoneObj.toString();
-                            }
-                            if (phone.length() == 9 && !phone.startsWith("0")) {
-                                phone = "0" + phone;
-                            }
+                        String name = asString(coalesceName(userData));
+                        if (!TextUtils.isEmpty(name)) {
+                            edtName.setText(name);
+                        }
+
+                        String email = asString(userData.get("email"));
+                        if (!TextUtils.isEmpty(email)) {
+                            edtEmail.setText(email);
+                            edtEmail.setEnabled(false);
+                        }
+
+                        String phone = normalizePhone(asString(userData.get("sdt")));
+                        if (!TextUtils.isEmpty(phone)) {
                             edtPhone.setText(phone);
                         }
 
-                        Object dobObj = userData.get("dob");
-                        if (dobObj != null) {
-                            edtDob.setText(dobObj.toString());
+                        String dob = asString(userData.get("dob"));
+                        if (!TextUtils.isEmpty(dob)) {
+                            edtDob.setText(dob);
                         }
 
-                        Object genderObj = userData.get("gender");
-                        if (genderObj != null) {
-                            String gender = genderObj.toString();
-                            if (gender.equalsIgnoreCase("male")) {
-                                rbMale.setChecked(true);
-                            } else if (gender.equalsIgnoreCase("female")) {
-                                rbFemale.setChecked(true);
-                            } else {
-                                rbOther.setChecked(true);
-                            }
+                        String gender = asString(userData.get("gender"));
+                        if (!TextUtils.isEmpty(gender)) {
+                            selectGender(gender);
                         }
 
-                        Object roleObj = userData.get("role");
-                        if (roleObj != null) {
-                            String roleStr = roleObj.toString().toUpperCase();
-                            edtRole.setText(roleStr);
-                        } else {
+                        String role = asString(userData.get("role"));
+                        if (!TextUtils.isEmpty(role)) {
+                            edtRole.setText(role.toUpperCase(Locale.ROOT));
+                            sessionManager.updateRole(role);
+                        } else if (TextUtils.isEmpty(edtRole.getText())) {
                             edtRole.setText("USER");
                         }
 
-                        Log.d(TAG, "User info loaded");
+                        sessionManager.updateUserInfo(
+                                name,
+                                !TextUtils.isEmpty(email) ? email : sessionManager.getUserEmail(),
+                                phone,
+                                dob,
+                                gender);
                     }
                 }
 
@@ -184,16 +172,90 @@ public class EditProfileActivity extends AppCompatActivity {
         }
     }
 
+    private void prefillFromSession() {
+        setTextIfNotEmpty(edtName, sessionManager.getUserName());
+        String email = sessionManager.getUserEmail();
+        if (!TextUtils.isEmpty(email)) {
+            edtEmail.setText(email);
+            edtEmail.setEnabled(false);
+        }
+        setTextIfNotEmpty(edtPhone, sessionManager.getUserPhone());
+        setTextIfNotEmpty(edtDob, sessionManager.getUserDob());
+        selectGender(sessionManager.getUserGender());
+        String role = sessionManager.getRole();
+        edtRole.setText(!TextUtils.isEmpty(role) ? role.toUpperCase(Locale.ROOT) : "USER");
+    }
+
+    private void setTextIfNotEmpty(TextInputEditText view, String value) {
+        if (!TextUtils.isEmpty(value)) {
+            view.setText(value);
+        }
+    }
+
+    private void selectGender(String gender) {
+        if (TextUtils.isEmpty(gender)) {
+            rgGender.clearCheck();
+            return;
+        }
+        if (gender.equalsIgnoreCase(rbMale.getText().toString())) {
+            rbMale.setChecked(true);
+        } else if (gender.equalsIgnoreCase(rbFemale.getText().toString())) {
+            rbFemale.setChecked(true);
+        } else {
+            rbOther.setChecked(true);
+        }
+    }
+
+    private String normalizePhone(String phone) {
+        if (TextUtils.isEmpty(phone)) return phone;
+        String normalized = phone.trim();
+        if (normalized.length() == 9 && !normalized.startsWith("0")) {
+            normalized = "0" + normalized;
+        }
+        return normalized;
+    }
+
+    private String asString(Object value) {
+        return value != null ? value.toString().trim() : null;
+    }
+
+    private Object coalesceName(Map<String, Object> userData) {
+        Object name = userData.get("name");
+        if (name == null || name.toString().trim().isEmpty()) {
+            name = userData.get("hoten");
+        }
+        if (name == null || name.toString().trim().isEmpty()) {
+            name = userData.get("full_name");
+        }
+        return name;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> extractUserPayload(Map<String, Object> body) {
+        if (body == null) return null;
+        Object data = body.get("data");
+        if (data instanceof Map) {
+            return (Map<String, Object>) data;
+        }
+        Object user = body.get("user");
+        if (user instanceof Map) {
+            return (Map<String, Object>) user;
+        }
+        return body;
+    }
+
     private void saveProfile() {
-        String name = edtName.getText().toString().trim();
-        String phone = edtPhone.getText().toString().trim();
-        String dob = edtDob.getText().toString().trim();
+        final String name = edtName.getText().toString().trim();
+        final String phone = edtPhone.getText().toString().trim();
+        final String dob = edtDob.getText().toString().trim();
 
         int selectedGenderId = rgGender.getCheckedRadioButtonId();
         RadioButton selectedRadioButton = findViewById(selectedGenderId);
-        String gender = "";
+        final String gender;
         if (selectedRadioButton != null) {
             gender = selectedRadioButton.getText().toString();
+        } else {
+            gender = "";
         }
 
         if (name.isEmpty() || phone.isEmpty() || dob.isEmpty() || gender.isEmpty()) {
@@ -216,8 +278,6 @@ public class EditProfileActivity extends AppCompatActivity {
         body.put("dob", dob);
         body.put("gender", gender);
 
-        Log.d(TAG, "Updating profile for userId: " + userId);
-
         apiService.updateUserInfo(userId, body).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
@@ -234,7 +294,17 @@ public class EditProfileActivity extends AppCompatActivity {
 
                     if (success) {
                         String email = sessionManager.getUserEmail();
+                        // Save all fields to session
                         sessionManager.saveSession(userId, name, email);
+                        sessionManager.updateUserInfo(name, email, phone, dob, gender);
+
+                        // Prepare full result for caller
+                        Intent result = new Intent();
+                        result.putExtra(PersonalInfoActivity.EXTRA_UPDATED_NAME, name);
+                        result.putExtra(PersonalInfoActivity.EXTRA_UPDATED_PHONE, phone);
+                        result.putExtra(PersonalInfoActivity.EXTRA_UPDATED_DOB, dob);
+                        result.putExtra(PersonalInfoActivity.EXTRA_UPDATED_GENDER, gender);
+                        setResult(RESULT_OK, result);
 
                         Toast.makeText(EditProfileActivity.this, "Cập nhật thông tin thành công!", Toast.LENGTH_SHORT).show();
                         finish();
@@ -244,7 +314,6 @@ public class EditProfileActivity extends AppCompatActivity {
                     }
                 } else {
                     Toast.makeText(EditProfileActivity.this, "Không thể cập nhật thông tin", Toast.LENGTH_SHORT).show();
-                    Log.e(TAG, "Update failed: " + response.code());
                 }
             }
 
@@ -252,15 +321,13 @@ public class EditProfileActivity extends AppCompatActivity {
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                 btnSaveProfile.setEnabled(true);
                 Toast.makeText(EditProfileActivity.this, "Lỗi kết nối: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                Log.e(TAG, "Update error", t);
             }
         });
     }
 
     private void updateLabel() {
-        String myFormat = "dd/MM/yyyy"; //In which you need put here
+        String myFormat = "dd/MM/yyyy";
         SimpleDateFormat sdf = new SimpleDateFormat(myFormat, Locale.US);
-
         edtDob.setText(sdf.format(myCalendar.getTime()));
     }
 }

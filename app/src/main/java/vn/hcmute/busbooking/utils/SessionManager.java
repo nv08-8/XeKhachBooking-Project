@@ -3,6 +3,7 @@ package vn.hcmute.busbooking.utils;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.text.TextUtils;
 
 import java.util.Map;
 
@@ -12,6 +13,8 @@ public class SessionManager {
     private static final String KEY_NAME = "user_name";
     private static final String KEY_EMAIL = "user_email";
     private static final String KEY_PHONE = "user_phone";
+    private static final String KEY_DOB = "user_dob";
+    private static final String KEY_GENDER = "user_gender";
     private static final String KEY_TOKEN = "user_token";
     private static final String KEY_ROLE = "user_role"; // Add key for role
 
@@ -34,6 +37,41 @@ public class SessionManager {
                 .putString(KEY_EMAIL, email)
                 .putString(KEY_PHONE, phone)
                 .apply();
+    }
+
+    // Overload method for updating only name and email
+    public void updateUserInfo(String name, String email) {
+        SharedPreferences.Editor editor = prefs.edit();
+        putIfHasText(editor, KEY_NAME, name);
+        putIfHasText(editor, KEY_EMAIL, email);
+        editor.apply();
+    }
+
+    public void updateUserInfo(String name, String email, String phone, String dob, String gender) {
+        SharedPreferences.Editor editor = prefs.edit();
+        putIfHasText(editor, KEY_NAME, name);
+        putIfHasText(editor, KEY_EMAIL, email);
+        putIfHasText(editor, KEY_PHONE, phone);
+        putIfHasText(editor, KEY_DOB, dob);
+        putIfHasText(editor, KEY_GENDER, gender);
+        editor.apply();
+    }
+
+    private void putIfHasText(SharedPreferences.Editor editor, String key, String value) {
+        String sanitized = sanitize(value);
+        if (!TextUtils.isEmpty(sanitized)) {
+            editor.putString(key, sanitized);
+        }
+    }
+
+    private String sanitize(String value) {
+        return value != null ? value.trim() : null;
+    }
+
+    public void updateRole(String role) {
+        if (role != null && !role.isEmpty()) {
+            prefs.edit().putString(KEY_ROLE, role.trim()).apply();
+        }
     }
 
     /**
@@ -110,6 +148,18 @@ public class SessionManager {
 
     public String getUserPhone() {
         return prefs.getString(KEY_PHONE, null);
+    }
+
+    public String getUserDob() {
+        return prefs.getString(KEY_DOB, null);
+    }
+
+    public String getUserGender() {
+        return prefs.getString(KEY_GENDER, null);
+    }
+
+    public String getRole() {
+        return prefs.getString(KEY_ROLE, null);
     }
 
     public String getToken() {
