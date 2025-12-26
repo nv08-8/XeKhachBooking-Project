@@ -137,7 +137,7 @@ io.on('connection', async (socket) => {
 // Background job: expire pending bookings older than configured TTL (default 10 minutes)
 // You can override this by setting BOOKING_PENDING_TTL_MINUTES in your environment (e.g., .env).
 const BOOKING_PENDING_TTL_MINUTES = parseInt(process.env.BOOKING_PENDING_TTL_MINUTES || '10', 10);
-const EXPIRE_CHECK_INTERVAL_MS = 5 * 1000; 
+const EXPIRE_CHECK_INTERVAL_MS = 5 * 1000;
 
 async function expirePendingBookings() {
     try {
