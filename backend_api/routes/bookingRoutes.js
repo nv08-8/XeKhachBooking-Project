@@ -142,11 +142,13 @@ router.post("/bookings", async (req, res) => {
 // GET /bookings/my - Get user's bookings
 router.get('/bookings/my', async (req, res) => {
   const { user_id } = req.query;
+  console.log(`\n📋 [GET /api/bookings/my] Request from user_id: ${user_id}`);
+
   if (!user_id) return res.status(400).json({ message: 'Missing user_id' });
   
   const sql = `
     SELECT b.id, b.status, b.price_paid, b.created_at, b.total_amount,
-           t.departure_time, t.arrival_time, t.operator,
+           t.departure_time, t.arrival_time, t.operator, t.bus_type,
            r.origin, r.destination,
            pickup_stop.name AS pickup_location,
            dropoff_stop.name AS dropoff_location,
@@ -163,9 +165,13 @@ router.get('/bookings/my', async (req, res) => {
   `;
   try {
     const { rows } = await db.query(sql, [user_id]);
+    console.log(`   ✅ Found ${rows.length} bookings for user ${user_id}`);
+    if (rows.length > 0) {
+      console.log(`   First booking: #${rows[0].id}, status: ${rows[0].status}, route: ${rows[0].origin} → ${rows[0].destination}`);
+    }
     res.json(rows);
   } catch (err) {
-    console.error('Failed to fetch bookings:', err);
+    console.error('❌ Failed to fetch bookings:', err);
     res.status(500).json({ message: 'Failed to fetch bookings' });
   }
 });
