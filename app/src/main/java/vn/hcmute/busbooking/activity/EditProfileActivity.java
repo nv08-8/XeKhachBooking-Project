@@ -320,10 +320,26 @@ public class EditProfileActivity extends AppCompatActivity {
                         finish();
                     } else {
                         String message = res.get("message") != null ? res.get("message").toString() : "Cập nhật thất bại";
+                        Log.d(TAG, "Success is false, message: " + message);
                         Toast.makeText(EditProfileActivity.this, message, Toast.LENGTH_SHORT).show();
                     }
                 } else {
-                    Toast.makeText(EditProfileActivity.this, "Không thể cập nhật thông tin", Toast.LENGTH_SHORT).show();
+                    String errorMsg = "Không thể cập nhật thông tin";
+                    if (!response.isSuccessful()) {
+                        errorMsg += " (HTTP " + response.code() + ")";
+                        try {
+                            String errorBody = response.errorBody() != null ? response.errorBody().string() : "";
+                            Log.d(TAG, "Error body: " + errorBody);
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error reading error body", e);
+                        }
+                    }
+                    if (response.body() == null) {
+                        errorMsg += " - Response body is null";
+                        Log.d(TAG, "Response body is null!");
+                    }
+                    Log.d(TAG, "Final error: " + errorMsg);
+                    Toast.makeText(EditProfileActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
                 }
             }
 
