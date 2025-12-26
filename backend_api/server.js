@@ -233,12 +233,12 @@ async function expirePendingBookings() {
 
                 if (colCheck.rowCount > 0) {
                   await client.query(
-                    "UPDATE bookings SET status='expired', expired_at=NOW() WHERE id=$1",
+                    "UPDATE bookings SET status='cancelled', expired_at=NOW() WHERE id=$1",
                     [bookingId]
                   );
                 } else {
                   await client.query(
-                    "UPDATE bookings SET status='expired' WHERE id=$1",
+                    "UPDATE bookings SET status='cancelled' WHERE id=$1",
                     [bookingId]
                   );
                 }
