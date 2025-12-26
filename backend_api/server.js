@@ -260,11 +260,53 @@ async function expirePendingBookings() {
     }
 }
 
-// Start interval
+// Background job: mark confirmed bookings as completed when arrival_time has passed
+const COMPLETE_CHECK_INTERVAL_MS = 60 * 1000; // run every minute
+
+async function completeFinishedBookings() {
+    try {
+        // Find confirmed bookings where arrival_time < NOW
+        const sql = `
+            SELECT b.id, b.user_id, b.trip_id, b.status
+            FROM bookings b
+            JOIN trips t ON t.id = b.trip_id
+            WHERE b.status = 'confirmed' AND t.arrival_time < NOW()
+        `;
+        const { rows } = await db.query(sql);
+        if (!rows || rows.length === 0) return;
+
+        for (const booking of rows) {
+            try {
+                // Update booking status to completed
+                await db.query(
+                    "UPDATE bookings SET status='completed' WHERE id=$1",
+                    [booking.id]
+                );
+
+                // Emit booking_event to user's room
+                io.to(`user_${booking.user_id}`).emit('booking_event', {
+                    id: booking.id,
+                    trip_id: booking.trip_id,
+                    status: 'completed'
+                });
+
+                console.log(`Marked booking id=${booking.id} as completed (arrival_time passed)`);
+            } catch (err) {
+                console.error('Failed to complete booking id=' + booking.id, err.message || err);
+            }
+        }
+    } catch (err) {
+        console.error('completeFinishedBookings failed:', err.message || err);
+    }
+}
+
+// Start intervals
 setInterval(expirePendingBookings, EXPIRE_CHECK_INTERVAL_MS);
+setInterval(completeFinishedBookings, COMPLETE_CHECK_INTERVAL_MS);
 
 // Run once at startup
 expirePendingBookings();
+completeFinishedBookings();
 
 // Start HTTP server (Express + Socket.IO)
 const PORT = process.env.PORT || 10000;
