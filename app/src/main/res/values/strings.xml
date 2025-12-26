@@ -144,7 +144,6 @@
         <item>suspended</item>
     </string-array>
 
-    <string name="terms_of_service_content">Đây là nội dung cho Điều khoản dịch vụ. Bạn có thể thay thế bằng nội dung thực tế của mình.</string>
     <string name="privacy_policy_content">Đây là nội dung cho Chính sách bảo mật. Bạn có thể thay thế bằng nội dung thực tế của mình.</string>
 
     <!-- Help Center -->
@@ -161,5 +160,9 @@
         <item>Bạn có thể xem tất cả các vé đã đặt trong mục \"Vé của tôi\" ở thanh điều hướng dưới cùng.</item>
         <item>Chúng tôi hỗ trợ nhiều hình thức thanh toán, bao gồm thẻ tín dụng/ghi nợ, ví điện tử, và thanh toán tại nhà xe.</item>
     </string-array>
+
+    <string name="terms_of_service_content">
+        <b>1. Chấp nhận Điều khoản</b>\nBằng việc truy cập và sử dụng ứng dụng GoUTE (\"Ứng dụng\"), bạn đồng ý bị ràng buộc bởi các Điều khoản Dịch vụ này (\"Điều khoản\"). Nếu bạn không đồng ý với bất kỳ phần nào của Điều khoản, bạn không được phép sử dụng Ứng dụng.\n\n<b>2. Mô tả Dịch vụ</b>\nGoUTE cung cấp một nền tảng trực tuyến cho phép người dùng (\"bạn\") tìm kiếm, so sánh và đặt vé xe khách từ các nhà cung cấp dịch vụ vận tải bên thứ ba (\"Nhà xe\"). GoUTE không phải là một nhà xe và không chịu trách nhiệm về việc vận hành các chuyến đi. Trách nhiệm của chúng tôi là tạo điều kiện cho việc kết nối giữa bạn và Nhà xe.\n\n<b>3. Tài khoản Người dùng</b>\n- Bạn phải đủ 18 tuổi để tạo tài khoản và sử dụng Ứng dụng.\n- Bạn chịu trách nhiệm duy trì tính bảo mật của thông tin tài khoản, bao gồm cả mật khẩu.\n- Bạn đồng ý cung cấp thông tin chính xác, hiện tại và đầy đủ trong quá trình đăng ký và cập nhật thông tin tài khoản của mình.\n\n<b>4. Đặt vé và Thanh toán</b>\n- Khi bạn đặt vé qua Ứng dụng, bạn đang thực hiện một giao dịch trực tiếp với Nhà xe.\n- Giá vé hiển thị trên Ứng dụng do Nhà xe cung cấp.\n- Bạn có trách nhiệm thanh toán đầy đủ và đúng hạn cho tất cả các vé bạn đặt.\n\n<b>5. Hủy vé và Hoàn tiền</b>\n- Chính sách hủy vé và hoàn tiền được quy định bởi từng Nhà xe. GoUTE sẽ hiển thị rõ chính sách này trong quá trình bạn đặt vé.\n- Mọi yêu cầu hủy vé hoặc hoàn tiền phải được thực hiện thông qua Ứng dụng và sẽ được xử lý theo chính sách của Nhà xe.\n\n<b>6. Miễn trừ Trách nhiệm</b>\n- Dịch vụ vận tải được cung cấp bởi Nhà xe. GoUTE không chịu trách nhiệm về bất kỳ sự chậm trễ, hủy chuyến, tai nạn, hoặc bất kỳ tổn thất nào khác phát sinh từ việc sử dụng dịch vụ của Nhà xe.\n\n<b>7. Thay đổi Điều khoản</b>\nChúng tôi có quyền sửa đổi các Điều khoản này bất kỳ lúc nào. Việc bạn tiếp tục sử dụng Ứng dụng sau khi có thay đổi đồng nghĩa với việc bạn chấp nhận các Điều khoản mới.\n\n<b>8. Thông tin Liên hệ</b>\nNếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi tại: support@goute.vn.
+    </string>
 
 </resources>

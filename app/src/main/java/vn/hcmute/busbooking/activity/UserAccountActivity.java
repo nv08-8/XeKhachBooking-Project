@@ -87,7 +87,10 @@ public class UserAccountActivity extends AppCompatActivity {
             Intent intent = new Intent(this, HelpCenterActivity.class);
             startActivity(intent);
         });
-        tvTerms.setOnClickListener(v -> openLegalContent("Điều khoản dịch vụ", getString(R.string.terms_of_service_content)));
+        tvTerms.setOnClickListener(v -> {
+            Intent intent = new Intent(this, TermsServiceActivity.class);
+            startActivity(intent);
+        });
         tvPrivacyPolicy.setOnClickListener(v -> openLegalContent("Chính sách bảo mật", getString(R.string.privacy_policy_content)));
 
 

@@ -56,6 +56,7 @@
         <activity android:name="vn.hcmute.busbooking.activity.guest.GuestFavoritesActivity"
             android:exported="false" />
         <activity android:name=".activity.HelpCenterActivity" />
+        <activity android:name=".activity.TermsServiceActivity" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
