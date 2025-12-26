@@ -24,7 +24,7 @@ import vn.hcmute.busbooking.utils.SessionManager;
 
 public class UserAccountActivity extends AppCompatActivity {
 
-    private TextView tvUserName, tvUserEmail, tvLogout;
+    private TextView tvUserName, tvUserEmail, tvLogout, tvHelpCenter, tvTerms, tvPrivacyPolicy;
     private Button btnEditProfile, btnChangePassword;
     private SessionManager sessionManager;
     private AppBarLayout appBarLayout;
@@ -48,6 +48,9 @@ public class UserAccountActivity extends AppCompatActivity {
         tvLogout = findViewById(R.id.tvLogout);
         btnEditProfile = findViewById(R.id.btnEditProfile);
         btnChangePassword = findViewById(R.id.btnChangePassword);
+        tvHelpCenter = findViewById(R.id.tvHelpCenter);
+        tvTerms = findViewById(R.id.tvTerms);
+        tvPrivacyPolicy = findViewById(R.id.tvPrivacyPolicy);
 
         // Set user info
         // Safely set user info (views may be missing in some layout variants)
@@ -79,6 +82,20 @@ public class UserAccountActivity extends AppCompatActivity {
                 startActivity(intent);
             });
         }
+
+        tvHelpCenter.setOnClickListener(v -> {
+            Intent intent = new Intent(this, HelpCenterActivity.class);
+            startActivity(intent);
+        });
+        tvTerms.setOnClickListener(v -> {
+            Intent intent = new Intent(this, TermsServiceActivity.class);
+            startActivity(intent);
+        });
+        tvPrivacyPolicy.setOnClickListener(v -> {
+            Intent intent = new Intent(this, PrivacyPolicyActivity.class);
+            startActivity(intent);
+        });
+
 
         bottomNav = findViewById(R.id.bottom_navigation);
         if (bottomNav != null) {
@@ -125,6 +142,13 @@ public class UserAccountActivity extends AppCompatActivity {
         if (bottomNav != null) {
             bottomNav.setSelectedItemId(R.id.nav_account);
         }
+    }
+
+    private void openLegalContent(String title, String content) {
+        Intent intent = new Intent(this, LegalContentActivity.class);
+        intent.putExtra("title", title);
+        intent.putExtra("content", content);
+        startActivity(intent);
     }
 
     private void handleWindowInsets() {
