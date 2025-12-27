@@ -327,7 +327,7 @@ router.post('/bookings/:id/payment', async (req, res) => {
   try {
     await client.query('BEGIN');
     const bookingRes = await client.query(
-      `SELECT b.id, b.trip_id, b.status, b.total_amount, b.price_paid
+      `SELECT b.id, b.trip_id, b.status, b.total_amount, b.price_paid, b.payment_method
        FROM bookings b WHERE b.id=$1 FOR UPDATE`,
       [id]
     );
@@ -342,17 +342,24 @@ router.post('/bookings/:id/payment', async (req, res) => {
       return res.status(409).json({ message: 'Booking cannot be confirmed', status: booking.status });
     }
 
-    // Mark as confirmed, record payment info. For simplicity we treat card as full payment.
-    const paidAmount = Number(booking.total_amount) || 0;
-    const paymentMeta = { method: payment_method || 'card', note: 'Client confirmed payment' };
+    // Determine final status based on payment method
+    // For offline/cash payments, keep status as 'pending' to indicate waiting for in-person confirmation
+    // For online payments (card, QR), set status to 'confirmed'
+    const normalizedMethod = (payment_method || booking.payment_method || 'card').toLowerCase();
+    const isOfflinePayment = ['cash', 'offline', 'cod', 'counter'].includes(normalizedMethod);
+    const finalStatus = isOfflinePayment ? 'pending' : 'confirmed';
+
+    // For offline payments, don't mark as paid yet; for online payments, record full payment
+    const paidAmount = isOfflinePayment ? 0 : (Number(booking.total_amount) || 0);
+    const paymentMeta = { method: normalizedMethod, note: isOfflinePayment ? 'Waiting for counter payment' : 'Online payment confirmed' };
 
     await client.query(
       `UPDATE bookings SET status=$1, price_paid=$2, payment_method=$3, paid_at=NOW(), metadata = COALESCE(metadata, '{}'::jsonb) || $4::jsonb WHERE id=$5`,
-      ['confirmed', paidAmount, payment_method || 'card', JSON.stringify({ payment: paymentMeta }), id]
+      [finalStatus, paidAmount, normalizedMethod, JSON.stringify({ payment: paymentMeta }), id]
     );
 
     await commitAndRelease(client);
-    res.json({ message: 'Payment confirmed', booking_id: Number(id), status: 'confirmed', paidAmount });
+    res.json({ message: 'Payment confirmed', booking_id: Number(id), status: finalStatus, paidAmount });
   } catch (err) {
     console.error('Confirm payment failed:', err.message || err);
     await rollbackAndRelease(client);

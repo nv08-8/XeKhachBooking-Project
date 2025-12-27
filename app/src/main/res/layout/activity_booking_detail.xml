@@ -88,7 +88,7 @@
                     android:layout_height="1dp"
                     android:layout_marginTop="20dp"
                     android:background="#E5E5EA"
-                    app:layout_constraintTop_toBottomOf="@id/ivOperatorLogo"
+                    app:layout_constraintTop_toBottomOf="@+id/ivOperatorLogo"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintEnd_toEndOf="parent" />
 
@@ -342,6 +342,15 @@
                 android:text="Thanh toán"
                 android:backgroundTint="@color/colorPrimary"
                 android:textColor="@android:color/white"
+                android:visibility="gone"
+                android:layout_marginEnd="12dp" />
+
+            <Button
+                android:id="@+id/btnChangePaymentMethod"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Đổi phương thức thanh toán"
                 android:visibility="gone"
                 android:layout_marginEnd="12dp" />
 

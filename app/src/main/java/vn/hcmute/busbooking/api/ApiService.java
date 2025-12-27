@@ -96,6 +96,9 @@ public interface ApiService {
     @POST("api/bookings/{id}/verify-payment")
     Call<Map<String, Object>> verifyBookingPayment(@Path("id") int bookingId);
 
+    @PUT("api/bookings/{id}/payment-method")
+    Call<Map<String, Object>> changePaymentMethod(@Path("id") int bookingId, @Body Map<String, String> body);
+
     @GET("api/auth/user/{id}")
     Call<Map<String, Object>> getUserInfo(@Path("id") int userId);
 
