@@ -192,7 +192,7 @@ async function expirePendingBookings() {
                 // - Is Online Payment? (Has orderCode in metadata OR explicit payment_method)
                 // - If Online: Cancel if created_at > TTL
                 // - If Offline: Do NOT cancel
-                
+
                 let isOnlinePayment = false;
 
                 // Check payment_method field first (most reliable)
