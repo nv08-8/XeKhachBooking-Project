@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
@@ -59,6 +60,7 @@ public class MyBookingsActivity extends AppCompatActivity {
     private AppBarLayout appBarLayout;
     private TabLayout tabLayout;
     private View statusBarScrim;
+    private BottomNavigationView bottomNav;
 
     private List<Booking> allBookings = new ArrayList<>();
     // Cached lists to display per tab
@@ -135,9 +137,18 @@ public class MyBookingsActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        // ✅ Always refresh bookings when returning to this activity
+        // This ensures newly created offline bookings are displayed immediately
+        Log.d("MyBookings", "onResume: Refreshing bookings list");
+        loadMyBookings();
+
         // Start polling when activity visible
         pollingHandler.removeCallbacks(pollingRunnable);
         pollingHandler.postDelayed(pollingRunnable, POLL_INTERVAL_MS);
+
+        if (bottomNav != null) {
+            bottomNav.setSelectedItemId(R.id.nav_tickets);
+        }
 
         // Register a global socket listener to show banner when booking expired
         socketListener = payload -> {
@@ -233,7 +244,11 @@ public class MyBookingsActivity extends AppCompatActivity {
             // - not yet departure (chưa tới ngày đi)
             // - not boarded yet (we approximate this by departure_time > now)
             // - not cancelled/expired
-            if (timeMillis == -1) {
+            // ✅ IMPORTANT: ALL pending bookings (including offline) should ALWAYS show in "Hiện tại"
+            if (status.equals("pending")) {
+                // ✅ Always show pending bookings in current, regardless of date parsing
+                listCurrent.add(booking);
+            } else if (timeMillis == -1) {
                 // Unknown date -> keep in current so user can see/manage it
                 listCurrent.add(booking);
             } else if (timeMillis > nowMillis) {
@@ -284,7 +299,7 @@ public class MyBookingsActivity extends AppCompatActivity {
     }
 
      private void setupBottomNavigation() {
-        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav = findViewById(R.id.bottom_navigation);
         bottomNav.setSelectedItemId(R.id.nav_tickets);
         bottomNav.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
