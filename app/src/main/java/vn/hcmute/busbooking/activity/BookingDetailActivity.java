@@ -2,7 +2,6 @@ package vn.hcmute.busbooking.activity;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.util.Log;
@@ -14,7 +13,6 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.core.content.ContextCompat;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.MultiFormatWriter;
@@ -412,12 +410,14 @@ public class BookingDetailActivity extends AppCompatActivity {
                         if (btnCancelTicket != null) btnCancelTicket.setVisibility(View.GONE);
                         if (btnChangePaymentMethod != null) btnChangePaymentMethod.setVisibility(View.GONE);
 
+                        if (actionButtonsContainer != null) actionButtonsContainer.setVisibility(View.GONE);
+
                         Toast.makeText(BookingDetailActivity.this,
-                                "Vé đã hết hạn thanh toán",
+                                "Vé đã hết hạn thanh toán. Vui lòng thoát ra và kiểm tra lại.",
                                 Toast.LENGTH_LONG).show();
 
-                        // Optionally refresh details
-                        loadBookingDetails();
+                        // ✅ DON'T reload - it causes infinite loop!
+                        // User should manually refresh or go back
                     }
                 }.start();
             } else {
@@ -480,72 +480,38 @@ public class BookingDetailActivity extends AppCompatActivity {
         }
     }
 
-    private String getStatusText(String status) {
-        if (status == null) return "";
-        switch (status) {
-            case "confirmed":
-                return "Đã thanh toán";
-            case "cancelled":
-                return "Đã hủy";
-            case "pending":
-                return "Chờ thanh toán";
-            case "completed":
-                return "Đã đi";
-            case "expired":
-                return "Hết hạn";
-            default:
-                return status;
-        }
-    }
-
-    private void setStatusStyle(String status) {
-        int backgroundColor;
-        int textColor;
-
-        if (status == null) status = "";
-
-        switch (status) {
-            case "confirmed":
-                backgroundColor = ContextCompat.getColor(this, R.color.lightGreen);
-                textColor = ContextCompat.getColor(this, R.color.darkGreen);
-                break;
-            case "completed":
-                backgroundColor = ContextCompat.getColor(this, R.color.lightBlue);
-                textColor = ContextCompat.getColor(this, R.color.darkBlue);
-                break;
-            case "pending":
-                backgroundColor = ContextCompat.getColor(this, R.color.lightYellow);
-                textColor = ContextCompat.getColor(this, R.color.darkYellow);
-                break;
-            case "cancelled":
-                backgroundColor = ContextCompat.getColor(this, R.color.lightRed);
-                textColor = ContextCompat.getColor(this, R.color.darkRed);
-                break;
-            case "expired":
-                backgroundColor = ContextCompat.getColor(this, R.color.lightGray);
-                textColor = ContextCompat.getColor(this, R.color.darkGray);
-                break;
-            default:
-                backgroundColor = ContextCompat.getColor(this, R.color.lightGray);
-                textColor = ContextCompat.getColor(this, R.color.darkGray);
-                break;
-        }
-
-        try {
-            GradientDrawable background = (GradientDrawable) tvStatus.getBackground();
-            if (background != null) {
-                background.setColor(backgroundColor);
-            } else {
-                tvStatus.setBackgroundColor(backgroundColor);
-            }
-        } catch (Exception e) {
-             tvStatus.setBackgroundColor(backgroundColor);
-        }
-        tvStatus.setTextColor(textColor);
-    }
-
     private void showCancelConfirmationDialog() {
-        // Simple confirmation - in real app show AlertDialog
-        Toast.makeText(this, "Hủy vé clicked", Toast.LENGTH_SHORT).show();
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Xác nhận hủy vé")
+                .setMessage("Bạn có chắc chắn muốn hủy vé này không?")
+                .setPositiveButton("Hủy vé", (dialog, which) -> {
+                    // Call API to cancel booking
+                    cancelBooking();
+                })
+                .setNegativeButton("Không", null)
+                .show();
+    }
+
+    private void cancelBooking() {
+        // TODO: Implement actual cancel API call
+        Toast.makeText(this, "Đang hủy vé...", Toast.LENGTH_SHORT).show();
+
+        // Example API call (uncomment when ready):
+        // apiService.cancelBooking(bookingId).enqueue(new Callback<Map<String, Object>>() {
+        //     @Override
+        //     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+        //         if (response.isSuccessful()) {
+        //             Toast.makeText(BookingDetailActivity.this, "Đã hủy vé", Toast.LENGTH_SHORT).show();
+        //             finish();
+        //         } else {
+        //             Toast.makeText(BookingDetailActivity.this, "Không thể hủy vé", Toast.LENGTH_SHORT).show();
+        //         }
+        //     }
+        //
+        //     @Override
+        //     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+        //         Toast.makeText(BookingDetailActivity.this, "Lỗi kết nối", Toast.LENGTH_SHORT).show();
+        //     }
+        // });
     }
 }
