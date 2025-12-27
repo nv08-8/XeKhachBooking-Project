@@ -45,7 +45,8 @@ public class BookingDetailActivity extends AppCompatActivity {
                      tvSeatNumber;
     private TextView tvPickupLocation, tvPickupAddress, tvDropoffLocation, tvDropoffAddress;
     private TextView tvCountdownTimer, tvBusType;
-    private View cardWaiting;
+    private TextView tvPaymentMethodHeading;
+    private View cardWaiting, cardPaymentMethod, qrCodeSection, actionButtonsContainer;
     private ImageView ivQrCode;
     private Button btnCancelTicket, btnPayTicket, btnChangePaymentMethod;
     private TextView tvQrHint;
@@ -129,19 +130,27 @@ public class BookingDetailActivity extends AppCompatActivity {
         tvPhoneNumber = findViewById(R.id.tvPhoneNumber);
         tvSeatNumber = findViewById(R.id.tvSeatNumber);
 
-        // Buttons
+        // Payment method section
+        tvPaymentMethodHeading = findViewById(R.id.tvPaymentMethodHeading);
+        cardPaymentMethod = findViewById(R.id.cardPaymentMethod);
+
+        // QR Code section
+        qrCodeSection = findViewById(R.id.qrCodeSection);
+        ivQrCode = findViewById(R.id.ivQrCode);
+        tvQrHint = findViewById(R.id.tvQrHint);
+
+        // Action buttons
+        actionButtonsContainer = findViewById(R.id.actionButtonsContainer);
         btnCancelTicket = findViewById(R.id.btnCancelTicket);
         btnPayTicket = findViewById(R.id.btnPayTicket);
         btnChangePaymentMethod = findViewById(R.id.btnChangePaymentMethod);
 
-        // QR Code
-        ivQrCode = findViewById(R.id.ivQrCode);
-        tvQrHint = findViewById(R.id.tvQrHint);
-
-        // Default hide waiting card and QR
+        // Default: hide all optional sections
         if (cardWaiting != null) cardWaiting.setVisibility(View.GONE);
-        if (ivQrCode != null) ivQrCode.setVisibility(View.GONE);
-        if (tvQrHint != null) tvQrHint.setVisibility(View.GONE);
+        if (tvPaymentMethodHeading != null) tvPaymentMethodHeading.setVisibility(View.GONE);
+        if (cardPaymentMethod != null) cardPaymentMethod.setVisibility(View.GONE);
+        if (qrCodeSection != null) qrCodeSection.setVisibility(View.GONE);
+        if (actionButtonsContainer != null) actionButtonsContainer.setVisibility(View.GONE);
     }
 
     private void setupToolbar() {
@@ -299,37 +308,46 @@ public class BookingDetailActivity extends AppCompatActivity {
         if ("pending".equals(status)) {
             handlePendingCountdown(data, isOnlinePayment);
 
-            // Show buttons
-            if (btnCancelTicket != null) btnCancelTicket.setVisibility(View.VISIBLE);
-            if (btnPayTicket != null) {
-                btnPayTicket.setVisibility(isOnlinePayment ? View.VISIBLE : View.VISIBLE);
-            }
-            if (btnChangePaymentMethod != null) btnChangePaymentMethod.setVisibility(View.VISIBLE);
+            // Show payment method section
+            if (tvPaymentMethodHeading != null) tvPaymentMethodHeading.setVisibility(View.VISIBLE);
+            if (cardPaymentMethod != null) cardPaymentMethod.setVisibility(View.VISIBLE);
+
+            // Show action buttons
+            if (actionButtonsContainer != null) actionButtonsContainer.setVisibility(View.VISIBLE);
+
+            // Hide QR code section
+            if (qrCodeSection != null) qrCodeSection.setVisibility(View.GONE);
 
         } else if ("confirmed".equals(status) || "completed".equals(status)) {
-            // Hide waiting card
+            // Hide waiting card and payment method
             if (cardWaiting != null) cardWaiting.setVisibility(View.GONE);
+            if (tvPaymentMethodHeading != null) tvPaymentMethodHeading.setVisibility(View.GONE);
+            if (cardPaymentMethod != null) cardPaymentMethod.setVisibility(View.GONE);
 
-            // Show QR if available
-            if (ivQrCode != null && tvQrHint != null) {
-                ivQrCode.setVisibility(View.VISIBLE);
-                tvQrHint.setVisibility(View.VISIBLE);
-                generateQRCode(String.valueOf(bookingId));
+            // Show QR code section
+            if (qrCodeSection != null) qrCodeSection.setVisibility(View.VISIBLE);
+            generateQRCode(String.valueOf(bookingId));
+
+            // Show only cancel button (if booking allows cancellation)
+            if (actionButtonsContainer != null) {
+                actionButtonsContainer.setVisibility(View.VISIBLE);
+                if (btnCancelTicket != null) btnCancelTicket.setVisibility(View.VISIBLE);
+                if (btnPayTicket != null) btnPayTicket.setVisibility(View.GONE);
+
+                // Hide cancel button for completed status (trip already happened)
+                if ("completed".equals(status) && btnCancelTicket != null) {
+                    btnCancelTicket.setVisibility(View.GONE);
+                    actionButtonsContainer.setVisibility(View.GONE);
+                }
             }
 
-            // Show cancel button for confirmed bookings
-            if (btnCancelTicket != null) btnCancelTicket.setVisibility(View.VISIBLE);
-            if (btnPayTicket != null) btnPayTicket.setVisibility(View.GONE);
-            if (btnChangePaymentMethod != null) btnChangePaymentMethod.setVisibility(View.GONE);
-
         } else {
-            // cancelled or other statuses: hide all actions
+            // cancelled or other statuses: hide everything
             if (cardWaiting != null) cardWaiting.setVisibility(View.GONE);
-            if (ivQrCode != null) ivQrCode.setVisibility(View.GONE);
-            if (tvQrHint != null) tvQrHint.setVisibility(View.GONE);
-            if (btnCancelTicket != null) btnCancelTicket.setVisibility(View.GONE);
-            if (btnPayTicket != null) btnPayTicket.setVisibility(View.GONE);
-            if (btnChangePaymentMethod != null) btnChangePaymentMethod.setVisibility(View.GONE);
+            if (tvPaymentMethodHeading != null) tvPaymentMethodHeading.setVisibility(View.GONE);
+            if (cardPaymentMethod != null) cardPaymentMethod.setVisibility(View.GONE);
+            if (qrCodeSection != null) qrCodeSection.setVisibility(View.GONE);
+            if (actionButtonsContainer != null) actionButtonsContainer.setVisibility(View.GONE);
         }
     }
 
