@@ -8,6 +8,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -34,6 +35,7 @@ public class ManageBookingsActivity extends AppCompatActivity {
     private List<Map<String, Object>> bookingsList = new ArrayList<>();
     private SessionManager sessionManager;
     private ApiService apiService;
+    private Toolbar toolbar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,12 +45,14 @@ public class ManageBookingsActivity extends AppCompatActivity {
         sessionManager = new SessionManager(this);
         apiService = ApiClient.getClient().create(ApiService.class);
 
+        toolbar = findViewById(R.id.toolbar);
         progressBookings = findViewById(R.id.progressBookings);
         rvBookings = findViewById(R.id.rvBookings);
         tvEmptyBookings = findViewById(R.id.tvEmptyBookings);
         spinnerBookingStatus = findViewById(R.id.spinnerBookingStatus);
         btnRefreshBookings = findViewById(R.id.btnRefreshBookings);
 
+        setupToolbar();
         setupRecyclerView();
 
         btnRefreshBookings.setOnClickListener(v -> fetchAdminBookings());
@@ -63,6 +67,13 @@ public class ManageBookingsActivity extends AppCompatActivity {
         fetchAdminBookings();
     }
 
+    private void setupToolbar() {
+        setSupportActionBar(toolbar);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setDisplayShowHomeEnabled(true);
+        toolbar.setNavigationOnClickListener(v -> finish());
+    }
+
     private void setupRecyclerView() {
         rvBookings.setLayoutManager(new LinearLayoutManager(this));
         BookingsAdapter.OnBookingClickListener listener = new BookingsAdapter.OnBookingClickListener() {
@@ -73,11 +84,6 @@ public class ManageBookingsActivity extends AppCompatActivity {
                     int bookingId = Integer.parseInt(idObj.toString());
                     android.content.Intent intent = new android.content.Intent(ManageBookingsActivity.this, BookingAdminDetailActivity.class);
                     intent.putExtra("booking_id", bookingId);
-                    // Pass serialized booking for convenience
-                    try {
-                        org.json.JSONObject obj = new org.json.JSONObject(booking);
-                        intent.putExtra("booking_json", obj.toString());
-                    } catch (Exception ignored) {}
                     startActivity(intent);
                 } catch (NumberFormatException ignored) {}
             }
@@ -113,7 +119,6 @@ public class ManageBookingsActivity extends AppCompatActivity {
             case 3: // Đã hủy
                 status = "cancelled";
                 break;
-            // case 0 ("Tất cả") will leave status as null, which the API interprets as no filter
         }
 
         Call<List<Map<String, Object>>> call = apiService.getAdminBookings(userId, null, null, status, 1, 50);
