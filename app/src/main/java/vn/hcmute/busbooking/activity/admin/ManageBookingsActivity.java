@@ -69,6 +69,23 @@ public class ManageBookingsActivity extends AppCompatActivity {
         rvBookings.setLayoutManager(new LinearLayoutManager(this));
         BookingsAdapter.OnBookingClickListener listener = new BookingsAdapter.OnBookingClickListener() {
             @Override
+            public void onBookingClicked(Map<String, Object> booking) {
+                Object idObj = booking.get("id");
+                if (idObj == null) return;
+                try {
+                    int bookingId = Integer.parseInt(idObj.toString());
+                    android.content.Intent intent = new android.content.Intent(ManageBookingsActivity.this, BookingAdminDetailActivity.class);
+                    intent.putExtra("booking_id", bookingId);
+                    // Pass serialized booking for convenience
+                    try {
+                        org.json.JSONObject obj = new org.json.JSONObject(booking);
+                        intent.putExtra("booking_json", obj.toString());
+                    } catch (Exception ignored) {}
+                    startActivity(intent);
+                } catch (NumberFormatException ignored) {}
+            }
+
+            @Override
             public void onConfirmBooking(Map<String, Object> booking) {
                 handleConfirmBooking(booking);
             }

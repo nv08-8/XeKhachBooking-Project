@@ -236,23 +236,53 @@ router.get("/bookings", checkAdminRole, async (req, res) => {
 // 2. Xác nhận đặt vé (chuyển từ pending → confirmed)
 router.put("/bookings/:id/confirm", checkAdminRole, async (req, res) => {
   const { id } = req.params;
+  const client = await db.connect();
 
   try {
-    const result = await db.query(
-      `UPDATE bookings SET status='confirmed' WHERE id=$1 RETURNING *`,
+    await client.query("BEGIN");
+
+    // Lấy booking để xử lý trong transaction
+    const bookingRes = await client.query(
+      "SELECT id, total_amount, price_paid, payment_method, status FROM bookings WHERE id=$1 FOR UPDATE",
       [id]
     );
-    if (!result.rows.length) {
+
+    if (!bookingRes.rowCount) {
+      await client.query("ROLLBACK");
+      client.release();
       return res.status(404).json({ message: "Đặt vé không tìm thấy" });
     }
+
+    const booking = bookingRes.rows[0];
+
+    // Only allow confirming pending or expired bookings (admin override)
+    if (!['pending', 'expired', 'pending_refund'].includes(booking.status)) {
+      await client.query("ROLLBACK");
+      client.release();
+      return res.status(409).json({ message: 'Không thể xác nhận đặt vé ở trạng thái hiện tại', status: booking.status });
+    }
+
+    // If price_paid is zero or null, set it to total_amount (admin confirmation implies payment received)
+    const paidAmount = (Number(booking.price_paid) > 0) ? booking.price_paid : booking.total_amount;
+
+    const result = await client.query(
+      `UPDATE bookings SET status='confirmed', price_paid=$1, paid_at=NOW() WHERE id=$2 RETURNING *`,
+      [paidAmount, id]
+    );
+
+    await client.query("COMMIT");
+    client.release();
+
     res.json(result.rows[0]);
   } catch (err) {
-    console.error("Error confirming booking:", err);
+    try { await client.query("ROLLBACK"); } catch (e) {}
+    client.release();
+    console.error("Error confirming booking by admin:", err);
     res.status(500).json({ message: "Lỗi khi xác nhận đặt vé" });
   }
 });
 
-// 3. Hủy đặt vé
+// 3. Hủy đặt vé (admin)
 router.put("/bookings/:id/cancel", checkAdminRole, async (req, res) => {
   const { id } = req.params;
   const client = await db.connect();
@@ -260,9 +290,9 @@ router.put("/bookings/:id/cancel", checkAdminRole, async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // Lấy thông tin booking
+    // Lấy thông tin booking (kèm trạng thái) và khoá để tránh race
     const bookingResult = await client.query(
-      "SELECT trip_id, seats_count FROM bookings WHERE id=$1",
+      "SELECT id, trip_id, seats_count, status FROM bookings WHERE id=$1 FOR UPDATE",
       [id]
     );
 
@@ -272,20 +302,32 @@ router.put("/bookings/:id/cancel", checkAdminRole, async (req, res) => {
       return res.status(404).json({ message: "Đặt vé không tìm thấy" });
     }
 
-    const { trip_id, seats_count } = bookingResult.rows[0];
+    const { trip_id, seats_count, status } = bookingResult.rows[0];
 
-    // Cập nhật trạng thái booking
+    // Admin can cancel most statuses (confirmed, pending, pending_refund, expired)
+    if (!['confirmed', 'pending', 'pending_refund', 'expired'].includes(status)) {
+      await client.query("ROLLBACK");
+      client.release();
+      return res.status(409).json({ message: "Không thể hủy đặt vé ở trạng thái hiện tại", status });
+    }
+
+    // Update booking status and cancelled_at
     await client.query(
-      "UPDATE bookings SET status='cancelled' WHERE id=$1",
+      "UPDATE bookings SET status='cancelled', cancelled_at=NOW() WHERE id=$1",
       [id]
     );
 
-    // Tăng số ghế trống (nếu seats_count > 0)
-    if (seats_count > 0) {
-        await client.query(
-          "UPDATE trips SET seats_available = seats_available + $1 WHERE id=$2",
-          [seats_count, trip_id]
-        );
+    // Release seat records tied to this booking (if any)
+    const releaseRes = await client.query('UPDATE seats SET is_booked=0, booking_id=NULL WHERE booking_id=$1 RETURNING id', [id]);
+    const releasedCount = releaseRes.rowCount || 0;
+
+    // If seats_count exists and seats table didn't contain rows (rare), fall back to seats_count
+    const toAdd = releasedCount > 0 ? releasedCount : (seats_count || 0);
+    if (toAdd > 0) {
+      await client.query(
+        "UPDATE trips SET seats_available = seats_available + $1 WHERE id=$2",
+        [toAdd, trip_id]
+      );
     }
 
     await client.query("COMMIT");
@@ -293,9 +335,9 @@ router.put("/bookings/:id/cancel", checkAdminRole, async (req, res) => {
 
     res.json({ message: "Hủy đặt vé thành công" });
   } catch (err) {
-    await client.query("ROLLBACK");
+    try { await client.query("ROLLBACK"); } catch (e) {}
     client.release();
-    console.error("Error cancelling booking:", err);
+    console.error("Error cancelling booking (admin):", err);
     res.status(500).json({ message: "Lỗi khi hủy đặt vé" });
   }
 });
