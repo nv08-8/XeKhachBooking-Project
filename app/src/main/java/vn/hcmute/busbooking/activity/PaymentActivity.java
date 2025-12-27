@@ -626,13 +626,15 @@ public class PaymentActivity extends AppCompatActivity {
         // ✅ Validate required data before creating payment
         if (trip == null) {
             setLoadingState(false);
-            handlePaymentError("Thiếu thông tin chuyến xe. Vui lòng thử lại.");
+            handlePaymentError("Thiếu thông tin chuyến xe. Vui lòng thoát ra và vào lại màn hình này.");
+            Log.e(TAG, "❌ processPayosPayment: trip is NULL!");
             return;
         }
 
         if (seatLabels == null || seatLabels.isEmpty()) {
             setLoadingState(false);
-            handlePaymentError("Thiếu thông tin ghế. Vui lòng thử lại.");
+            handlePaymentError("Thiếu thông tin ghế. Vui lòng thoát ra và vào lại màn hình này.");
+            Log.e(TAG, "❌ processPayosPayment: seatLabels is NULL or empty!");
             return;
         }
 
@@ -642,10 +644,27 @@ public class PaymentActivity extends AppCompatActivity {
         String paymentPhone = (phoneNumber != null && !phoneNumber.isEmpty()) ? phoneNumber : "0000000000";
 
         String orderId = String.valueOf(System.currentTimeMillis());
-        int amount = (int) (trip.getPrice() * seatLabels.size());
+
+        // ✅ Calculate amount with fallback
+        double pricePerSeat = trip.getPrice();
+        if (pricePerSeat <= 0 && bookingTotalAmount != null && bookingTotalAmount > 0) {
+            // Fallback: use total_amount from booking divided by seat count
+            pricePerSeat = bookingTotalAmount / seatLabels.size();
+            Log.d(TAG, "Using price from bookingTotalAmount: " + pricePerSeat);
+        }
+
+        int amount = (int) (pricePerSeat * seatLabels.size());
+
+        if (amount <= 0) {
+            setLoadingState(false);
+            handlePaymentError("Không xác định được số tiền thanh toán. Vui lòng thử lại.");
+            Log.e(TAG, "❌ processPayosPayment: amount is 0 or negative!");
+            return;
+        }
 
         Log.d(TAG, "Creating PayOS payment: orderId=" + orderId + ", amount=" + amount +
-                   ", bookingIds=" + ids + ", name=" + paymentFullName);
+                   ", bookingIds=" + ids + ", name=" + paymentFullName +
+                   ", seatCount=" + seatLabels.size());
 
         PaymentRequest request = new PaymentRequest(orderId, amount, ids, paymentFullName, paymentEmail, paymentPhone);
 
@@ -1582,7 +1601,7 @@ public class PaymentActivity extends AppCompatActivity {
                 Log.d(TAG, "Changed to online payment: " + paymentMethod);
                 // Update flags for online payment
                 isOfflinePayment = false;
-                currentPaymentMethod = paymentMethod;
+                currentPaymentMethod = paymentMethod; // ✅ Update currentPaymentMethod so next click won't try to change again
 
                 // ✅ Create new expiry timestamp for online payment (10 minutes from now)
                 if (!bookingIds.isEmpty()) {
@@ -1603,9 +1622,32 @@ public class PaymentActivity extends AppCompatActivity {
                 // Online payment - run callback if provided
                 if (onSuccess != null) {
                     Log.d(TAG, "Running onSuccess callback for online payment");
+
+                    // ✅ Validate required data before running callback
+                    if (trip == null || seatLabels == null || seatLabels.isEmpty()) {
+                        Log.e(TAG, "❌ Missing required data for payment processing!");
+                        Log.e(TAG, "trip=" + (trip != null ? "OK" : "NULL") +
+                                   ", seatLabels=" + (seatLabels != null ? seatLabels.size() + " seats" : "NULL"));
+
+                        setLoadingState(false);
+                        Toast.makeText(PaymentActivity.this,
+                                "Thiếu thông tin booking. Vui lòng thoát ra và vào lại.",
+                                Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    // Run callback to process payment
                     onSuccess.run();
                 } else {
-                    Log.w(TAG, "onSuccess callback is null!");
+                    Log.w(TAG, "onSuccess callback is null - payment method changed but no payment triggered");
+                    setLoadingState(false);
+
+                    // ✅ Show helpful message to user
+                    String methodName = (paymentMethod != null && paymentMethod.equals("qr")) ? "QR" : "thẻ";
+                    Toast.makeText(PaymentActivity.this,
+                            "Đã đổi sang thanh toán " + methodName +
+                            " thành công! Vui lòng click nút thanh toán để tiếp tục.",
+                            Toast.LENGTH_LONG).show();
                 }
             }
             return;
