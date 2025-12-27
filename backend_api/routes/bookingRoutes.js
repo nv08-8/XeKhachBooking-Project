@@ -131,10 +131,17 @@ router.post("/bookings", async (req, res) => {
       }
     }
 
+    // Build passenger_info JSONB object
+    const passengerInfo = {};
+    if (finalPassengerName) passengerInfo.name = finalPassengerName;
+    if (finalPassengerPhone) passengerInfo.phone = finalPassengerPhone;
+    if (finalPassengerEmail) passengerInfo.email = finalPassengerEmail;
+    const passengerInfoJson = Object.keys(passengerInfo).length > 0 ? JSON.stringify(passengerInfo) : null;
+
     const bookingInsert = await client.query(
-      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_name, passenger_phone, passenger_email)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-      [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, 'pending', metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id, finalPaymentMethod, finalPassengerName, finalPassengerPhone, finalPassengerEmail]
+      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_info)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+      [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, 'pending', metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id, finalPaymentMethod, passengerInfoJson]
     );
     const bookingId = bookingInsert.rows[0].id;
     
