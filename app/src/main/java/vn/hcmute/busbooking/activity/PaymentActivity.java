@@ -57,7 +57,9 @@ public class PaymentActivity extends AppCompatActivity {
 
     private TextView tvBusOperator, tvBusType, tvPickup, tvDropoff, tvDate, tvSeat, tvDepartureTime, tvArrivalTime;
     private TextView tvCountdown;
+    private TextView tvBottomTotal;
     private Button btnConfirmPayment;
+    private com.google.android.material.button.MaterialButton btnChangeToOffline;
     private ProgressBar progressBar;
 
     private MaterialCardView cardCreditCard, cardQrPayment, cardPayAtOffice;
@@ -73,6 +75,10 @@ public class PaymentActivity extends AppCompatActivity {
     private boolean isPendingPayment;
     private ArrayList<Integer> bookingIds;
     private String fullName, phoneNumber, email;
+
+    // Track current payment method to prevent auto-cancel for offline payments
+    private String currentPaymentMethod = null;
+    private boolean isOfflinePayment = false;
 
     private int pickupStopId;
     private int dropoffStopId;
@@ -149,38 +155,100 @@ public class PaymentActivity extends AppCompatActivity {
         } else {
             populateBookingSummary();
             setupPaymentMethodSelection();
+            setupPromoHandlers(); // Setup promotion handlers
 
             if (isPendingPayment) {
+                // Check current payment method from booking details
+                // This will be populated from fetchBookingDetailsAndInit callback
+                // For now, we'll determine if it's online or offline payment
+                // Default to QR for backwards compatibility, but allow switching
                 selectPaymentMethod(R.id.rbQrPayment);
-                cardCreditCard.setClickable(false);
-                rbCreditCard.setEnabled(false);
-                cardPayAtOffice.setClickable(false);
-                rbPayAtOffice.setEnabled(false);
-                cardCreditCard.setCardBackgroundColor(ContextCompat.getColor(this, R.color.backgroundLight));
-                cardPayAtOffice.setCardBackgroundColor(ContextCompat.getColor(this, R.color.backgroundLight));
-                // Show countdown UI
-                if (cardCountdown != null) cardCountdown.setVisibility(View.VISIBLE);
-                // Ensure expiry is set in preferences for this booking
-                if (bookingIds != null && !bookingIds.isEmpty()) {
-                    long primary = bookingIds.get(0);
-                    long expiry = getExpiryForBooking(primary);
-                    if (expiry == -1L) {
-                        expiry = System.currentTimeMillis() + HOLD_DURATION_MS;
-                        saveExpiryForBooking(primary, expiry);
-                    }
-                    long remaining = expiry - System.currentTimeMillis();
-                    if (remaining <= 0) {
-                        onHoldExpired();
-                    } else {
-                        startCountdown(remaining);
-                    }
-                }
+
+                // Do NOT disable other payment methods - allow user to switch
+                // The UI will show all options so user can change payment method
+
+                // Only show countdown and start timer if this is truly an online payment
+                // We'll check this after fetching booking details
             }
         }
 
+        btnChangeToOffline.setOnClickListener(v -> changePaymentMethodToOffline());
+
         btnConfirmPayment.setOnClickListener(v -> {
             if (isPendingPayment) {
-                processPayosPayment(bookingIds);
+                // Check if user is trying to change payment method
+                int selectedMethod = getSelectedPaymentMethodId();
+                String newPaymentMethod = null;
+
+                if (selectedMethod == R.id.rbQrPayment) {
+                    newPaymentMethod = "qr";
+                } else if (selectedMethod == R.id.rbCreditCard) {
+                    newPaymentMethod = "card";
+                } else if (selectedMethod == R.id.rbPayAtOffice) {
+                    newPaymentMethod = "cash";
+                }
+
+                Log.d(TAG, "btnConfirmPayment clicked: selectedMethod=" + selectedMethod +
+                           ", newPaymentMethod=" + newPaymentMethod +
+                           ", currentPaymentMethod=" + currentPaymentMethod +
+                           ", bookingIds=" + (bookingIds != null ? bookingIds.size() : "null"));
+
+                // ✅ Normalize payment method mapping for comparison
+                String normalizedNew = normalizePaymentMethod(newPaymentMethod);
+                String normalizedCurrent = normalizePaymentMethod(currentPaymentMethod);
+
+                // Check if payment method actually changed
+                boolean paymentMethodChanged = !normalizedNew.equals(normalizedCurrent);
+
+                Log.d(TAG, "Payment method check: current=" + normalizedCurrent +
+                           ", new=" + normalizedNew + ", changed=" + paymentMethodChanged);
+
+                // If changing to QR, process payment
+                if (selectedMethod == R.id.rbQrPayment) {
+                    Log.d(TAG, "User wants QR payment. paymentMethodChanged=" + paymentMethodChanged);
+                    if (paymentMethodChanged && bookingIds != null && !bookingIds.isEmpty()) {
+                        // Need to change payment method first
+                        Log.d(TAG, "Calling changePaymentMethodForBookings to QR");
+                        setLoadingState(true);
+                        changePaymentMethodForBookings(0, newPaymentMethod, () -> {
+                            // After successfully changing to QR, process payment
+                            Log.d(TAG, "Payment method changed to QR, now processing payment");
+                            processPayosPayment(bookingIds);
+                        });
+                    } else {
+                        // Payment method is already QR, process directly
+                        Log.d(TAG, "Payment method already QR, processing payment directly");
+                        processPayosPayment(bookingIds);
+                    }
+                } else if (selectedMethod == R.id.rbCreditCard) {
+                    Log.d(TAG, "User wants Card payment. paymentMethodChanged=" + paymentMethodChanged);
+                    if (paymentMethodChanged && bookingIds != null && !bookingIds.isEmpty()) {
+                        // Need to change payment method first
+                        Log.d(TAG, "Calling changePaymentMethodForBookings to Card");
+                        setLoadingState(true);
+                        changePaymentMethodForBookings(0, newPaymentMethod, () -> {
+                            // After changing to card, confirm payment
+                            Log.d(TAG, "Payment method changed to Card, now confirming payment");
+                            confirmNextPayment(bookingIds, 0, "card");
+                        });
+                    } else {
+                        // Payment method is already Card, process directly
+                        Log.d(TAG, "Payment method already Card, processing payment directly");
+                        confirmNextPayment(bookingIds, 0, "card");
+                    }
+                } else if (selectedMethod == R.id.rbPayAtOffice) {
+                    Log.d(TAG, "User wants Cash payment. paymentMethodChanged=" + paymentMethodChanged);
+                    if (paymentMethodChanged) {
+                        // Change to offline payment
+                        changePaymentMethodToOfflineConfirm(newPaymentMethod);
+                    } else {
+                        // Already offline, just show message
+                        Log.d(TAG, "Payment method already Cash, showing info");
+                        Toast.makeText(PaymentActivity.this,
+                                "Vé đã được đặt với thanh toán tại nhà xe. Vui lòng thanh toán trước khi lên xe.",
+                                Toast.LENGTH_LONG).show();
+                    }
+                }
             } else {
                 createBookingAndProcessPayment();
             }
@@ -197,8 +265,10 @@ public class PaymentActivity extends AppCompatActivity {
         tvDepartureTime = findViewById(R.id.tvDepartureTime);
         tvArrivalTime = findViewById(R.id.tvArrivalTime);
         tvCountdown = findViewById(R.id.tvCountdown);
+        tvBottomTotal = findViewById(R.id.tvBottomTotal);
         cardCountdown = findViewById(R.id.cardCountdown);
         btnConfirmPayment = findViewById(R.id.btnConfirmPayment);
+        btnChangeToOffline = findViewById(R.id.btnChangeToOffline);
         progressBar = new ProgressBar(this);
         cardCreditCard = findViewById(R.id.cardCreditCard);
         cardQrPayment = findViewById(R.id.cardQrPayment);
@@ -272,7 +342,9 @@ public class PaymentActivity extends AppCompatActivity {
         if (totalToShow < 0) totalToShow = 0;
         tvTotal.setText(formatter.format(totalToShow));
 
-        btnConfirmPayment.setText(getString(R.string.btn_confirm_payment, formatter.format(totalToShow)));
+        // Update bottom bar total and keep button text simple
+        tvBottomTotal.setText(formatter.format(totalToShow));
+        btnConfirmPayment.setText(R.string.title_payment);
     }
     
     private String formatDisplayDate(String isoDate) {
@@ -303,7 +375,8 @@ public class PaymentActivity extends AppCompatActivity {
 
     private void setupPaymentMethodSelection() {
         View.OnClickListener listener = v -> {
-            if (isPendingPayment) return;
+            // ✅ Removed isPendingPayment check - allow users to change payment methods
+            // The enable/disable logic is handled in fetchBookingDetailsAndInit()
 
             int id = v.getId();
             if (id == R.id.cardCreditCard || id == R.id.rbCreditCard) {
@@ -357,6 +430,36 @@ public class PaymentActivity extends AppCompatActivity {
         return -1;
     }
 
+    /**
+     * Normalize payment method strings for consistent comparison
+     * Maps various payment method names to either "online" or "offline"
+     * @param method The payment method string from UI or API
+     * @return "online" for QR/Card payments, "offline" for cash payments
+     */
+    private String normalizePaymentMethod(String method) {
+        if (method == null) return "unknown";
+
+        String lower = method.toLowerCase(Locale.getDefault());
+
+        // Online payment methods
+        if (lower.contains("qr") || lower.contains("payos") ||
+            lower.contains("card") || lower.contains("credit") ||
+            lower.contains("momo") || lower.contains("vnpay") ||
+            lower.equals("online")) {
+            return "online";
+        }
+
+        // Offline payment methods
+        if (lower.contains("cash") || lower.contains("offline") ||
+            lower.contains("cod") || lower.contains("counter") ||
+            lower.equals("offline")) {
+            return "offline";
+        }
+
+        return lower; // Return as-is if can't classify
+    }
+
+
     private void createBookingAndProcessPayment() {
         Integer userId = sessionManager.getUserId();
         if (userId == null) {
@@ -377,6 +480,25 @@ public class PaymentActivity extends AppCompatActivity {
         body.put("seat_labels", seatLabels);
         body.put("pickup_stop_id", pickupStopId);
         body.put("dropoff_stop_id", dropoffStopId);
+
+        // ✅ Include passenger info
+        body.put("passenger_name", fullName != null ? fullName : "");
+        body.put("passenger_phone", phoneNumber != null ? phoneNumber : "");
+        body.put("passenger_email", email != null ? email : "");
+
+        // ✅ Include payment method so backend knows what payment type user selected
+        int selectedMethod = getSelectedPaymentMethodId();
+        String paymentMethod = "offline"; // default
+        if (selectedMethod == R.id.rbQrPayment) {
+            paymentMethod = "qr";
+        } else if (selectedMethod == R.id.rbCreditCard) {
+            paymentMethod = "card";
+        } else if (selectedMethod == R.id.rbPayAtOffice) {
+            paymentMethod = "offline";
+        }
+        body.put("payment_method", paymentMethod);
+        Log.d(TAG, "Creating booking with payment_method: " + paymentMethod);
+
         // include applied promotion_code if any
         if (appliedPromotionCode != null && !appliedPromotionCode.isEmpty()) {
             body.put("promotion_code", appliedPromotionCode);
@@ -500,8 +622,32 @@ public class PaymentActivity extends AppCompatActivity {
 
     private void processPayosPayment(List<Integer> ids) {
         setLoadingState(true);
+
+        // ✅ Validate required data before creating payment
+        if (trip == null) {
+            setLoadingState(false);
+            handlePaymentError("Thiếu thông tin chuyến xe. Vui lòng thử lại.");
+            return;
+        }
+
+        if (seatLabels == null || seatLabels.isEmpty()) {
+            setLoadingState(false);
+            handlePaymentError("Thiếu thông tin ghế. Vui lòng thử lại.");
+            return;
+        }
+
+        // Use default values if passenger info is missing
+        String paymentFullName = (fullName != null && !fullName.isEmpty()) ? fullName : "Khách hàng";
+        String paymentEmail = (email != null && !email.isEmpty()) ? email : "customer@example.com";
+        String paymentPhone = (phoneNumber != null && !phoneNumber.isEmpty()) ? phoneNumber : "0000000000";
+
         String orderId = String.valueOf(System.currentTimeMillis());
-        PaymentRequest request = new PaymentRequest(orderId, (int) (trip.getPrice() * seatLabels.size()), ids, fullName, email, phoneNumber);
+        int amount = (int) (trip.getPrice() * seatLabels.size());
+
+        Log.d(TAG, "Creating PayOS payment: orderId=" + orderId + ", amount=" + amount +
+                   ", bookingIds=" + ids + ", name=" + paymentFullName);
+
+        PaymentRequest request = new PaymentRequest(orderId, amount, ids, paymentFullName, paymentEmail, paymentPhone);
 
         apiService.createPayosPayment(request).enqueue(new Callback<PaymentResponse>() {
             @Override
@@ -589,15 +735,60 @@ public class PaymentActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+
+        // Skip countdown/expiry check for offline payments
+        if (isOfflinePayment) {
+            Log.d(TAG, "Skipping expiry check - offline payment detected");
+            return;
+        }
+
+        // Check expiry first - if -1, it's offline payment
+        if (isPendingPayment && bookingIds != null && !bookingIds.isEmpty()) {
+            long expiry = getExpiryForBooking(bookingIds.get(0));
+            if (expiry == -1L) {
+                Log.d(TAG, "Expiry is -1, treating as offline payment - SKIP verification");
+                isOfflinePayment = true;
+                return;
+            }
+        }
+
         // If this was a pending payment flow, first verify payment status on server, then resume or start timer
         if (isPendingPayment && bookingIds != null && !bookingIds.isEmpty()) {
             int primaryId = bookingIds.get(0);
-            // Call backend to verify whether payment was completed while the user was outside the app
-            apiService.verifyBookingPayment(primaryId).enqueue(new Callback<Map<String, Object>>() {
+            // Call backend to get booking details and check payment status
+            apiService.getBookingDetails(primaryId).enqueue(new Callback<Map<String, Object>>() {
                 @Override
                 public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                     if (response.isSuccessful() && response.body() != null) {
                         Map<String, Object> body = response.body();
+
+                        // ✅ CHECK PAYMENT METHOD FIRST - Critical fix for offline payment bug
+                        String paymentMethodFromServer = null;
+                        Object paymentMethodObj = body.get("payment_method");
+                        if (paymentMethodObj instanceof String) {
+                            paymentMethodFromServer = ((String) paymentMethodObj).toLowerCase(Locale.getDefault());
+                        }
+
+                        // If server says it's offline payment, update flag and skip all checks
+                        if (paymentMethodFromServer != null &&
+                            (paymentMethodFromServer.contains("cash") ||
+                             paymentMethodFromServer.contains("offline") ||
+                             paymentMethodFromServer.contains("cod") ||
+                             paymentMethodFromServer.contains("counter"))) {
+                            Log.d(TAG, "Server confirmed offline payment - skipping expiry check");
+                            isOfflinePayment = true;
+                            currentPaymentMethod = paymentMethodFromServer;
+                            // Clear any existing expiry
+                            saveExpiryForBooking(primaryId, -1L);
+                            // Stop any countdown
+                            if (countDownTimer != null) {
+                                countDownTimer.cancel();
+                                countDownTimer = null;
+                            }
+                            if (cardCountdown != null) cardCountdown.setVisibility(View.GONE);
+                            return; // ← CRITICAL: Don't check expiry for offline payments!
+                        }
+
                         boolean isPaid = false;
                         // Heuristic checks for common keys
                         Object paidObj = body.get("paid");
@@ -640,6 +831,7 @@ public class PaymentActivity extends AppCompatActivity {
                         }
                     }
                     // Not paid (or couldn't determine) -> resume countdown using stored expiry
+                    // ✅ But only if it's online payment (not offline)
                     long expiry = getExpiryForBooking(primaryId);
                     long now = System.currentTimeMillis();
                     if (expiry <= now) {
@@ -653,8 +845,22 @@ public class PaymentActivity extends AppCompatActivity {
                 @Override
                 public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                     // Network failure verifying payment: fallback to local expiry timer
+                    // ✅ But ONLY if we know it's not offline payment
+                    if (isOfflinePayment) {
+                        Log.d(TAG, "Network error but offline payment flag is set - skip expiry check");
+                        return;
+                    }
+
                     long expiry = getExpiryForBooking(primaryId);
                     long now = System.currentTimeMillis();
+
+                    // ✅ Additional safety: if expiry is -1, it means offline payment
+                    if (expiry == -1L) {
+                        Log.d(TAG, "Expiry is -1, treating as offline payment");
+                        isOfflinePayment = true;
+                        return;
+                    }
+
                     if (expiry <= now) {
                         onHoldExpired();
                     } else {
@@ -705,7 +911,23 @@ public class PaymentActivity extends AppCompatActivity {
     }
 
     private void onHoldExpired() {
-        // Cancel bookings on server for all bookingIds
+        // ✅ CRITICAL SAFETY CHECK: Never auto-cancel offline payments!
+        if (isOfflinePayment) {
+            Log.d(TAG, "onHoldExpired called but isOfflinePayment=true - SKIP cancellation");
+            return;
+        }
+
+        // Additional safety: check if expiry is -1 (offline payment marker)
+        if (bookingIds != null && !bookingIds.isEmpty()) {
+            long expiry = getExpiryForBooking(bookingIds.get(0));
+            if (expiry == -1L) {
+                Log.d(TAG, "onHoldExpired called but expiry=-1 (offline) - SKIP cancellation");
+                isOfflinePayment = true; // Update flag for consistency
+                return;
+            }
+        }
+
+        // Cancel bookings on server for all bookingIds (online payment only)
         if (bookingIds == null || bookingIds.isEmpty()) return;
         setLoadingState(true);
         // cancel each booking, then navigate to MyBookings
@@ -811,16 +1033,38 @@ public class PaymentActivity extends AppCompatActivity {
                         if (data.get("pickup_location") instanceof String) pickupStopName = (String) data.get("pickup_location");
                         if (data.get("dropoff_location") instanceof String) dropoffStopName = (String) data.get("dropoff_location");
 
+                        // ✅ Extract passenger info for payment processing
+                        if (data.get("passenger_name") instanceof String) fullName = (String) data.get("passenger_name");
+                        if (data.get("passenger_phone") instanceof String) phoneNumber = (String) data.get("passenger_phone");
+                        // If email not in booking, try to get from user session
+                        if (data.get("passenger_email") instanceof String) {
+                            email = (String) data.get("passenger_email");
+                        } else if (sessionManager != null && sessionManager.isLoggedIn()) {
+                            email = sessionManager.getUserEmail();
+                        }
+
                         // Determine payment method for this booking (if present)
                         String paymentMethodStr = null;
                         if (data.get("payment_method") instanceof String) paymentMethodStr = (String) data.get("payment_method");
                         String statusStr = null;
                         if (data.get("status") instanceof String) statusStr = (String) data.get("status");
-                        boolean isQrType = false;
+
+                        // Store current payment method for later checks
+                        currentPaymentMethod = paymentMethodStr;
+
+                        // Detect if current payment method is online (QR/Card) or offline (Cash)
+                        boolean isCurrentlyOnlinePayment = false;
+                        boolean isCurrentlyOfflinePayment = false;
+
                         if (paymentMethodStr != null) {
                             String lower = paymentMethodStr.toLowerCase(Locale.getDefault());
-                            if (lower.contains("qr") || lower.contains("payos") || lower.contains("wallet") || lower.contains("e-")) {
-                                isQrType = true;
+                            if (lower.contains("qr") || lower.contains("payos") || lower.contains("card") ||
+                                lower.contains("credit") || lower.contains("momo") || lower.contains("vnpay")) {
+                                isCurrentlyOnlinePayment = true;
+                            } else if (lower.contains("cash") || lower.contains("offline") ||
+                                       lower.contains("cod") || lower.contains("counter")) {
+                                isCurrentlyOfflinePayment = true;
+                                isOfflinePayment = true; // Set flag for onResume() check
                             }
                         }
 
@@ -849,35 +1093,77 @@ public class PaymentActivity extends AppCompatActivity {
                         // Continue initialization
                         populateBookingSummary();
                         setupPaymentMethodSelection();
+                        setupPromoHandlers(); // Setup promotion handlers
 
-                        // Start UI according to payment method and booking status. Only QR/e-wallet holds get the 10-min countdown.
-                        if ("pending".equalsIgnoreCase(statusStr) && isQrType) {
-                            // This booking is a QR/e-wallet pending hold -> show countdown and lock other payment options
+                        // Setup UI based on current payment method and status
+                        if ("pending".equalsIgnoreCase(statusStr) || "expired".equalsIgnoreCase(statusStr)) {
                             isPendingPayment = true;
-                            selectPaymentMethod(R.id.rbQrPayment);
-                            cardCreditCard.setClickable(false);
-                            rbCreditCard.setEnabled(false);
-                            cardPayAtOffice.setClickable(false);
-                            rbPayAtOffice.setEnabled(false);
-                            if (cardCountdown != null) cardCountdown.setVisibility(View.VISIBLE);
-                            // Ensure expiry exists and then start timer
-                            long primaryId = primary;
-                            long expiry = getExpiryForBooking(primaryId);
-                            if (expiry == -1L) {
-                                if (createdMs > 0) expiry = createdMs + HOLD_DURATION_MS; else expiry = System.currentTimeMillis() + HOLD_DURATION_MS;
-                                saveExpiryForBooking(primaryId, expiry);
+
+                            if (isCurrentlyOnlinePayment) {
+                                // Currently online payment (QR/Card) - show countdown and allow change to offline
+                                selectPaymentMethod(R.id.rbQrPayment);
+                                // Allow switching to offline
+                                cardPayAtOffice.setClickable(true);
+                                rbPayAtOffice.setEnabled(true);
+                                // Show countdown and change to offline button
+                                if (cardCountdown != null) cardCountdown.setVisibility(View.VISIBLE);
+                                if (btnChangeToOffline != null) btnChangeToOffline.setVisibility(View.VISIBLE);
+
+                                // Start countdown if not expired
+                                long primaryId = primary;
+                                long expiry = getExpiryForBooking(primaryId);
+                                if (expiry == -1L) {
+                                    if (createdMs > 0) expiry = createdMs + HOLD_DURATION_MS;
+                                    else expiry = System.currentTimeMillis() + HOLD_DURATION_MS;
+                                    saveExpiryForBooking(primaryId, expiry);
+                                }
+                                long now = System.currentTimeMillis();
+                                if ("expired".equalsIgnoreCase(statusStr) || expiry <= now) {
+                                    // Show expired message - but ONLY for online payments
+                                    if (cardCountdown != null) cardCountdown.setVisibility(View.GONE);
+                                    if (btnChangeToOffline != null) btnChangeToOffline.setVisibility(View.VISIBLE);
+                                    Toast.makeText(PaymentActivity.this,
+                                        "Vé đã hết hạn thanh toán. Bạn có thể đổi sang thanh toán tại nhà xe.",
+                                        Toast.LENGTH_LONG).show();
+                                } else {
+                                    startCountdown(expiry - now);
+                                }
+                            } else if (isCurrentlyOfflinePayment) {
+                                // Currently offline payment (Cash) - allow switching to online
+                                selectPaymentMethod(R.id.rbPayAtOffice);
+                                // Enable all payment methods so user can switch
+                                cardCreditCard.setClickable(true);
+                                rbCreditCard.setEnabled(true);
+                                cardQrPayment.setClickable(true);
+                                rbQrPayment.setEnabled(true);
+                                cardPayAtOffice.setClickable(true);
+                                rbPayAtOffice.setEnabled(true);
+                                // Hide countdown
+                                if (cardCountdown != null) cardCountdown.setVisibility(View.GONE);
+                                if (btnChangeToOffline != null) btnChangeToOffline.setVisibility(View.GONE);
+                                // Clear expiry timestamp to prevent auto-cancellation
+                                saveExpiryForBooking(primary, -1L);
+                            } else {
+                                // Unknown payment method - default to allowing all methods
+                                selectPaymentMethod(R.id.rbQrPayment);
+                                cardCreditCard.setClickable(true);
+                                rbCreditCard.setEnabled(true);
+                                cardQrPayment.setClickable(true);
+                                rbQrPayment.setEnabled(true);
+                                cardPayAtOffice.setClickable(true);
+                                rbPayAtOffice.setEnabled(true);
                             }
-                            long now = System.currentTimeMillis();
-                            if (expiry <= now) onHoldExpired(); else startCountdown(expiry - now);
                         } else {
-                            // Not a QR hold - show normal UI (Pay button for pending cash, or QR optional)
+                            // Not pending/expired - normal flow
                             isPendingPayment = false;
                             if (cardCountdown != null) cardCountdown.setVisibility(View.GONE);
+                            if (btnChangeToOffline != null) btnChangeToOffline.setVisibility(View.GONE);
                         }
+
                         // Scroll to the countdown card so user sees it immediately (if visible)
                          try {
                              NestedScrollView nsv = findViewById(R.id.nestedScrollView);
-                             if (nsv != null) {
+                             if (nsv != null && cardCountdown != null && cardCountdown.getVisibility() == View.VISIBLE) {
                                  nsv.post(() -> nsv.smoothScrollTo(0, cardCountdown.getTop()));
                              }
                          } catch (Exception ignored) {}
@@ -932,6 +1218,9 @@ public class PaymentActivity extends AppCompatActivity {
             // DEBUG: log click and subtotal
             Log.i(TAG, "PROMO apply clicked: code=" + code + ", subtotal=" + subtotal + ", appliedPromotionCode=" + appliedPromotionCode);
 
+            // Show feedback to user
+            Toast.makeText(this, "Đang kiểm tra mã " + code + "...", Toast.LENGTH_SHORT).show();
+
             btnApplyPromo.setEnabled(false);
             Map<String, Object> body = new HashMap<>();
             body.put("code", code);
@@ -962,29 +1251,45 @@ public class PaymentActivity extends AppCompatActivity {
 
                     if (response.isSuccessful() && response.body() != null) {
                         vn.hcmute.busbooking.model.PromotionValidateResponse res = response.body();
-                        if (res.isValid()) {
-                            appliedPromotionCode = code;
-                            appliedDiscount = res.getDiscount();
-                            appliedPromotion = new HashMap<>();
-                            if (res.getPromotion() != null) {
-                                vn.hcmute.busbooking.model.Promotion p = res.getPromotion();
-                                appliedPromotion.put("code", p.getCode());
-                                appliedPromotion.put("discount_type", p.getDiscount_type());
-                                appliedPromotion.put("discount_value", p.getDiscount_value());
-                                appliedPromotion.put("min_price", p.getMin_price());
-                                appliedPromotion.put("max_discount", p.getMax_discount());
-                                appliedPromotion.put("start_date", p.getStart_date());
-                                appliedPromotion.put("end_date", p.getEnd_date());
-                            }
+                        Log.i(TAG, "✅ PROMO validation result: valid=" + res.isValid() + ", discount=" + res.getDiscount());
 
-                            double newTotal = Math.max(0, subtotal - appliedDiscount);
-                            tvDiscountApplied.setText(getString(R.string.discount_applied, NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(appliedDiscount), NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(newTotal)));
-                            tvDiscountApplied.setVisibility(View.VISIBLE);
-                            tvPromoDetails.setVisibility(View.VISIBLE);
-                            tvSubtotal.setText(NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(subtotal));
-                            tvTotal.setText(NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(newTotal));
-                            btnConfirmPayment.setText(getString(R.string.btn_confirm_payment, NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(newTotal)));
-                            btnApplyPromo.setText(getString(R.string.remove_promo));
+                        if (res.isValid()) {
+                            try {
+                                appliedPromotionCode = code;
+                                appliedDiscount = res.getDiscount();
+                                appliedPromotion = new HashMap<>();
+                                if (res.getPromotion() != null) {
+                                    vn.hcmute.busbooking.model.Promotion p = res.getPromotion();
+                                    appliedPromotion.put("code", p.getCode());
+                                    appliedPromotion.put("discount_type", p.getDiscount_type());
+                                    appliedPromotion.put("discount_value", p.getDiscount_value());
+                                    appliedPromotion.put("min_price", p.getMin_price());
+                                    appliedPromotion.put("max_discount", p.getMax_discount());
+                                    appliedPromotion.put("start_date", p.getStart_date());
+                                    appliedPromotion.put("end_date", p.getEnd_date());
+                                }
+
+                                double newTotal = Math.max(0, subtotal - appliedDiscount);
+                                Log.i(TAG, "💰 Applying discount: subtotal=" + subtotal + ", discount=" + appliedDiscount + ", newTotal=" + newTotal);
+
+                                tvDiscountApplied.setText(getString(R.string.discount_applied, NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(appliedDiscount), NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(newTotal)));
+                                tvDiscountApplied.setVisibility(View.VISIBLE);
+                                tvPromoDetails.setVisibility(View.VISIBLE);
+                                tvSubtotal.setText(NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(subtotal));
+                                tvTotal.setText(NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(newTotal));
+                                tvBottomTotal.setText(NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(newTotal));
+                                btnApplyPromo.setText(getString(R.string.remove_promo));
+
+                                // Show success toast
+                                Toast.makeText(PaymentActivity.this,
+                                    "✅ Áp dụng thành công! Giảm " + NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(appliedDiscount),
+                                    Toast.LENGTH_LONG).show();
+
+                                Log.i(TAG, "🎉 UI updated successfully!");
+                            } catch (Exception ex) {
+                                Log.e(TAG, "❌ Error applying promotion:", ex);
+                                Toast.makeText(PaymentActivity.this, "Lỗi áp dụng mã: " + ex.getMessage(), Toast.LENGTH_LONG).show();
+                            }
                         } else {
                             String reason = res.getReason();
                             if (reason == null) reason = getString(R.string.msg_invalid_promo);
@@ -1012,23 +1317,123 @@ public class PaymentActivity extends AppCompatActivity {
                 public void onFailure(Call<vn.hcmute.busbooking.model.PromotionValidateResponse> call, Throwable t) {
                     btnApplyPromo.setEnabled(true);
                     Log.e(TAG, "PROMO request failed", t);
-                    Toast.makeText(PaymentActivity.this, getString(R.string.msg_network_error), Toast.LENGTH_SHORT).show();
+                    String errorMsg = "Lỗi kết nối: ";
+                    if (t instanceof java.net.SocketTimeoutException) {
+                        errorMsg += "Timeout - server phản hồi quá lâu. Vui lòng thử lại.";
+                    } else if (t instanceof java.net.UnknownHostException) {
+                        errorMsg += "Không thể kết nối đến server.";
+                    } else {
+                        errorMsg += (t.getMessage() != null ? t.getMessage() : "Vui lòng thử lại");
+                    }
+                    Toast.makeText(PaymentActivity.this, errorMsg, Toast.LENGTH_LONG).show();
                 }
             });
         });
 
         tvPromoDetails.setOnClickListener(v -> {
             if (appliedPromotion == null) return;
+
+            NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+            SimpleDateFormat inputDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
+            SimpleDateFormat outputDateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+
             StringBuilder sb = new StringBuilder();
             try {
-                if (appliedPromotion.get("code") != null) sb.append("Mã: ").append(appliedPromotion.get("code")).append("\n");
-                if (appliedPromotion.get("discount_type") != null) sb.append("Loại: ").append(appliedPromotion.get("discount_type")).append("\n");
-                if (appliedPromotion.get("discount_value") != null) sb.append("Giá trị: ").append(appliedPromotion.get("discount_value")).append("\n");
-                if (appliedPromotion.get("min_price") != null) sb.append("Điều kiện tối thiểu: ").append(appliedPromotion.get("min_price")).append("\n");
-                if (appliedPromotion.get("max_discount") != null) sb.append("Giảm tối đa: ").append(appliedPromotion.get("max_discount")).append("\n");
-                if (appliedPromotion.get("start_date") != null) sb.append("Bắt đầu: ").append(appliedPromotion.get("start_date")).append("\n");
-                if (appliedPromotion.get("end_date") != null) sb.append("Kết thúc: ").append(appliedPromotion.get("end_date")).append("\n");
-            } catch (Exception ignored) {}
+                // Mã giảm giá
+                if (appliedPromotion.get("code") != null) {
+                    sb.append("Mã: ").append(appliedPromotion.get("code")).append("\n\n");
+                }
+
+                // Loại và giá trị giảm giá
+                String discountType = appliedPromotion.get("discount_type") != null ?
+                    String.valueOf(appliedPromotion.get("discount_type")).toLowerCase() : "";
+                Object discountValueObj = appliedPromotion.get("discount_value");
+
+                if (discountValueObj != null) {
+                    try {
+                        double discountValue = Double.parseDouble(String.valueOf(discountValueObj));
+                        if ("percent".equals(discountType) || "percentage".equals(discountType)) {
+                            sb.append("Giảm: ").append((int)discountValue).append("%").append("\n\n");
+                        } else {
+                            sb.append("Giảm: ").append(currencyFormat.format(discountValue)).append("\n\n");
+                        }
+                    } catch (NumberFormatException e) {
+                        sb.append("Giảm: ").append(discountValueObj).append("\n\n");
+                    }
+                }
+
+                // Điều kiện tối thiểu
+                Object minPriceObj = appliedPromotion.get("min_price");
+                if (minPriceObj != null) {
+                    try {
+                        double minPrice = Double.parseDouble(String.valueOf(minPriceObj));
+                        if (minPrice > 0) {
+                            sb.append("Đơn tối thiểu: ").append(currencyFormat.format(minPrice)).append("\n");
+                        }
+                    } catch (NumberFormatException ignored) {}
+                }
+
+                // Giảm tối đa
+                Object maxDiscountObj = appliedPromotion.get("max_discount");
+                if (maxDiscountObj != null) {
+                    try {
+                        double maxDiscount = Double.parseDouble(String.valueOf(maxDiscountObj));
+                        if (maxDiscount > 0) {
+                            sb.append("\nGiảm tối đa: ").append(currencyFormat.format(maxDiscount)).append("\n");
+                        }
+                    } catch (NumberFormatException ignored) {}
+                }
+
+                // Thời gian hiệu lực
+                String startDateStr = appliedPromotion.get("start_date") != null ?
+                    String.valueOf(appliedPromotion.get("start_date")) : null;
+                String endDateStr = appliedPromotion.get("end_date") != null ?
+                    String.valueOf(appliedPromotion.get("end_date")) : null;
+
+                if (startDateStr != null || endDateStr != null) {
+                    sb.append("\n⏰ Thời gian: ");
+
+                    if (startDateStr != null) {
+                        try {
+                            Date startDate = inputDateFormat.parse(startDateStr);
+                            sb.append(outputDateFormat.format(startDate));
+                        } catch (ParseException e) {
+                            // Try parsing without milliseconds
+                            try {
+                                SimpleDateFormat altFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                                Date startDate = altFormat.parse(startDateStr);
+                                sb.append(outputDateFormat.format(startDate));
+                            } catch (ParseException ex) {
+                                sb.append(startDateStr);
+                            }
+                        }
+                    }
+
+                    if (startDateStr != null && endDateStr != null) {
+                        sb.append(" - ");
+                    }
+
+                    if (endDateStr != null) {
+                        try {
+                            Date endDate = inputDateFormat.parse(endDateStr);
+                            sb.append(outputDateFormat.format(endDate));
+                        } catch (ParseException e) {
+                            // Try parsing without milliseconds
+                            try {
+                                SimpleDateFormat altFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                                Date endDate = altFormat.parse(endDateStr);
+                                sb.append(outputDateFormat.format(endDate));
+                            } catch (ParseException ex) {
+                                sb.append(endDateStr);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error formatting promo details", e);
+                sb.append("Không thể hiển thị chi tiết");
+            }
+
             new AlertDialog.Builder(PaymentActivity.this)
                 .setTitle(getString(R.string.view_promo_details))
                 .setMessage(sb.toString())
@@ -1047,7 +1452,195 @@ public class PaymentActivity extends AppCompatActivity {
         tvPromoDetails.setVisibility(View.GONE);
         tvSubtotal.setText(nf.format(subtotal));
         tvTotal.setText(nf.format(subtotal));
+        tvBottomTotal.setText(nf.format(subtotal));
         btnApplyPromo.setText(getString(R.string.apply_promo));
          etPromoCode.setText("");
+    }
+
+    /**
+     * Change payment method from online (QR/Card) to offline (cash/counter)
+     * This will:
+     * 1. Stop the countdown timer
+     * 2. Call backend API to update payment method
+     * 3. Show success message and navigate to My Bookings
+     */
+    private void changePaymentMethodToOffline() {
+        if (bookingIds == null || bookingIds.isEmpty()) {
+            Toast.makeText(this, "Không tìm thấy mã đặt vé", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Đổi phương thức thanh toán")
+                .setMessage("Bạn muốn đổi sang thanh toán tại nhà xe?\n\n" +
+                        "• Vé sẽ KHÔNG bị tự động hủy\n" +
+                        "• Bạn cần thanh toán trước khi lên xe\n" +
+                        "• Không thể đổi lại sang QR/Card sau này")
+                .setPositiveButton("Đồng ý", (dialog, which) -> {
+                    setLoadingState(true);
+
+                    // Stop countdown timer immediately
+                    if (countDownTimer != null) {
+                        countDownTimer.cancel();
+                        countDownTimer = null;
+                    }
+
+                    // Call API for each booking to change payment method
+                    changePaymentMethodForBookings(0, "cash");
+                })
+                .setNegativeButton("Hủy", null)
+                .show();
+    }
+
+    /**
+     * Recursively change payment method for all bookings
+     */
+    private void changePaymentMethodForBookings(int index, String paymentMethod) {
+        changePaymentMethodForBookings(index, paymentMethod, null);
+    }
+
+    /**
+     * Recursively change payment method for all bookings with callback
+     */
+    private void changePaymentMethodForBookings(int index, String paymentMethod, Runnable onSuccess) {
+        Log.d(TAG, "changePaymentMethodForBookings: index=" + index +
+                   ", paymentMethod=" + paymentMethod +
+                   ", bookingIds.size=" + (bookingIds != null ? bookingIds.size() : "null"));
+
+        if (index >= bookingIds.size()) {
+            // All bookings updated successfully
+            setLoadingState(false);
+            Log.d(TAG, "All bookings updated successfully");
+
+            // Normalize payment method to check if offline
+            boolean isOffline = paymentMethod != null &&
+                (paymentMethod.equalsIgnoreCase("cash") ||
+                 paymentMethod.equalsIgnoreCase("offline") ||
+                 paymentMethod.equalsIgnoreCase("cod") ||
+                 paymentMethod.equalsIgnoreCase("counter"));
+
+            if (isOffline) {
+                Log.d(TAG, "Changed to offline payment");
+                // Update flags
+                isOfflinePayment = true;
+                currentPaymentMethod = paymentMethod;
+
+                // Hide countdown and change button for offline payments
+                if (countDownTimer != null) {
+                    countDownTimer.cancel();
+                    countDownTimer = null;
+                }
+                if (cardCountdown != null) cardCountdown.setVisibility(View.GONE);
+                if (btnChangeToOffline != null) btnChangeToOffline.setVisibility(View.GONE);
+
+                // Clear expiry from SharedPreferences
+                if (!bookingIds.isEmpty()) {
+                    saveExpiryForBooking(bookingIds.get(0), -1L);
+                }
+
+                // Show success dialog
+                new AlertDialog.Builder(this)
+                        .setTitle("Thành công")
+                        .setMessage("Đã đổi sang thanh toán tại nhà xe.\n\n" +
+                                "Vé của bạn sẽ không bị tự động hủy. Vui lòng thanh toán trước khi lên xe.")
+                        .setPositiveButton("Xem vé của tôi", (dialog, which) -> {
+                            Intent intent = new Intent(PaymentActivity.this, MyBookingsActivity.class);
+                            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                            startActivity(intent);
+                            finish();
+                        })
+                        .setCancelable(false)
+                        .show();
+            } else {
+                Log.d(TAG, "Changed to online payment: " + paymentMethod);
+                // Update flags for online payment
+                isOfflinePayment = false;
+                currentPaymentMethod = paymentMethod;
+
+                // ✅ Create new expiry timestamp for online payment (10 minutes from now)
+                if (!bookingIds.isEmpty()) {
+                    long newExpiry = System.currentTimeMillis() + (10 * 60 * 1000); // 10 minutes
+                    saveExpiryForBooking(bookingIds.get(0), newExpiry);
+
+                    // Show countdown card
+                    if (cardCountdown != null) {
+                        cardCountdown.setVisibility(View.VISIBLE);
+                    }
+
+                    // Start countdown timer
+                    startCountdown(10 * 60 * 1000);
+
+                    Log.d(TAG, "Changed to online payment - created new expiry: " + new java.util.Date(newExpiry));
+                }
+
+                // Online payment - run callback if provided
+                if (onSuccess != null) {
+                    Log.d(TAG, "Running onSuccess callback for online payment");
+                    onSuccess.run();
+                } else {
+                    Log.w(TAG, "onSuccess callback is null!");
+                }
+            }
+            return;
+        }
+
+        int bookingId = bookingIds.get(index);
+        Log.d(TAG, "Changing payment method for booking #" + bookingId + " to " + paymentMethod);
+
+        Map<String, String> body = new HashMap<>();
+        body.put("payment_method", paymentMethod);
+
+        apiService.changePaymentMethod(bookingId, body).enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                if (response.isSuccessful()) {
+                    Log.d(TAG, "✅ Changed payment method for booking " + bookingId + " to " + paymentMethod);
+                    // Continue with next booking
+                    changePaymentMethodForBookings(index + 1, paymentMethod, onSuccess);
+                } else {
+                    // Handle error
+                    setLoadingState(false);
+                    Log.e(TAG, "❌ Failed to change payment method. Response code: " + response.code());
+                    String errorMsg = "Không thể đổi phương thức thanh toán";
+                    try {
+                        if (response.errorBody() != null) {
+                            String errorBody = response.errorBody().string();
+                            Log.e(TAG, "Error body: " + errorBody);
+                            JSONObject errorJson = new JSONObject(errorBody);
+                            errorMsg = errorJson.optString("message", errorMsg);
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error parsing error response", e);
+                    }
+                    Toast.makeText(PaymentActivity.this, errorMsg, Toast.LENGTH_LONG).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                setLoadingState(false);
+                Log.e(TAG, "❌ Network error when changing payment method", t);
+                Toast.makeText(PaymentActivity.this,
+                        "Lỗi kết nối: " + t.getMessage(),
+                        Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    /**
+     * Confirm change to offline payment with dialog
+     */
+    private void changePaymentMethodToOfflineConfirm(String paymentMethod) {
+        new AlertDialog.Builder(this)
+                .setTitle("Xác nhận đổi phương thức")
+                .setMessage("Bạn muốn đổi sang thanh toán tại nhà xe?\n\n" +
+                        "• Vé sẽ KHÔNG bị tự động hủy\n" +
+                        "• Bạn cần thanh toán trước khi lên xe")
+                .setPositiveButton("Đồng ý", (dialog, which) -> {
+                    setLoadingState(true);
+                    changePaymentMethodForBookings(0, paymentMethod);
+                })
+                .setNegativeButton("Hủy", null)
+                .show();
     }
 }
