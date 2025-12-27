@@ -53,12 +53,10 @@ public class ManageBookingsActivity extends AppCompatActivity {
 
         btnRefreshBookings.setOnClickListener(v -> fetchAdminBookings());
         spinnerBookingStatus.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-            @Override
             public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
                 fetchAdminBookings();
             }
 
-            @Override
             public void onNothingSelected(android.widget.AdapterView<?> parent) {}
         });
 
@@ -68,7 +66,6 @@ public class ManageBookingsActivity extends AppCompatActivity {
     private void setupRecyclerView() {
         rvBookings.setLayoutManager(new LinearLayoutManager(this));
         BookingsAdapter.OnBookingClickListener listener = new BookingsAdapter.OnBookingClickListener() {
-            @Override
             public void onBookingClicked(Map<String, Object> booking) {
                 Object idObj = booking.get("id");
                 if (idObj == null) return;
@@ -85,12 +82,10 @@ public class ManageBookingsActivity extends AppCompatActivity {
                 } catch (NumberFormatException ignored) {}
             }
 
-            @Override
             public void onConfirmBooking(Map<String, Object> booking) {
                 handleConfirmBooking(booking);
             }
 
-            @Override
             public void onCancelBooking(Map<String, Object> booking) {
                 handleCancelBooking(booking);
             }
@@ -123,7 +118,6 @@ public class ManageBookingsActivity extends AppCompatActivity {
 
         Call<List<Map<String, Object>>> call = apiService.getAdminBookings(userId, null, null, status, 1, 50);
         call.enqueue(new Callback<List<Map<String, Object>>>() {
-            @Override
             public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
                 progressBookings.setVisibility(View.GONE);
                 if (!response.isSuccessful()) {
@@ -145,7 +139,6 @@ public class ManageBookingsActivity extends AppCompatActivity {
                 }
             }
 
-            @Override
             public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
                 progressBookings.setVisibility(View.GONE);
                 tvEmptyBookings.setText("Lỗi: " + t.getMessage());
@@ -162,7 +155,6 @@ public class ManageBookingsActivity extends AppCompatActivity {
             int userId = sessionManager.getUserId();
 
             apiService.confirmAdminBooking(userId, bookingId).enqueue(new Callback<Map<String, Object>>() {
-                @Override
                 public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                     if (response.isSuccessful()) {
                         Toast.makeText(ManageBookingsActivity.this, "Xác nhận đơn đặt vé thành công", Toast.LENGTH_SHORT).show();
@@ -172,7 +164,6 @@ public class ManageBookingsActivity extends AppCompatActivity {
                     }
                 }
 
-                @Override
                 public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                     Toast.makeText(ManageBookingsActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                 }
@@ -190,7 +181,6 @@ public class ManageBookingsActivity extends AppCompatActivity {
             int userId = sessionManager.getUserId();
 
             apiService.cancelAdminBooking(userId, bookingId).enqueue(new Callback<Map<String, Object>>() {
-                @Override
                 public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                     if (response.isSuccessful()) {
                         Toast.makeText(ManageBookingsActivity.this, "Hủy đơn đặt vé thành công", Toast.LENGTH_SHORT).show();
@@ -200,7 +190,6 @@ public class ManageBookingsActivity extends AppCompatActivity {
                     }
                 }
 
-                @Override
                 public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                     Toast.makeText(ManageBookingsActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                 }

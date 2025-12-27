@@ -255,30 +255,48 @@ router.put("/bookings/:id/confirm", checkAdminRole, async (req, res) => {
 
     const booking = bookingRes.rows[0];
 
+    console.log(`[admin.confirm] booking id=${id} loaded`, { booking });
+
     // Only allow confirming pending or expired bookings (admin override)
-    if (!['pending', 'expired', 'pending_refund'].includes(booking.status)) {
+    if (!['pending', 'expired', 'pending_refund'].includes(String(booking.status))) {
       await client.query("ROLLBACK");
       client.release();
       return res.status(409).json({ message: 'Không thể xác nhận đặt vé ở trạng thái hiện tại', status: booking.status });
     }
 
-    // If price_paid is zero or null, set it to total_amount (admin confirmation implies payment received)
-    const paidAmount = (Number(booking.price_paid) > 0) ? booking.price_paid : booking.total_amount;
+    // Safely parse amounts (handle strings like "0.00")
+    let paidAmount = parseFloat(booking.price_paid);
+    if (Number.isNaN(paidAmount) || paidAmount <= 0) {
+      paidAmount = parseFloat(booking.total_amount) || 0;
+    }
 
-    const result = await client.query(
+    // Ensure paidAmount is a number (DB expects numeric)
+    if (Number.isNaN(paidAmount)) paidAmount = 0;
+
+    const updateRes = await client.query(
       `UPDATE bookings SET status='confirmed', price_paid=$1, paid_at=NOW() WHERE id=$2 RETURNING *`,
       [paidAmount, id]
     );
 
+    if (!updateRes || !updateRes.rows || updateRes.rows.length === 0) {
+      // This is unexpected — rollback and return error
+      await client.query("ROLLBACK");
+      client.release();
+      console.error(`[admin.confirm] failed to update booking id=${id}`);
+      return res.status(500).json({ message: 'Không thể cập nhật đặt vé sau khi xác nhận' });
+    }
+
     await client.query("COMMIT");
     client.release();
 
-    res.json(result.rows[0]);
+    console.log(`[admin.confirm] booking id=${id} confirmed, paidAmount=${paidAmount}`);
+    res.json(updateRes.rows[0]);
   } catch (err) {
-    try { await client.query("ROLLBACK"); } catch (e) {}
-    client.release();
-    console.error("Error confirming booking by admin:", err);
-    res.status(500).json({ message: "Lỗi khi xác nhận đặt vé" });
+    try { await client.query("ROLLBACK"); } catch (e) { console.error('rollback failed', e); }
+    try { client.release(); } catch (e) { /* ignore */ }
+    console.error("Error confirming booking by admin:", err && err.stack ? err.stack : err);
+    // Return error message to help debugging in development (omit in production)
+    res.status(500).json({ message: "Lỗi khi xác nhận đặt vé", error: err && err.message ? err.message : String(err) });
   }
 });
 
