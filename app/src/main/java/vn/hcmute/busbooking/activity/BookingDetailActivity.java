@@ -178,19 +178,19 @@ public class BookingDetailActivity extends AppCompatActivity {
         tvLicensePlate.setText("51F-123.45"); // Placeholder, needs to come from API
 
         // Total Amount
-        Object pricePaidObj = data.get("price_paid");
-        double pricePaid = 0.0;
-        if (pricePaidObj instanceof String) {
+        Object totalAmountObj = data.get("total_amount");
+        double totalAmount = 0.0;
+        if (totalAmountObj instanceof String) {
             try {
-                pricePaid = Double.parseDouble((String) pricePaidObj);
+                totalAmount = Double.parseDouble((String) totalAmountObj);
             } catch (NumberFormatException e) {
-                Log.e(TAG, "Could not parse price_paid string: " + pricePaidObj);
+                Log.e(TAG, "Could not parse total_amount string: " + totalAmountObj);
             }
-        } else if (pricePaidObj instanceof Number) {
-            pricePaid = ((Number) pricePaidObj).doubleValue();
+        } else if (totalAmountObj instanceof Number) {
+            totalAmount = ((Number) totalAmountObj).doubleValue();
         } 
         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
-        tvTotalAmount.setText(formatter.format(pricePaid));
+        tvTotalAmount.setText(formatter.format(totalAmount));
 
         // Determine UI by status
         String status = (String) data.get("status");

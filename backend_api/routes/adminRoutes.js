@@ -274,7 +274,7 @@ router.put("/bookings/:id/confirm", checkAdminRole, async (req, res) => {
     if (Number.isNaN(paidAmount)) paidAmount = 0;
 
     const updateRes = await client.query(
-      `UPDATE bookings SET status='confirmed', price_paid=$1, paid_at=NOW() WHERE id=$2 RETURNING *`,
+      `UPDATE bookings SET status='confirmed', price_paid=$1 WHERE id=$2 RETURNING *`,
       [paidAmount, id]
     );
 

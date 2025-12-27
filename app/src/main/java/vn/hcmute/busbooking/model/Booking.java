@@ -11,7 +11,6 @@ public class Booking {
     private String created_at;
     private String payment_method;
     private String qr_code;
-    private String payment_time;
     private String departure_time;
     private String arrival_time;
     private String operator;
@@ -50,9 +49,6 @@ public class Booking {
 
     public String getQr_code() { return qr_code; }
     public void setQr_code(String qr_code) { this.qr_code = qr_code; }
-
-    public String getPayment_time() { return payment_time; }
-    public void setPayment_time(String payment_time) { this.payment_time = payment_time; }
 
     public String getDeparture_time() { return departure_time; }
     public void setDeparture_time(String departure_time) { this.departure_time = departure_time; }
