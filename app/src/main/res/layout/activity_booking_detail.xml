@@ -421,8 +421,9 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Payment Method Card -->
+        <!-- Payment Method Card (cho pending payment) -->
         <TextView
+            android:id="@+id/tvPaymentMethodHeading"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
@@ -430,14 +431,17 @@
             android:text="Phương thức thanh toán"
             android:textColor="@android:color/black"
             android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:visibility="gone" />
 
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardPaymentMethod"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="16dp"
+            android:visibility="gone"
             app:cardBackgroundColor="@android:color/white"
             app:cardCornerRadius="16dp"
             app:cardElevation="2dp">
@@ -490,20 +494,39 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- QR Code Section (cho confirmed/completed booking) -->
+        <LinearLayout
+            android:id="@+id/qrCodeSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="16dp"
+                android:text="Mã QR lên xe"
+                android:textColor="@android:color/black"
+                android:textSize="16sp"
+                android:textStyle="bold" />
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 app:cardBackgroundColor="@android:color/white"
-                app:cardCornerRadius="36dp"
-                app:cardElevation="4dp"
-                app:cardUseCompatPadding="true">
+                app:cardCornerRadius="24dp"
+                app:cardElevation="4dp">
 
                 <ImageView
                     android:id="@+id/ivQrCode"
-                    android:layout_width="120dp"
-                    android:layout_height="120dp"
-                    android:layout_margin="30dp" />
+                    android:layout_width="200dp"
+                    android:layout_height="200dp"
+                    android:padding="20dp" />
 
             </com.google.android.material.card.MaterialCardView>
 
@@ -511,12 +534,17 @@
                 android:id="@+id/tvQrHint"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
+                android:layout_marginStart="32dp"
+                android:layout_marginEnd="32dp"
+                android:layout_marginTop="16dp"
                 android:text="Đưa mã này cho nhà xe để quét và lên xe"
-                android:textColor="@color/textSecondary" />
+                android:textColor="#8E8E93"
+                android:textSize="14sp"
+                android:textAlignment="center"
+                android:gravity="center" />
         </LinearLayout>
 
-        <!-- Action Buttons -->
+        <!-- Action Buttons (cho pending payment) -->
         <LinearLayout
             android:id="@+id/actionButtonsContainer"
             android:layout_width="match_parent"
@@ -525,7 +553,8 @@
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="32dp"
-            android:gravity="center">
+            android:gravity="center"
+            android:visibility="gone">
 
             <Button
                 android:id="@+id/btnCancelTicket"
@@ -540,8 +569,7 @@
                 android:textStyle="bold"
                 app:strokeColor="#FF3B30"
                 app:strokeWidth="1dp"
-                app:cornerRadius="28dp"
-                android:visibility="visible" />
+                app:cornerRadius="28dp" />
 
             <Button
                 android:id="@+id/btnPayTicket"
@@ -555,8 +583,7 @@
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:backgroundTint="#007AFF"
-                app:cornerRadius="28dp"
-                android:visibility="visible" />
+                app:cornerRadius="28dp" />
 
             <Button
                 android:id="@+id/btnChangePaymentMethod"
@@ -565,18 +592,8 @@
                 android:layout_height="wrap_content"
                 android:text="Đổi phương thức thanh toán"
                 android:visibility="gone" />
-        </LinearLayout>
 
-        <!-- QR Code Section (Hidden by default) -->
-        <LinearLayout
-            android:id="@+id/qrCodeSection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_horizontal"
-            android:orientation="vertical"
-            android:paddingTop="16dp"
-            android:paddingBottom="32dp"
-            android:visibility="gone">
+        </LinearLayout>
 
     </LinearLayout>
 </ScrollView>
