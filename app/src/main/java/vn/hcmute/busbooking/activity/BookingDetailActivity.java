@@ -40,10 +40,13 @@ public class BookingDetailActivity extends AppCompatActivity {
 
     private static final String TAG = "BookingDetailActivity";
 
-    private TextView tvOperatorName, tvStatus, tvOrigin, tvDepartureTime, 
-                     tvDestination, tvArrivalDate, tvPassengerName, tvPhoneNumber, 
-                     tvSeatNumber, tvLicensePlate, tvTotalAmount;
-    private ImageView ivQrCode, ivOperatorLogo;
+    private TextView tvOperatorName, tvOrigin, tvDepartureTime,
+                     tvDestination, tvPassengerName, tvPhoneNumber,
+                     tvSeatNumber;
+    private TextView tvPickupLocation, tvPickupAddress, tvDropoffLocation, tvDropoffAddress;
+    private TextView tvCountdownTimer, tvBusType;
+    private View cardWaiting;
+    private ImageView ivQrCode;
     private Button btnCancelTicket, btnPayTicket, btnChangePaymentMethod;
     private TextView tvQrHint;
     private Toolbar toolbar;
@@ -103,30 +106,42 @@ public class BookingDetailActivity extends AppCompatActivity {
 
     private void initializeViews() {
         toolbar = findViewById(R.id.toolbar);
+
+        // Waiting card
+        cardWaiting = findViewById(R.id.cardWaiting);
+        tvCountdownTimer = findViewById(R.id.tvCountdownTimer);
+
+        // Trip info
         tvOperatorName = findViewById(R.id.tvOperatorName);
-        tvStatus = findViewById(R.id.tvStatus);
+        tvBusType = findViewById(R.id.tvBusType);
         tvOrigin = findViewById(R.id.tvOrigin);
         tvDepartureTime = findViewById(R.id.tvDepartureTime);
         tvDestination = findViewById(R.id.tvDestination);
-        tvArrivalDate = findViewById(R.id.tvArrivalDate);
+
+        // Pickup/Dropoff
+        tvPickupLocation = findViewById(R.id.tvPickupLocation);
+        tvPickupAddress = findViewById(R.id.tvPickupAddress);
+        tvDropoffLocation = findViewById(R.id.tvDropoffLocation);
+        tvDropoffAddress = findViewById(R.id.tvDropoffAddress);
+
+        // Passenger info
         tvPassengerName = findViewById(R.id.tvPassengerName);
         tvPhoneNumber = findViewById(R.id.tvPhoneNumber);
         tvSeatNumber = findViewById(R.id.tvSeatNumber);
-        tvLicensePlate = findViewById(R.id.tvLicensePlate);
-        tvTotalAmount = findViewById(R.id.tvTotalAmount);
-        ivQrCode = findViewById(R.id.ivQrCode);
-        ivOperatorLogo = findViewById(R.id.ivOperatorLogo);
+
+        // Buttons
         btnCancelTicket = findViewById(R.id.btnCancelTicket);
         btnPayTicket = findViewById(R.id.btnPayTicket);
         btnChangePaymentMethod = findViewById(R.id.btnChangePaymentMethod);
+
+        // QR Code
+        ivQrCode = findViewById(R.id.ivQrCode);
         tvQrHint = findViewById(R.id.tvQrHint);
 
-        // default hide actions/QR until loaded
-        ivQrCode.setVisibility(View.GONE);
-        tvQrHint.setVisibility(View.GONE);
-        btnCancelTicket.setVisibility(View.GONE);
-        btnPayTicket.setVisibility(View.GONE);
-        btnChangePaymentMethod.setVisibility(View.GONE);
+        // Default hide waiting card and QR
+        if (cardWaiting != null) cardWaiting.setVisibility(View.GONE);
+        if (ivQrCode != null) ivQrCode.setVisibility(View.GONE);
+        if (tvQrHint != null) tvQrHint.setVisibility(View.GONE);
     }
 
     private void setupToolbar() {
@@ -168,119 +183,153 @@ public class BookingDetailActivity extends AppCompatActivity {
     }
 
     private void displayBookingDetails(Map<String, Object> data) {
-        // Operator
-        tvOperatorName.setText((String) data.get("operator"));
-        
-        // Status with color logic
-        String status = (String) data.get("status");
-        setStatusStyle(status);
-        tvStatus.setText(getStatusText(status));
+        // Operator & Bus Type
+        String operator = (String) data.get("operator");
+        if (tvOperatorName != null && operator != null) {
+            tvOperatorName.setText(operator.toUpperCase());
+        }
+
+        String busType = (String) data.get("bus_type");
+        if (tvBusType != null && busType != null) {
+            tvBusType.setText(busType);
+        }
 
         // Route and Time
-        tvOrigin.setText((String) data.get("origin"));
-        tvDestination.setText((String) data.get("destination"));
-        tvDepartureTime.setText(formatTime((String) data.get("departure_time")));
-        tvArrivalDate.setText(formatDate((String) data.get("arrival_time")));
+        String origin = (String) data.get("origin");
+        String destination = (String) data.get("destination");
+        if (tvOrigin != null && origin != null) tvOrigin.setText(origin);
+        if (tvDestination != null && destination != null) tvDestination.setText(destination);
 
-        // Passenger and Seat Info
-        tvPassengerName.setText((String) data.get("passenger_name"));
-        tvPhoneNumber.setText((String) data.get("passenger_phone"));
-        // seat_labels may be an array (new schema) or legacy seat_label string
-        try {
-            Object seatLabelsObj = data.get("seat_labels");
-            String seatText = "";
-            if (seatLabelsObj instanceof java.util.List) {
-                java.util.List<?> list = (java.util.List<?>) seatLabelsObj;
-                seatText = android.text.TextUtils.join(", ", list);
-            } else if (seatLabelsObj instanceof String) {
-                seatText = (String) seatLabelsObj;
-            } else if (data.get("seat_label") instanceof String) {
-                seatText = (String) data.get("seat_label");
-            }
-            tvSeatNumber.setText(seatText);
-        } catch (Exception e) {
-            tvSeatNumber.setText( (String) data.get("seat_label") );
+        String departureTime = formatTime((String) data.get("departure_time"));
+        String departureDate = formatDate((String) data.get("departure_time"));
+        if (tvDepartureTime != null) {
+            tvDepartureTime.setText(departureTime + " • " + departureDate);
         }
-        tvLicensePlate.setText("51F-123.45"); // Placeholder, needs to come from API
 
-        // Total Amount
-        Object pricePaidObj = data.get("price_paid");
-        double pricePaid = 0.0;
-        if (pricePaidObj instanceof String) {
+        // Pickup/Dropoff Locations
+        if (tvPickupLocation != null) {
+            String pickupLoc = (String) data.get("pickup_location");
+            tvPickupLocation.setText(pickupLoc != null ? pickupLoc : "Điểm đón");
+        }
+        if (tvPickupAddress != null) {
+            String pickupAddr = (String) data.get("pickup_address");
+            tvPickupAddress.setText(pickupAddr != null ? pickupAddr : "");
+        }
+        if (tvDropoffLocation != null) {
+            String dropoffLoc = (String) data.get("dropoff_location");
+            tvDropoffLocation.setText(dropoffLoc != null ? dropoffLoc : "Điểm trả");
+        }
+        if (tvDropoffAddress != null) {
+            String dropoffAddr = (String) data.get("dropoff_address");
+            tvDropoffAddress.setText(dropoffAddr != null ? dropoffAddr : "");
+        }
+
+        // Passenger Info
+        if (tvPassengerName != null) {
+            String passengerName = (String) data.get("passenger_name");
+            tvPassengerName.setText(passengerName != null ? passengerName : "N/A");
+        }
+        if (tvPhoneNumber != null) {
+            String phone = (String) data.get("passenger_phone");
+            tvPhoneNumber.setText(phone != null ? phone : "N/A");
+        }
+
+        // Seat Info
+        if (tvSeatNumber != null) {
             try {
-                pricePaid = Double.parseDouble((String) pricePaidObj);
-            } catch (NumberFormatException e) {
-                Log.e(TAG, "Could not parse price_paid string: " + pricePaidObj);
+                Object seatLabelsObj = data.get("seat_labels");
+                String seatText = "";
+                if (seatLabelsObj instanceof java.util.List) {
+                    java.util.List<?> list = (java.util.List<?>) seatLabelsObj;
+                    seatText = android.text.TextUtils.join(", ", list);
+                } else if (seatLabelsObj instanceof String) {
+                    seatText = (String) seatLabelsObj;
+                } else if (data.get("seat_label") instanceof String) {
+                    seatText = (String) data.get("seat_label");
+                }
+                tvSeatNumber.setText(seatText);
+            } catch (Exception e) {
+                tvSeatNumber.setText((String) data.get("seat_label"));
             }
-        } else if (pricePaidObj instanceof Number) {
-            pricePaid = ((Number) pricePaidObj).doubleValue();
-        } 
+        }
+
+        // Total Amount - Update button text
+        Object pricePaidObj = data.get("price_paid");
+        Object totalAmountObj = data.get("total_amount");
+        double amount = 0.0;
+
+        if (pricePaidObj instanceof Number) {
+            amount = ((Number) pricePaidObj).doubleValue();
+        } else if (pricePaidObj instanceof String) {
+            try {
+                amount = Double.parseDouble((String) pricePaidObj);
+            } catch (NumberFormatException ignored) {}
+        }
+
+        if (amount == 0 && totalAmountObj instanceof Number) {
+            amount = ((Number) totalAmountObj).doubleValue();
+        } else if (amount == 0 && totalAmountObj instanceof String) {
+            try {
+                amount = Double.parseDouble((String) totalAmountObj);
+            } catch (NumberFormatException ignored) {}
+        }
+
         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
-        tvTotalAmount.setText(formatter.format(pricePaid));
+        String amountStr = formatter.format(amount);
+        if (btnPayTicket != null) {
+            btnPayTicket.setText("Thanh toán • " + amountStr);
+        }
 
         // Determine payment method type
         String pm = (String) data.get("payment_method");
+        String status = (String) data.get("status");
         boolean isOnlinePayment = false;
+
         if (pm != null) {
             String lower = pm.toLowerCase(Locale.getDefault()).trim();
-            // Check for online payment methods: qr, card, payos, wallet, etc.
-            // Cash, offline, counter → isOnlinePayment = false
             if (lower.equals("qr") || lower.equals("card") || lower.equals("payos") ||
                 lower.contains("wallet") || lower.contains("e-") || lower.contains("thẻ") ||
                 lower.contains("online") || lower.equals("credit") || lower.equals("debit")) {
                 isOnlinePayment = true;
             }
-            // Explicitly set false for offline methods
-            if (lower.equals("cash") || lower.equals("offline") || lower.contains("nhà xe") ||
-                lower.contains("counter") || lower.contains("tại chỗ")) {
-                isOnlinePayment = false;
-            }
             Log.d(TAG, "Payment method: '" + pm + "' → isOnlinePayment: " + isOnlinePayment);
-        } else {
-            Log.w(TAG, "payment_method is null, defaulting to offline");
         }
 
         // Handle Countdown if pending & online
         if ("pending".equals(status)) {
             handlePendingCountdown(data, isOnlinePayment);
-        }
 
-        // Determine UI by status
-        if ("pending".equals(status)) {
-            // Pending
-            ivQrCode.setVisibility(View.GONE);
-            tvQrHint.setVisibility(View.GONE);
-            
-            // Always show Cancel
-            btnCancelTicket.setVisibility(View.VISIBLE);
-            
-            // Show Change Payment Method
-            btnChangePaymentMethod.setVisibility(View.VISIBLE);
-
-            if (isOnlinePayment) {
-                // Online Pending: Show Pay button
-                btnPayTicket.setVisibility(View.VISIBLE);
-            } else {
-                // Offline Pending: Hide Pay button
-                btnPayTicket.setVisibility(View.GONE);
+            // Show buttons
+            if (btnCancelTicket != null) btnCancelTicket.setVisibility(View.VISIBLE);
+            if (btnPayTicket != null) {
+                btnPayTicket.setVisibility(isOnlinePayment ? View.VISIBLE : View.VISIBLE);
             }
+            if (btnChangePaymentMethod != null) btnChangePaymentMethod.setVisibility(View.VISIBLE);
 
         } else if ("confirmed".equals(status) || "completed".equals(status)) {
-            // Confirmed/completed: show QR and Cancel (if applicable)
-            ivQrCode.setVisibility(View.VISIBLE);
-            tvQrHint.setVisibility(View.VISIBLE);
-            generateQRCode(String.valueOf(bookingId));
-            btnCancelTicket.setVisibility(View.VISIBLE);
-            
-            btnPayTicket.setVisibility(View.GONE);
-            btnChangePaymentMethod.setVisibility(View.GONE);
+            // Hide waiting card
+            if (cardWaiting != null) cardWaiting.setVisibility(View.GONE);
+
+            // Show QR if available
+            if (ivQrCode != null && tvQrHint != null) {
+                ivQrCode.setVisibility(View.VISIBLE);
+                tvQrHint.setVisibility(View.VISIBLE);
+                generateQRCode(String.valueOf(bookingId));
+            }
+
+            // Show cancel button for confirmed bookings
+            if (btnCancelTicket != null) btnCancelTicket.setVisibility(View.VISIBLE);
+            if (btnPayTicket != null) btnPayTicket.setVisibility(View.GONE);
+            if (btnChangePaymentMethod != null) btnChangePaymentMethod.setVisibility(View.GONE);
+
         } else {
-            // cancelled or other statuses: hide actions and QR
-            ivQrCode.setVisibility(View.GONE);
-            tvQrHint.setVisibility(View.GONE);
-            btnCancelTicket.setVisibility(View.GONE);
-            btnPayTicket.setVisibility(View.GONE);
-            btnChangePaymentMethod.setVisibility(View.GONE);
+            // cancelled or other statuses: hide all actions
+            if (cardWaiting != null) cardWaiting.setVisibility(View.GONE);
+            if (ivQrCode != null) ivQrCode.setVisibility(View.GONE);
+            if (tvQrHint != null) tvQrHint.setVisibility(View.GONE);
+            if (btnCancelTicket != null) btnCancelTicket.setVisibility(View.GONE);
+            if (btnPayTicket != null) btnPayTicket.setVisibility(View.GONE);
+            if (btnChangePaymentMethod != null) btnChangePaymentMethod.setVisibility(View.GONE);
         }
     }
 
@@ -290,13 +339,12 @@ public class BookingDetailActivity extends AppCompatActivity {
         }
         
         if (!isOnlinePayment) {
-            // Cash/Offline payment -> no countdown, show static text
-            tvStatus.setText("Chờ thanh toán (Tại nhà xe)");
-            setStatusStyle("pending");
+            // Cash/Offline payment -> hide waiting card
+            if (cardWaiting != null) cardWaiting.setVisibility(View.GONE);
             return;
         }
 
-        // Online payment (QR, Card, etc.) -> show countdown
+        // Online payment (QR, Card, etc.) -> show countdown in waiting card
         String createdAtStr = (String) data.get("created_at");
         long createdMillis = -1;
         if (createdAtStr != null) {
@@ -323,6 +371,9 @@ public class BookingDetailActivity extends AppCompatActivity {
             long millisInFuture = expirationTime - now;
 
             if (millisInFuture > 0) {
+                // Show waiting card
+                if (cardWaiting != null) cardWaiting.setVisibility(View.VISIBLE);
+
                 countDownTimer = new CountDownTimer(millisInFuture, 1000) {
                     @Override
                     public void onTick(long millisUntilFinished) {
@@ -330,27 +381,41 @@ public class BookingDetailActivity extends AppCompatActivity {
                         long mm = seconds / 60;
                         long ss = seconds % 60;
                         String timeStr = String.format(Locale.getDefault(), "%02d:%02d", mm, ss);
-                        tvStatus.setText("Chờ thanh toán (" + timeStr + ")");
+                        if (tvCountdownTimer != null) {
+                            tvCountdownTimer.setText(timeStr);
+                        }
                     }
 
                     @Override
                     public void onFinish() {
-                        tvStatus.setText("Hết hạn");
-                        setStatusStyle("expired");
-                        btnPayTicket.setVisibility(View.GONE);
-                        btnCancelTicket.setVisibility(View.GONE);
-                        btnChangePaymentMethod.setVisibility(View.GONE);
+                        // Hide waiting card, show expired message
+                        if (cardWaiting != null) cardWaiting.setVisibility(View.GONE);
+                        if (btnPayTicket != null) btnPayTicket.setVisibility(View.GONE);
+                        if (btnCancelTicket != null) btnCancelTicket.setVisibility(View.GONE);
+                        if (btnChangePaymentMethod != null) btnChangePaymentMethod.setVisibility(View.GONE);
+
+                        Toast.makeText(BookingDetailActivity.this,
+                                "Vé đã hết hạn thanh toán",
+                                Toast.LENGTH_LONG).show();
+
                         // Optionally refresh details
                         loadBookingDetails();
                     }
                 }.start();
             } else {
-                 tvStatus.setText("Hết hạn");
-                 setStatusStyle("expired");
-                 btnPayTicket.setVisibility(View.GONE);
-                 btnCancelTicket.setVisibility(View.GONE);
-                 btnChangePaymentMethod.setVisibility(View.GONE);
+                 // Already expired
+                 if (cardWaiting != null) cardWaiting.setVisibility(View.GONE);
+                 if (btnPayTicket != null) btnPayTicket.setVisibility(View.GONE);
+                 if (btnCancelTicket != null) btnCancelTicket.setVisibility(View.GONE);
+                 if (btnChangePaymentMethod != null) btnChangePaymentMethod.setVisibility(View.GONE);
+
+                 Toast.makeText(BookingDetailActivity.this,
+                         "Vé đã hết hạn thanh toán",
+                         Toast.LENGTH_LONG).show();
             }
+        } else {
+            // Could not parse created_at, hide waiting card
+            if (cardWaiting != null) cardWaiting.setVisibility(View.GONE);
         }
     }
 
