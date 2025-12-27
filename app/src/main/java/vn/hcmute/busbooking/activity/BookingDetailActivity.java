@@ -2,7 +2,9 @@ package vn.hcmute.busbooking.activity;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -12,6 +14,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.content.ContextCompat;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.MultiFormatWriter;
@@ -41,12 +44,13 @@ public class BookingDetailActivity extends AppCompatActivity {
                      tvDestination, tvArrivalDate, tvPassengerName, tvPhoneNumber, 
                      tvSeatNumber, tvLicensePlate, tvTotalAmount;
     private ImageView ivQrCode, ivOperatorLogo;
-    private Button btnCancelTicket, btnPayTicket;
+    private Button btnCancelTicket, btnPayTicket, btnChangePaymentMethod;
     private TextView tvQrHint;
     private Toolbar toolbar;
 
     private ApiService apiService;
     private int bookingId;
+    private CountDownTimer countDownTimer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,12 +77,28 @@ public class BookingDetailActivity extends AppCompatActivity {
             java.util.ArrayList<Integer> ids = new java.util.ArrayList<>();
             ids.add(bookingId);
             intent.putIntegerArrayListExtra("booking_ids", ids);
-            // also include booking-specific seat labels if present - the PaymentActivity expects seat_labels when creating payment flow
-            // we can fetch seat labels from the loaded booking details via tvSeatNumber or from data map; but here we rely on PaymentActivity's pending flow which doesn't require seat_labels for pending payment
+            startActivity(intent);
+        });
+        
+        btnChangePaymentMethod.setOnClickListener(v -> {
+            // Re-open PaymentActivity in pending mode so user can select another method
+            Intent intent = new Intent(BookingDetailActivity.this, PaymentActivity.class);
+            intent.putExtra("is_pending_payment", true);
+            java.util.ArrayList<Integer> ids = new java.util.ArrayList<>();
+            ids.add(bookingId);
+            intent.putIntegerArrayListExtra("booking_ids", ids);
             startActivity(intent);
         });
 
         loadBookingDetails();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+        }
     }
 
     private void initializeViews() {
@@ -98,6 +118,7 @@ public class BookingDetailActivity extends AppCompatActivity {
         ivOperatorLogo = findViewById(R.id.ivOperatorLogo);
         btnCancelTicket = findViewById(R.id.btnCancelTicket);
         btnPayTicket = findViewById(R.id.btnPayTicket);
+        btnChangePaymentMethod = findViewById(R.id.btnChangePaymentMethod);
         tvQrHint = findViewById(R.id.tvQrHint);
 
         // default hide actions/QR until loaded
@@ -105,6 +126,7 @@ public class BookingDetailActivity extends AppCompatActivity {
         tvQrHint.setVisibility(View.GONE);
         btnCancelTicket.setVisibility(View.GONE);
         btnPayTicket.setVisibility(View.GONE);
+        btnChangePaymentMethod.setVisibility(View.GONE);
     }
 
     private void setupToolbar() {
@@ -146,9 +168,13 @@ public class BookingDetailActivity extends AppCompatActivity {
     }
 
     private void displayBookingDetails(Map<String, Object> data) {
-        // Operator and Status
+        // Operator
         tvOperatorName.setText((String) data.get("operator"));
-        tvStatus.setText(getStatusText((String) data.get("status")));
+        
+        // Status with color logic
+        String status = (String) data.get("status");
+        setStatusStyle(status);
+        tvStatus.setText(getStatusText(status));
 
         // Route and Time
         tvOrigin.setText((String) data.get("origin"));
@@ -192,27 +218,139 @@ public class BookingDetailActivity extends AppCompatActivity {
         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
         tvTotalAmount.setText(formatter.format(pricePaid));
 
-        // Determine UI by status
-        String status = (String) data.get("status");
+        // Determine payment method type
+        String pm = (String) data.get("payment_method");
+        boolean isOnlinePayment = false;
+        if (pm != null) {
+            String lower = pm.toLowerCase(Locale.getDefault()).trim();
+            // Check for online payment methods: qr, card, payos, wallet, etc.
+            // Cash, offline, counter → isOnlinePayment = false
+            if (lower.equals("qr") || lower.equals("card") || lower.equals("payos") ||
+                lower.contains("wallet") || lower.contains("e-") || lower.contains("thẻ") ||
+                lower.contains("online") || lower.equals("credit") || lower.equals("debit")) {
+                isOnlinePayment = true;
+            }
+            // Explicitly set false for offline methods
+            if (lower.equals("cash") || lower.equals("offline") || lower.contains("nhà xe") ||
+                lower.contains("counter") || lower.contains("tại chỗ")) {
+                isOnlinePayment = false;
+            }
+            Log.d(TAG, "Payment method: '" + pm + "' → isOnlinePayment: " + isOnlinePayment);
+        } else {
+            Log.w(TAG, "payment_method is null, defaulting to offline");
+        }
+
+        // Handle Countdown if pending & online
         if ("pending".equals(status)) {
-            // Pending: show Pay and Cancel buttons; no QR
+            handlePendingCountdown(data, isOnlinePayment);
+        }
+
+        // Determine UI by status
+        if ("pending".equals(status)) {
+            // Pending
             ivQrCode.setVisibility(View.GONE);
             tvQrHint.setVisibility(View.GONE);
-            btnPayTicket.setVisibility(View.VISIBLE);
+            
+            // Always show Cancel
             btnCancelTicket.setVisibility(View.VISIBLE);
+            
+            // Show Change Payment Method
+            btnChangePaymentMethod.setVisibility(View.VISIBLE);
+
+            if (isOnlinePayment) {
+                // Online Pending: Show Pay button
+                btnPayTicket.setVisibility(View.VISIBLE);
+            } else {
+                // Offline Pending: Hide Pay button
+                btnPayTicket.setVisibility(View.GONE);
+            }
+
         } else if ("confirmed".equals(status) || "completed".equals(status)) {
             // Confirmed/completed: show QR and Cancel (if applicable)
             ivQrCode.setVisibility(View.VISIBLE);
             tvQrHint.setVisibility(View.VISIBLE);
             generateQRCode(String.valueOf(bookingId));
             btnCancelTicket.setVisibility(View.VISIBLE);
+            
             btnPayTicket.setVisibility(View.GONE);
+            btnChangePaymentMethod.setVisibility(View.GONE);
         } else {
             // cancelled or other statuses: hide actions and QR
             ivQrCode.setVisibility(View.GONE);
             tvQrHint.setVisibility(View.GONE);
             btnCancelTicket.setVisibility(View.GONE);
             btnPayTicket.setVisibility(View.GONE);
+            btnChangePaymentMethod.setVisibility(View.GONE);
+        }
+    }
+
+    private void handlePendingCountdown(Map<String, Object> data, boolean isOnlinePayment) {
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+        }
+        
+        if (!isOnlinePayment) {
+            // Cash/Offline payment -> no countdown, show static text
+            tvStatus.setText("Chờ thanh toán (Tại nhà xe)");
+            setStatusStyle("pending");
+            return;
+        }
+
+        // Online payment (QR, Card, etc.) -> show countdown
+        String createdAtStr = (String) data.get("created_at");
+        long createdMillis = -1;
+        if (createdAtStr != null) {
+             try {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
+                sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+                Date d = sdf.parse(createdAtStr);
+                if (d != null) createdMillis = d.getTime();
+            } catch (ParseException e) {
+                // Try fallback format without millis
+                try {
+                     SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
+                     sdf2.setTimeZone(TimeZone.getTimeZone("UTC"));
+                     Date d2 = sdf2.parse(createdAtStr);
+                     if (d2 != null) createdMillis = d2.getTime();
+                } catch (ParseException ignored) {}
+            }
+        }
+
+        if (createdMillis > 0) {
+            long now = System.currentTimeMillis();
+            long ttl = 10 * 60 * 1000L; // 10 minutes
+            long expirationTime = createdMillis + ttl;
+            long millisInFuture = expirationTime - now;
+
+            if (millisInFuture > 0) {
+                countDownTimer = new CountDownTimer(millisInFuture, 1000) {
+                    @Override
+                    public void onTick(long millisUntilFinished) {
+                        long seconds = millisUntilFinished / 1000;
+                        long mm = seconds / 60;
+                        long ss = seconds % 60;
+                        String timeStr = String.format(Locale.getDefault(), "%02d:%02d", mm, ss);
+                        tvStatus.setText("Chờ thanh toán (" + timeStr + ")");
+                    }
+
+                    @Override
+                    public void onFinish() {
+                        tvStatus.setText("Hết hạn");
+                        setStatusStyle("expired");
+                        btnPayTicket.setVisibility(View.GONE);
+                        btnCancelTicket.setVisibility(View.GONE);
+                        btnChangePaymentMethod.setVisibility(View.GONE);
+                        // Optionally refresh details
+                        loadBookingDetails();
+                    }
+                }.start();
+            } else {
+                 tvStatus.setText("Hết hạn");
+                 setStatusStyle("expired");
+                 btnPayTicket.setVisibility(View.GONE);
+                 btnCancelTicket.setVisibility(View.GONE);
+                 btnChangePaymentMethod.setVisibility(View.GONE);
+            }
         }
     }
 
@@ -263,18 +401,64 @@ public class BookingDetailActivity extends AppCompatActivity {
         if (status == null) return "";
         switch (status) {
             case "confirmed":
-                return "Đã xác nhận";
+                return "Đã thanh toán";
             case "cancelled":
                 return "Đã hủy";
             case "pending":
                 return "Chờ thanh toán";
             case "completed":
-                return "Đã hoàn thành";
+                return "Đã đi";
             case "expired":
                 return "Hết hạn";
             default:
                 return status;
         }
+    }
+
+    private void setStatusStyle(String status) {
+        int backgroundColor;
+        int textColor;
+
+        if (status == null) status = "";
+
+        switch (status) {
+            case "confirmed":
+                backgroundColor = ContextCompat.getColor(this, R.color.lightGreen);
+                textColor = ContextCompat.getColor(this, R.color.darkGreen);
+                break;
+            case "completed":
+                backgroundColor = ContextCompat.getColor(this, R.color.lightBlue);
+                textColor = ContextCompat.getColor(this, R.color.darkBlue);
+                break;
+            case "pending":
+                backgroundColor = ContextCompat.getColor(this, R.color.lightYellow);
+                textColor = ContextCompat.getColor(this, R.color.darkYellow);
+                break;
+            case "cancelled":
+                backgroundColor = ContextCompat.getColor(this, R.color.lightRed);
+                textColor = ContextCompat.getColor(this, R.color.darkRed);
+                break;
+            case "expired":
+                backgroundColor = ContextCompat.getColor(this, R.color.lightGray);
+                textColor = ContextCompat.getColor(this, R.color.darkGray);
+                break;
+            default:
+                backgroundColor = ContextCompat.getColor(this, R.color.lightGray);
+                textColor = ContextCompat.getColor(this, R.color.darkGray);
+                break;
+        }
+
+        try {
+            GradientDrawable background = (GradientDrawable) tvStatus.getBackground();
+            if (background != null) {
+                background.setColor(backgroundColor);
+            } else {
+                tvStatus.setBackgroundColor(backgroundColor);
+            }
+        } catch (Exception e) {
+             tvStatus.setBackgroundColor(backgroundColor);
+        }
+        tvStatus.setTextColor(textColor);
     }
 
     private void showCancelConfirmationDialog() {

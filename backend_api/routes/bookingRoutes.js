@@ -195,7 +195,7 @@ router.get('/bookings/my', async (req, res) => {
   // If no tab specified, return all bookings (backwards compatibility)
 
   const sql = `
-    SELECT b.id, b.status, b.price_paid, b.created_at, b.total_amount,
+    SELECT b.id, b.status, b.price_paid, b.created_at, b.total_amount, b.payment_method,
            t.departure_time, t.arrival_time, t.operator, t.bus_type,
            r.origin, r.destination,
            pickup_stop.name AS pickup_location,
