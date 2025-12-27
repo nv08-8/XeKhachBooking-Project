@@ -99,6 +99,9 @@ public interface ApiService {
     @PUT("api/bookings/{id}/payment-method")
     Call<Map<String, Object>> changePaymentMethod(@Path("id") int bookingId, @Body Map<String, String> body);
 
+    @POST("api/bookings/{id}/confirm-offline-payment")
+    Call<Map<String, Object>> confirmOfflinePayment(@Path("id") int bookingId);
+
     @GET("api/auth/user/{id}")
     Call<Map<String, Object>> getUserInfo(@Path("id") int userId);
 
@@ -234,5 +237,12 @@ public interface ApiService {
 
     @DELETE("api/admin/promotions/{id}")
     Call<Void> deletePromotion(@Header("user-id") int userId, @Path("id") int promotionId);
+
+    // ========== OFFLINE PAYMENT CONFIRMATION ==========
+    @GET("api/admin/pending-offline-payments")
+    Call<List<Map<String, Object>>> getPendingOfflinePayments(@Header("user-id") int userId);
+
+    @POST("api/admin/confirm-offline-payment/{id}")
+    Call<Map<String, Object>> adminConfirmOfflinePayment(@Header("user-id") int userId, @Path("id") int bookingId);
 
 }

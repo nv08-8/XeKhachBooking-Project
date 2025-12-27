@@ -498,4 +498,74 @@ router.post('/bookings/:id/expire', async (req, res) => {
   }
 });
 
+// POST /bookings/:id/confirm-offline-payment - Admin confirms offline payment
+// Changes booking status from 'pending' (offline) to 'confirmed'
+router.post('/bookings/:id/confirm-offline-payment', async (req, res) => {
+  const { id } = req.params;
+  // TODO: Add admin auth check here
+  const client = await beginTransaction();
+  try {
+    await client.query('BEGIN');
+    const bookingRes = await client.query(
+      `SELECT b.id, b.trip_id, b.status, b.total_amount, b.payment_method, b.user_id
+       FROM bookings b WHERE b.id=$1 FOR UPDATE`,
+      [id]
+    );
+    if (!bookingRes.rowCount) {
+      await rollbackAndRelease(client);
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+    const booking = bookingRes.rows[0];
+
+    // Check if this is an offline payment booking in pending status
+    const normalizedMethod = (booking.payment_method || '').toLowerCase();
+    const isOfflinePayment = ['cash', 'offline', 'cod', 'counter'].includes(normalizedMethod);
+
+    if (!isOfflinePayment) {
+      await rollbackAndRelease(client);
+      return res.status(400).json({
+        message: 'Can only confirm offline payments',
+        payment_method: booking.payment_method
+      });
+    }
+
+    if (booking.status !== 'pending') {
+      await rollbackAndRelease(client);
+      return res.status(409).json({
+        message: 'Booking must be in pending status to confirm offline payment',
+        current_status: booking.status
+      });
+    }
+
+    // Update booking: mark as confirmed and record payment
+    const totalAmount = Number(booking.total_amount) || 0;
+    const paymentMeta = {
+      method: normalizedMethod,
+      confirmed_by: 'admin',
+      confirmed_at: new Date().toISOString(),
+      note: 'Offline payment confirmed by admin'
+    };
+
+    await client.query(
+      `UPDATE bookings
+       SET status=$1, price_paid=$2, paid_at=NOW(), metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
+       WHERE id=$4`,
+      ['confirmed', totalAmount, JSON.stringify({ payment: paymentMeta }), id]
+    );
+
+    await commitAndRelease(client);
+
+    res.json({
+      message: 'Offline payment confirmed successfully',
+      booking_id: Number(id),
+      status: 'confirmed',
+      price_paid: totalAmount
+    });
+  } catch (err) {
+    console.error('Confirm offline payment failed:', err.message || err);
+    await rollbackAndRelease(client);
+    res.status(500).json({ message: 'Failed to confirm offline payment' });
+  }
+});
+
 module.exports = router;

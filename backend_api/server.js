@@ -175,6 +175,18 @@ async function expirePendingBookings() {
                     continue;
                 }
 
+                // ✅ CRITICAL: Check payment_method FIRST - Offline payments should NEVER be auto-expired
+                if (booking.payment_method) {
+                    const method = String(booking.payment_method).toLowerCase();
+                    if (['cash', 'offline', 'cod', 'counter'].includes(method)) {
+                        // This is an offline payment - DO NOT EXPIRE IT
+                        await client.query('ROLLBACK');
+                        client.release();
+                        console.log(`Skipping offline payment booking id=${booking.id} (method=${method})`);
+                        continue;
+                    }
+                }
+
                 // Determine if this booking should be cancelled
                 // Logic:
                 // - Is Online Payment? (Has orderCode in metadata OR explicit payment_method)
