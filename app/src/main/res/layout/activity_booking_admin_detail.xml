@@ -134,7 +134,7 @@
                                 android:textSize="16sp" />
 
                             <TextView
-                                android:id="@+id/tvArrivalDate"
+                                android:id="@+id/tvArrivalTime"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="15:00"
@@ -142,6 +142,13 @@
                                 android:textStyle="bold" />
                         </LinearLayout>
                     </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvDate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Thứ 2, 23/12/2024" />
 
                     <View
                         android:layout_width="match_parent"

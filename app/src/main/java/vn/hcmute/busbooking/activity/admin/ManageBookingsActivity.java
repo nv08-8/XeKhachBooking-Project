@@ -1,5 +1,6 @@
 package vn.hcmute.busbooking.activity.admin;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -36,6 +37,8 @@ public class ManageBookingsActivity extends AppCompatActivity {
     private SessionManager sessionManager;
     private ApiService apiService;
     private Toolbar toolbar;
+
+    private static final int BOOKING_DETAIL_REQUEST = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,27 +80,38 @@ public class ManageBookingsActivity extends AppCompatActivity {
     private void setupRecyclerView() {
         rvBookings.setLayoutManager(new LinearLayoutManager(this));
         BookingsAdapter.OnBookingClickListener listener = new BookingsAdapter.OnBookingClickListener() {
+            @Override
             public void onBookingClicked(Map<String, Object> booking) {
                 Object idObj = booking.get("id");
                 if (idObj == null) return;
                 try {
                     int bookingId = Integer.parseInt(idObj.toString());
-                    android.content.Intent intent = new android.content.Intent(ManageBookingsActivity.this, BookingAdminDetailActivity.class);
+                    Intent intent = new Intent(ManageBookingsActivity.this, BookingAdminDetailActivity.class);
                     intent.putExtra("booking_id", bookingId);
-                    startActivity(intent);
+                    startActivityForResult(intent, BOOKING_DETAIL_REQUEST);
                 } catch (NumberFormatException ignored) {}
             }
 
+            @Override
             public void onConfirmBooking(Map<String, Object> booking) {
-                handleConfirmBooking(booking);
+                // This is now handled in BookingAdminDetailActivity
             }
 
+            @Override
             public void onCancelBooking(Map<String, Object> booking) {
-                handleCancelBooking(booking);
+                // This is now handled in BookingAdminDetailActivity
             }
         };
         adapter = new BookingsAdapter(bookingsList, listener);
         rvBookings.setAdapter(adapter);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == BOOKING_DETAIL_REQUEST && resultCode == RESULT_OK) {
+            fetchAdminBookings(); // Refresh the list if a change was made
+        }
     }
 
     private void fetchAdminBookings() {
@@ -150,57 +164,5 @@ public class ManageBookingsActivity extends AppCompatActivity {
                 tvEmptyBookings.setVisibility(View.VISIBLE);
             }
         });
-    }
-
-    private void handleConfirmBooking(Map<String, Object> booking) {
-        Object idObj = booking.get("id");
-        if (idObj == null) return;
-        try {
-            int bookingId = Integer.parseInt(idObj.toString());
-            int userId = sessionManager.getUserId();
-
-            apiService.confirmAdminBooking(userId, bookingId).enqueue(new Callback<Map<String, Object>>() {
-                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                    if (response.isSuccessful()) {
-                        Toast.makeText(ManageBookingsActivity.this, "Xác nhận đơn đặt vé thành công", Toast.LENGTH_SHORT).show();
-                        fetchAdminBookings(); // Refresh the list
-                    } else {
-                        Toast.makeText(ManageBookingsActivity.this, "Lỗi khi xác nhận", Toast.LENGTH_SHORT).show();
-                    }
-                }
-
-                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                    Toast.makeText(ManageBookingsActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                }
-            });
-        } catch (NumberFormatException e) {
-            Toast.makeText(this, "ID đặt vé không hợp lệ", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void handleCancelBooking(Map<String, Object> booking) {
-        Object idObj = booking.get("id");
-        if (idObj == null) return;
-        try {
-            int bookingId = Integer.parseInt(idObj.toString());
-            int userId = sessionManager.getUserId();
-
-            apiService.cancelAdminBooking(userId, bookingId).enqueue(new Callback<Map<String, Object>>() {
-                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                    if (response.isSuccessful()) {
-                        Toast.makeText(ManageBookingsActivity.this, "Hủy đơn đặt vé thành công", Toast.LENGTH_SHORT).show();
-                        fetchAdminBookings(); // Refresh the list
-                    } else {
-                        Toast.makeText(ManageBookingsActivity.this, "Lỗi khi hủy", Toast.LENGTH_SHORT).show();
-                    }
-                }
-
-                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                    Toast.makeText(ManageBookingsActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                }
-            });
-        } catch (NumberFormatException e) {
-            Toast.makeText(this, "ID đặt vé không hợp lệ", Toast.LENGTH_SHORT).show();
-        }
     }
 }

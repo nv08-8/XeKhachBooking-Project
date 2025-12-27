@@ -1,10 +1,13 @@
 package vn.hcmute.busbooking.adapter.admin;
 
+import android.content.Context;
+import android.graphics.drawable.Drawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.text.ParseException;
@@ -46,7 +49,7 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
             SimpleDateFormat newSdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
             return newSdf.format(date);
         } catch (ParseException e) {
-            return dateTimeStr; // Return original if parsing fails
+            return dateTimeStr;
         }
     }
 
@@ -54,47 +57,24 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
     public void onBindViewHolder(BookingViewHolder holder, int position) {
         Map<String, Object> booking = bookings.get(position);
 
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onBookingClicked(booking);
+            }
+        });
+
         Object idObj = booking.get("id");
         Object userNameObj = booking.get("name");
         Object originObj = booking.get("origin");
         Object destObj = booking.get("destination");
         Object departureTimeObj = booking.get("departure_time");
-        Object seatLabelsObj = booking.get("seat_labels");
         Object priceObj = booking.get("total_amount");
         Object statusObj = booking.get("status");
 
-        if (holder.tvBookingId != null) {
-            holder.tvBookingId.setText("Đơn #" + (idObj != null ? idObj.toString() : "?"));
-        }
-        if (holder.tvUserName != null) {
-            holder.tvUserName.setText(userNameObj != null ? userNameObj.toString() : "");
-        }
-        if (holder.tvBookingRoute != null) {
-            holder.tvBookingRoute.setText((originObj != null ? originObj.toString() : "?") + " → " + (destObj != null ? destObj.toString() : "?"));
-        }
-        if (holder.tvDepartureTime != null) {
-            holder.tvDepartureTime.setText("Khởi hành: " + (departureTimeObj != null ? formatDateTime(departureTimeObj.toString()) : ""));
-        }
-
-        String seats = "?";
-        if (seatLabelsObj instanceof List) {
-            List<?> seatList = (List<?>) seatLabelsObj;
-            if (!seatList.isEmpty()) {
-                StringBuilder sb = new StringBuilder();
-                for (int i = 0; i < seatList.size(); i++) {
-                    sb.append(seatList.get(i).toString());
-                    if (i < seatList.size() - 1) {
-                        sb.append(", ");
-                    }
-                }
-                seats = sb.toString();
-            }
-        } else if (seatLabelsObj != null) {
-            seats = seatLabelsObj.toString();
-        }
-        if (holder.tvBookingSeat != null) {
-            holder.tvBookingSeat.setText("Ghế: " + seats);
-        }
+        holder.tvBookingId.setText("Đơn #" + (idObj != null ? idObj.toString() : "?"));
+        holder.tvUserName.setText(userNameObj != null ? userNameObj.toString() : "");
+        holder.tvBookingRoute.setText((originObj != null ? originObj.toString() : "?") + " → " + (destObj != null ? destObj.toString() : "?"));
+        holder.tvDepartureTime.setText("Khởi hành: " + (departureTimeObj != null ? formatDateTime(departureTimeObj.toString()) : ""));
 
         String priceString = "0";
         if (priceObj != null) {
@@ -105,33 +85,46 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
                 priceString = priceObj.toString();
             }
         }
-        if (holder.tvBookingPrice != null) {
-            holder.tvBookingPrice.setText(priceString + " VNĐ");
+        holder.tvBookingPrice.setText(priceString + " VNĐ");
+
+        // Set status with styling
+        if (statusObj != null) {
+            setStatus(holder.tvBookingStatus, statusObj.toString());
+        }
+    }
+
+    private void setStatus(TextView textView, String status) {
+        Context context = textView.getContext();
+        String statusText;
+        Drawable background;
+        int textColor;
+
+        switch (status.toLowerCase()) {
+            case "pending":
+                statusText = "Chờ xác nhận";
+                background = ContextCompat.getDrawable(context, R.drawable.bg_status_pending);
+                textColor = ContextCompat.getColor(context, android.R.color.white);
+                break;
+            case "confirmed":
+                statusText = "Đã xác nhận";
+                background = ContextCompat.getDrawable(context, R.drawable.bg_status_confirmed);
+                textColor = ContextCompat.getColor(context, android.R.color.white);
+                break;
+            case "cancelled":
+                statusText = "Đã hủy";
+                background = ContextCompat.getDrawable(context, R.drawable.bg_status_cancelled);
+                textColor = ContextCompat.getColor(context, android.R.color.white);
+                break;
+            default:
+                statusText = status;
+                background = null;
+                textColor = ContextCompat.getColor(context, R.color.textSecondary);
+                break;
         }
 
-        if (holder.tvBookingStatus != null) {
-            holder.tvBookingStatus.setText(statusObj != null ? statusObj.toString() : "");
-        }
-
-        if ("pending".equalsIgnoreCase(String.valueOf(statusObj))) {
-            if (holder.btnConfirmBooking != null) holder.btnConfirmBooking.setVisibility(View.VISIBLE);
-            if (holder.btnCancelBooking != null) holder.btnCancelBooking.setVisibility(View.VISIBLE);
-        } else {
-            if (holder.btnConfirmBooking != null) holder.btnConfirmBooking.setVisibility(View.GONE);
-            if (holder.btnCancelBooking != null) holder.btnCancelBooking.setVisibility(View.GONE);
-        }
-
-        if (holder.btnConfirmBooking != null) {
-            holder.btnConfirmBooking.setOnClickListener(v -> {
-                if (listener != null) listener.onConfirmBooking(booking);
-            });
-        }
-
-        if (holder.btnCancelBooking != null) {
-            holder.btnCancelBooking.setOnClickListener(v -> {
-                if (listener != null) listener.onCancelBooking(booking);
-            });
-        }
+        textView.setText(statusText);
+        textView.setBackground(background);
+        textView.setTextColor(textColor);
     }
 
     @Override
@@ -140,7 +133,9 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
     }
 
     public static class BookingViewHolder extends RecyclerView.ViewHolder {
-        TextView tvBookingId, tvUserName, tvBookingRoute, tvDepartureTime, tvBookingSeat, tvBookingPrice, tvBookingStatus;
+        TextView tvBookingId, tvUserName, tvBookingRoute, tvDepartureTime, tvBookingPrice, tvBookingStatus;
+        // The views below are kept to avoid crashing the app, but are not used directly.
+        TextView tvBookingSeat;
         Button btnConfirmBooking, btnCancelBooking;
 
         public BookingViewHolder(View itemView) {
@@ -149,9 +144,11 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
             tvUserName = itemView.findViewById(R.id.tvUserName);
             tvBookingRoute = itemView.findViewById(R.id.tvBookingRoute);
             tvDepartureTime = itemView.findViewById(R.id.tvDepartureTime);
-            tvBookingSeat = itemView.findViewById(R.id.tvBookingSeat);
             tvBookingPrice = itemView.findViewById(R.id.tvBookingPrice);
             tvBookingStatus = itemView.findViewById(R.id.tvStatus);
+            // The following views are found but are not styled or used directly in the adapter logic
+            // to adhere to the new design, but they are kept to prevent crashes.
+            tvBookingSeat = itemView.findViewById(R.id.tvBookingSeat);
             btnConfirmBooking = itemView.findViewById(R.id.btnConfirmBooking);
             btnCancelBooking = itemView.findViewById(R.id.btnCancelBooking);
         }
