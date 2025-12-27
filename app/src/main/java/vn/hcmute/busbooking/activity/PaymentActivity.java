@@ -1074,20 +1074,38 @@ public class PaymentActivity extends AppCompatActivity {
                         if (createdObj instanceof String) {
                             try {
                                 SimpleDateFormat iso = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
+                                iso.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
                                 Date d = iso.parse((String) createdObj);
                                 if (d != null) createdMs = d.getTime();
-                            } catch (Exception ignored) {}
+                            } catch (Exception e) {
+                                // Try without milliseconds
+                                try {
+                                    SimpleDateFormat iso2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault());
+                                    iso2.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+                                    Date d2 = iso2.parse((String) createdObj);
+                                    if (d2 != null) createdMs = d2.getTime();
+                                } catch (Exception ignored) {
+                                    Log.e(TAG, "Failed to parse created_at: " + createdObj);
+                                }
+                            }
                         }
+
                         long primary = bookingId;
                         long existingExpiry = getExpiryForBooking(primary);
                         long expiryToUse = existingExpiry;
+
                         if (existingExpiry == -1L) {
+                            // Only calculate expiry if we have valid created_at from server
                             if (createdMs > 0) {
                                 expiryToUse = createdMs + HOLD_DURATION_MS;
+                                saveExpiryForBooking(primary, expiryToUse);
+                                Log.d(TAG, "📅 Calculated expiry from created_at: " + new Date(expiryToUse));
                             } else {
-                                expiryToUse = System.currentTimeMillis() + HOLD_DURATION_MS;
+                                Log.e(TAG, "⚠️ Cannot calculate expiry - created_at is invalid!");
+                                // Don't save any expiry - let payment stay pending without auto-cancel
                             }
-                            saveExpiryForBooking(primary, expiryToUse);
+                        } else {
+                            Log.d(TAG, "📅 Using existing expiry: " + new Date(existingExpiry));
                         }
 
                         // Continue initialization
@@ -1112,21 +1130,30 @@ public class PaymentActivity extends AppCompatActivity {
                                 // Start countdown if not expired
                                 long primaryId = primary;
                                 long expiry = getExpiryForBooking(primaryId);
-                                if (expiry == -1L) {
-                                    if (createdMs > 0) expiry = createdMs + HOLD_DURATION_MS;
-                                    else expiry = System.currentTimeMillis() + HOLD_DURATION_MS;
+
+                                // Use the expiry we just calculated/loaded above
+                                if (expiry == -1L && createdMs > 0) {
+                                    expiry = createdMs + HOLD_DURATION_MS;
                                     saveExpiryForBooking(primaryId, expiry);
                                 }
+
                                 long now = System.currentTimeMillis();
-                                if ("expired".equalsIgnoreCase(statusStr) || expiry <= now) {
-                                    // Show expired message - but ONLY for online payments
-                                    if (cardCountdown != null) cardCountdown.setVisibility(View.GONE);
-                                    if (btnChangeToOffline != null) btnChangeToOffline.setVisibility(View.VISIBLE);
-                                    Toast.makeText(PaymentActivity.this,
-                                        "Vé đã hết hạn thanh toán. Bạn có thể đổi sang thanh toán tại nhà xe.",
-                                        Toast.LENGTH_LONG).show();
+
+                                if (expiry > 0) {
+                                    if ("expired".equalsIgnoreCase(statusStr) || expiry <= now) {
+                                        // Show expired message - but ONLY for online payments
+                                        if (cardCountdown != null) cardCountdown.setVisibility(View.GONE);
+                                        if (btnChangeToOffline != null) btnChangeToOffline.setVisibility(View.VISIBLE);
+                                        Toast.makeText(PaymentActivity.this,
+                                            "Vé đã hết hạn thanh toán. Bạn có thể đổi sang thanh toán tại nhà xe.",
+                                            Toast.LENGTH_LONG).show();
+                                    } else {
+                                        long remaining = expiry - now;
+                                        Log.d(TAG, "⏱️ Starting countdown: " + (remaining/1000) + " seconds remaining");
+                                        startCountdown(remaining);
+                                    }
                                 } else {
-                                    startCountdown(expiry - now);
+                                    Log.w(TAG, "⚠️ No valid expiry time - countdown not started");
                                 }
                             } else if (isCurrentlyOfflinePayment) {
                                 // Currently offline payment (Cash) - allow switching to online
