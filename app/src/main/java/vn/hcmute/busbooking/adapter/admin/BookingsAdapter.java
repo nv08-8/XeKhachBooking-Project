@@ -22,6 +22,7 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
     private OnBookingClickListener listener;
 
     public interface OnBookingClickListener {
+        void onBookingClicked(Map<String, Object> booking);
         void onConfirmBooking(Map<String, Object> booking);
         void onCancelBooking(Map<String, Object> booking);
     }
@@ -119,6 +120,10 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
             if (holder.btnConfirmBooking != null) holder.btnConfirmBooking.setVisibility(View.GONE);
             if (holder.btnCancelBooking != null) holder.btnCancelBooking.setVisibility(View.GONE);
         }
+
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) listener.onBookingClicked(booking);
+        });
 
         if (holder.btnConfirmBooking != null) {
             holder.btnConfirmBooking.setOnClickListener(v -> {
