@@ -24,11 +24,18 @@ const rollbackAndRelease = async (client) => {
 
 // POST /bookings - Create a new booking with multiple seats
 router.post("/bookings", async (req, res) => {
-  const { user_id, trip_id, seat_labels, promotion_code, metadata, pickup_stop_id, dropoff_stop_id } = req.body;
+  const { user_id, trip_id, seat_labels, promotion_code, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_name, passenger_phone, passenger_email } = req.body;
 
   if (!user_id || !trip_id || !Array.isArray(seat_labels) || seat_labels.length === 0 || !pickup_stop_id || !dropoff_stop_id) {
     return res.status(400).json({ message: "Missing required fields" });
   }
+
+  // ✅ Determine payment method (default to 'offline' if not provided for backwards compatibility)
+  const finalPaymentMethod = payment_method || 'offline';
+  const finalPassengerName = passenger_name || '';
+  const finalPassengerPhone = passenger_phone || '';
+  const finalPassengerEmail = passenger_email || '';
+  console.log(`Creating booking with payment_method: ${finalPaymentMethod}, passenger: ${finalPassengerName}`);
 
   const client = await beginTransaction();
   try {
@@ -125,9 +132,9 @@ router.post("/bookings", async (req, res) => {
     }
 
     const bookingInsert = await client.query(
-      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id) 
-       VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8) RETURNING id`,
-      [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id]
+      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_name, passenger_phone, passenger_email)
+       VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+      [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id, finalPaymentMethod, finalPassengerName, finalPassengerPhone, finalPassengerEmail]
     );
     const bookingId = bookingInsert.rows[0].id;
     
