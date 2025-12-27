@@ -63,6 +63,9 @@ dependencies {
     // Splash screen
     implementation("androidx.core:core-splashscreen:1.0.1")
 
+    // SwipeRefreshLayout
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+
     // ZXing for QR code generation
     implementation("com.google.zxing:core:3.5.2")
 

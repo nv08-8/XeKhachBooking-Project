@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -16,6 +15,7 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import vn.hcmute.busbooking.MainActivity;
 import vn.hcmute.busbooking.R;
@@ -33,76 +33,120 @@ public class UserAccountActivity extends AppCompatActivity {
         SessionManager sessionManager = new SessionManager(this);
         TextView tvUserName = findViewById(R.id.tvUserName);
         TextView tvUserEmail = findViewById(R.id.tvUserEmail);
+        
+        // Quản lý vé
+        TextView tvBookingHistory = findViewById(R.id.tvBookingHistory);
+        TextView tvMyOffers = findViewById(R.id.tvMyOffers);
+        TextView tvPaymentMethods = findViewById(R.id.tvPaymentMethods);
+
+        // Tài khoản & Cài đặt
         TextView tvPersonalInfo = findViewById(R.id.tvPersonalInfo);
         TextView tvChangePassword = findViewById(R.id.tvChangePassword);
-        TextView tvLogout = findViewById(R.id.tvLogout);
+        SwitchMaterial switchNotifications = findViewById(R.id.switchNotifications);
+        
+        // Hỗ trợ & Pháp lý
         TextView tvHelpCenter = findViewById(R.id.tvHelpCenter);
         TextView tvTerms = findViewById(R.id.tvTerms);
         TextView tvPrivacyPolicy = findViewById(R.id.tvPrivacyPolicy);
+        TextView tvLogout = findViewById(R.id.tvLogout);
+        
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
 
         //--- SET USER DATA ---
-        tvUserName.setText(sessionManager.getUserName());
-        tvUserEmail.setText(sessionManager.getUserEmail());
+        if (tvUserName != null) tvUserName.setText(sessionManager.getUserName());
+        if (tvUserEmail != null) tvUserEmail.setText(sessionManager.getUserEmail());
 
         //--- CLICK LISTENERS ---
 
-        // ** THE FIX IS TO KEEP THIS SIMPLE **
-        tvPersonalInfo.setOnClickListener(v -> {
-            startActivity(new Intent(UserAccountActivity.this, PersonalInfoActivity.class));
-        });
-
-        tvChangePassword.setOnClickListener(v -> {
-            startActivity(new Intent(UserAccountActivity.this, ChangePasswordActivity.class));
-        });
-
-        tvLogout.setOnClickListener(v -> {
-            sessionManager.logout();
-            Toast.makeText(this, "Đã đăng xuất", Toast.LENGTH_SHORT).show();
-            Intent intent = new Intent(UserAccountActivity.this, MainActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
-        });
-
-        tvHelpCenter.setOnClickListener(v -> startActivity(new Intent(this, HelpCenterActivity.class)));
-        tvTerms.setOnClickListener(v -> startActivity(new Intent(this, TermsServiceActivity.class)));
-        tvPrivacyPolicy.setOnClickListener(v -> startActivity(new Intent(this, PrivacyPolicyActivity.class)));
-
-        //--- BOTTOM NAVIGATION (Standard Behavior) ---
-        bottomNav.setSelectedItemId(R.id.nav_account);
-        bottomNav.setOnItemSelectedListener(item -> {
-            int itemId = item.getItemId();
-            if (itemId == R.id.nav_home) {
-                startActivity(new Intent(this, MainActivity.class));
-                return true;
-            } else if (itemId == R.id.nav_tickets) {
+        // Phần Quản lý vé
+        if (tvBookingHistory != null) {
+            tvBookingHistory.setOnClickListener(v -> {
                 startActivity(new Intent(this, MyBookingsActivity.class));
-                return true;
-            } else if (itemId == R.id.nav_favorites) {
-                startActivity(new Intent(this, FavoritesActivity.class));
-                return true;
-            } else if (itemId == R.id.nav_account) {
-                return true; // Already here, do nothing
-            }
-            return false;
-        });
+            });
+        }
 
-        //--- INSETS HANDLING ---
+        if (tvMyOffers != null) {
+            tvMyOffers.setOnClickListener(v -> {
+                Intent intent = new Intent(UserAccountActivity.this, MyOffersActivity.class);
+                startActivity(intent);
+            });
+        }
+
+        if (tvPaymentMethods != null) {
+            tvPaymentMethods.setOnClickListener(v -> {
+                startActivity(new Intent(this, PaymentMethodsActivity.class));
+            });
+        }
+
+        // Phần Tài khoản & Cài đặt
+        if (tvPersonalInfo != null) {
+            tvPersonalInfo.setOnClickListener(v -> {
+                startActivity(new Intent(this, PersonalInfoActivity.class));
+            });
+        }
+
+        if (tvChangePassword != null) {
+            tvChangePassword.setOnClickListener(v -> {
+                startActivity(new Intent(this, ChangePasswordActivity.class));
+            });
+        }
+
+        if (switchNotifications != null) {
+            switchNotifications.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                String msg = isChecked ? "Đã bật thông báo" : "Đã tắt thông báo";
+                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        // Hỗ trợ & Đăng xuất
+        if (tvLogout != null) {
+            tvLogout.setOnClickListener(v -> {
+                sessionManager.logout();
+                Toast.makeText(this, "Đã đăng xuất", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(this, MainActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(intent);
+                finish();
+            });
+        }
+
+        if (tvHelpCenter != null) tvHelpCenter.setOnClickListener(v -> startActivity(new Intent(this, HelpCenterActivity.class)));
+        if (tvTerms != null) tvTerms.setOnClickListener(v -> startActivity(new Intent(this, TermsServiceActivity.class)));
+        if (tvPrivacyPolicy != null) tvPrivacyPolicy.setOnClickListener(v -> startActivity(new Intent(this, PrivacyPolicyActivity.class)));
+
+        //--- BOTTOM NAVIGATION ---
+        if (bottomNav != null) {
+            bottomNav.setSelectedItemId(R.id.nav_account);
+            bottomNav.setOnItemSelectedListener(item -> {
+                int itemId = item.getItemId();
+                if (itemId == R.id.nav_home) {
+                    startActivity(new Intent(this, MainActivity.class));
+                    return true;
+                } else if (itemId == R.id.nav_tickets) {
+                    startActivity(new Intent(this, MyBookingsActivity.class));
+                    return true;
+                } else if (itemId == R.id.nav_favorites) {
+                    startActivity(new Intent(this, FavoritesActivity.class));
+                    return true;
+                } else if (itemId == R.id.nav_account) {
+                    return true;
+                }
+                return false;
+            });
+        }
+
         handleWindowInsets();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        // Refresh user data
         SessionManager sessionManager = new SessionManager(this);
         TextView tvUserName = findViewById(R.id.tvUserName);
         TextView tvUserEmail = findViewById(R.id.tvUserEmail);
-        tvUserName.setText(sessionManager.getUserName());
-        tvUserEmail.setText(sessionManager.getUserEmail());
+        if (tvUserName != null) tvUserName.setText(sessionManager.getUserName());
+        if (tvUserEmail != null) tvUserEmail.setText(sessionManager.getUserEmail());
 
-        // Re-select the correct item when returning to this activity
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         if (bottomNav != null) {
             bottomNav.setSelectedItemId(R.id.nav_account);

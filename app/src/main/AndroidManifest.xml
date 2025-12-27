@@ -44,6 +44,8 @@
         <activity android:name=".activity.EditProfileActivity" />
         <activity android:name=".activity.ChangePasswordActivity" />
         <activity android:name=".activity.PaymentWebActivity" />
+        <activity android:name=".activity.MyOffersActivity" />
+        <activity android:name=".activity.PaymentMethodsActivity" />
         <activity android:name=".activity.PaymentReturnActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
