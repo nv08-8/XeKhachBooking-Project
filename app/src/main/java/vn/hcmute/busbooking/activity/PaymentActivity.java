@@ -544,16 +544,11 @@ public class PaymentActivity extends AppCompatActivity {
                                 // Call confirmPayment for each booking id
                                 confirmNextPayment(newBookingIds, 0, "card");
                             } else {
-                                // Pay at office or others: pending but NO countdown
+                                // Pay at office: ✅ MUST call confirmNextPayment to properly set status
                                 bookingIds = new ArrayList<>(newBookingIds);
                                 isPendingPayment = false;
-                                // Direct user to MyBookings with notice
-                                setLoadingState(false);
-                                Toast.makeText(PaymentActivity.this, getString(R.string.msg_booking_error, "Đặt vé lưu thành công. Thanh toán tại nhà xe."), Toast.LENGTH_LONG).show();
-                                Intent intent = new Intent(PaymentActivity.this, MyBookingsActivity.class);
-                                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                                startActivity(intent);
-                                finish();
+                                // ✅ Call confirmPayment for each booking with "offline" method
+                                confirmNextPayment(newBookingIds, 0, "offline");
                             }
                          } else {
                              handlePaymentError("Không nhận được mã đặt vé.");

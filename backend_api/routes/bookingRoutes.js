@@ -353,16 +353,48 @@ router.post('/bookings/:id/payment', async (req, res) => {
     const paidAmount = isOfflinePayment ? 0 : (Number(booking.total_amount) || 0);
     const paymentMeta = { method: normalizedMethod, note: isOfflinePayment ? 'Waiting for counter payment' : 'Online payment confirmed' };
 
-    await client.query(
-      `UPDATE bookings SET status=$1, price_paid=$2, payment_method=$3, paid_at=NOW(), metadata = COALESCE(metadata, '{}'::jsonb) || $4::jsonb WHERE id=$5`,
-      [finalStatus, paidAmount, normalizedMethod, JSON.stringify({ payment: paymentMeta }), id]
-    );
+    console.log(`[bookings/${id}/payment] Updating: status='${finalStatus}', price_paid=${paidAmount}, payment_method='${normalizedMethod}'`);
 
-    await commitAndRelease(client);
+    // ✅ Update booking status and payment info
+    // Split into two queries to ensure data integrity
+    try {
+      await client.query(
+        `UPDATE bookings SET status=$1, price_paid=$2, payment_method=$3, paid_at=NOW() WHERE id=$4`,
+        [finalStatus, paidAmount, normalizedMethod, id]
+      );
+      console.log(`[bookings/${id}/payment] Main update successful`);
+    } catch (updateErr) {
+      console.error(`[bookings/${id}/payment] Main update failed:`, updateErr.message);
+      throw updateErr;
+    }
+
+    // ✅ Update metadata separately
+    try {
+      await client.query(
+        `UPDATE bookings SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb WHERE id=$2`,
+        [JSON.stringify({ payment: paymentMeta }), id]
+      );
+      console.log(`[bookings/${id}/payment] Metadata update successful`);
+    } catch (metaErr) {
+      console.warn(`[bookings/${id}/payment] Metadata update warning:`, metaErr.message);
+      // Don't fail on metadata error
+    }
+
+    // ✅ Properly handle COMMIT with error catching
+    await client.query('COMMIT');
+    client.release();
+
+    console.log(`[bookings/${id}/payment] ✅ Payment confirmed: status='${finalStatus}'`);
     res.json({ message: 'Payment confirmed', booking_id: Number(id), status: finalStatus, paidAmount });
   } catch (err) {
-    console.error('Confirm payment failed:', err.message || err);
-    await rollbackAndRelease(client);
+    console.error(`[bookings/${id}/payment] ❌ Error:`, err.message || err);
+    console.error(`[bookings/${id}/payment] Stack:`, err.stack);
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackErr) {
+      console.error(`[bookings/${id}/payment] Rollback error:`, rollbackErr.message);
+    }
+    client.release();
     res.status(500).json({ message: 'Could not confirm payment' });
   }
 });
