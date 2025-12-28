@@ -41,6 +41,7 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
         Object destObj = route.get("destination");
         Object priceObj = route.get("price");
         Object durationObj = route.get("duration_min");
+        Object tripCountObj = route.get("trip_count");
 
         String title = (originObj != null ? originObj : "?") + " - " + (destObj != null ? destObj : "?");
         holder.tvRouteTitle.setText(title);
@@ -51,6 +52,19 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
 
         if (durationObj != null) {
             holder.tvRouteDuration.setText(durationObj + " phút");
+        }
+
+        if (tripCountObj != null && holder.tvRouteTripCount != null) {
+            try {
+                // Dữ liệu từ backend là String, chuyển trực tiếp sang Integer
+                int tripCount = Integer.parseInt(tripCountObj.toString());
+                holder.tvRouteTripCount.setText(tripCount + " chuyến");
+            } catch (NumberFormatException e) {
+                holder.tvRouteTripCount.setText("N/A");
+            }
+        } else if (holder.tvRouteTripCount != null) {
+            // Nếu không có dữ liệu, hiển thị N/A (Không có sẵn)
+            holder.tvRouteTripCount.setText("N/A");
         }
 
         holder.btnEditRoute.setOnClickListener(v -> {
@@ -68,7 +82,7 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
     }
 
     static class RouteViewHolder extends RecyclerView.ViewHolder {
-        TextView tvRouteTitle, tvRoutePrice, tvRouteDuration;
+        TextView tvRouteTitle, tvRoutePrice, tvRouteDuration, tvRouteTripCount;
         ImageView btnEditRoute, btnDeleteRoute;
 
         public RouteViewHolder(View itemView) {
@@ -76,6 +90,7 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
             tvRouteTitle = itemView.findViewById(R.id.tvRouteTitle);
             tvRoutePrice = itemView.findViewById(R.id.tvRoutePrice);
             tvRouteDuration = itemView.findViewById(R.id.tvRouteDuration);
+            tvRouteTripCount = itemView.findViewById(R.id.tvRouteTripCount);
             btnEditRoute = itemView.findViewById(R.id.btnEditRoute);
             btnDeleteRoute = itemView.findViewById(R.id.btnDeleteRoute);
         }

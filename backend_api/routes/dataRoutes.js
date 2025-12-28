@@ -6,25 +6,45 @@ const db = require("../db");
 // GET /api/routes?origin=&destination=&q=
 router.get("/routes", async (req, res) => {
   const { origin, destination, q } = req.query;
-  let sql = "SELECT id, origin, destination, distance_km, duration_min, created_at FROM routes WHERE 1=1";
+  
+  // --- BẮT ĐẦU THAY ĐỔI ---
+  // 1. Sửa câu truy vấn SQL để bao gồm trip_count
+  let sql = `
+    SELECT 
+      r.id, 
+      r.origin, 
+      r.destination, 
+      r.distance_km, 
+      r.duration_min, 
+      r.created_at,
+      COUNT(t.id) AS trip_count
+    FROM routes r
+    LEFT JOIN trips t ON r.id = t.route_id
+    WHERE 1=1
+  `;
+  // --- KẾT THÚC THAY ĐỔI ---
+
   const params = [];
 
   if (origin) {
-    sql += " AND origin ILIKE $" + (params.length + 1);
+    sql += " AND r.origin ILIKE $" + (params.length + 1);
     params.push(`%${origin}%`);
   }
   if (destination) {
-    sql += " AND destination ILIKE $" + (params.length + 1);
+    sql += " AND r.destination ILIKE $" + (params.length + 1);
     params.push(`%${destination}%`);
   }
   if (q) {
     const idx1 = params.length + 1;
     const idx2 = params.length + 2;
-    sql += ` AND (origin ILIKE $${idx1} OR destination ILIKE $${idx2})`;
+    sql += ` AND (r.origin ILIKE $${idx1} OR r.destination ILIKE $${idx2})`;
     params.push(`%${q}%`, `%${q}%`);
   }
 
-  sql += " ORDER BY origin, destination";
+  // --- BẮT ĐẦU THAY ĐỔI ---
+  // 2. Thêm GROUP BY để hàm COUNT hoạt động đúng
+  sql += " GROUP BY r.id ORDER BY r.origin, r.destination";
+  // --- KẾT THÚC THAY ĐỔI ---
 
   try {
     const { rows } = await db.query(sql, params);
