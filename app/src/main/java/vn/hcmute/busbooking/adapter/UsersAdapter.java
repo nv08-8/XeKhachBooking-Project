@@ -3,11 +3,11 @@ package vn.hcmute.busbooking.adapter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.button.MaterialButton;
 
 import java.util.List;
 
@@ -70,7 +70,7 @@ public class UsersAdapter extends RecyclerView.Adapter<UsersAdapter.UserViewHold
     static class UserViewHolder extends RecyclerView.ViewHolder {
         TextView tvUserName, tvUserEmail, tvUserRole;
         ImageView ivUserIcon;
-        ImageButton btnEditUser, btnDeleteUser;
+        MaterialButton btnEditUser, btnDeleteUser;
 
         public UserViewHolder(@NonNull View itemView) {
             super(itemView);
