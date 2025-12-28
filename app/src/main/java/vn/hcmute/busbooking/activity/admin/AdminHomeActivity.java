@@ -19,30 +19,24 @@ public class AdminHomeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_admin_home);
 
-        TextView tvGreeting = findViewById(R.id.tvGreeting);
 
         View btnManageRoutes = findViewById(R.id.btnManageRoutes);
         View btnManageTrips = findViewById(R.id.btnManageTrips);
         View btnManageBookings = findViewById(R.id.btnManageBookings);
         View btnRevenueStats = findViewById(R.id.btnRevenueStats);
         View btnManageUsers = findViewById(R.id.btnManageUsers);
-        View btnManageDrivers = findViewById(R.id.btnManageDrivers);
         View btnManageReviews = findViewById(R.id.btnManageReviews);
         View btnManagePromotions = findViewById(R.id.btnManagePromotions);
         View btnLogout = findViewById(R.id.btnLogout);
 
-        if (tvGreeting != null) tvGreeting.setText(R.string.admin_panel_title);
 
         if (btnManageRoutes != null) btnManageRoutes.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageRoutesActivity.class)));
         if (btnManageTrips != null) btnManageTrips.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageTripsActivity.class)));
         if (btnManageBookings != null) btnManageBookings.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageBookingsActivity.class)));
         if (btnRevenueStats != null) btnRevenueStats.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, RevenueStatsActivity.class)));
         if (btnManageUsers != null) btnManageUsers.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageUsersActivity.class)));
-        if (btnManageDrivers != null) btnManageDrivers.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageDriversActivity.class)));
-        if (btnManagePromotions != null) btnManagePromotions.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManagePromotionsActivity.class)));
-
-        // TODO: Create these activities
         if (btnManageReviews != null) btnManageReviews.setOnClickListener(v -> showToast("Chức năng đang được phát triển"));
+        if (btnManagePromotions != null) btnManagePromotions.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManagePromotionsActivity.class)));
 
         if (btnLogout != null) btnLogout.setOnClickListener(v -> {
             Intent intent = new Intent(AdminHomeActivity.this, LoginActivity.class);

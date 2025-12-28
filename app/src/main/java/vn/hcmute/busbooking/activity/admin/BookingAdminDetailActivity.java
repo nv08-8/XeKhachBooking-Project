@@ -34,7 +34,7 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
     private static final String TAG = "BookingAdminDetail";
 
     private TextView tvOperatorName, tvStatus, tvOrigin, tvDepartureTime, 
-                     tvDestination, tvArrivalDate, tvPassengerName, tvPhoneNumber, 
+                     tvDestination, tvArrivalTime, tvDate, tvPassengerName, tvPhoneNumber, 
                      tvSeatNumber, tvLicensePlate, tvTotalAmount;
     private ImageView ivOperatorLogo;
     private Button btnConfirmBooking, btnCancelBooking;
@@ -76,7 +76,8 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
         tvOrigin = findViewById(R.id.tvOrigin);
         tvDepartureTime = findViewById(R.id.tvDepartureTime);
         tvDestination = findViewById(R.id.tvDestination);
-        tvArrivalDate = findViewById(R.id.tvArrivalDate);
+        tvArrivalTime = findViewById(R.id.tvArrivalTime);
+        tvDate = findViewById(R.id.tvDate);
         tvPassengerName = findViewById(R.id.tvPassengerName);
         tvPhoneNumber = findViewById(R.id.tvPhoneNumber);
         tvSeatNumber = findViewById(R.id.tvSeatNumber);
@@ -122,7 +123,8 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
         tvOrigin.setText((String) data.get("origin"));
         tvDestination.setText((String) data.get("destination"));
         tvDepartureTime.setText(formatTime((String) data.get("departure_time")));
-        tvArrivalDate.setText(formatTime((String) data.get("arrival_time")));
+        tvArrivalTime.setText(formatTime((String) data.get("arrival_time")));
+        tvDate.setText(formatDate((String) data.get("departure_time")));
 
         // Passenger and Seat Info
         tvPassengerName.setText((String) data.get("passenger_name"));
@@ -166,6 +168,9 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
         if ("pending".equals(status)) {
             btnConfirmBooking.setVisibility(View.VISIBLE);
             btnCancelBooking.setVisibility(View.VISIBLE);
+        } else if ("cancelled".equals(status)) {
+            btnConfirmBooking.setVisibility(View.GONE);
+            btnCancelBooking.setVisibility(View.GONE);
         } else {
             btnConfirmBooking.setVisibility(View.GONE);
             btnCancelBooking.setVisibility(View.VISIBLE); // Allow cancelling confirmed bookings
@@ -180,6 +185,19 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
             Date date = isoFormat.parse(isoString);
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
             return timeFormat.format(date);
+        } catch (ParseException e) {
+            return "";
+        }
+    }
+
+    private String formatDate(String isoString) {
+        if (isoString == null) return "";
+        try {
+            SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
+            isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+            Date date = isoFormat.parse(isoString);
+            SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd/MM/yyyy", new Locale("vi", "VN"));
+            return dateFormat.format(date);
         } catch (ParseException e) {
             return "";
         }
