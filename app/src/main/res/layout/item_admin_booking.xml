@@ -4,80 +4,177 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="16dp"
-    android:layout_marginTop="8dp"
-    android:layout_marginBottom="8dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="4dp">
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginTop="10dp"
+    android:layout_marginBottom="10dp"
+    android:foreground="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="8dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:padding="20dp">
 
+        <!-- Header Section -->
         <TextView
             android:id="@+id/tvBookingId"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:textStyle="bold"
+            android:textSize="16sp"
             android:textColor="@color/textPrimary"
             app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/tvStatus"
             app:layout_constraintTop_toTopOf="parent"
             tools:text="Đơn #346" />
 
-        <TextView
-            android:id="@+id/tvStatus"
+        <LinearLayout
+            android:id="@+id/statusBadge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingHorizontal="10dp"
-            android:paddingVertical="4dp"
-            android:textSize="12sp"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="8dp"
+            android:background="@drawable/bg_status_confirmed"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:text="Đã xác nhận" />
+            app:layout_constraintTop_toTopOf="parent">
+
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="@color/white"
+                tools:text="Đã xác nhận" />
+
+        </LinearLayout>
+
+        <!-- Divider -->
+        <View
+            android:id="@+id/divider1"
+            android:layout_width="match_parent"
+            android:layout_height="0.5dp"
+            android:layout_marginVertical="12dp"
+            android:background="#30000000"
+            app:layout_constraintTop_toBottomOf="@id/tvBookingId" />
+
+        <!-- User Info Section -->
+        <ImageView
+            android:id="@+id/icUser"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_person"
+            android:tint="@color/colorPrimary"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/divider1" />
 
         <TextView
             android:id="@+id/tvUserName"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textSize="16sp"
-            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="10dp"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="@color/textPrimary"
+            app:layout_constraintStart_toEndOf="@id/icUser"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvBookingId"
+            app:layout_constraintTop_toBottomOf="@id/divider1"
             tools:text="Tên người dùng" />
+
+        <!-- Route Section -->
+        <ImageView
+            android:id="@+id/icRoute"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_bus"
+            android:tint="@color/colorPrimary"
+            android:layout_marginTop="12dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvUserName" />
 
         <TextView
             android:id="@+id/tvBookingRoute"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textSize="16sp"
-            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="12dp"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="@color/textPrimary"
+            app:layout_constraintStart_toEndOf="@id/icRoute"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvUserName"
             tools:text="Đà Lạt → Nha Trang" />
 
+        <!-- Departure Time Section -->
+        <ImageView
+            android:id="@+id/icTime"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_timer"
+            android:tint="@color/colorPrimary"
+            android:layout_marginTop="12dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvBookingRoute" />
+
         <TextView
             android:id="@+id/tvDepartureTime"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="12dp"
+            android:textSize="14sp"
             android:textColor="@color/textSecondary"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintStart_toEndOf="@id/icTime"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvBookingRoute"
             tools:text="Khởi hành: 2025-12-26 08:00" />
 
-        <TextView
-            android:id="@+id/tvBookingPrice"
-            android:layout_width="wrap_content"
+        <!-- Divider -->
+        <View
+            android:id="@+id/divider2"
+            android:layout_width="match_parent"
+            android:layout_height="0.5dp"
+            android:layout_marginVertical="12dp"
+            android:background="#30000000"
+            app:layout_constraintTop_toBottomOf="@id/tvDepartureTime" />
+
+        <!-- Price Section - Highlight (Center) -->
+        <LinearLayout
+            android:id="@+id/priceContainer"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textStyle="bold"
-            android:textColor="@color/colorPrimary"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="8dp"
+            android:background="@drawable/bg_price_rounded"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvDepartureTime"
-            tools:text="234,000 VNĐ" />
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/divider2">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_attach_money"
+                android:tint="@color/white"
+                android:layout_marginEnd="6dp" />
+
+            <TextView
+                android:id="@+id/tvBookingPrice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:textSize="14sp"
+                android:textColor="@color/white"
+                tools:text="234,000 VNĐ" />
+
+        </LinearLayout>
 
         <!-- Hidden views to prevent adapter crash -->
         <TextView

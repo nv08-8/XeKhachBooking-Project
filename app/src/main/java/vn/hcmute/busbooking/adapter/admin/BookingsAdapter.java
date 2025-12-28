@@ -89,42 +89,37 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
 
         // Set status with styling
         if (statusObj != null) {
-            setStatus(holder.tvBookingStatus, statusObj.toString());
+            setStatus(holder, statusObj.toString());
         }
     }
 
-    private void setStatus(TextView textView, String status) {
-        Context context = textView.getContext();
+    private void setStatus(BookingViewHolder holder, String status) {
+        Context context = holder.itemView.getContext();
         String statusText;
         Drawable background;
-        int textColor;
 
         switch (status.toLowerCase()) {
             case "pending":
                 statusText = "Chờ xác nhận";
                 background = ContextCompat.getDrawable(context, R.drawable.bg_status_pending);
-                textColor = ContextCompat.getColor(context, android.R.color.white);
                 break;
             case "confirmed":
                 statusText = "Đã xác nhận";
                 background = ContextCompat.getDrawable(context, R.drawable.bg_status_confirmed);
-                textColor = ContextCompat.getColor(context, android.R.color.white);
                 break;
             case "cancelled":
                 statusText = "Đã hủy";
                 background = ContextCompat.getDrawable(context, R.drawable.bg_status_cancelled);
-                textColor = ContextCompat.getColor(context, android.R.color.white);
                 break;
             default:
                 statusText = status;
-                background = null;
-                textColor = ContextCompat.getColor(context, R.color.textSecondary);
+                background = ContextCompat.getDrawable(context, R.drawable.bg_status_pending);
                 break;
         }
 
-        textView.setText(statusText);
-        textView.setBackground(background);
-        textView.setTextColor(textColor);
+        holder.tvBookingStatus.setText(statusText);
+        holder.tvBookingStatus.setTextColor(ContextCompat.getColor(context, android.R.color.white));
+        holder.statusBadge.setBackground(background);
     }
 
     @Override
@@ -134,6 +129,7 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
 
     public static class BookingViewHolder extends RecyclerView.ViewHolder {
         TextView tvBookingId, tvUserName, tvBookingRoute, tvDepartureTime, tvBookingPrice, tvBookingStatus;
+        View statusBadge;
         // The views below are kept to avoid crashing the app, but are not used directly.
         TextView tvBookingSeat;
         Button btnConfirmBooking, btnCancelBooking;
@@ -146,6 +142,7 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
             tvDepartureTime = itemView.findViewById(R.id.tvDepartureTime);
             tvBookingPrice = itemView.findViewById(R.id.tvBookingPrice);
             tvBookingStatus = itemView.findViewById(R.id.tvStatus);
+            statusBadge = itemView.findViewById(R.id.statusBadge);
             // The following views are found but are not styled or used directly in the adapter logic
             // to adhere to the new design, but they are kept to prevent crashes.
             tvBookingSeat = itemView.findViewById(R.id.tvBookingSeat);
