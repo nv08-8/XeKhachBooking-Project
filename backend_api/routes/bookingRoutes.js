@@ -2,6 +2,18 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 const { generateAndCacheSeats } = require("../utils/seatGenerator");
+const cron = require("node-cron");
+
+// Will be set by server.js after io is initialized
+let io = null;
+
+/**
+ * Set Socket.IO instance for real-time notifications
+ */
+function setSocketIO(socketIO) {
+  io = socketIO;
+  console.log("✅ Socket.IO connected to booking routes");
+}
 
 // Helper functions for transaction management
 const beginTransaction = () => db.connect();
@@ -196,16 +208,15 @@ router.get('/bookings/my', async (req, res) => {
 
   const sql = `
     SELECT b.id, b.status, b.price_paid, b.created_at, b.total_amount, b.payment_method,
+           b.passenger_info,
            t.departure_time, t.arrival_time, t.operator, t.bus_type,
            r.origin, r.destination,
            pickup_stop.name AS pickup_location,
            dropoff_stop.name AS dropoff_location,
-           CASE
-             WHEN array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL) IS NOT NULL
-               AND array_length(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), 1) > 0
-             THEN array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL)
-             ELSE b.seat_labels
-           END AS seat_labels
+           COALESCE(
+             array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL),
+             ARRAY[]::text[]
+           ) AS seat_labels
     FROM bookings b
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
@@ -213,7 +224,7 @@ router.get('/bookings/my', async (req, res) => {
     LEFT JOIN route_stops pickup_stop ON pickup_stop.id = b.pickup_stop_id
     LEFT JOIN route_stops dropoff_stop ON dropoff_stop.id = b.dropoff_stop_id
     ${whereClause}
-    GROUP BY b.id, b.seat_labels, t.id, r.id, pickup_stop.id, dropoff_stop.id
+    GROUP BY b.id, t.id, r.id, pickup_stop.id, dropoff_stop.id
     ORDER BY b.created_at DESC
   `;
   try {
@@ -242,12 +253,10 @@ router.get('/bookings/:id', async (req, res) => {
            u.name AS passenger_name, u.phone AS passenger_phone,
            pickup_stop.name AS pickup_location, pickup_stop.address AS pickup_address,
            dropoff_stop.name AS dropoff_location, dropoff_stop.address AS dropoff_address,
-           CASE
-             WHEN array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL) IS NOT NULL
-               AND array_length(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), 1) > 0
-             THEN array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL)
-             ELSE b.seat_labels
-           END AS seat_labels
+           COALESCE(
+             array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL),
+             ARRAY[]::text[]
+           ) AS seat_labels
     FROM bookings b
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
@@ -256,7 +265,7 @@ router.get('/bookings/:id', async (req, res) => {
     LEFT JOIN route_stops pickup_stop ON pickup_stop.id = b.pickup_stop_id
     LEFT JOIN route_stops dropoff_stop ON dropoff_stop.id = b.dropoff_stop_id
     WHERE b.id=$1
-    GROUP BY b.id, b.seat_labels, t.id, t.departure_time, t.arrival_time, t.operator, t.bus_type,
+    GROUP BY b.id, t.id, t.departure_time, t.arrival_time, t.operator, t.bus_type,
              r.id, r.origin, r.destination,
              u.id, u.name, u.phone,
              pickup_stop.id, pickup_stop.name, pickup_stop.address,
@@ -317,16 +326,6 @@ router.post('/bookings/:id/cancel', async (req, res) => {
         newStatus = 'cancelled';
     }
 
-    // Persist current seat labels into the bookings row so the UI can still show them after cancellation
-    try {
-        const seatAgg = await client.query('SELECT array_agg(seat_code) AS seat_labels FROM booking_items WHERE booking_id=$1', [id]);
-        const seatLabelsArr = seatAgg.rows && seatAgg.rows[0] ? seatAgg.rows[0].seat_labels : null;
-        if (seatLabelsArr && seatLabelsArr.length) {
-            await client.query('UPDATE bookings SET seat_labels = $1 WHERE id=$2', [seatLabelsArr, id]);
-        }
-    } catch (e) {
-        console.warn('Could not persist seat_labels for booking', id, e.message || e);
-    }
 
     await client.query(
         'UPDATE bookings SET status=$1, cancelled_at=NOW(), metadata = metadata || $2::jsonb WHERE id=$3',
@@ -628,4 +627,98 @@ router.post('/bookings/:id/confirm-offline-payment', async (req, res) => {
   }
 });
 
+// ==========================================
+// CRON JOB: Auto-finalize bookings
+// ==========================================
+
+/**
+ * Cron Job: Auto-finalize bookings after trip arrival
+ * Runs every 5 minutes to:
+ * 1. Complete paid bookings (confirmed + price_paid > 0)
+ * 2. Cancel unpaid bookings (pending + price_paid = 0)
+ */
+cron.schedule("*/5 * * * *", async () => {
+  try {
+    console.log("\n🕐 [CRON] Finalizing bookings after trip arrival...");
+
+    // 1️⃣ Complete paid bookings
+    const completeResult = await db.query(`
+      UPDATE bookings b
+      SET status = 'completed', completed_at = NOW()
+      FROM trips t
+      WHERE b.trip_id = t.id
+        AND t.arrival_time < NOW()
+        AND b.status = 'confirmed'
+        AND COALESCE(b.price_paid, 0) > 0
+        AND b.completed_at IS NULL
+      RETURNING b.id, b.user_id, b.trip_id, t.arrival_time
+    `);
+
+    const completedBookings = completeResult.rows;
+
+    // 2️⃣ Cancel unpaid bookings
+    const cancelResult = await db.query(`
+      UPDATE bookings b
+      SET status = 'cancelled', cancelled_at = NOW()
+      FROM trips t
+      WHERE b.trip_id = t.id
+        AND t.arrival_time < NOW()
+        AND b.status = 'pending'
+        AND COALESCE(b.price_paid, 0) = 0
+        AND b.cancelled_at IS NULL
+      RETURNING b.id, b.user_id, b.trip_id, t.arrival_time
+    `);
+
+    const cancelledBookings = cancelResult.rows;
+
+    // Log results
+    if (completedBookings.length === 0 && cancelledBookings.length === 0) {
+      console.log("   ℹ️  No bookings to finalize");
+      return;
+    }
+
+    // Handle completed bookings
+    if (completedBookings.length > 0) {
+      console.log(`   ✅ Completed ${completedBookings.length} paid booking(s):`);
+      for (const booking of completedBookings) {
+        console.log(`      • Booking #${booking.id} -> completed (arrival: ${new Date(booking.arrival_time).toLocaleString()})`);
+
+        // Emit socket event to user for real-time update
+        if (io) {
+          io.to(`user_${booking.user_id}`).emit('booking_event', {
+            id: booking.id,
+            trip_id: booking.trip_id,
+            status: 'completed'
+          });
+        }
+      }
+    }
+
+    // Handle cancelled bookings
+    if (cancelledBookings.length > 0) {
+      console.log(`   ❌ Cancelled ${cancelledBookings.length} unpaid booking(s):`);
+      for (const booking of cancelledBookings) {
+        console.log(`      • Booking #${booking.id} -> cancelled (unpaid, arrival: ${new Date(booking.arrival_time).toLocaleString()})`);
+
+        // Emit socket event to user for real-time update
+        if (io) {
+          io.to(`user_${booking.user_id}`).emit('booking_event', {
+            id: booking.id,
+            trip_id: booking.trip_id,
+            status: 'cancelled'
+          });
+        }
+      }
+    }
+
+    console.log(`   📊 Summary: ${completedBookings.length} completed, ${cancelledBookings.length} cancelled`);
+
+  } catch (err) {
+    console.error("❌ [CRON ERROR] Auto-finalize job failed:", err.message);
+  }
+});
+
+console.log("✅ Cron job initialized: Auto-finalize bookings every 5 minutes (complete paid, cancel unpaid)");
+
 module.exports = router;
+module.exports.setSocketIO = setSocketIO;

@@ -19,8 +19,6 @@ const seatsRoutes = require("./routes/seatsRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const driversRoutes = require("./routes/driversRoutes"); // Import new routes
 
-// Initialize cron jobs (auto-complete bookings)
-const bookingStatusJob = require("./jobs/bookingStatus.job");
 
 app.use(express.json());
 app.use(cors());
@@ -87,8 +85,8 @@ const io = new Server(server, {
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me';
 
-// Connect Socket.IO to cron job for real-time updates
-bookingStatusJob.setSocketIO(io);
+// Connect Socket.IO to booking routes for CRON job real-time updates
+bookingRoutes.setSocketIO(io);
 
 // Simple socket auth: client passes ?token=JWT; server verifies token and lets socket join user room
 io.on('connection', async (socket) => {
