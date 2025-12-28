@@ -15,7 +15,8 @@ import vn.hcmute.busbooking.model.Trip;
 public class FavoriteTripDatabase extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "favorite_trips.db";
-    private static final int DATABASE_VERSION = 1;
+    // Increased version to fix downgrade error
+    private static final int DATABASE_VERSION = 2;
 
     private static final String TABLE_FAVORITE_TRIPS = "favorite_trips";
     private static final String COLUMN_ID = "id";
@@ -61,6 +62,7 @@ public class FavoriteTripDatabase extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        // Simple upgrade strategy: drop and recreate
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_FAVORITE_TRIPS);
         onCreate(db);
     }

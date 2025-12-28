@@ -1,7 +1,6 @@
 package vn.hcmute.busbooking.adapter;
 
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -22,7 +21,6 @@ import java.util.HashMap;
 import java.util.TimeZone;
 
 import vn.hcmute.busbooking.R;
-import vn.hcmute.busbooking.activity.BookingDetailActivity;
 import vn.hcmute.busbooking.model.Booking;
 
 public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingViewHolder> {
@@ -103,8 +101,13 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             tvDate.setText(formatDate(booking.getDeparture_time()));
             tvDuration.setText(formatDuration(booking.getDuration()));
 
+<<<<<<< Updated upstream
             // setStatus needs booking id to lookup pending countdown
             setStatus(tvStatus, booking.getStatus(), booking.getId(), pendingCountdowns);
+=======
+            // setStatus needs booking id to lookup pending countdown and payment method
+            setStatus(tvStatus, booking, pendingCountdowns);
+>>>>>>> Stashed changes
         }
 
         private String formatTime(String isoString) {
@@ -146,8 +149,14 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             }
         }
 
+<<<<<<< Updated upstream
         private void setStatus(TextView tvStatus, String status, int bookingId, Map<Integer, Long> pendingCountdowns) {
+=======
+        private void setStatus(TextView tvStatus, Booking booking, Map<Integer, Long> pendingCountdowns) {
+>>>>>>> Stashed changes
             Context context = tvStatus.getContext();
+            String status = booking.getStatus();
+            
             if (status == null) {
                 tvStatus.setVisibility(View.GONE);
                 return;
@@ -156,7 +165,24 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             tvStatus.setVisibility(View.VISIBLE);
             int backgroundColor;
             int textColor;
+            String statusText = status;
+            
+            // Logic xử lý status hiển thị
+            // 1. Nếu status là "confirmed" nhưng đã quá giờ arrival -> "Đã đi"
+            long arrivalTime = -1;
+            try {
+                SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
+                isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+                Date d = isoFormat.parse(booking.getArrival_time());
+                if (d != null) arrivalTime = d.getTime();
+                else {
+                    // Fallback departure + 4h
+                    Date d2 = isoFormat.parse(booking.getDeparture_time());
+                    if (d2 != null) arrivalTime = d2.getTime() + (4 * 60 * 60 * 1000L);
+                }
+            } catch (Exception ignored) {}
 
+<<<<<<< Updated upstream
             switch (status) {
                 case "confirmed":
                     tvStatus.setText("Đã thanh toán");
@@ -173,28 +199,75 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
                         long mm = seconds / 60;
                         long ss = seconds % 60;
                         pendingText = String.format(Locale.getDefault(), "Chờ thanh toán (%02d:%02d)", mm, ss);
+=======
+            long now = System.currentTimeMillis();
+            
+            if (status.equalsIgnoreCase("completed")) {
+                 statusText = "Đã đi";
+                 backgroundColor = ContextCompat.getColor(context, R.color.lightBlue); 
+                 textColor = ContextCompat.getColor(context, R.color.darkBlue);
+            } else if (status.equalsIgnoreCase("confirmed")) {
+                 if (arrivalTime != -1 && now > arrivalTime) {
+                     statusText = "Đã đi"; // Confirmed but arrival time passed -> Completed
+                     backgroundColor = ContextCompat.getColor(context, R.color.lightBlue); 
+                     textColor = ContextCompat.getColor(context, R.color.darkBlue);
+                 } else {
+                     statusText = "Đã thanh toán";
+                     backgroundColor = ContextCompat.getColor(context, R.color.lightGreen);
+                     textColor = ContextCompat.getColor(context, R.color.darkGreen);
+                 }
+            } else if (status.equalsIgnoreCase("cancelled")) {
+                 statusText = "Đã hủy";
+                 backgroundColor = ContextCompat.getColor(context, R.color.lightRed);
+                 textColor = ContextCompat.getColor(context, R.color.darkRed);
+            } else if (status.equalsIgnoreCase("expired")) {
+                 // Expired is also considered cancelled/invalid
+                 statusText = "Đã hủy";
+                 backgroundColor = ContextCompat.getColor(context, R.color.lightRed);
+                 textColor = ContextCompat.getColor(context, R.color.darkRed);
+            } else if (status.equalsIgnoreCase("pending")) {
+                if (arrivalTime != -1 && now > arrivalTime) {
+                     // Pending but trip finished -> Missed trip -> Cancelled
+                     statusText = "Đã hủy";
+                     backgroundColor = ContextCompat.getColor(context, R.color.lightRed);
+                     textColor = ContextCompat.getColor(context, R.color.darkRed);
+                } else {
+                    // Pending status logic
+                    String paymentMethod = booking.getPayment_method();
+                    boolean isOfflinePayment = paymentMethod != null &&
+                        (paymentMethod.toLowerCase().contains("cash") ||
+                         paymentMethod.toLowerCase().contains("offline") ||
+                         paymentMethod.toLowerCase().contains("cod") ||
+                         paymentMethod.toLowerCase().contains("counter"));
+    
+                    if (isOfflinePayment) {
+                         statusText = "Chờ xác nhận"; // Offline payment
+                    } else {
+                         // Online payment pending
+                         Long rem = null;
+                         if (pendingCountdowns != null) rem = pendingCountdowns.get(booking.getId());
+                         
+                         if (rem != null && rem > 0) {
+                            long seconds = rem / 1000;
+                            long mm = seconds / 60;
+                            long ss = seconds % 60;
+                            statusText = String.format(Locale.getDefault(), "Chờ thanh toán (%02d:%02d)", mm, ss);
+                         } else {
+                            statusText = "Chờ thanh toán"; 
+                         }
+>>>>>>> Stashed changes
                     }
-                    tvStatus.setText(pendingText);
                     backgroundColor = ContextCompat.getColor(context, R.color.lightYellow);
                     textColor = ContextCompat.getColor(context, R.color.darkYellow);
-                    break;
-                case "cancelled":
-                    tvStatus.setText("Đã hủy");
-                    backgroundColor = ContextCompat.getColor(context, R.color.lightRed);
-                    textColor = ContextCompat.getColor(context, R.color.darkRed);
-                    break;
-                case "expired":
-                    tvStatus.setText("Hết hạn");
-                    backgroundColor = ContextCompat.getColor(context, R.color.lightGray);
-                    textColor = ContextCompat.getColor(context, R.color.darkGray);
-                    break;
-                default:
-                    tvStatus.setText(status);
-                    backgroundColor = ContextCompat.getColor(context, R.color.lightGray);
-                    textColor = ContextCompat.getColor(context, R.color.darkGray);
-                    break;
+                }
+            } else {
+                // Other statuses
+                statusText = status;
+                backgroundColor = ContextCompat.getColor(context, R.color.lightGray);
+                textColor = ContextCompat.getColor(context, R.color.darkGray);
             }
 
+            tvStatus.setText(statusText);
             GradientDrawable background = (GradientDrawable) tvStatus.getBackground();
             background.setColor(backgroundColor);
             tvStatus.setTextColor(textColor);
