@@ -50,7 +50,9 @@
             android:text="🔄 Tải lại"
             android:background="@drawable/button_refresh"
             android:textColor="@color/white"
-            android:layout_margin="4dp" />
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:textSize="12sp" />
 
     </LinearLayout>
 
