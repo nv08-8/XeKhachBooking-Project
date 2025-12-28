@@ -38,7 +38,7 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
     private RecyclerView rvTrips;
     private ProgressBar progressTrips;
     private TextView tvEmptyTrips;
-    private Button btnAddTrip;
+    private Button btnAddTrip, btnRefreshTrips; // Thêm btnRefreshTrips
     private TripsAdapter adapter;
     private List<Map<String, Object>> tripList = new ArrayList<>();
     private SessionManager sessionManager;
@@ -61,6 +61,7 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
         progressTrips = findViewById(R.id.progressTrips);
         tvEmptyTrips = findViewById(R.id.tvEmptyTrips);
         btnAddTrip = findViewById(R.id.btnAddTrip);
+        btnRefreshTrips = findViewById(R.id.btnRefreshTrips); // Tìm view cho nút Refresh
 
         // Lấy route_id từ Intent
         routeId = getIntent().getIntExtra("route_id", -1);
@@ -77,12 +78,19 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
             startActivity(intent);
         });
 
+        // Gán sự kiện click cho nút Refresh
+        btnRefreshTrips.setOnClickListener(v -> {
+            Toast.makeText(this, "Đang tải lại...", Toast.LENGTH_SHORT).show();
+            fetchTrips(routeId);
+        });
+
         fetchTrips(routeId);
     }
 
     private void fetchTrips(int routeId) {
         progressTrips.setVisibility(View.VISIBLE);
         tvEmptyTrips.setVisibility(View.GONE);
+        rvTrips.setVisibility(View.GONE); // Ẩn danh sách để tạo hiệu ứng reload
 
         // Truyền routeId vào API call nếu nó hợp lệ
         Integer routeIdParam = (routeId != -1) ? routeId : null;

@@ -4,41 +4,85 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@drawable/background"
+    android:orientation="vertical"
     tools:context=".activity.admin.ManageTripsActivity">
 
-    <androidx.appcompat.widget.Toolbar
+    <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"
-        app:title="Quản lý chuyến đi" />
+        android:layout_marginTop="36dp"
+        android:background="@android:color/transparent"
+        app:title="Quản lý chuyến đi"
+        app:titleTextAppearance="@style/ToolbarTitleStyle"
+        app:titleTextColor="@color/textPrimary"
+        app:titleCentered="true"
+        app:navigationIcon="@drawable/ic_arrow_back" />
 
-    <Button
-        android:id="@+id/btnAddTrip"
+    <!-- Action Buttons (dưới toolbar) -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="8dp"
-        android:text="Thêm chuyến đi" />
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:layout_marginTop="16dp"
+        android:gravity="end">
 
-    <ProgressBar
-        android:id="@+id/progressTrips"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:visibility="gone" />
+        <Button
+            android:id="@+id/btnAddTrip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="4dp"
+            android:background="@drawable/button_add_green"
+            android:paddingHorizontal="16dp"
+            android:text="+ Thêm chuyến"
+            android:textColor="@color/white"
+            android:textSize="12sp" />
 
-    <TextView
-        android:id="@+id/tvEmptyTrips"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text="Không có chuyến đi nào" />
+        <Button
+            android:id="@+id/btnRefreshTrips"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="4dp"
+            android:background="@drawable/button_refresh"
+            android:paddingHorizontal="12dp"
+            android:text="🔄 Tải lại"
+            android:textColor="@color/white"
+            android:textSize="12sp" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvTrips"
+    </LinearLayout>
+
+    <!-- Progress & List -->
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <ProgressBar
+            android:id="@+id/progressTrips"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvTrips"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="8dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tvEmptyTrips"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="Không có chuyến đi nào"
+            android:gravity="center"
+            android:textSize="16sp"
+            android:textColor="@color/textSecondary"
+            android:visibility="visible" />
+
+    </FrameLayout>
 
 </LinearLayout>

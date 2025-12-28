@@ -1,151 +1,317 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/background"
+    android:orientation="vertical"
     tools:context=".activity.TripFormActivity">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/appBarLayout"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:layout_marginTop="36dp"
         android:background="@android:color/transparent"
-        app:elevation="0dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:title="Thông tin Chuyến đi"
+        app:titleTextAppearance="@style/ToolbarTitleStyle"
+        app:titleTextColor="@color/textPrimary"
+        app:titleCentered="true"
+        app:navigationIcon="@drawable/ic_arrow_back" />
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@drawable/ic_arrow_back"
-            app:navigationIconTint="@color/white"
-            app:title="Thêm/Sửa Chuyến đi"
-            app:titleTextColor="@android:color/black" />
-
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <androidx.cardview.widget.CardView
-        android:layout_width="0dp"
+    <!-- Subtitle Description -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        app:cardCornerRadius="28dp"
-        app:cardElevation="4dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/appBarLayout">
+        android:orientation="vertical"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="12dp">
 
-        <ScrollView
+
+    </LinearLayout>
+
+    <!-- Divider Line -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:background="#30000000" />
+
+    <!-- Centered Form Container -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.core.widget.NestedScrollView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="match_parent"
+            android:fillViewport="true">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center"
                 android:orientation="vertical"
-                android:padding="24dp">
+                android:paddingHorizontal="20dp"
+                android:paddingVertical="40dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <androidx.cardview.widget.CardView
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Thông tin Chuyến đi"
-                    android:textColor="@color/textPrimary"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
+                    android:layout_marginHorizontal="0dp"
+                    app:cardBackgroundColor="@color/white"
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="12dp">
 
-                <Spinner
-                    android:id="@+id/spinnerRoute"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="20dp"
-                    android:background="@drawable/edittext_bg"
-                    android:paddingHorizontal="16dp" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="28dp">
 
-                <EditText
-                    android:id="@+id/etOperator"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/edittext_bg"
-                    android:drawableStart="@drawable/ic_bus_24"
-                    android:drawablePadding="12dp"
-                    android:hint="Nhà xe"
-                    android:paddingHorizontal="16dp" />
 
-                <EditText
-                    android:id="@+id/etBusType"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/edittext_bg"
-                    android:drawableStart="@drawable/ic_bus_type"
-                    android:drawablePadding="12dp"
-                    android:hint="Loại xe"
-                    android:paddingHorizontal="16dp" />
 
-                <EditText
-                    android:id="@+id/etDepartureTime"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/edittext_bg"
-                    android:drawableStart="@drawable/ic_departure_time"
-                    android:drawablePadding="12dp"
-                    android:hint="Giờ đi (YYYY-MM-DD HH:MM:SS)"
-                    android:paddingHorizontal="16dp" />
+                        <!-- Route Spinner Field -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="24dp">
 
-                <EditText
-                    android:id="@+id/etArrivalTime"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/edittext_bg"
-                    android:drawableStart="@drawable/ic_arrival_time"
-                    android:drawablePadding="12dp"
-                    android:hint="Giờ đến (YYYY-MM-DD HH:MM:SS)"
-                    android:paddingHorizontal="16dp" />
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                app:startIconDrawable="@drawable/ic_route"
+                                app:startIconTint="@color/colorPrimary"
+                                app:boxBackgroundMode="outline"
+                                app:boxCornerRadiusTopStart="12dp"
+                                app:boxCornerRadiusTopEnd="12dp"
+                                app:boxCornerRadiusBottomStart="12dp"
+                                app:boxCornerRadiusBottomEnd="12dp"
+                                app:boxStrokeColor="@color/colorPrimary"
+                                android:hint="Chọn tuyến đường">
 
-                <EditText
-                    android:id="@+id/etPrice"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/edittext_bg"
-                    android:drawableStart="@drawable/ic_attach_money"
-                    android:drawablePadding="12dp"
-                    android:hint="Giá vé (VNĐ)"
-                    android:inputType="numberDecimal"
-                    android:paddingHorizontal="16dp" />
+                                <Spinner
+                                    android:id="@+id/spinnerRoute"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="52dp"
+                                    android:textSize="14sp" />
 
-                <EditText
-                    android:id="@+id/etSeatsTotal"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/edittext_bg"
-                    android:drawableStart="@drawable/ic_airline_seat_recline_normal"
-                    android:drawablePadding="12dp"
-                    android:hint="Tổng số ghế"
-                    android:inputType="number"
-                    android:paddingHorizontal="16dp" />
+                            </com.google.android.material.textfield.TextInputLayout>
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnSaveTrip"
-                    android:layout_width="match_parent"
-                    android:layout_height="55dp"
-                    android:layout_marginTop="24dp"
-                    android:text="Lưu Chuyến đi"
-                    android:textColor="@color/white"
-                    android:textSize="16sp"
-                    app:backgroundTint="@color/colorPrimary"
-                    app:cornerRadius="28dp" />
+                        </LinearLayout>
+
+                        <!-- Operator Field -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="16dp">
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                app:startIconDrawable="@drawable/ic_bus_24"
+                                app:startIconTint="@color/colorPrimary"
+                                app:boxBackgroundMode="outline"
+                                app:boxCornerRadiusTopStart="12dp"
+                                app:boxCornerRadiusTopEnd="12dp"
+                                app:boxCornerRadiusBottomStart="12dp"
+                                app:boxCornerRadiusBottomEnd="12dp"
+                                app:boxStrokeColor="@color/colorPrimary"
+                                android:hint="Nhà xe">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/etOperator"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="52dp"
+                                    android:textSize="14sp"
+                                    android:inputType="text" />
+
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                        </LinearLayout>
+
+                        <!-- Bus Type Field -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="16dp">
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                app:startIconDrawable="@drawable/ic_bus_type"
+                                app:startIconTint="@color/colorPrimary"
+                                app:boxBackgroundMode="outline"
+                                app:boxCornerRadiusTopStart="12dp"
+                                app:boxCornerRadiusTopEnd="12dp"
+                                app:boxCornerRadiusBottomStart="12dp"
+                                app:boxCornerRadiusBottomEnd="12dp"
+                                app:boxStrokeColor="@color/colorPrimary"
+                                android:hint="Loại xe">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/etBusType"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="52dp"
+                                    android:textSize="14sp"
+                                    android:inputType="text" />
+
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                        </LinearLayout>
+
+                        <!-- Departure Time Field -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="16dp">
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                app:startIconDrawable="@drawable/ic_departure_time"
+                                app:startIconTint="@color/colorPrimary"
+                                app:boxBackgroundMode="outline"
+                                app:boxCornerRadiusTopStart="12dp"
+                                app:boxCornerRadiusTopEnd="12dp"
+                                app:boxCornerRadiusBottomStart="12dp"
+                                app:boxCornerRadiusBottomEnd="12dp"
+                                app:boxStrokeColor="@color/colorPrimary"
+                                android:hint="Giờ đi">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/etDepartureTime"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="52dp"
+                                    android:textSize="14sp"
+                                    android:inputType="text" />
+
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                        </LinearLayout>
+
+                        <!-- Arrival Time Field -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="16dp">
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                app:startIconDrawable="@drawable/ic_arrival_time"
+                                app:startIconTint="@color/colorPrimary"
+                                app:boxBackgroundMode="outline"
+                                app:boxCornerRadiusTopStart="12dp"
+                                app:boxCornerRadiusTopEnd="12dp"
+                                app:boxCornerRadiusBottomStart="12dp"
+                                app:boxCornerRadiusBottomEnd="12dp"
+                                app:boxStrokeColor="@color/colorPrimary"
+                                android:hint="Giờ đến">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/etArrivalTime"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="52dp"
+                                    android:textSize="14sp"
+                                    android:inputType="text" />
+
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                        </LinearLayout>
+
+                        <!-- Price Field -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="16dp">
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                app:startIconDrawable="@drawable/ic_attach_money"
+                                app:startIconTint="@color/colorPrimary"
+                                app:boxBackgroundMode="outline"
+                                app:boxCornerRadiusTopStart="12dp"
+                                app:boxCornerRadiusTopEnd="12dp"
+                                app:boxCornerRadiusBottomStart="12dp"
+                                app:boxCornerRadiusBottomEnd="12dp"
+                                app:boxStrokeColor="@color/colorPrimary"
+                                android:hint="Giá vé (VNĐ)">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/etPrice"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="52dp"
+                                    android:textSize="14sp"
+                                    android:inputType="numberDecimal" />
+
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                        </LinearLayout>
+
+                        <!-- Seats Total Field -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="16dp">
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                app:startIconDrawable="@drawable/ic_airline_seat_recline_normal"
+                                app:startIconTint="@color/colorPrimary"
+                                app:boxBackgroundMode="outline"
+                                app:boxCornerRadiusTopStart="12dp"
+                                app:boxCornerRadiusTopEnd="12dp"
+                                app:boxCornerRadiusBottomStart="12dp"
+                                app:boxCornerRadiusBottomEnd="12dp"
+                                app:boxStrokeColor="@color/colorPrimary"
+                                android:hint="Tổng số ghế">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/etSeatsTotal"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="52dp"
+                                    android:textSize="14sp"
+                                    android:inputType="number" />
+
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                        </LinearLayout>
+
+                        <!-- Save Button -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSaveTrip"
+                            android:layout_width="match_parent"
+                            android:layout_height="56dp"
+                            android:layout_marginTop="32dp"
+                            android:text="Lưu Chuyến đi"
+                            android:textColor="@color/white"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            app:icon="@drawable/ic_check"
+                            app:iconTint="@color/white"
+                            app:backgroundTint="@color/colorPrimary"
+                            app:cornerRadius="28dp"
+                            app:elevation="8dp" />
+
+                    </LinearLayout>
+
+                </androidx.cardview.widget.CardView>
 
             </LinearLayout>
-        </ScrollView>
-    </androidx.cardview.widget.CardView>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        </androidx.core.widget.NestedScrollView>
+
+    </FrameLayout>
+
+</LinearLayout>
