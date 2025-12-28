@@ -200,10 +200,12 @@ router.get('/bookings/my', async (req, res) => {
            r.origin, r.destination,
            pickup_stop.name AS pickup_location,
            dropoff_stop.name AS dropoff_location,
-           COALESCE(
-             NULLIF(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]),
-             b.seat_labels::text[]
-           ) AS seat_labels
+           CASE
+             WHEN array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL) IS NOT NULL
+               AND array_length(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), 1) > 0
+             THEN array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL)
+             ELSE b.seat_labels
+           END AS seat_labels
     FROM bookings b
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
@@ -234,16 +236,18 @@ router.get('/bookings/:id', async (req, res) => {
     SELECT b.id, b.user_id, b.trip_id, b.total_amount, b.seats_count, b.promotion_code,
            b.status, b.metadata, b.pickup_stop_id, b.dropoff_stop_id, b.payment_method,
            b.passenger_info, b.created_at, b.paid_at, b.cancelled_at, b.expired_at,
-           b.price_paid, b.seat_labels,
+           b.price_paid,
            t.departure_time, t.arrival_time, t.operator, t.bus_type,
            r.origin, r.destination,
            u.name AS passenger_name, u.phone AS passenger_phone,
            pickup_stop.name AS pickup_location, pickup_stop.address AS pickup_address,
            dropoff_stop.name AS dropoff_location, dropoff_stop.address AS dropoff_address,
-           COALESCE(
-             NULLIF(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]),
-             b.seat_labels::text[]
-           ) AS seat_labels
+           CASE
+             WHEN array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL) IS NOT NULL
+               AND array_length(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), 1) > 0
+             THEN array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL)
+             ELSE b.seat_labels
+           END AS seat_labels
     FROM bookings b
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
@@ -252,7 +256,7 @@ router.get('/bookings/:id', async (req, res) => {
     LEFT JOIN route_stops pickup_stop ON pickup_stop.id = b.pickup_stop_id
     LEFT JOIN route_stops dropoff_stop ON dropoff_stop.id = b.dropoff_stop_id
     WHERE b.id=$1
-    GROUP BY b.id, t.id, t.departure_time, t.arrival_time, t.operator, t.bus_type,
+    GROUP BY b.id, b.seat_labels, t.id, t.departure_time, t.arrival_time, t.operator, t.bus_type,
              r.id, r.origin, r.destination,
              u.id, u.name, u.phone,
              pickup_stop.id, pickup_stop.name, pickup_stop.address,
