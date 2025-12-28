@@ -656,7 +656,9 @@ cron.schedule("*/5 * * * *", async () => {
 
     const completedBookings = completeResult.rows;
 
-    // 2️⃣ Cancel unpaid bookings
+    // 2️⃣ Cancel unpaid bookings after trip arrival (both online and offline)
+    // ✅ Cancel ALL pending bookings with price_paid = 0 after trip ends
+    // Note: Offline bookings are NOT expired after 10 minutes, but ARE cancelled after trip ends
     const cancelResult = await db.query(`
       UPDATE bookings b
       SET status = 'cancelled', cancelled_at = NOW()
@@ -666,7 +668,7 @@ cron.schedule("*/5 * * * *", async () => {
         AND b.status = 'pending'
         AND COALESCE(b.price_paid, 0) = 0
         AND b.cancelled_at IS NULL
-      RETURNING b.id, b.user_id, b.trip_id, t.arrival_time
+      RETURNING b.id, b.user_id, b.trip_id, t.arrival_time, b.payment_method
     `);
 
     const cancelledBookings = cancelResult.rows;
@@ -696,9 +698,9 @@ cron.schedule("*/5 * * * *", async () => {
 
     // Handle cancelled bookings
     if (cancelledBookings.length > 0) {
-      console.log(`   ❌ Cancelled ${cancelledBookings.length} unpaid booking(s):`);
+      console.log(`   ❌ Cancelled ${cancelledBookings.length} unpaid booking(s) after trip ended:`);
       for (const booking of cancelledBookings) {
-        console.log(`      • Booking #${booking.id} -> cancelled (unpaid, arrival: ${new Date(booking.arrival_time).toLocaleString()})`);
+        console.log(`      • Booking #${booking.id} (${booking.payment_method || 'unknown'}) -> cancelled (unpaid, arrival: ${new Date(booking.arrival_time).toLocaleString()})`);
 
         // Emit socket event to user for real-time update
         if (io) {

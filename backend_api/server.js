@@ -144,12 +144,16 @@ async function expirePendingBookings() {
         // 1. Online Payment (QR/Card) -> expire after TTL (10 mins)
         // 2. Offline Payment -> NOT EXPIRED AUTOMATICALLY (as per request)
         // ✅ Filter out known offline payment methods at SQL level to avoid fetching them
+        // ✅ Also exclude bookings with NULL payment_method (treat as offline for safety)
         const sql = `SELECT b.id, b.user_id, b.trip_id, t.arrival_time, b.metadata, b.created_at, b.payment_method
                      FROM bookings b
                      JOIN trips t ON t.id = b.trip_id
                      WHERE b.status='pending' 
                      AND (b.created_at < NOW() - INTERVAL '${BOOKING_PENDING_TTL_MINUTES} minutes')
-                     AND COALESCE(LOWER(b.payment_method), '') NOT IN ('cash', 'offline', 'cod', 'counter')`;
+                     AND b.payment_method IS NOT NULL
+                     AND LOWER(b.payment_method) NOT IN ('cash', 'offline', 'cod', 'counter')
+                     AND LOWER(b.payment_method) NOT LIKE '%offline%'
+                     AND LOWER(b.payment_method) NOT LIKE '%cash%'`;
 
         const { rows } = await db.query(sql);
         if (!rows || rows.length === 0) return;
