@@ -103,8 +103,8 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             tvDate.setText(formatDate(booking.getDeparture_time()));
             tvDuration.setText(formatDuration(booking.getDuration()));
 
-            // setStatus needs booking id to lookup pending countdown
-            setStatus(tvStatus, booking.getStatus(), booking.getId(), pendingCountdowns);
+            // setStatus needs booking id to lookup pending countdown and payment method
+            setStatus(tvStatus, booking.getStatus(), booking.getId(), booking.getPayment_method(), pendingCountdowns);
         }
 
         private String formatTime(String isoString) {
@@ -146,7 +146,7 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             }
         }
 
-        private void setStatus(TextView tvStatus, String status, int bookingId, Map<Integer, Long> pendingCountdowns) {
+        private void setStatus(TextView tvStatus, String status, int bookingId, String paymentMethod, Map<Integer, Long> pendingCountdowns) {
             Context context = tvStatus.getContext();
             if (status == null) {
                 tvStatus.setVisibility(View.GONE);
@@ -164,15 +164,30 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
                     textColor = ContextCompat.getColor(context, R.color.darkGreen);
                     break;
                 case "pending":
-                    // show countdown if available
-                    Long rem = null;
-                    if (pendingCountdowns != null) rem = pendingCountdowns.get(bookingId);
-                    String pendingText = "Chờ thanh toán";
-                    if (rem != null) {
-                        long seconds = Math.max(0, rem / 1000);
-                        long mm = seconds / 60;
-                        long ss = seconds % 60;
-                        pendingText = String.format(Locale.getDefault(), "Chờ thanh toán (%02d:%02d)", mm, ss);
+                    // Check if offline payment to distinguish between:
+                    // - Online pending (with countdown): "Chờ thanh toán"
+                    // - Offline pending (no countdown): "Chờ xác nhận"
+                    boolean isOfflinePayment = paymentMethod != null &&
+                        (paymentMethod.toLowerCase().contains("cash") ||
+                         paymentMethod.toLowerCase().contains("offline") ||
+                         paymentMethod.toLowerCase().contains("cod") ||
+                         paymentMethod.toLowerCase().contains("counter"));
+
+                    String pendingText;
+                    if (isOfflinePayment) {
+                        // Offline payment - waiting for in-person confirmation at counter
+                        pendingText = "Chờ xác nhận";
+                    } else {
+                        // Online payment - show countdown if available
+                        Long rem = null;
+                        if (pendingCountdowns != null) rem = pendingCountdowns.get(bookingId);
+                        pendingText = "Chờ thanh toán";
+                        if (rem != null) {
+                            long seconds = Math.max(0, rem / 1000);
+                            long mm = seconds / 60;
+                            long ss = seconds % 60;
+                            pendingText = String.format(Locale.getDefault(), "Chờ thanh toán (%02d:%02d)", mm, ss);
+                        }
                     }
                     tvStatus.setText(pendingText);
                     backgroundColor = ContextCompat.getColor(context, R.color.lightYellow);

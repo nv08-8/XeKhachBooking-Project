@@ -39,7 +39,7 @@
             tools:text="Đã xác nhận" />
 
         <TextView
-            android:id="@+id/tvBookingRoute"
+            android:id="@+id/tvUserName"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
@@ -47,7 +47,28 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvBookingId"
+            tools:text="Tên người dùng" />
+
+        <TextView
+            android:id="@+id/tvBookingRoute"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="16sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvUserName"
             tools:text="Đà Lạt → Nha Trang" />
+
+        <TextView
+            android:id="@+id/tvDepartureTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="@color/textSecondary"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvBookingRoute"
+            tools:text="Khởi hành: 2025-12-26 08:00" />
 
         <TextView
             android:id="@+id/tvBookingSeat"
@@ -56,7 +77,7 @@
             android:layout_marginTop="4dp"
             android:textColor="@color/textSecondary"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvBookingRoute"
+            app:layout_constraintTop_toBottomOf="@id/tvDepartureTime"
             tools:text="Ghế: A01" />
 
         <TextView
@@ -76,8 +97,8 @@
             android:layout_marginTop="16dp"
             android:orientation="horizontal"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvBookingPrice">
+            app.layout_constraintStart_toStartOf="parent"
+            app.layout_constraintTop_toBottomOf="@id/tvBookingPrice">
 
             <Button
                 android:id="@+id/btnCancelBooking"

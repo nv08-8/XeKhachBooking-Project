@@ -173,7 +173,7 @@ router.get("/user/:id", async (req, res) => {
     const { id } = req.params;
     try {
         const { rows } = await db.query(
-            "SELECT id, name, email, phone, status, role FROM users WHERE id=$1 AND status='active'",
+            "SELECT id, name, email, phone, dob, gender, status, role FROM users WHERE id=$1 AND status='active'",
             [id]
         );
         if (!rows.length) return res.status(404).json({ message: "User not found" });
@@ -217,8 +217,14 @@ router.post("/change-password", async (req, res) => {
 
 router.put("/user/:id", async (req, res) => {
     const { id } = req.params;
-    const { name, phone } = req.body;
-    if (!name && !phone) {
+    const { name, phone, dob, gender } = req.body;
+
+    console.log("PUT /user/:id request:");
+    console.log("  ID:", id);
+    console.log("  Body:", { name, phone, dob, gender });
+
+    if (!name && !phone && !dob && !gender) {
+        console.log("  Error: No fields to update");
         return res.status(400).json({ success: false, message: "Không có thông tin để cập nhật!" });
     }
 
@@ -253,19 +259,79 @@ router.put("/user/:id", async (req, res) => {
         updateValues.push(phoneStr);
     }
 
+    // Only try to update dob/gender if values are provided and not empty
+    if (dob && dob.trim()) {
+        updateFields.push(`dob=$${updateValues.length + 1}`);
+        updateValues.push(dob.trim());
+    }
+
+    if (gender && gender.trim()) {
+        updateFields.push(`gender=$${updateValues.length + 1}`);
+        updateValues.push(gender.trim());
+    }
+
+    // Build id placeholder based on current updateValues length
     const idPlaceholder = `$${updateValues.length + 1}`;
     updateValues.push(id);
     const sql = `UPDATE users SET ${updateFields.join(", ")} WHERE id=${idPlaceholder} AND status='active'`;
 
     try {
+        console.log("  SQL:", sql);
+        console.log("  Values:", updateValues);
+
         const result = await db.query(sql, updateValues);
+        console.log("  Result rowCount:", result.rowCount);
+
         if (!result.rowCount) {
+            console.log("  Error: User not found or not active");
             return res.status(404).json({ success: false, message: "User not found" });
         }
+
+        console.log("  Success: Update completed");
         res.json({ success: true, message: "Cập nhật thông tin thành công!" });
     } catch (err) {
-        console.error("Lỗi cập nhật user:", err);
-        return res.status(500).json({ success: false, message: "Lỗi phía server." });
+        console.error("  Database error:", err.message);
+        console.error("  Full error:", err);
+
+        // If it's a column doesn't exist error, try without dob/gender
+        if (err.message && err.message.includes("column") && err.message.includes("does not exist")) {
+            console.log("  Retrying without dob/gender columns...");
+
+            // Rebuild query without dob/gender
+            const updateFields2 = [];
+            const updateValues2 = [];
+
+            if (name) {
+                updateFields2.push(`name=$${updateValues2.length + 1}`);
+                updateValues2.push(name);
+            }
+
+            if (phone) {
+                updateFields2.push(`phone=$${updateValues2.length + 1}`);
+                updateValues2.push(phone.toString().trim());
+            }
+
+            if (updateFields2.length === 0) {
+                return res.status(400).json({ success: false, message: "Không có thông tin để cập nhật!" });
+            }
+
+            const idPlaceholder2 = `$${updateValues2.length + 1}`;
+            updateValues2.push(id);
+            const sql2 = `UPDATE users SET ${updateFields2.join(", ")} WHERE id=${idPlaceholder2} AND status='active'`;
+
+            try {
+                const result2 = await db.query(sql2, updateValues2);
+                if (!result2.rowCount) {
+                    return res.status(404).json({ success: false, message: "User not found" });
+                }
+                res.json({ success: true, message: "Cập nhật thông tin thành công!" });
+            } catch (err2) {
+                console.error("Retry failed:", err2.message);
+                return res.status(500).json({ success: false, message: "Lỗi phía server: " + err2.message });
+            }
+        } else {
+            return res.status(500).json({ success: false, message: "Lỗi phía server: " + err.message });
+        }
     }
 });
 

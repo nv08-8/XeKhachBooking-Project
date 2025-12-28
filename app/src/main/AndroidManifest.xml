@@ -25,6 +25,7 @@
         <activity android:name=".activity.guest.GuestHomeActivity" />
         <activity android:name=".activity.guest.GuestAccountActivity" />
         <activity android:name=".activity.UserAccountActivity" />
+        <activity android:name=".activity.PersonalInfoActivity" />
         <activity android:name=".activity.OtpVerificationActivity" />
         <activity android:name=".activity.ResetPasswordActivity" />
         <activity android:name=".activity.TripListActivity" />
@@ -55,6 +56,9 @@
             android:exported="false" />
         <activity android:name="vn.hcmute.busbooking.activity.guest.GuestFavoritesActivity"
             android:exported="false" />
+        <activity android:name=".activity.HelpCenterActivity" />
+        <activity android:name=".activity.TermsServiceActivity" />
+        <activity android:name=".activity.PrivacyPolicyActivity" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
@@ -70,6 +74,7 @@
         <activity android:name=".activity.admin.ManageBookingsActivity" />
         <activity android:name=".activity.admin.BookingAdminDetailActivity" />
         <activity android:name=".activity.RevenueStatsActivity" />
+        <activity android:name=".activity.RevenueDetailsActivity" />
         <activity android:name=".activity.admin.ManageUsersActivity" />
         <activity android:name=".activity.EditUserActivity" />
         <activity android:name=".activity.admin.ManageTripsActivity" />
@@ -79,6 +84,7 @@
         <activity android:name=".activity.admin.ManageReviewsActivity" />
         <activity android:name=".activity.admin.ManagePromotionsActivity" />
         <activity android:name=".activity.admin.PromotionFormActivity" />
+        <activity android:name=".activity.AdminOfflinePaymentActivity" />
     </application>
 
 </manifest>
