@@ -186,9 +186,7 @@ async function expirePendingBookings() {
                         // This is an offline payment - DO NOT EXPIRE IT
                         await client.query('ROLLBACK');
                         client.release();
-                        if (process.env.DEBUG_EXPIRE) {
-                            console.log(`[DEBUG] Skipping offline payment booking id=${booking.id} (method=${method})`);
-                        }
+                        console.log(`✅ [EXPIRE-SKIP] Offline payment booking #${booking.id} (method=${method}) - NOT expired`);
                         continue;
                     }
                 }
@@ -238,15 +236,19 @@ async function expirePendingBookings() {
                 let shouldCancel = false;
                 let newStatus = 'cancelled'; // Default
 
+                console.log(`📋 [EXPIRE-CHECK] Booking #${booking.id}: payment_method="${booking.payment_method}", isOnline=${isOnlinePayment}, age=${Math.round((now - createdAt)/60000)}min`);
+
                 if (isOnlinePayment) {
                     // Online payment: expire if TTL passed
                     if (now > ttlLimit) {
                         shouldCancel = true;
                         newStatus = 'expired'; // More accurate status for timeout
+                        console.log(`❌ [EXPIRE-YES] Booking #${booking.id} will be expired (online payment timeout)`);
                     }
                 } else {
                     // Offline/Cash: Do NOT expire automatically
                     shouldCancel = false;
+                    console.log(`✅ [EXPIRE-NO] Booking #${booking.id} will NOT be expired (offline payment)`);
                 }
 
                 if (!shouldCancel) {

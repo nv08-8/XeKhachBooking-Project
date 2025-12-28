@@ -172,6 +172,9 @@ router.post("/bookings", async (req, res) => {
     await client.query('UPDATE trips SET seats_available = seats_available - $1 WHERE id=$2', [requiredSeats, trip_id]);
 
     await commitAndRelease(client);
+
+    console.log(`✅ [BOOKING-CREATED] Booking #${bookingId} created: user=${user_id}, trip=${trip_id}, payment_method="${finalPaymentMethod}", status="pending", seats=[${seat_labels.join(',')}]`);
+
     res.json({ message: 'Booking created successfully', booking_ids: bookingIds, total_amount: finalAmount });
 
   } catch (err) {
@@ -700,7 +703,9 @@ cron.schedule("*/5 * * * *", async () => {
     if (cancelledBookings.length > 0) {
       console.log(`   ❌ Cancelled ${cancelledBookings.length} unpaid booking(s) after trip ended:`);
       for (const booking of cancelledBookings) {
-        console.log(`      • Booking #${booking.id} (${booking.payment_method || 'unknown'}) -> cancelled (unpaid, arrival: ${new Date(booking.arrival_time).toLocaleString()})`);
+        const method = booking.payment_method || 'unknown';
+        const arrival = new Date(booking.arrival_time).toLocaleString();
+        console.log(`      • Booking #${booking.id} (payment: ${method}) -> cancelled (trip arrival: ${arrival})`);
 
         // Emit socket event to user for real-time update
         if (io) {
