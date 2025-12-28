@@ -3,76 +3,59 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/background">
+    android:background="@drawable/background"
+    android:orientation="vertical">
 
-    <!-- Header -->
-    <FrameLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/colorPrimary">
+        android:layout_height="?attr/actionBarSize"
+        android:layout_marginTop="36dp"
+        android:background="@android:color/transparent"
+        app:title="Quản lý tuyến xe"
+        app:titleTextAppearance="@style/ToolbarTitleStyle"
+        app:titleTextColor="@color/textPrimary"
+        app:titleCentered="true"
+        app:navigationIcon="@drawable/ic_arrow_back" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="20dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Quản lý tuyến xe"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:textColor="@color/white" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Thêm, sửa, xóa tuyến; cập nhật giá vé"
-                android:textSize="12sp"
-                android:textColor="#E0E0E0"
-                android:layout_marginTop="4dp" />
-
-        </LinearLayout>
-    </FrameLayout>
-
-    <!-- Action Buttons -->
+    <!-- Action Buttons (dưới toolbar) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="12dp"
+        android:layout_marginTop="16dp"
         android:gravity="end">
 
         <Button
             android:id="@+id/btnAddRoute"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="+ Thêm tuyến"
+            android:layout_margin="4dp"
             android:background="@drawable/button_add_green"
-            android:textColor="@color/white"
-            android:textSize="12sp"
             android:paddingHorizontal="16dp"
-            android:layout_margin="4dp" />
+            android:text="+ Thêm tuyến"
+            android:textColor="@color/white"
+            android:textSize="12sp" />
 
         <Button
             android:id="@+id/btnRefreshRoutes"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🔄 Tải lại"
+            android:layout_margin="4dp"
             android:background="@drawable/button_refresh"
-            android:textColor="@color/white"
-            android:textSize="12sp"
             android:paddingHorizontal="12dp"
-            android:layout_margin="4dp" />
+            android:text="🔄 Tải lại"
+            android:textColor="@color/white"
+            android:textSize="12sp" />
 
     </LinearLayout>
 
     <!-- Progress & List -->
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
         <ProgressBar
             android:id="@+id/progressRoutes"
@@ -101,3 +84,5 @@
     </FrameLayout>
 
 </LinearLayout>
+
+

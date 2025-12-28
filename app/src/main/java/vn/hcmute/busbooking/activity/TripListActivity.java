@@ -297,7 +297,7 @@ public class TripListActivity extends AppCompatActivity implements FilterBottomS
             }
         }
 
-        apiService.getTrips(from, to, apiDate).enqueue(new Callback<List<Map<String, Object>>>() {
+        apiService.getTrips(null, from, to, apiDate).enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
             public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
                 if (response.isSuccessful() && response.body() != null) {

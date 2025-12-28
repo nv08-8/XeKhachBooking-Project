@@ -43,6 +43,7 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
     private List<Map<String, Object>> tripList = new ArrayList<>();
     private SessionManager sessionManager;
     private ApiService apiService;
+    private int routeId = -1; // Biến để lưu routeId
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,23 +62,32 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
         tvEmptyTrips = findViewById(R.id.tvEmptyTrips);
         btnAddTrip = findViewById(R.id.btnAddTrip);
 
+        // Lấy route_id từ Intent
+        routeId = getIntent().getIntExtra("route_id", -1);
+
         rvTrips.setLayoutManager(new LinearLayoutManager(this));
         adapter = new TripsAdapter(tripList, this, this);
         rvTrips.setAdapter(adapter);
 
         btnAddTrip.setOnClickListener(v -> {
             Intent intent = new Intent(ManageTripsActivity.this, TripFormActivity.class);
+            if (routeId != -1) {
+                intent.putExtra("route_id", routeId);
+            }
             startActivity(intent);
         });
 
-        fetchTrips();
+        fetchTrips(routeId);
     }
 
-    private void fetchTrips() {
+    private void fetchTrips(int routeId) {
         progressTrips.setVisibility(View.VISIBLE);
         tvEmptyTrips.setVisibility(View.GONE);
 
-        Call<List<Map<String, Object>>> call = apiService.getTrips(null, null, null);
+        // Truyền routeId vào API call nếu nó hợp lệ
+        Integer routeIdParam = (routeId != -1) ? routeId : null;
+        Call<List<Map<String, Object>>> call = apiService.getTrips(routeIdParam, null, null, null);
+        
         call.enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
             public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
@@ -85,13 +95,12 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
                 if (response.isSuccessful() && response.body() != null) {
                     List<Map<String, Object>> trips = response.body();
 
-                    // Sort trips: upcoming first, then by date
                     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
                     Collections.sort(trips, (t1, t2) -> {
                         try {
                             Date d1 = sdf.parse((String) t1.get("departure_time"));
                             Date d2 = sdf.parse((String) t2.get("departure_time"));
-                            return d2.compareTo(d1); // Sort descending, newest/future first
+                            return d2.compareTo(d1);
                         } catch (ParseException | NullPointerException e) {
                             return 0;
                         }
@@ -127,8 +136,7 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
         Object idObj = trip.get("id");
         if (idObj != null) {
             try {
-                // API returns id as String, so we parse it
-                int tripId = Integer.parseInt(idObj.toString());
+                int tripId = new Double(idObj.toString()).intValue();
                 intent.putExtra("trip_id", tripId);
                 startActivity(intent);
             } catch (NumberFormatException e) {
@@ -147,14 +155,14 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
                     Object idObj = trip.get("id");
                      if (idObj != null) {
                         try {
-                            int tripId = Integer.parseInt(idObj.toString());
+                            int tripId = new Double(idObj.toString()).intValue();
                             Call<Map<String, Object>> call = apiService.deleteTrip(adminId, tripId);
                             call.enqueue(new Callback<Map<String, Object>>() {
                                 @Override
                                 public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                                     if (response.isSuccessful()) {
                                         Toast.makeText(ManageTripsActivity.this, "Xóa thành công", Toast.LENGTH_SHORT).show();
-                                        fetchTrips();
+                                        fetchTrips(routeId);
                                     } else {
                                         Toast.makeText(ManageTripsActivity.this, "Xóa thất bại", Toast.LENGTH_SHORT).show();
                                     }

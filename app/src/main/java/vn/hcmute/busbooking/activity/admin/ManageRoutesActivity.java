@@ -12,6 +12,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.appbar.MaterialToolbar;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +43,12 @@ public class ManageRoutesActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_manage_routes);
 
+        // Setup toolbar
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        if (toolbar != null) {
+            toolbar.setNavigationOnClickListener(v -> onBackPressed());
+        }
+
         sessionManager = new SessionManager(this);
         apiService = ApiClient.getClient().create(ApiService.class);
 
@@ -51,15 +58,33 @@ public class ManageRoutesActivity extends AppCompatActivity {
         btnAddRoute = findViewById(R.id.btnAddRoute);
         btnRefreshRoutes = findViewById(R.id.btnRefreshRoutes);
 
-        rvRoutes.setLayoutManager(new LinearLayoutManager(this));
+        if (rvRoutes != null) {
+            rvRoutes.setLayoutManager(new LinearLayoutManager(this));
+        }
+
         adapter = new RoutesAdapter(routesList, new RoutesAdapter.OnRouteClickListener() {
+            @Override
+            public void onRouteClick(Map<String, Object> route) {
+                Intent intent = new Intent(ManageRoutesActivity.this, ManageTripsActivity.class);
+                Object idObj = route.get("id");
+                if (idObj != null) {
+                    try {
+                        int routeId = new Double(idObj.toString()).intValue();
+                        intent.putExtra("route_id", routeId);
+                        startActivity(intent);
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(ManageRoutesActivity.this, "ID tuyến đường không hợp lệ", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+            
             @Override
             public void onEditRoute(Map<String, Object> route) {
                 Intent intent = new Intent(ManageRoutesActivity.this, RouteFormActivity.class);
                 Object idObj = route.get("id");
                 if (idObj != null) {
                     try {
-                        int routeId = Integer.parseInt(idObj.toString());
+                        int routeId = new Double(idObj.toString()).intValue();
                         intent.putExtra("route_id", routeId);
                         startActivity(intent);
                     } catch (NumberFormatException e) {
@@ -78,7 +103,7 @@ public class ManageRoutesActivity extends AppCompatActivity {
                             Object idObj = route.get("id");
                             if (idObj != null) {
                                 try {
-                                    int routeId = Integer.parseInt(idObj.toString());
+                                    int routeId = new Double(idObj.toString()).intValue();
                                     Call<Map<String, Object>> call = apiService.deleteRoute(adminId, routeId);
                                     call.enqueue(new Callback<Map<String, Object>>() {
                                         @Override
@@ -105,13 +130,21 @@ public class ManageRoutesActivity extends AppCompatActivity {
                         .show();
             }
         });
-        rvRoutes.setAdapter(adapter);
 
-        btnAddRoute.setOnClickListener(v -> {
-            Intent intent = new Intent(ManageRoutesActivity.this, RouteFormActivity.class);
-            startActivity(intent);
-        });
-        btnRefreshRoutes.setOnClickListener(v -> fetchRoutes());
+        if (rvRoutes != null) {
+            rvRoutes.setAdapter(adapter);
+        }
+
+        if (btnAddRoute != null) {
+            btnAddRoute.setOnClickListener(v -> {
+                Intent intent = new Intent(ManageRoutesActivity.this, RouteFormActivity.class);
+                startActivity(intent);
+            });
+        }
+
+        if (btnRefreshRoutes != null) {
+            btnRefreshRoutes.setOnClickListener(v -> fetchRoutes());
+        }
 
         fetchRoutes();
     }
