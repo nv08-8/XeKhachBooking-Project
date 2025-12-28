@@ -3,7 +3,7 @@ package vn.hcmute.busbooking.adapter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -45,7 +45,7 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
         String title = (originObj != null ? originObj : "?") + " - " + (destObj != null ? destObj : "?");
         holder.tvRouteTitle.setText(title);
 
-        if (priceObj != null) {
+        if (priceObj != null && holder.tvRoutePrice != null) {
             holder.tvRoutePrice.setText("Giá: " + priceObj + " VNĐ");
         }
 
@@ -69,7 +69,7 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
 
     static class RouteViewHolder extends RecyclerView.ViewHolder {
         TextView tvRouteTitle, tvRoutePrice, tvRouteDuration;
-        Button btnEditRoute, btnDeleteRoute;
+        ImageView btnEditRoute, btnDeleteRoute;
 
         public RouteViewHolder(View itemView) {
             super(itemView);
@@ -81,4 +81,3 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
         }
     }
 }
-
