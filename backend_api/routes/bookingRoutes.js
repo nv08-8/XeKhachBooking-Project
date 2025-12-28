@@ -200,7 +200,7 @@ router.get('/bookings/my', async (req, res) => {
            r.origin, r.destination,
            pickup_stop.name AS pickup_location,
            dropoff_stop.name AS dropoff_location,
-           COALESCE(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]) AS seat_labels
+           COALESCE(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), COALESCE(b.seat_labels, ARRAY[]::text[])) AS seat_labels
     FROM bookings b
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
@@ -234,7 +234,7 @@ router.get('/bookings/:id', async (req, res) => {
            u.name AS passenger_name, u.phone AS passenger_phone,
            pickup_stop.name AS pickup_location, pickup_stop.address AS pickup_address,
            dropoff_stop.name AS dropoff_location, dropoff_stop.address AS dropoff_address,
-           COALESCE(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]) AS seat_labels
+           COALESCE(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), COALESCE(b.seat_labels, ARRAY[]::text[])) AS seat_labels
     FROM bookings b
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
@@ -298,6 +298,17 @@ router.post('/bookings/:id/cancel', async (req, res) => {
         // unpaid booking: cancel without refund
         refundAmount = 0;
         newStatus = 'cancelled';
+    }
+
+    // Persist current seat labels into the bookings row so the UI can still show them after cancellation
+    try {
+        const seatAgg = await client.query('SELECT array_agg(seat_code) AS seat_labels FROM booking_items WHERE booking_id=$1', [id]);
+        const seatLabelsArr = seatAgg.rows && seatAgg.rows[0] ? seatAgg.rows[0].seat_labels : null;
+        if (seatLabelsArr && seatLabelsArr.length) {
+            await client.query('UPDATE bookings SET seat_labels = $1 WHERE id=$2', [seatLabelsArr, id]);
+        }
+    } catch (e) {
+        console.warn('Could not persist seat_labels for booking', id, e.message || e);
     }
 
     await client.query(
