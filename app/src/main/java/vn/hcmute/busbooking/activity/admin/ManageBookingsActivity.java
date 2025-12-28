@@ -9,7 +9,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
+import com.google.android.material.appbar.MaterialToolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -36,7 +36,7 @@ public class ManageBookingsActivity extends AppCompatActivity {
     private List<Map<String, Object>> bookingsList = new ArrayList<>();
     private SessionManager sessionManager;
     private ApiService apiService;
-    private Toolbar toolbar;
+    private MaterialToolbar toolbar;
 
     private static final int BOOKING_DETAIL_REQUEST = 1;
 
@@ -71,10 +71,9 @@ public class ManageBookingsActivity extends AppCompatActivity {
     }
 
     private void setupToolbar() {
-        setSupportActionBar(toolbar);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setDisplayShowHomeEnabled(true);
-        toolbar.setNavigationOnClickListener(v -> finish());
+        if (toolbar != null) {
+            toolbar.setNavigationOnClickListener(v -> onBackPressed());
+        }
     }
 
     private void setupRecyclerView() {
