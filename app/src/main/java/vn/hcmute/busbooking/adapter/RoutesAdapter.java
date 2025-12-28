@@ -17,7 +17,9 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
     private List<Map<String, Object>> routes;
     private OnRouteClickListener listener;
 
+    // 1. Thêm onRouteClick vào interface
     public interface OnRouteClickListener {
+        void onRouteClick(Map<String, Object> route);
         void onEditRoute(Map<String, Object> route);
         void onDeleteRoute(Map<String, Object> route);
     }
@@ -42,6 +44,7 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
         Object priceObj = route.get("price");
         Object durationObj = route.get("duration_min");
         Object tripCountObj = route.get("trip_count");
+        Object distanceObj = route.get("distance_km");
 
         String title = (originObj != null ? originObj : "?") + " - " + (destObj != null ? destObj : "?");
         holder.tvRouteTitle.setText(title);
@@ -56,16 +59,36 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
 
         if (tripCountObj != null && holder.tvRouteTripCount != null) {
             try {
-                // Dữ liệu từ backend là String, chuyển trực tiếp sang Integer
                 int tripCount = Integer.parseInt(tripCountObj.toString());
                 holder.tvRouteTripCount.setText(tripCount + " chuyến");
             } catch (NumberFormatException e) {
                 holder.tvRouteTripCount.setText("N/A");
             }
         } else if (holder.tvRouteTripCount != null) {
-            // Nếu không có dữ liệu, hiển thị N/A (Không có sẵn)
             holder.tvRouteTripCount.setText("N/A");
         }
+
+        if (distanceObj != null && holder.tvRouteDistance != null) {
+            try {
+                double distance = new Double(distanceObj.toString()).doubleValue();
+                if (distance == (long) distance) {
+                    holder.tvRouteDistance.setText(String.format("%d km", (long) distance));
+                } else {
+                    holder.tvRouteDistance.setText(String.format("%.1f km", distance));
+                }
+            } catch (NumberFormatException e) {
+                holder.tvRouteDistance.setText("");
+            }
+        } else if (holder.tvRouteDistance != null) {
+            holder.tvRouteDistance.setText("");
+        }
+        
+        // 2. Gán sự kiện click cho toàn bộ item
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onRouteClick(route);
+            }
+        });
 
         holder.btnEditRoute.setOnClickListener(v -> {
             if (listener != null) listener.onEditRoute(route);
@@ -82,7 +105,7 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
     }
 
     static class RouteViewHolder extends RecyclerView.ViewHolder {
-        TextView tvRouteTitle, tvRoutePrice, tvRouteDuration, tvRouteTripCount;
+        TextView tvRouteTitle, tvRoutePrice, tvRouteDuration, tvRouteTripCount, tvRouteDistance;
         ImageView btnEditRoute, btnDeleteRoute;
 
         public RouteViewHolder(View itemView) {
@@ -91,6 +114,7 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
             tvRoutePrice = itemView.findViewById(R.id.tvRoutePrice);
             tvRouteDuration = itemView.findViewById(R.id.tvRouteDuration);
             tvRouteTripCount = itemView.findViewById(R.id.tvRouteTripCount);
+            tvRouteDistance = itemView.findViewById(R.id.tvRouteDistance);
             btnEditRoute = itemView.findViewById(R.id.btnEditRoute);
             btnDeleteRoute = itemView.findViewById(R.id.btnDeleteRoute);
         }

@@ -64,6 +64,21 @@ public class ManageRoutesActivity extends AppCompatActivity {
 
         adapter = new RoutesAdapter(routesList, new RoutesAdapter.OnRouteClickListener() {
             @Override
+            public void onRouteClick(Map<String, Object> route) {
+                Intent intent = new Intent(ManageRoutesActivity.this, ManageTripsActivity.class);
+                Object idObj = route.get("id");
+                if (idObj != null) {
+                    try {
+                        int routeId = new Double(idObj.toString()).intValue();
+                        intent.putExtra("route_id", routeId);
+                        startActivity(intent);
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(ManageRoutesActivity.this, "ID tuyến đường không hợp lệ", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+            
+            @Override
             public void onEditRoute(Map<String, Object> route) {
                 Intent intent = new Intent(ManageRoutesActivity.this, RouteFormActivity.class);
                 Object idObj = route.get("id");

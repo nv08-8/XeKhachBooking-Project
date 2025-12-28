@@ -55,6 +55,42 @@ router.get("/routes", async (req, res) => {
   }
 });
 
+// SỬA LẠI API NÀY
+// GET /api/trips?route_id=&origin=&destination=&date=
+router.get("/trips", async (req, res) => {
+  const { route_id, origin, destination, date } = req.query;
+  let sql = "SELECT * FROM trips WHERE 1=1";
+  const params = [];
+
+  if (route_id) {
+    sql += " AND route_id = $" + (params.length + 1);
+    params.push(parseInt(route_id, 10));
+  }
+  if (origin) {
+    sql += " AND origin ILIKE $" + (params.length + 1);
+    params.push(`%${origin}%`);
+  }
+  if (destination) {
+    sql += " AND destination ILIKE $" + (params.length + 1);
+    params.push(`%${destination}%`);
+  }
+  if (date) {
+    sql += " AND DATE(departure_time) = $" + (params.length + 1);
+    params.push(date);
+  }
+
+  sql += " ORDER BY departure_time DESC";
+
+  try {
+    const { rows } = await db.query(sql, params);
+    return res.json(rows);
+  } catch (err) {
+    console.error("Lỗi lấy trip:", err);
+    return res.status(500).json({ message: "Lỗi phía server." });
+  }
+});
+
+
 // GET /api/trips/:id/seats?available=true
 router.get("/trips/:id/seats", async (req, res) => {
   const tripId = parseInt(req.params.id, 10);

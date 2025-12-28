@@ -40,23 +40,33 @@
                 android:layout_weight="1"
                 android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/tvRouteTitle"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Hà Nội - Hải Phòng"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/white" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
 
-                <TextView
-                    android:id="@+id/tvRouteSubtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Quốc lộ 5"
-                    android:textSize="10sp"
-                    android:textColor="#B0D4FF"
-                    android:layout_marginTop="2dp" />
+                    <TextView
+                        android:id="@+id/tvRouteTitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Hà Nội - Hải Phòng"
+                        android:textSize="17sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/white" />
+
+                    <TextView
+                        android:id="@+id/tvRouteDistance"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="120 km"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFE082"
+                        android:layout_marginStart="8dp" />
+
+                </LinearLayout>
 
             </LinearLayout>
 
@@ -76,7 +86,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="5 chuyến"
-                    android:textSize="10sp"
+                    android:textSize="12sp"
                     android:textStyle="bold"
                     android:textColor="@color/white" />
 
@@ -119,7 +129,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Hà Nội"
-                    android:textSize="11sp"
+                    android:textSize="15sp"
                     android:textColor="@color/white"
                     android:textStyle="bold" />
 
@@ -154,7 +164,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Hải Phòng"
-                    android:textSize="11sp"
+                    android:textSize="15sp"
                     android:textColor="@color/white"
                     android:textStyle="bold" />
 
@@ -190,7 +200,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Thời gian:"
-                    android:textSize="10sp"
+                    android:textSize="15sp"
                     android:textColor="#D0D0D0" />
 
                 <TextView
@@ -198,7 +208,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="180 phút"
-                    android:textSize="11sp"
+                    android:textSize="15sp"
                     android:textColor="@color/white"
                     android:textStyle="bold"
                     android:layout_marginStart="4dp" />
