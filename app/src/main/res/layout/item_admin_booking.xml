@@ -29,9 +29,11 @@
             android:id="@+id/tvStatus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:background="@drawable/bg_status_confirmed"
             android:paddingHorizontal="10dp"
             android:paddingVertical="4dp"
             android:textSize="12sp"
+            android:textColor="@color/darkGreen"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             tools:text="Đã xác nhận" />
@@ -69,6 +71,16 @@
             tools:text="Khởi hành: 2025-12-26 08:00" />
 
         <TextView
+            android:id="@+id/tvBookingSeat"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="@color/textSecondary"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvDepartureTime"
+            tools:text="Ghế: A01" />
+
+        <TextView
             android:id="@+id/tvBookingPrice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -76,30 +88,35 @@
             android:textStyle="bold"
             android:textColor="@color/colorPrimary"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvDepartureTime"
+            app:layout_constraintTop_toBottomOf="@id/tvBookingSeat"
             tools:text="234,000 VNĐ" />
 
-        <!-- Hidden views to prevent adapter crash -->
-        <TextView
-            android:id="@+id/tvBookingSeat"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:visibility="gone"
-            tools:ignore="MissingConstraints" />
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toEndOf="parent"
+            app.layout_constraintStart_toStartOf="parent"
+            app.layout_constraintTop_toBottomOf="@id/tvBookingPrice">
 
-        <Button
-            android:id="@+id/btnConfirmBooking"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            tools:ignore="MissingConstraints" />
+            <Button
+                android:id="@+id/btnCancelBooking"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:text="Hủy" />
 
-        <Button
-            android:id="@+id/btnCancelBooking"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            tools:ignore="MissingConstraints" />
+            <Button
+                android:id="@+id/btnConfirmBooking"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="Xác nhận" />
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>
