@@ -7,8 +7,7 @@ const db = require("../db");
 router.get("/routes", async (req, res) => {
   const { origin, destination, q } = req.query;
   
-  // --- BẮT ĐẦU THAY ĐỔI ---
-  // 1. Sửa câu truy vấn SQL để bao gồm trip_count
+  // Sửa câu truy vấn để đếm các chuyến sắp chạy (departure_time >= NOW())
   let sql = `
     SELECT 
       r.id, 
@@ -17,12 +16,12 @@ router.get("/routes", async (req, res) => {
       r.distance_km, 
       r.duration_min, 
       r.created_at,
-      COUNT(t.id) AS trip_count
+      COUNT(t.id) AS total_trip_count,
+      COUNT(t.id) FILTER (WHERE t.departure_time >= NOW()) AS upcoming_trip_count
     FROM routes r
     LEFT JOIN trips t ON r.id = t.route_id
     WHERE 1=1
   `;
-  // --- KẾT THÚC THAY ĐỔI ---
 
   const params = [];
 
@@ -41,10 +40,8 @@ router.get("/routes", async (req, res) => {
     params.push(`%${q}%`, `%${q}%`);
   }
 
-  // --- BẮT ĐẦU THAY ĐỔI ---
-  // 2. Thêm GROUP BY để hàm COUNT hoạt động đúng
+  // Thêm GROUP BY để hàm COUNT hoạt động đúng
   sql += " GROUP BY r.id ORDER BY r.origin, r.destination";
-  // --- KẾT THÚC THAY ĐỔI ---
 
   try {
     const { rows } = await db.query(sql, params);
@@ -55,7 +52,6 @@ router.get("/routes", async (req, res) => {
   }
 });
 
-// SỬA LẠI API NÀY
 // GET /api/trips?route_id=&origin=&destination=&date=
 router.get("/trips", async (req, res) => {
   const { route_id, origin, destination, date } = req.query;

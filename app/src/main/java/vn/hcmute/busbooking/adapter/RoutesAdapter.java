@@ -17,7 +17,6 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
     private List<Map<String, Object>> routes;
     private OnRouteClickListener listener;
 
-    // 1. Thêm onRouteClick vào interface
     public interface OnRouteClickListener {
         void onRouteClick(Map<String, Object> route);
         void onEditRoute(Map<String, Object> route);
@@ -43,7 +42,8 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
         Object destObj = route.get("destination");
         Object priceObj = route.get("price");
         Object durationObj = route.get("duration_min");
-        Object tripCountObj = route.get("trip_count");
+        Object upcomingTripCountObj = route.get("upcoming_trip_count");
+        Object totalTripCountObj = route.get("total_trip_count"); // Fallback
         Object distanceObj = route.get("distance_km");
 
         String title = (originObj != null ? originObj : "?") + " - " + (destObj != null ? destObj : "?");
@@ -57,15 +57,18 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
             holder.tvRouteDuration.setText(durationObj + " phút");
         }
 
-        if (tripCountObj != null && holder.tvRouteTripCount != null) {
-            try {
-                int tripCount = Integer.parseInt(tripCountObj.toString());
-                holder.tvRouteTripCount.setText(tripCount + " chuyến");
-            } catch (NumberFormatException e) {
+        if (holder.tvRouteTripCount != null) {
+            Object tripCountToDisplay = (upcomingTripCountObj != null) ? upcomingTripCountObj : totalTripCountObj;
+            if (tripCountToDisplay != null) {
+                try {
+                    int tripCount = Integer.parseInt(tripCountToDisplay.toString());
+                    holder.tvRouteTripCount.setText("Sắp khởi hành: " + tripCount);
+                } catch (NumberFormatException e) {
+                    holder.tvRouteTripCount.setText("N/A");
+                }
+            } else {
                 holder.tvRouteTripCount.setText("N/A");
             }
-        } else if (holder.tvRouteTripCount != null) {
-            holder.tvRouteTripCount.setText("N/A");
         }
 
         if (distanceObj != null && holder.tvRouteDistance != null) {
@@ -83,7 +86,6 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
             holder.tvRouteDistance.setText("");
         }
         
-        // 2. Gán sự kiện click cho toàn bộ item
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onRouteClick(route);
