@@ -12,7 +12,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
+import com.google.android.material.appbar.MaterialToolbar;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.MultiFormatWriter;
@@ -48,7 +48,7 @@ public class BookingDetailActivity extends AppCompatActivity {
     private ImageView ivQrCode;
     private Button btnCancelTicket, btnPayTicket, btnChangePaymentMethod;
     private TextView tvQrHint;
-    private Toolbar toolbar;
+    private MaterialToolbar toolbar;
 
     private ApiService apiService;
     private int bookingId;
@@ -152,10 +152,9 @@ public class BookingDetailActivity extends AppCompatActivity {
     }
 
     private void setupToolbar() {
-        setSupportActionBar(toolbar);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setDisplayShowHomeEnabled(true);
-        toolbar.setNavigationOnClickListener(v -> finish());
+        if (toolbar != null) {
+            toolbar.setNavigationOnClickListener(v -> onBackPressed());
+        }
     }
 
     private void loadBookingDetails() {
