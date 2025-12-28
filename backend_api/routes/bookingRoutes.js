@@ -202,7 +202,7 @@ router.get('/bookings/my', async (req, res) => {
            dropoff_stop.name AS dropoff_location,
            COALESCE(
              NULLIF(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]),
-             b.seat_labels
+             b.seat_labels::text[]
            ) AS seat_labels
     FROM bookings b
     JOIN trips t ON t.id = b.trip_id
@@ -242,7 +242,7 @@ router.get('/bookings/:id', async (req, res) => {
            dropoff_stop.name AS dropoff_location, dropoff_stop.address AS dropoff_address,
            COALESCE(
              NULLIF(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]),
-             b.seat_labels
+             b.seat_labels::text[]
            ) AS seat_labels
     FROM bookings b
     JOIN trips t ON t.id = b.trip_id
