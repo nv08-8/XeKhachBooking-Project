@@ -42,7 +42,7 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
         Object destObj = route.get("destination");
         Object priceObj = route.get("price");
         Object durationObj = route.get("duration_min");
-        Object activeTripCountObj = route.get("active_trip_count");
+        Object upcomingTripCountObj = route.get("upcoming_trip_count");
         Object totalTripCountObj = route.get("total_trip_count"); // Fallback
         Object distanceObj = route.get("distance_km");
 
@@ -58,11 +58,11 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
         }
 
         if (holder.tvRouteTripCount != null) {
-            Object tripCountToDisplay = (activeTripCountObj != null) ? activeTripCountObj : totalTripCountObj;
+            Object tripCountToDisplay = (upcomingTripCountObj != null) ? upcomingTripCountObj : totalTripCountObj;
             if (tripCountToDisplay != null) {
                 try {
                     int tripCount = Integer.parseInt(tripCountToDisplay.toString());
-                    holder.tvRouteTripCount.setText("Đang chạy: " + tripCount);
+                    holder.tvRouteTripCount.setText("Sắp khởi hành: " + tripCount);
                 } catch (NumberFormatException e) {
                     holder.tvRouteTripCount.setText("N/A");
                 }

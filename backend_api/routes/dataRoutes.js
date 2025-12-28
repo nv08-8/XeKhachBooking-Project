@@ -7,7 +7,7 @@ const db = require("../db");
 router.get("/routes", async (req, res) => {
   const { origin, destination, q } = req.query;
   
-  // Sửa câu truy vấn để lấy thêm active_trip_count
+  // Sửa câu truy vấn để đếm các chuyến sắp chạy (departure_time >= NOW())
   let sql = `
     SELECT 
       r.id, 
@@ -17,7 +17,7 @@ router.get("/routes", async (req, res) => {
       r.duration_min, 
       r.created_at,
       COUNT(t.id) AS total_trip_count,
-      COUNT(t.id) FILTER (WHERE t.departure_time <= NOW() AND t.arrival_time >= NOW()) AS active_trip_count
+      COUNT(t.id) FILTER (WHERE t.departure_time >= NOW()) AS upcoming_trip_count
     FROM routes r
     LEFT JOIN trips t ON r.id = t.route_id
     WHERE 1=1
