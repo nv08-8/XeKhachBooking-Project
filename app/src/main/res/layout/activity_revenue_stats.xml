@@ -41,108 +41,58 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         android:padding="12dp">
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <Spinner
+            android:id="@+id/spinnerGroupBy"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:layout_weight="1"
+            android:entries="@array/revenue_group_by"
+            android:layout_margin="4dp" />
 
-            <Spinner
-                android:id="@+id/spinnerGroupBy"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:entries="@array/revenue_group_by"
-                android:layout_margin="4dp" />
-
-            <Button
-                android:id="@+id/btnApplyFilter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Lọc"
-                android:background="@drawable/button_blue"
-                android:textColor="@color/white"
-                android:textSize="12sp"
-                android:paddingHorizontal="16dp"
-                android:layout_margin="4dp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/dateRangeFilter"
-            android:layout_width="match_parent"
+        <Button
+            android:id="@+id/btnApplyFilter"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:visibility="gone">
+            android:text="Lọc"
+            android:background="@drawable/button_blue"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            android:paddingHorizontal="16dp"
+            android:layout_margin="4dp" />
 
-            <EditText
-                android:id="@+id/etStartDate"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="Từ ngày"
-                android:focusable="false"
-                android:layout_margin="4dp"/>
-
-            <EditText
-                android:id="@+id/etEndDate"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="Đến ngày"
-                android:focusable="false"
-                android:layout_margin="4dp"/>
-        </LinearLayout>
     </LinearLayout>
 
-    <!-- Chart & Data -->
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/scrollView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <com.github.mikephil.charting.charts.BarChart
-                android:id="@+id/barChart"
-                android:layout_width="match_parent"
-                android:layout_height="300dp"
-                android:layout_margin="8dp"/>
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvRevenue"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
-                android:padding="8dp" />
-
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
-
+    <!-- Progress & List -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-    <TextView
-        android:id="@+id/tvEmptyRevenue"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center"
-        android:text="Không có dữ liệu báo cáo"
-        android:textColor="@color/textSecondary"
-        android:textSize="16sp"
-        android:visibility="gone" />
+        <ProgressBar
+            android:id="@+id/progressRevenue"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone" />
 
-    <ProgressBar
-        android:id="@+id/progressRevenue"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:visibility="gone" />
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvRevenue"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="8dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tvEmptyRevenue"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="Không có dữ liệu báo cáo"
+            android:gravity="center"
+            android:textSize="16sp"
+            android:textColor="@color/textSecondary"
+            android:visibility="visible" />
 
     </FrameLayout>
 

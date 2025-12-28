@@ -253,23 +253,6 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Change to Offline Payment Button (visible only when QR payment is pending) -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnChangeToOffline"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:text="Đổi sang thanh toán tại nhà xe"
-                    android:textColor="@color/colorPrimary"
-                    app:strokeColor="@color/colorPrimary"
-                    app:strokeWidth="1dp"
-                    app:cornerRadius="12dp"
-                    app:icon="@drawable/ic_money"
-                    app:iconGravity="textStart"
-                    app:iconTint="@color/colorPrimary"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:visibility="gone"/>
-
                 <!-- Price Breakdown Card -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardPriceBreakdown"
@@ -396,7 +379,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/label_payment_methods"
+                    android.text="@string/label_payment_methods"
                     android:textColor="@android:color/black"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -594,56 +577,33 @@
 
         </androidx.core.widget.NestedScrollView>
 
-        <!-- Bottom Bar - Horizontal layout like pickup/dropoff pages -->
         <LinearLayout
             android:id="@+id/bottom_bar"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
             android:background="@android:color/white"
             android:elevation="8dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingStart="24dp"
-            android:paddingTop="16dp"
-            android:paddingEnd="24dp"
-            android:paddingBottom="16dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <LinearLayout
-                android:id="@+id/priceContainer"
-                android:layout_width="0dp"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/tvPriceLabel"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Tổng tiền"
-                    android:textColor="@color/textSecondary"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/tvBottomTotal"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="0đ"
-                    android:textColor="@android:color/black"
-                    android:textSize="22sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
+                android:text="@string/app_name"
+                app:drawableStartCompat="@drawable/ic_lock_green"
+                android:drawablePadding="8dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="12dp"/>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnConfirmPayment"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="60dp"
-                android:minWidth="140dp"
-                android:text="Thanh toán"
-                app:cornerRadius="24dp" />
-
+                android:text="@string/btn_confirm_payment"
+                app:cornerRadius="16dp"/>
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>

@@ -79,14 +79,6 @@ public class GuestAccountActivity extends AppCompatActivity {
         });
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (bottomNav != null) {
-            bottomNav.setSelectedItemId(R.id.nav_account);
-        }
-    }
-
     private void applyWindowInsets() {
         if (contentScroll != null) {
             ViewCompat.setOnApplyWindowInsetsListener(contentScroll, (v, insets) -> {

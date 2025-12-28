@@ -96,12 +96,6 @@ public interface ApiService {
     @POST("api/bookings/{id}/verify-payment")
     Call<Map<String, Object>> verifyBookingPayment(@Path("id") int bookingId);
 
-    @PUT("api/bookings/{id}/payment-method")
-    Call<Map<String, Object>> changePaymentMethod(@Path("id") int bookingId, @Body Map<String, String> body);
-
-    @POST("api/bookings/{id}/confirm-offline-payment")
-    Call<Map<String, Object>> confirmOfflinePayment(@Path("id") int bookingId);
-
     @GET("api/auth/user/{id}")
     Call<Map<String, Object>> getUserInfo(@Path("id") int userId);
 
@@ -198,14 +192,6 @@ public interface ApiService {
     @GET("api/admin/revenue/by-year")
     Call<List<Map<String, Object>>> getRevenueByYear(@Header("user-id") int userId);
 
-    @GET("api/admin/revenue/details")
-    Call<List<Map<String, Object>>> getRevenueDetails(
-        @Header("user-id") int userId,
-        @Query("group_by") String groupBy,
-        @Query("value") String value
-    );
-
-
     // ========== DRIVERS MANAGEMENT ==========
     @GET("api/admin/drivers")
     Call<List<Driver>> getAllDrivers(@Header("user-id") int userId);
@@ -237,12 +223,5 @@ public interface ApiService {
 
     @DELETE("api/admin/promotions/{id}")
     Call<Void> deletePromotion(@Header("user-id") int userId, @Path("id") int promotionId);
-
-    // ========== OFFLINE PAYMENT CONFIRMATION ==========
-    @GET("api/admin/pending-offline-payments")
-    Call<List<Map<String, Object>>> getPendingOfflinePayments(@Header("user-id") int userId);
-
-    @POST("api/admin/confirm-offline-payment/{id}")
-    Call<Map<String, Object>> adminConfirmOfflinePayment(@Header("user-id") int userId, @Path("id") int bookingId);
 
 }

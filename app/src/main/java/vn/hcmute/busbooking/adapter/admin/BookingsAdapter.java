@@ -121,6 +121,10 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
             if (holder.btnCancelBooking != null) holder.btnCancelBooking.setVisibility(View.GONE);
         }
 
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) listener.onBookingClicked(booking);
+        });
+
         if (holder.btnConfirmBooking != null) {
             holder.btnConfirmBooking.setOnClickListener(v -> {
                 if (listener != null) listener.onConfirmBooking(booking);

@@ -132,68 +132,31 @@ public class LoginActivity extends AppCompatActivity {
                     Toast.makeText(LoginActivity.this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
 
                     // Determine if user is admin. The backend may return a 'role' field, or 'isAdmin'.
-                    final boolean isAdmin = determineIfAdmin(user);
-
-                    // Fetch full user info from API to get all fields (dob, gender, avatar, etc.)
-                    // This ensures all data is persisted after logout/login
-                    Integer userId = sessionManager.getUserId();
-                    if (userId != null) {
-                        apiService.getUserInfo(userId).enqueue(new Callback<Map<String, Object>>() {
-                            @Override
-                            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                                Log.d("LOGIN", "getUserInfo response code: " + response.code());
-                                if (response.isSuccessful() && response.body() != null) {
-                                    Map<String, Object> fullUserData = response.body();
-                                    // Extract user data from response
-                                    Map<String, Object> userData = null;
-                                    if (fullUserData.get("data") instanceof Map) {
-                                        userData = (Map<String, Object>) fullUserData.get("data");
-                                    } else if (fullUserData.get("user") instanceof Map) {
-                                        userData = (Map<String, Object>) fullUserData.get("user");
-                                    } else {
-                                        userData = fullUserData;
-                                    }
-
-                                    if (userData != null) {
-                                        Log.d("LOGIN", "Full userData keys: " + userData.keySet().toString());
-                                        Log.d("LOGIN", "Full userData: " + userData.toString());
-
-                                        // Update session with full user data including dob, gender, avatar
-                                        String name = getStringValue(userData, "name", "hoten", "full_name");
-                                        String email = getStringValue(userData, "email");
-                                        String phone = getStringValue(userData, "sdt", "phone");
-                                        String dob = getStringValue(userData, "dob", "date_of_birth", "dateOfBirth", "birth_date");
-                                        String gender = getStringValue(userData, "gender", "gioi_tinh", "gioiTinh", "sex");
-                                        String avatar = getStringValue(userData, "avatar", "avatar_url", "avatarUrl", "profile_picture");
-                                        String role = getStringValue(userData, "role");
-
-                                        Log.d("LOGIN", "Extracted from API: dob=" + dob + ", gender=" + gender + ", avatar=" + avatar);
-
-                                        sessionManager.updateUserInfo(name, email, phone, dob, gender);
-                                        if (!isEmpty(avatar)) {
-                                            sessionManager.setUserAvatar(avatar);
-                                        }
-                                        if (!isEmpty(role)) {
-                                            sessionManager.updateRole(role);
-                                        }
-                                        Log.d("LOGIN", "Full user info saved: dob=" + dob + ", gender=" + gender + ", avatar=" + avatar);
-                                        Log.d("LOGIN", "Verify read back: dob=" + sessionManager.getUserDob() + ", gender=" + sessionManager.getUserGender());
-                                    }
+                    boolean isAdmin = false;
+                    if (user != null) {
+                        Object roleObj = user.get("role");
+                        if (roleObj != null && "admin".equalsIgnoreCase(String.valueOf(roleObj))) {
+                            isAdmin = true;
+                        } else {
+                            Object isAdminObj = user.get("isAdmin");
+                            if (isAdminObj != null) {
+                                try {
+                                    isAdmin = Boolean.parseBoolean(String.valueOf(isAdminObj));
+                                } catch (Exception ignored) {
                                 }
-
-                                // Navigate to home screen after saving all data
-                                navigateAfterLogin(isAdmin);
                             }
-
-                            @Override
-                            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                                Log.e("LOGIN", "Failed to fetch full user info, proceeding anyway", t);
-                                navigateAfterLogin(isAdmin);
-                            }
-                        });
-                    } else {
-                        navigateAfterLogin(isAdmin);
+                        }
                     }
+
+                    Intent intent;
+                    if (isAdmin) {
+                        intent = new Intent(LoginActivity.this, AdminHomeActivity.class);
+                    } else {
+                        intent = new Intent(LoginActivity.this, MainActivity.class);
+                    }
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
                 } else {
                     Toast.makeText(LoginActivity.this, "Sai tài khoản hoặc mật khẩu", Toast.LENGTH_SHORT).show();
                 }
@@ -226,54 +189,6 @@ public class LoginActivity extends AppCompatActivity {
         if (progressDialog != null && progressDialog.isShowing()) {
             progressDialog.dismiss();
         }
-    }
-
-    private void navigateAfterLogin(boolean isAdmin) {
-        Intent intent;
-        if (isAdmin) {
-            intent = new Intent(LoginActivity.this, AdminHomeActivity.class);
-        } else {
-            intent = new Intent(LoginActivity.this, MainActivity.class);
-        }
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
-    }
-
-    private boolean determineIfAdmin(Map<String, Object> user) {
-        if (user == null) return false;
-
-        Object roleObj = user.get("role");
-        if (roleObj != null && "admin".equalsIgnoreCase(String.valueOf(roleObj))) {
-            return true;
-        }
-
-        Object isAdminObj = user.get("isAdmin");
-        if (isAdminObj != null) {
-            try {
-                return Boolean.parseBoolean(String.valueOf(isAdminObj));
-            } catch (Exception ignored) {
-                return false;
-            }
-        }
-        return false;
-    }
-
-    private String getStringValue(Map<String, Object> map, String... keys) {
-        for (String key : keys) {
-            Object value = map.get(key);
-            if (value != null) {
-                String str = value.toString().trim();
-                if (!str.isEmpty()) {
-                    return str;
-                }
-            }
-        }
-        return null;
-    }
-
-    private boolean isEmpty(String str) {
-        return str == null || str.trim().isEmpty();
     }
 
     @Override

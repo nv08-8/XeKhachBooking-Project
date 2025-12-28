@@ -24,18 +24,11 @@ const rollbackAndRelease = async (client) => {
 
 // POST /bookings - Create a new booking with multiple seats
 router.post("/bookings", async (req, res) => {
-  const { user_id, trip_id, seat_labels, promotion_code, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_name, passenger_phone, passenger_email } = req.body;
+  const { user_id, trip_id, seat_labels, promotion_code, metadata, pickup_stop_id, dropoff_stop_id } = req.body;
 
   if (!user_id || !trip_id || !Array.isArray(seat_labels) || seat_labels.length === 0 || !pickup_stop_id || !dropoff_stop_id) {
     return res.status(400).json({ message: "Missing required fields" });
   }
-
-  // ✅ Determine payment method (default to 'offline' if not provided for backwards compatibility)
-  const finalPaymentMethod = payment_method || 'offline';
-  const finalPassengerName = passenger_name || '';
-  const finalPassengerPhone = passenger_phone || '';
-  const finalPassengerEmail = passenger_email || '';
-  console.log(`Creating booking with payment_method: ${finalPaymentMethod}, passenger: ${finalPassengerName}`);
 
   const client = await beginTransaction();
   try {
@@ -44,32 +37,16 @@ router.post("/bookings", async (req, res) => {
     // Ensure seats are generated before attempting to book, within the same transaction
     await generateAndCacheSeats(client, trip_id);
 
-    // Check if trip exists and hasn't departed yet
-    const tripResult = await client.query(
-      'SELECT t.price, t.seats_available, t.departure_time, t.arrival_time FROM trips t WHERE t.id=$1 FOR UPDATE',
-      [trip_id]
-    );
+    const tripResult = await client.query('SELECT price, seats_available FROM trips WHERE id=$1 FOR UPDATE', [trip_id]);
     if (!tripResult.rowCount) {
       await rollbackAndRelease(client);
       return res.status(404).json({ message: 'Trip not found' });
     }
 
-    const trip = tripResult.rows[0];
-    const tripPrice = parseFloat(trip.price) || 0;
+    const tripPrice = parseFloat(tripResult.rows[0].price) || 0;
     const requiredSeats = seat_labels.length;
 
-    // Prevent booking if trip has already departed
-    const now = new Date();
-    const departureTime = new Date(trip.departure_time);
-    if (departureTime <= now) {
-      await rollbackAndRelease(client);
-      return res.status(400).json({
-        message: 'Cannot book this trip - it has already departed',
-        departure_time: trip.departure_time
-      });
-    }
-
-    if (trip.seats_available < requiredSeats) {
+    if (tripResult.rows[0].seats_available < requiredSeats) {
       await rollbackAndRelease(client);
       return res.status(409).json({ message: 'Not enough seats available' });
     }
@@ -131,17 +108,10 @@ router.post("/bookings", async (req, res) => {
       }
     }
 
-    // Build passenger_info JSONB object
-    const passengerInfo = {};
-    if (finalPassengerName) passengerInfo.name = finalPassengerName;
-    if (finalPassengerPhone) passengerInfo.phone = finalPassengerPhone;
-    if (finalPassengerEmail) passengerInfo.email = finalPassengerEmail;
-    const passengerInfoJson = Object.keys(passengerInfo).length > 0 ? JSON.stringify(passengerInfo) : null;
-
     const bookingInsert = await client.query(
-      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_info)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-      [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, 'pending', metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id, finalPaymentMethod, passengerInfoJson]
+      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id) 
+       VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8) RETURNING id`,
+      [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id]
     );
     const bookingId = bookingInsert.rows[0].id;
     
@@ -170,33 +140,13 @@ router.post("/bookings", async (req, res) => {
 });
 
 // GET /bookings/my - Get user's bookings
-// Query params:
-//   - user_id (required): user ID
-//   - tab (optional): 'current' | 'completed'
-//     - 'current': all bookings in last 3 months (all statuses)
-//     - 'completed': bookings with arrival_time < NOW() and status = 'completed' (excludes cancelled)
 router.get('/bookings/my', async (req, res) => {
-  const { user_id, tab } = req.query;
-  console.log(`\n📋 [GET /api/bookings/my] Request from user_id: ${user_id}, tab: ${tab || 'all'}`);
-
+  const { user_id } = req.query;
   if (!user_id) return res.status(400).json({ message: 'Missing user_id' });
   
-  // Build WHERE clause based on tab parameter
-  let whereClause = 'WHERE b.user_id = $1';
-
-  if (tab === 'current') {
-    // Tab "Hiện tại": All bookings in last 3 months (all statuses including cancelled, pending, etc.)
-    whereClause += ` AND b.created_at >= NOW() - INTERVAL '3 months'`;
-  } else if (tab === 'completed') {
-    // Tab "Đã đi": Only completed trips (arrival_time passed and status = 'completed')
-    // Excludes cancelled bookings
-    whereClause += ` AND t.arrival_time < NOW() AND b.status = 'completed'`;
-  }
-  // If no tab specified, return all bookings (backwards compatibility)
-
   const sql = `
-    SELECT b.id, b.status, b.price_paid, b.created_at, b.total_amount, b.payment_method,
-           t.departure_time, t.arrival_time, t.operator, t.bus_type,
+    SELECT b.id, b.status, b.price_paid, b.created_at, b.total_amount,
+           t.departure_time, t.arrival_time, t.operator,
            r.origin, r.destination,
            pickup_stop.name AS pickup_location,
            dropoff_stop.name AS dropoff_location,
@@ -207,19 +157,15 @@ router.get('/bookings/my', async (req, res) => {
     LEFT JOIN booking_items bi ON bi.booking_id = b.id
     LEFT JOIN route_stops pickup_stop ON pickup_stop.id = b.pickup_stop_id
     LEFT JOIN route_stops dropoff_stop ON dropoff_stop.id = b.dropoff_stop_id
-    ${whereClause}
+    WHERE b.user_id = $1
     GROUP BY b.id, t.id, r.id, pickup_stop.id, dropoff_stop.id
     ORDER BY b.created_at DESC
   `;
   try {
     const { rows } = await db.query(sql, [user_id]);
-    console.log(`   ✅ Found ${rows.length} bookings for user ${user_id} (tab: ${tab || 'all'})`);
-    if (rows.length > 0) {
-      console.log(`   First booking: #${rows[0].id}, status: ${rows[0].status}, route: ${rows[0].origin} → ${rows[0].destination}`);
-    }
     res.json(rows);
   } catch (err) {
-    console.error('❌ Failed to fetch bookings:', err);
+    console.error('Failed to fetch bookings:', err);
     res.status(500).json({ message: 'Failed to fetch bookings' });
   }
 });
@@ -327,7 +273,7 @@ router.post('/bookings/:id/payment', async (req, res) => {
   try {
     await client.query('BEGIN');
     const bookingRes = await client.query(
-      `SELECT b.id, b.trip_id, b.status, b.total_amount, b.price_paid, b.payment_method
+      `SELECT b.id, b.trip_id, b.status, b.total_amount, b.price_paid
        FROM bookings b WHERE b.id=$1 FOR UPDATE`,
       [id]
     );
@@ -342,160 +288,22 @@ router.post('/bookings/:id/payment', async (req, res) => {
       return res.status(409).json({ message: 'Booking cannot be confirmed', status: booking.status });
     }
 
-    // Determine final status based on payment method
-    // For offline/cash payments, keep status as 'pending' to indicate waiting for in-person confirmation
-    // For online payments (card, QR), set status to 'confirmed'
-    const normalizedMethod = (payment_method || booking.payment_method || 'card').toLowerCase();
-    const isOfflinePayment = ['cash', 'offline', 'cod', 'counter'].includes(normalizedMethod);
-    const finalStatus = isOfflinePayment ? 'pending' : 'confirmed';
-
-    // For offline payments, don't mark as paid yet; for online payments, record full payment
-    const paidAmount = isOfflinePayment ? 0 : (Number(booking.total_amount) || 0);
-    const paymentMeta = { method: normalizedMethod, note: isOfflinePayment ? 'Waiting for counter payment' : 'Online payment confirmed' };
-
-    console.log(`[bookings/${id}/payment] Updating: status='${finalStatus}', price_paid=${paidAmount}, payment_method='${normalizedMethod}'`);
-
-    // ✅ Update booking status and payment info
-    // Split into two queries to ensure data integrity
-    try {
-      await client.query(
-        `UPDATE bookings SET status=$1, price_paid=$2, payment_method=$3, paid_at=NOW() WHERE id=$4`,
-        [finalStatus, paidAmount, normalizedMethod, id]
-      );
-      console.log(`[bookings/${id}/payment] Main update successful`);
-    } catch (updateErr) {
-      console.error(`[bookings/${id}/payment] Main update failed:`, updateErr.message);
-      throw updateErr;
-    }
-
-    // ✅ Update metadata separately
-    try {
-      await client.query(
-        `UPDATE bookings SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb WHERE id=$2`,
-        [JSON.stringify({ payment: paymentMeta }), id]
-      );
-      console.log(`[bookings/${id}/payment] Metadata update successful`);
-    } catch (metaErr) {
-      console.warn(`[bookings/${id}/payment] Metadata update warning:`, metaErr.message);
-      // Don't fail on metadata error
-    }
-
-    // ✅ Properly handle COMMIT with error catching
-    await client.query('COMMIT');
-    client.release();
-
-    console.log(`[bookings/${id}/payment] ✅ Payment confirmed: status='${finalStatus}'`);
-    res.json({ message: 'Payment confirmed', booking_id: Number(id), status: finalStatus, paidAmount });
-  } catch (err) {
-    console.error(`[bookings/${id}/payment] ❌ Error:`, err.message || err);
-    console.error(`[bookings/${id}/payment] Stack:`, err.stack);
-    try {
-      await client.query('ROLLBACK');
-    } catch (rollbackErr) {
-      console.error(`[bookings/${id}/payment] Rollback error:`, rollbackErr.message);
-    }
-    client.release();
-    res.status(500).json({ message: 'Could not confirm payment' });
-  }
-});
-
-// PUT/PATCH /bookings/:id/payment-method - Change payment method for a pending booking
-router.put('/bookings/:id/payment-method', async (req, res) => {
-  const { id } = req.params;
-  const { payment_method } = req.body || {};
-
-  if (!payment_method) {
-    return res.status(400).json({ message: 'payment_method is required' });
-  }
-
-  const client = await beginTransaction();
-  try {
-    await client.query('BEGIN');
-
-    const bookingRes = await client.query(
-      `SELECT b.id, b.trip_id, b.status, b.total_amount, b.metadata, t.departure_time
-       FROM bookings b
-       JOIN trips t ON t.id = b.trip_id
-       WHERE b.id=$1 FOR UPDATE`,
-      [id]
-    );
-
-    if (!bookingRes.rowCount) {
-      await rollbackAndRelease(client);
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-
-    const booking = bookingRes.rows[0];
-
-    // Check if booking is in a state that allows payment method change
-    if (!['pending', 'expired'].includes(booking.status)) {
-      await rollbackAndRelease(client);
-      return res.status(409).json({
-        message: 'Cannot change payment method for this booking status',
-        status: booking.status
-      });
-    }
-
-    // Check if trip has not departed yet
-    const now = new Date();
-    const departureTime = new Date(booking.departure_time);
-    if (departureTime <= now) {
-      await rollbackAndRelease(client);
-      return res.status(400).json({
-        message: 'Cannot change payment method - trip has already departed',
-        departure_time: booking.departure_time
-      });
-    }
-
-    // Normalize payment method
-    const normalizedMethod = payment_method.toLowerCase();
-    const isOfflinePayment = ['cash', 'offline', 'cod', 'counter'].includes(normalizedMethod);
-
-    // If changing to offline payment and booking was expired, restore it to pending
-    let newStatus = booking.status;
-    if (booking.status === 'expired' && isOfflinePayment) {
-      newStatus = 'pending';
-      console.log(`Restoring expired booking ${id} to pending (changed to offline payment)`);
-    }
-
-    // Update payment method and status
-    const paymentMeta = {
-      method: normalizedMethod,
-      changed_at: new Date().toISOString(),
-      note: isOfflinePayment ? 'Payment at counter' : 'Online payment'
-    };
+    // Mark as confirmed, record payment info. For simplicity we treat card as full payment.
+    const paidAmount = Number(booking.total_amount) || 0;
+    const paymentMeta = { method: payment_method || 'card', note: 'Client confirmed payment' };
 
     await client.query(
-      `UPDATE bookings
-       SET payment_method=$1,
-           status=$2,
-           metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
-       WHERE id=$4`,
-      [normalizedMethod, newStatus, JSON.stringify({ payment: paymentMeta }), id]
+      `UPDATE bookings SET status=$1, price_paid=$2, payment_method=$3, paid_at=NOW(), metadata = COALESCE(metadata, '{}'::jsonb) || $4::jsonb WHERE id=$5`,
+      ['confirmed', paidAmount, payment_method || 'card', JSON.stringify({ payment: paymentMeta }), id]
     );
 
     await commitAndRelease(client);
-
-    res.json({
-      message: 'Payment method updated successfully',
-      booking_id: Number(id),
-      payment_method: normalizedMethod,
-      status: newStatus,
-      note: isOfflinePayment ? 'Booking will not expire automatically. Please pay at the counter.' : 'Please complete payment within the time limit.'
-    });
-
+    res.json({ message: 'Payment confirmed', booking_id: Number(id), status: 'confirmed', paidAmount });
   } catch (err) {
-    console.error('Update payment method failed:', err.message || err);
+    console.error('Confirm payment failed:', err.message || err);
     await rollbackAndRelease(client);
-    res.status(500).json({ message: 'Could not update payment method' });
+    res.status(500).json({ message: 'Could not confirm payment' });
   }
-});
-
-// PATCH alias for payment-method update
-router.patch('/bookings/:id/payment-method', async (req, res) => {
-  // Reuse PUT handler
-  req.method = 'PUT';
-  router.handle(req, res);
 });
 
 // Force expire a booking (admin/debug)
@@ -527,76 +335,6 @@ router.post('/bookings/:id/expire', async (req, res) => {
     console.error('Expire booking failed:', err);
     await rollbackAndRelease(client);
     res.status(500).json({ message: 'Failed to expire booking' });
-  }
-});
-
-// POST /bookings/:id/confirm-offline-payment - Admin confirms offline payment
-// Changes booking status from 'pending' (offline) to 'confirmed'
-router.post('/bookings/:id/confirm-offline-payment', async (req, res) => {
-  const { id } = req.params;
-  // TODO: Add admin auth check here
-  const client = await beginTransaction();
-  try {
-    await client.query('BEGIN');
-    const bookingRes = await client.query(
-      `SELECT b.id, b.trip_id, b.status, b.total_amount, b.payment_method, b.user_id
-       FROM bookings b WHERE b.id=$1 FOR UPDATE`,
-      [id]
-    );
-    if (!bookingRes.rowCount) {
-      await rollbackAndRelease(client);
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-    const booking = bookingRes.rows[0];
-
-    // Check if this is an offline payment booking in pending status
-    const normalizedMethod = (booking.payment_method || '').toLowerCase();
-    const isOfflinePayment = ['cash', 'offline', 'cod', 'counter'].includes(normalizedMethod);
-
-    if (!isOfflinePayment) {
-      await rollbackAndRelease(client);
-      return res.status(400).json({
-        message: 'Can only confirm offline payments',
-        payment_method: booking.payment_method
-      });
-    }
-
-    if (booking.status !== 'pending') {
-      await rollbackAndRelease(client);
-      return res.status(409).json({
-        message: 'Booking must be in pending status to confirm offline payment',
-        current_status: booking.status
-      });
-    }
-
-    // Update booking: mark as confirmed and record payment
-    const totalAmount = Number(booking.total_amount) || 0;
-    const paymentMeta = {
-      method: normalizedMethod,
-      confirmed_by: 'admin',
-      confirmed_at: new Date().toISOString(),
-      note: 'Offline payment confirmed by admin'
-    };
-
-    await client.query(
-      `UPDATE bookings
-       SET status=$1, price_paid=$2, paid_at=NOW(), metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
-       WHERE id=$4`,
-      ['confirmed', totalAmount, JSON.stringify({ payment: paymentMeta }), id]
-    );
-
-    await commitAndRelease(client);
-
-    res.json({
-      message: 'Offline payment confirmed successfully',
-      booking_id: Number(id),
-      status: 'confirmed',
-      price_paid: totalAmount
-    });
-  } catch (err) {
-    console.error('Confirm offline payment failed:', err.message || err);
-    await rollbackAndRelease(client);
-    res.status(500).json({ message: 'Failed to confirm offline payment' });
   }
 });
 

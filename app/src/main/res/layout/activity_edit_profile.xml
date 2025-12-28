@@ -105,6 +105,7 @@
                     android:maxLines="1" />
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- ... Đoạn code tilPhone giữ nguyên ... -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/tilPhone"
                 android:layout_width="0dp"
@@ -128,74 +129,9 @@
                     android:maxLines="1" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/tilDob"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:hint="Ngày sinh"
-                app:boxBackgroundMode="outline"
-                app:boxCornerRadiusBottomEnd="12dp"
-                app:boxCornerRadiusBottomStart="12dp"
-                app:boxCornerRadiusTopEnd="12dp"
-                app:boxCornerRadiusTopStart="12dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tilPhone">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/edtDob"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:clickable="true"
-                    android:drawableEnd="@drawable/ic_calendar"
-                    android:focusable="false"
-                    android:inputType="none" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <TextView
-                android:id="@+id/tvGenderLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:text="Giới tính"
-                android:textColor="@color/textPrimary"
-                android:textSize="16sp"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tilDob" />
-
-            <RadioGroup
-                android:id="@+id/rgGender"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:orientation="horizontal"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tvGenderLabel">
-
-                <RadioButton
-                    android:id="@+id/rbMale"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Nam" />
-
-                <RadioButton
-                    android:id="@+id/rbFemale"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:text="Nữ" />
-
-                <RadioButton
-                    android:id="@+id/rbOther"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:text="Khác" />
-            </RadioGroup>
-
+            <!-- ============================================ -->
+            <!-- THÊM ĐOẠN NÀY: Ô hiển thị Role (Read-only)   -->
+            <!-- ============================================ -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/tilRole"
                 android:layout_width="0dp"
@@ -209,8 +145,9 @@
                 app:boxCornerRadiusTopStart="12dp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/rgGender">
+                app:layout_constraintTop_toBottomOf="@id/tilPhone">
 
+                <!-- android:enabled="false" để KHÔNG cho người dùng tự sửa role -->
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/edtRole"
                     android:layout_width="match_parent"
@@ -220,6 +157,9 @@
                     android:maxLines="1" />
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- ============================================ -->
+            <!-- SỬA LẠI NÚT LƯU: Neo xuống dưới tilRole      -->
+            <!-- ============================================ -->
             <Button
                 android:id="@+id/btnSaveProfile"
                 android:layout_width="0dp"

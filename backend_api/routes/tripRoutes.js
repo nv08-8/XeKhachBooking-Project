@@ -33,9 +33,6 @@ const getTrips = async (req, res) => {
     WHERE 1=1`;
   const params = [];
 
-  // Filter out past trips - only show trips that haven't departed yet
-  sql += " AND t.departure_time > NOW()";
-
   if (route_id) { sql += " AND t.route_id = $" + (params.length + 1); params.push(route_id); }
   if (origin) { sql += " AND r.origin ILIKE $" + (params.length + 1); params.push(`%${origin}%`); }
   if (destination) { sql += " AND r.destination ILIKE $" + (params.length + 1); params.push(`%${destination}%`); }

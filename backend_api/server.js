@@ -19,9 +19,6 @@ const seatsRoutes = require("./routes/seatsRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const driversRoutes = require("./routes/driversRoutes"); // Import new routes
 
-// Initialize cron jobs (auto-complete bookings)
-const bookingStatusJob = require("./jobs/bookingStatus.job");
-
 app.use(express.json());
 app.use(cors());
 
@@ -87,9 +84,6 @@ const io = new Server(server, {
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me';
 
-// Connect Socket.IO to cron job for real-time updates
-bookingStatusJob.setSocketIO(io);
-
 // Simple socket auth: client passes ?token=JWT; server verifies token and lets socket join user room
 io.on('connection', async (socket) => {
   try {
@@ -137,21 +131,13 @@ io.on('connection', async (socket) => {
 // Background job: expire pending bookings older than configured TTL (default 10 minutes)
 // You can override this by setting BOOKING_PENDING_TTL_MINUTES in your environment (e.g., .env).
 const BOOKING_PENDING_TTL_MINUTES = parseInt(process.env.BOOKING_PENDING_TTL_MINUTES || '10', 10);
-const EXPIRE_CHECK_INTERVAL_MS = 5 * 1000; // run every 5 seconds
+const EXPIRE_CHECK_INTERVAL_MS = 60 * 1000; // run every minute
 
 async function expirePendingBookings() {
     try {
-        // Find pending bookings that MIGHT need expiring
-        // Criteria:
-        // 1. Online Payment (QR/Card) -> expire after TTL (10 mins)
-        // 2. Offline Payment -> NOT EXPIRED AUTOMATICALLY (as per request)
-        const sql = `SELECT b.id, b.user_id, b.trip_id, t.arrival_time, b.metadata, b.created_at, b.payment_method
-                     FROM bookings b
-                     JOIN trips t ON t.id = b.trip_id
-                     WHERE b.status='pending' 
-                     AND (b.created_at < NOW() - INTERVAL '${BOOKING_PENDING_TTL_MINUTES} minutes')`; 
-                     // Removed "OR t.arrival_time < NOW()" from SQL to avoid fetching offline bookings unnecessarily
-        
+        // console.log(`Running expirePendingBookings (TTL=${BOOKING_PENDING_TTL_MINUTES}min)`);
+        // Find pending bookings older than TTL (fetch minimal columns; we'll re-select inside transaction)
+        const sql = `SELECT id, user_id, trip_id FROM bookings WHERE status='pending' AND created_at < NOW() - INTERVAL '${BOOKING_PENDING_TTL_MINUTES} minutes'`;
         const { rows } = await db.query(sql);
         if (!rows || rows.length === 0) return;
 
@@ -175,81 +161,6 @@ async function expirePendingBookings() {
                     continue;
                 }
 
-                // ✅ CRITICAL: Check payment_method FIRST - Offline payments should NEVER be auto-expired
-                if (booking.payment_method) {
-                    const method = String(booking.payment_method).toLowerCase();
-                    if (['cash', 'offline', 'cod', 'counter'].includes(method)) {
-                        // This is an offline payment - DO NOT EXPIRE IT
-                        await client.query('ROLLBACK');
-                        client.release();
-                        console.log(`Skipping offline payment booking id=${booking.id} (method=${method})`);
-                        continue;
-                    }
-                }
-
-                // Determine if this booking should be cancelled
-                // Logic:
-                // - Is Online Payment? (Has orderCode in metadata OR explicit payment_method)
-                // - If Online: Cancel if created_at > TTL
-                // - If Offline: Do NOT cancel
-
-                let isOnlinePayment = false;
-
-                // Check payment_method field first (most reliable)
-                if (booking.payment_method) {
-                    const method = String(booking.payment_method).toLowerCase();
-                    // Offline methods: cash, offline, cod, counter
-                    const offlineMethods = ['cash', 'offline', 'cod', 'counter'];
-                    const onlineMethods = ['card', 'qr', 'payos', 'credit_card', 'momo', 'vnpay'];
-
-                    if (offlineMethods.includes(method)) {
-                        isOnlinePayment = false;
-                    } else if (onlineMethods.includes(method)) {
-                        isOnlinePayment = true;
-                    }
-                }
-
-                // Fallback to metadata checks if payment_method is not set or unclear
-                if (!booking.payment_method || (!isOnlinePayment && !['cash', 'offline', 'cod', 'counter'].includes(String(booking.payment_method).toLowerCase()))) {
-                    if (booking.metadata && booking.metadata.payment) {
-                        if (booking.metadata.payment.orderCode) {
-                            isOnlinePayment = true;
-                        } else if (booking.metadata.payment.method) {
-                            const metaMethod = String(booking.metadata.payment.method).toLowerCase();
-                            if (['card', 'qr', 'payos', 'credit_card', 'momo', 'vnpay'].includes(metaMethod)) {
-                                isOnlinePayment = true;
-                            } else if (['cash', 'offline', 'cod', 'counter'].includes(metaMethod)) {
-                                isOnlinePayment = false;
-                            }
-                        }
-                    }
-                }
-
-                const now = new Date();
-                const createdAt = new Date(booking.created_at);
-                const ttlLimit = new Date(createdAt.getTime() + BOOKING_PENDING_TTL_MINUTES * 60000);
-                
-                let shouldCancel = false;
-                let newStatus = 'cancelled'; // Default
-
-                if (isOnlinePayment) {
-                    // Online payment: expire if TTL passed
-                    if (now > ttlLimit) {
-                        shouldCancel = true;
-                        newStatus = 'expired'; // More accurate status for timeout
-                    }
-                } else {
-                    // Offline/Cash: Do NOT expire automatically
-                    shouldCancel = false;
-                }
-
-                if (!shouldCancel) {
-                    await client.query('ROLLBACK');
-                    client.release();
-                    continue;
-                }
-
-                // Proceed to cancel/expire
                 // Preferred source of seat labels: booking_items table (one row per seat)
                 let seatLabels = [];
                 try {
@@ -306,7 +217,7 @@ async function expirePendingBookings() {
                     );
                 }
 
-                // Mark booking as expired/cancelled (prefer update with expired_at if column exists) instead of deleting
+                // Mark booking as expired (prefer update with expired_at if column exists) instead of deleting
                 const colCheck = await client.query(`
                   SELECT column_name
                   FROM information_schema.columns
@@ -316,13 +227,13 @@ async function expirePendingBookings() {
 
                 if (colCheck.rowCount > 0) {
                   await client.query(
-                    "UPDATE bookings SET status=$1, expired_at=NOW() WHERE id=$2",
-                    [newStatus, bookingId]
+                    "UPDATE bookings SET status='expired', expired_at=NOW() WHERE id=$1",
+                    [bookingId]
                   );
                 } else {
                   await client.query(
-                    "UPDATE bookings SET status=$1 WHERE id=$2",
-                    [newStatus, bookingId]
+                    "UPDATE bookings SET status='expired' WHERE id=$1",
+                    [bookingId]
                   );
                 }
 
@@ -331,13 +242,13 @@ async function expirePendingBookings() {
                   id: bookingId,
                   trip_id: booking.trip_id,
                   seat_labels: seatLabels,
-                  status: newStatus
+                  status: 'expired'
                 });
 
                 await client.query('COMMIT');
                 client.release();
 
-                console.log(`Auto-cancelling pending booking id=${bookingId} (status=${newStatus}), type=${isOnlinePayment?'online':'offline'}, released=${releasedCount} seats`);
+                console.log(`Expired pending booking id=${bookingId}, trip_id=${booking.trip_id}, released=${releasedCount}, seats=${JSON.stringify(seatLabels)}`);
             } catch (err) {
                 console.error('Failed to expire booking id=' + bookingId, err.message || err);
                 try { await client.query('ROLLBACK'); } catch (e) { /* ignore */ }
@@ -349,59 +260,11 @@ async function expirePendingBookings() {
     }
 }
 
-// ====================================================================
-// OLD BACKGROUND JOB - COMMENTED OUT (Replaced by cron job)
-// ====================================================================
-/*
-// Background job: mark confirmed bookings as completed when arrival_time has passed
-const COMPLETE_CHECK_INTERVAL_MS = 60 * 1000; // run every minute
-
-async function completeFinishedBookings() {
-    try {
-        // Find confirmed bookings where arrival_time < NOW
-        const sql = `
-            SELECT b.id, b.user_id, b.trip_id, b.status
-            FROM bookings b
-            JOIN trips t ON t.id = b.trip_id
-            WHERE b.status = 'confirmed' AND t.arrival_time < NOW()
-        `;
-        const { rows } = await db.query(sql);
-        if (!rows || rows.length === 0) return;
-
-        for (const booking of rows) {
-            try {
-                // Update booking status to completed
-                await db.query(
-                    "UPDATE bookings SET status='completed' WHERE id=$1",
-                    [booking.id]
-                );
-
-                // Emit booking_event to user's room
-                io.to(`user_${booking.user_id}`).emit('booking_event', {
-                    id: booking.id,
-                    trip_id: booking.trip_id,
-                    status: 'completed'
-                });
-
-                console.log(`Marked booking id=${booking.id} as completed (arrival_time passed)`);
-            } catch (err) {
-                console.error('Failed to complete booking id=' + booking.id, err.message || err);
-            }
-        }
-    } catch (err) {
-        console.error('completeFinishedBookings failed:', err.message || err);
-    }
-}
-*/
-// ====================================================================
-
-// Start intervals
+// Start interval
 setInterval(expirePendingBookings, EXPIRE_CHECK_INTERVAL_MS);
-// setInterval(completeFinishedBookings, COMPLETE_CHECK_INTERVAL_MS); // Commented out - using cron job instead
 
 // Run once at startup
 expirePendingBookings();
-// completeFinishedBookings(); // Commented out - using cron job instead
 
 // Start HTTP server (Express + Socket.IO)
 const PORT = process.env.PORT || 10000;
