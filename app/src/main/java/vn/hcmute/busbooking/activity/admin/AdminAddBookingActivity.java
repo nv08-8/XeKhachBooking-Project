@@ -28,7 +28,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 import vn.hcmute.busbooking.R;
-import vn.hcmute.busbooking.adapter.SeatAdapter;
+import vn.hcmute.busbooking.adapter.AdminSeatAdapter;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.Seat;
@@ -44,7 +44,7 @@ public class AdminAddBookingActivity extends AppCompatActivity {
 
     private ApiService apiService;
     private SessionManager sessionManager;
-    private SeatAdapter floor1Adapter, floor2Adapter;
+    private AdminSeatAdapter floor1Adapter, floor2Adapter;
     private final List<Seat> floor1Seats = new ArrayList<>();
     private final List<Seat> floor2Seats = new ArrayList<>();
     private final Set<String> selectedSeats = new HashSet<>();
@@ -96,7 +96,7 @@ public class AdminAddBookingActivity extends AppCompatActivity {
 
     private void setupSeatAdapters() {
         // Floor 1 (Tầng A) Adapter
-        floor1Adapter = new SeatAdapter(floor1Seats, seat -> {
+        floor1Adapter = new AdminSeatAdapter(floor1Seats, seat -> {
             handleSeatClick(seat);
         });
 
@@ -105,7 +105,7 @@ public class AdminAddBookingActivity extends AppCompatActivity {
         floor1RecyclerView.setAdapter(floor1Adapter);
 
         // Floor 2 (Tầng B) Adapter
-        floor2Adapter = new SeatAdapter(floor2Seats, seat -> {
+        floor2Adapter = new AdminSeatAdapter(floor2Seats, seat -> {
             handleSeatClick(seat);
         });
 
@@ -150,11 +150,12 @@ public class AdminAddBookingActivity extends AppCompatActivity {
         progressBar.setVisibility(View.VISIBLE);
 
         // Gọi API để update is_booked = 0
-        apiService.removeSeatBooking(tripId, seat.getLabel())
-            .enqueue(new android.retrofit2.Callback<Map<String, Object>>() {
+        int userId = sessionManager.getUserId();
+        apiService.removeSeatBooking(userId, tripId, seat.getLabel())
+            .enqueue(new Callback<Map<String, Object>>() {
                 @Override
-                public void onResponse(android.retrofit2.Call<Map<String, Object>> call,
-                                     android.retrofit2.Response<Map<String, Object>> response) {
+                public void onResponse(Call<Map<String, Object>> call,
+                                     Response<Map<String, Object>> response) {
                     progressBar.setVisibility(View.GONE);
                     if (response.isSuccessful()) {
                         // Update local state
@@ -169,7 +170,7 @@ public class AdminAddBookingActivity extends AppCompatActivity {
                 }
 
                 @Override
-                public void onFailure(android.retrofit2.Call<Map<String, Object>> call, Throwable t) {
+                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                     progressBar.setVisibility(View.GONE);
                     Toast.makeText(AdminAddBookingActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                 }

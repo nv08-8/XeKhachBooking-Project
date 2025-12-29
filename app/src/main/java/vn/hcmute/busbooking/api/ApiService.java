@@ -179,7 +179,7 @@ public interface ApiService {
     Call<Map<String, Object>> adminCreateBooking(@Header("user-id") int userId, @Body Map<String, Object> body);
 
     @DELETE("api/admin/trips/{tripId}/seats/{seatLabel}")
-    Call<Map<String, Object>> removeSeatBooking(@Path("tripId") int tripId, @Path("seatLabel") String seatLabel);
+    Call<Map<String, Object>> removeSeatBooking(@Header("user-id") int userId, @Path("tripId") int tripId, @Path("seatLabel") String seatLabel);
 
     // ========== USER MANAGEMENT ==========
     @GET("api/admin/users")

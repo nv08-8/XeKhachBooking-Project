@@ -14,7 +14,7 @@ import java.util.List;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.model.Seat;
 
-public class SeatAdapter extends RecyclerView.Adapter<SeatAdapter.SeatViewHolder> {
+public class AdminSeatAdapter extends RecyclerView.Adapter<AdminSeatAdapter.SeatViewHolder> {
 
     private final List<Seat> seatList;
     private final OnSeatClickListener listener;
@@ -23,7 +23,7 @@ public class SeatAdapter extends RecyclerView.Adapter<SeatAdapter.SeatViewHolder
         void onSeatClick(Seat seat);
     }
 
-    public SeatAdapter(List<Seat> seatList, OnSeatClickListener listener) {
+    public AdminSeatAdapter(List<Seat> seatList, OnSeatClickListener listener) {
         this.seatList = seatList;
         this.listener = listener;
     }
@@ -38,7 +38,7 @@ public class SeatAdapter extends RecyclerView.Adapter<SeatAdapter.SeatViewHolder
     @Override
     public void onBindViewHolder(@NonNull SeatViewHolder holder, int position) {
         Seat seat = seatList.get(position);
-        if (seat == null) return; // Add null check for the seat object itself
+        if (seat == null) return;
 
         if ("aisle".equals(seat.getSeatType())) {
             holder.itemView.setVisibility(View.INVISIBLE);
@@ -65,22 +65,28 @@ public class SeatAdapter extends RecyclerView.Adapter<SeatAdapter.SeatViewHolder
             // Set text safely, defaulting to empty string if label is null
             seatTextView.setText(seat.getLabel() != null ? seat.getLabel() : "");
 
-            // Các loại ghế:
+            // Các loại ghế cho Admin:
             // 1. isBooked=true, bookingId!=null → ghế của khách đặt (disable hoàn toàn, xám)
-            // 2. isBooked=true, bookingId=null → ghế admin đánh dấu (có thể gỡ, xám nhưng clickable)
+            // 2. isBooked=true, bookingId=null → ghế admin đánh dấu (có thể gỡ, xanh dương nhạt)
             // 3. isBooked=false → ghế trống (có thể chọn)
 
             boolean isCustomerBooked = seat.isBooked() && seat.getBookingId() != null;
             boolean isAdminMarked = seat.isAdminMarked();
-            boolean isAnyBooked = seat.isBooked(); // Xám cho cả 2 loại booked
 
             seatTextView.setEnabled(!isCustomerBooked); // Chỉ disable nếu khách đặt
             seatTextView.setSelected(seat.isSelected());
 
             int textColor;
-            if (isAnyBooked) {
-                // Cả ghế khách đặt và admin đánh dấu đều xám
+
+            if (isCustomerBooked) {
+                // Ghế khách đặt - xám (set background qua state)
                 textColor = ContextCompat.getColor(itemView.getContext(), R.color.textSecondary);
+                // Background từ drawable sẽ tự xử lý qua state_enabled="false"
+            } else if (isAdminMarked) {
+                // Ghế admin đánh dấu - xanh dương nhạt, clickable
+                textColor = ContextCompat.getColor(itemView.getContext(), R.color.textPrimary);
+                // Set background color trực tiếp
+                seatTextView.setBackgroundColor(ContextCompat.getColor(itemView.getContext(), R.color.lightBlue));
             } else if (seat.isSelected()) {
                 // Ghế được chọn - trắng
                 textColor = ContextCompat.getColor(itemView.getContext(), R.color.white);
@@ -100,3 +106,4 @@ public class SeatAdapter extends RecyclerView.Adapter<SeatAdapter.SeatViewHolder
         }
     }
 }
+

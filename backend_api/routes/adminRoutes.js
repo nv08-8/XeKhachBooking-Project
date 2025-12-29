@@ -872,15 +872,21 @@ router.delete("/trips/:tripId/seats/:seatLabel", checkAdminRole, async (req, res
     if (!seatRes.rowCount) {
       await client.query("ROLLBACK");
       client.release();
+      console.log(`[removeSeat] Seat not found: trip=${tripIdNum}, label=${seatLabel}`);
       return res.status(404).json({ message: "Seat not found" });
     }
 
     const seat = seatRes.rows[0];
+    console.log(`[removeSeat] Seat info:`, seat);
 
     // Chỉ cho gỡ ghế được admin đánh dấu (is_booked=1 nhưng booking_id=NULL)
-    if (!seat.is_booked || seat.booking_id !== null) {
+    // booking_id có thể là null, undefined, hoặc 0
+    const hasBookingId = seat.booking_id !== null && seat.booking_id !== undefined && seat.booking_id !== 0;
+
+    if (!seat.is_booked || hasBookingId) {
       await client.query("ROLLBACK");
       client.release();
+      console.log(`[removeSeat] Cannot remove: is_booked=${seat.is_booked}, booking_id=${seat.booking_id}, hasBookingId=${hasBookingId}`);
       return res.status(409).json({
         message: "Không thể gỡ vé này - chỉ có thể gỡ ghế được admin đánh dấu",
         is_booked: seat.is_booked,
@@ -903,7 +909,7 @@ router.delete("/trips/:tripId/seats/:seatLabel", checkAdminRole, async (req, res
     await client.query("COMMIT");
     client.release();
 
-    console.log(`✅ [admin.removeSeat] Removed booking for seat ${seatLabel} on trip ${tripIdNum}`);
+    console.log(`✅ [removeSeat] Success: trip=${tripIdNum}, seat=${seatLabel}`);
     res.json({
       message: "Gỡ vé thành công",
       seat_label: seatLabel,
@@ -913,7 +919,7 @@ router.delete("/trips/:tripId/seats/:seatLabel", checkAdminRole, async (req, res
   } catch (err) {
     try { await client.query("ROLLBACK"); } catch (e) { /* ignore */ }
     client.release();
-    console.error("Error removing seat booking:", err);
+    console.error(`❌ [removeSeat] Error:`, err.message);
     res.status(500).json({ message: "Error removing seat booking", error: err.message });
   }
 });
