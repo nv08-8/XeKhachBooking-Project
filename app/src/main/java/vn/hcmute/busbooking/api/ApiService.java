@@ -172,6 +172,9 @@ public interface ApiService {
     @PUT("api/admin/bookings/{id}/cancel")
     Call<Map<String, Object>> cancelAdminBooking(@Header("user-id") int userId, @Path("id") int bookingId);
 
+    @POST("api/admin/bookings")
+    Call<Map<String, Object>> adminCreateBooking(@Header("user-id") int userId, @Body Map<String, Object> body);
+
     // ========== USER MANAGEMENT ==========
     @GET("api/admin/users")
     Call<List<User>> getAllUsers(@Header("user-id") int userId);

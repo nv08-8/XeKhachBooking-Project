@@ -29,6 +29,7 @@ public class TripsAdapter extends RecyclerView.Adapter<TripsAdapter.TripViewHold
     public interface OnTripClickListener {
         void onEditTrip(Map<String, Object> trip);
         void onDeleteTrip(Map<String, Object> trip);
+        void onManageSeats(Map<String, Object> trip);
     }
 
     // Correct constructor with 3 parameters
@@ -107,6 +108,12 @@ public class TripsAdapter extends RecyclerView.Adapter<TripsAdapter.TripViewHold
             }
         });
 
+        holder.btnSeats.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onManageSeats(trip);
+            }
+        });
+
         // Only show admin actions if the user is an admin
         if (sessionManager.isAdmin()) {
             holder.adminActionsLayout.setVisibility(View.VISIBLE);
@@ -123,7 +130,7 @@ public class TripsAdapter extends RecyclerView.Adapter<TripsAdapter.TripViewHold
     static class TripViewHolder extends RecyclerView.ViewHolder {
         TextView tvOperator, tvVehicleType, tvPrice, tvDepartureTime, tvOrigin, tvArrivalTime, tvDestination, tvDuration, tvDate;
         LinearLayout adminActionsLayout;
-        Button btnEdit, btnDelete;
+        Button btnEdit, btnDelete, btnSeats;
 
         public TripViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -139,6 +146,7 @@ public class TripsAdapter extends RecyclerView.Adapter<TripsAdapter.TripViewHold
             adminActionsLayout = itemView.findViewById(R.id.adminActionsLayout);
             btnEdit = itemView.findViewById(R.id.btnEdit);
             btnDelete = itemView.findViewById(R.id.btnDelete);
+            btnSeats = itemView.findViewById(R.id.btnSeats);
         }
     }
 }

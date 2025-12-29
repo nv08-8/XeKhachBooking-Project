@@ -756,4 +756,100 @@ router.post("/confirm-offline-payment/:id", checkAdminRole, async (req, res) => 
     }
 });
 
+// ============================================================
+// ADMIN: CREATE BOOKING FOR OFFLINE CUSTOMER
+// ============================================================
+router.post("/admin/bookings", checkAdminRole, async (req, res) => {
+  const { trip_id, seat_labels, passenger_name, passenger_phone, passenger_email, payment_method } = req.body;
+
+  if (!trip_id || !Array.isArray(seat_labels) || seat_labels.length === 0 || !passenger_name || !passenger_phone) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Ensure seats are generated
+    const { generateAndCacheSeats } = require("../utils/seatGenerator");
+    await generateAndCacheSeats(client, trip_id);
+
+    // Check if trip exists
+    const tripResult = await client.query(
+      'SELECT id, price FROM trips WHERE id=$1 FOR UPDATE',
+      [trip_id]
+    );
+    if (!tripResult.rowCount) {
+      await client.query("ROLLBACK");
+      client.release();
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    const tripPrice = parseFloat(tripResult.rows[0].price) || 0;
+    const totalAmount = Number((tripPrice * seat_labels.length).toFixed(2));
+
+    // For admin-created offline bookings, set as confirmed immediately
+    const bookingStatus = payment_method === 'offline' ? 'confirmed' : 'pending';
+    const paidAt = payment_method === 'offline' ? new Date() : null;
+
+    // Create booking
+    const bookingRes = await client.query(
+      `INSERT INTO bookings (
+        trip_id, total_amount, price_paid, status, payment_method,
+        passenger_info, created_at, paid_at, seats_count
+      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8)
+      RETURNING id`,
+      [
+        trip_id,
+        totalAmount,
+        payment_method === 'offline' ? totalAmount : 0,
+        bookingStatus,
+        payment_method || 'offline',
+        JSON.stringify({ name: passenger_name, phone: passenger_phone, email: passenger_email }),
+        paidAt,
+        seat_labels.length
+      ]
+    );
+
+    const bookingId = bookingRes.rows[0].id;
+
+    // Update seats to mark as booked
+    for (const label of seat_labels) {
+      let seatRes = await client.query(
+        'SELECT id FROM seats WHERE trip_id=$1 AND label=$2 FOR UPDATE',
+        [trip_id, label]
+      );
+
+      if (!seatRes.rowCount) {
+        await client.query(
+          'INSERT INTO seats (trip_id, label, type, is_booked, booking_id) VALUES ($1, $2, $3, 1, $4) ON CONFLICT (trip_id, label) DO UPDATE SET is_booked=1, booking_id=$4',
+          [trip_id, label, 'seat', bookingId]
+        );
+      } else {
+        await client.query(
+          'UPDATE seats SET is_booked=1, booking_id=$1 WHERE trip_id=$2 AND label=$3',
+          [bookingId, trip_id, label]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    client.release();
+
+    res.status(201).json({
+      id: bookingId,
+      trip_id,
+      total_amount: totalAmount,
+      status: bookingStatus,
+      seats_count: seat_labels.length,
+      message: "Booking created successfully"
+    });
+  } catch (err) {
+    try { await client.query("ROLLBACK"); } catch (e) { /* ignore */ }
+    client.release();
+    console.error("Error creating admin booking:", err);
+    res.status(500).json({ message: "Error creating booking", error: err.message });
+  }
+});
+
 module.exports = router;

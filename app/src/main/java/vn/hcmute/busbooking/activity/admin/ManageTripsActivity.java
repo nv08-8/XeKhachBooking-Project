@@ -191,6 +191,21 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
     }
 
     @Override
+    public void onManageSeats(Map<String, Object> trip) {
+        Object idObj = trip.get("id");
+        if (idObj != null) {
+            try {
+                int tripId = new Double(idObj.toString()).intValue();
+                Intent intent = new Intent(this, AdminAddBookingActivity.class);
+                intent.putExtra("trip_id", tripId);
+                startActivity(intent);
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, "ID chuyến đi không hợp lệ", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    @Override
     public boolean onSupportNavigateUp() {
         onBackPressed();
         return true;
