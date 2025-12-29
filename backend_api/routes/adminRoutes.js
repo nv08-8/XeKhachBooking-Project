@@ -731,12 +731,27 @@ router.post("/confirm-offline-payment/:id", checkAdminRole, async (req, res) => 
             note: 'Offline payment confirmed by admin'
         };
 
-        await client.query(
-            `UPDATE bookings
-             SET status=$1, price_paid=$2, paid_at=NOW(), metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
-             WHERE id=$4`,
-            ['confirmed', totalAmount, JSON.stringify({ payment: paymentMeta }), id]
-        );
+        // Try to update with paid_at first, fallback if column doesn't exist
+        try {
+            await client.query(
+                `UPDATE bookings
+                 SET status=$1, price_paid=$2, paid_at=NOW(), metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
+                 WHERE id=$4`,
+                ['confirmed', totalAmount, JSON.stringify({ payment: paymentMeta }), id]
+            );
+        } catch (updateErr) {
+            // If paid_at column doesn't exist, try without it
+            if (updateErr.message && updateErr.message.includes('paid_at')) {
+                await client.query(
+                    `UPDATE bookings
+                     SET status=$1, price_paid=$2, metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
+                     WHERE id=$4`,
+                    ['confirmed', totalAmount, JSON.stringify({ payment: paymentMeta }), id]
+                );
+            } else {
+                throw updateErr;
+            }
+        }
 
         await client.query('COMMIT');
         client.release();
@@ -759,7 +774,7 @@ router.post("/confirm-offline-payment/:id", checkAdminRole, async (req, res) => 
 // ============================================================
 // ADMIN: CREATE BOOKING FOR OFFLINE CUSTOMER
 // ============================================================
-router.post("/admin/bookings", checkAdminRole, async (req, res) => {
+router.post("/bookings", checkAdminRole, async (req, res) => {
   const { trip_id, seat_labels, passenger_name, passenger_phone, passenger_email, payment_method } = req.body;
 
   if (!trip_id || !Array.isArray(seat_labels) || seat_labels.length === 0 || !passenger_name || !passenger_phone) {
@@ -792,24 +807,49 @@ router.post("/admin/bookings", checkAdminRole, async (req, res) => {
     const bookingStatus = payment_method === 'offline' ? 'confirmed' : 'pending';
     const paidAt = payment_method === 'offline' ? new Date() : null;
 
-    // Create booking
-    const bookingRes = await client.query(
-      `INSERT INTO bookings (
-        trip_id, total_amount, price_paid, status, payment_method,
-        passenger_info, created_at, paid_at, seats_count
-      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8)
-      RETURNING id`,
-      [
-        trip_id,
-        totalAmount,
-        payment_method === 'offline' ? totalAmount : 0,
-        bookingStatus,
-        payment_method || 'offline',
-        JSON.stringify({ name: passenger_name, phone: passenger_phone, email: passenger_email }),
-        paidAt,
-        seat_labels.length
-      ]
-    );
+    // Create booking - try with paid_at first, fallback if column doesn't exist
+    let bookingRes;
+    try {
+      bookingRes = await client.query(
+        `INSERT INTO bookings (
+          trip_id, total_amount, price_paid, status, payment_method,
+          passenger_info, created_at, paid_at, seats_count
+        ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8)
+        RETURNING id`,
+        [
+          trip_id,
+          totalAmount,
+          payment_method === 'offline' ? totalAmount : 0,
+          bookingStatus,
+          payment_method || 'offline',
+          JSON.stringify({ name: passenger_name, phone: passenger_phone, email: passenger_email }),
+          paidAt,
+          seat_labels.length
+        ]
+      );
+    } catch (err) {
+      // If paid_at column doesn't exist, fallback to insert without it
+      if (err.message && err.message.includes('paid_at')) {
+        bookingRes = await client.query(
+          `INSERT INTO bookings (
+            trip_id, total_amount, price_paid, status, payment_method,
+            passenger_info, created_at, seats_count
+          ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
+          RETURNING id`,
+          [
+            trip_id,
+            totalAmount,
+            payment_method === 'offline' ? totalAmount : 0,
+            bookingStatus,
+            payment_method || 'offline',
+            JSON.stringify({ name: passenger_name, phone: passenger_phone, email: passenger_email }),
+            seat_labels.length
+          ]
+        );
+      } else {
+        throw err;
+      }
+    }
 
     const bookingId = bookingRes.rows[0].id;
 
