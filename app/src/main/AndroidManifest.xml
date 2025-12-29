@@ -84,7 +84,8 @@
         <activity android:name=".activity.admin.ManageReviewsActivity" />
         <activity android:name=".activity.admin.ManagePromotionsActivity" />
         <activity android:name=".activity.admin.PromotionFormActivity" />
-        <activity android:name=".activity.AdminOfflinePaymentActivity" />
+        <activity android:name=".activity.admin.AdminOfflinePaymentActivity" />
+        <activity android:name=".activity.admin.AdminAddBookingActivity" />
     </application>
 
 </manifest>

@@ -182,7 +182,7 @@ async function expirePendingBookings() {
                         // This is an offline payment - DO NOT EXPIRE IT
                         await client.query('ROLLBACK');
                         client.release();
-                        console.log(`Skipping offline payment booking id=${booking.id} (method=${method})`);
+                        // console.log(`Skipping offline payment booking id=${booking.id} (method=${method})`);
                         continue;
                     }
                 }

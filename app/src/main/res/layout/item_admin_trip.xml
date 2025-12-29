@@ -219,24 +219,38 @@
                 android:paddingVertical="12dp">
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSeats"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="4dp"
+                    android:layout_weight="1"
+                    android:text="Ghế"
+                    app:strokeColor="@color/colorPrimary"
+                    android:textColor="@color/colorPrimary"
+                    android:textSize="12sp" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnDelete"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginHorizontal="4dp"
                     android:layout_weight="1"
                     android:text="Xóa"
                     app:strokeColor="@color/darkRed"
-                    android:textColor="@color/darkRed" />
+                    android:textColor="@color/darkRed"
+                    android:textSize="12sp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnEdit"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="4dp"
                     android:layout_weight="1"
                     android:text="Sửa"
-                    app:backgroundTint="@color/colorPrimary" />
+                    app:backgroundTint="@color/colorPrimary"
+                    android:textSize="12sp" />
             </LinearLayout>
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>

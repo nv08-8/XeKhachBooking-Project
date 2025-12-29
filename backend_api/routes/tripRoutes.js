@@ -208,16 +208,13 @@ router.get("/trips/:id", async (req, res) => {
         delete trip.generic_bus_images;
 
         return res.json({
-            success: true,
-            data: {
-                ...trip,
-                amenities,
-                timeline,
-                reviews: reviewsResult.rows,
-                departure_display: formatTime(trip.departure_time),
-                arrival_display: formatTime(trip.arrival_time),
-                duration_display: formatDuration(trip.duration_min)
-            }
+            ...trip,
+            amenities,
+            timeline,
+            reviews: reviewsResult.rows,
+            departure_display: formatTime(trip.departure_time),
+            arrival_display: formatTime(trip.arrival_time),
+            duration_display: formatDuration(trip.duration_min)
         });
 
     } catch (error) {

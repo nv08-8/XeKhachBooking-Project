@@ -201,7 +201,7 @@ router.get("/bookings", checkAdminRole, async (req, res) => {
   let sql = `
     SELECT b.*, u.name, u.email, t.departure_time, r.origin, r.destination
     FROM bookings b
-    JOIN users u ON u.id = b.user_id
+    LEFT JOIN users u ON u.id = b.user_id
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
     WHERE 1=1
@@ -731,12 +731,27 @@ router.post("/confirm-offline-payment/:id", checkAdminRole, async (req, res) => 
             note: 'Offline payment confirmed by admin'
         };
 
-        await client.query(
-            `UPDATE bookings
-             SET status=$1, price_paid=$2, paid_at=NOW(), metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
-             WHERE id=$4`,
-            ['confirmed', totalAmount, JSON.stringify({ payment: paymentMeta }), id]
-        );
+        // Try to update with paid_at first, fallback if column doesn't exist
+        try {
+            await client.query(
+                `UPDATE bookings
+                 SET status=$1, price_paid=$2, paid_at=NOW(), metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
+                 WHERE id=$4`,
+                ['confirmed', totalAmount, JSON.stringify({ payment: paymentMeta }), id]
+            );
+        } catch (updateErr) {
+            // If paid_at column doesn't exist, try without it
+            if (updateErr.message && updateErr.message.includes('paid_at')) {
+                await client.query(
+                    `UPDATE bookings
+                     SET status=$1, price_paid=$2, metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
+                     WHERE id=$4`,
+                    ['confirmed', totalAmount, JSON.stringify({ payment: paymentMeta }), id]
+                );
+            } else {
+                throw updateErr;
+            }
+        }
 
         await client.query('COMMIT');
         client.release();
@@ -754,6 +769,81 @@ router.post("/confirm-offline-payment/:id", checkAdminRole, async (req, res) => 
         client.release();
         res.status(500).json({ message: 'Lỗi khi xác nhận thanh toán' });
     }
+});
+
+// ============================================================
+// ADMIN: MARK SEATS AS SOLD (for seats already sold by bus company)
+// ============================================================
+router.post("/bookings", checkAdminRole, async (req, res) => {
+  const { trip_id, seat_labels } = req.body;
+
+  if (!trip_id || !Array.isArray(seat_labels) || seat_labels.length === 0) {
+    return res.status(400).json({ message: "Missing required fields: trip_id and seat_labels" });
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Ensure seats are generated
+    const { generateAndCacheSeats } = require("../utils/seatGenerator");
+    await generateAndCacheSeats(client, trip_id);
+
+    // Check if trip exists
+    const tripResult = await client.query(
+      'SELECT id FROM trips WHERE id=$1 FOR UPDATE',
+      [trip_id]
+    );
+    if (!tripResult.rowCount) {
+      await client.query("ROLLBACK");
+      client.release();
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    // Mark seats as booked (no booking record created)
+    // This is for marking seats already sold by the bus company
+    for (const label of seat_labels) {
+      let seatRes = await client.query(
+        'SELECT id FROM seats WHERE trip_id=$1 AND label=$2 FOR UPDATE',
+        [trip_id, label]
+      );
+
+      if (!seatRes.rowCount) {
+        // Seat doesn't exist, create it
+        await client.query(
+          'INSERT INTO seats (trip_id, label, type, is_booked, booking_id) VALUES ($1, $2, $3, 1, NULL)',
+          [trip_id, label, 'seat']
+        );
+      } else {
+        // Seat exists, mark as booked (booking_id = NULL means it's not an app booking)
+        await client.query(
+          'UPDATE seats SET is_booked=1, booking_id=NULL WHERE trip_id=$1 AND label=$2',
+          [trip_id, label]
+        );
+      }
+    }
+
+    // Decrease seats_available count
+    await client.query(
+      'UPDATE trips SET seats_available = seats_available - $1 WHERE id=$2',
+      [seat_labels.length, trip_id]
+    );
+
+    await client.query('COMMIT');
+    client.release();
+
+    res.status(201).json({
+      message: `Marked ${seat_labels.length} seat(s) as sold`,
+      trip_id,
+      seats_marked: seat_labels,
+      seats_count: seat_labels.length
+    });
+  } catch (err) {
+    try { await client.query("ROLLBACK"); } catch (e) { /* ignore */ }
+    client.release();
+    console.error("Error marking seats as sold:", err);
+    res.status(500).json({ message: "Error marking seats", error: err.message });
+  }
 });
 
 module.exports = router;
