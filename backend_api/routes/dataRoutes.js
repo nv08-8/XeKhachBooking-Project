@@ -99,9 +99,9 @@ router.get("/trips/:id/seats", async (req, res) => {
     try {
         console.log(`[Seats] Fetching seats for trip ${tripId}...`);
 
-        // Query tất cả ghế từ database
+        // Query tất cả ghế từ database - bao gồm booking_id
         const seatsRes = await db.query(
-            "SELECT label, is_booked FROM seats WHERE trip_id = $1 ORDER BY LENGTH(label), label",
+            "SELECT label, is_booked, booking_id FROM seats WHERE trip_id = $1 ORDER BY LENGTH(label), label",
             [tripId]
         );
 
@@ -110,7 +110,8 @@ router.get("/trips/:id/seats", async (req, res) => {
         // Chuyển is_booked (0 hoặc 1) thành boolean
         let allSeats = seatsRes.rows.map(seat => ({
             label: seat.label,
-            isBooked: seat.is_booked === 1 || seat.is_booked === true
+            isBooked: seat.is_booked === 1 || seat.is_booked === true,
+            booking_id: seat.booking_id
         }));
 
         // Lọc theo available parameter

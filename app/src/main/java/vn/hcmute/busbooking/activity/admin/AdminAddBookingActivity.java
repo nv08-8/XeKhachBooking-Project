@@ -97,17 +97,7 @@ public class AdminAddBookingActivity extends AppCompatActivity {
     private void setupSeatAdapters() {
         // Floor 1 (Tầng A) Adapter
         floor1Adapter = new SeatAdapter(floor1Seats, seat -> {
-            if (!seat.isBooked()) {
-                seat.setSelected(!seat.isSelected());
-                if (seat.isSelected()) {
-                    selectedSeats.add(seat.getLabel());
-                } else {
-                    selectedSeats.remove(seat.getLabel());
-                }
-                floor1Adapter.notifyDataSetChanged();
-                floor2Adapter.notifyDataSetChanged();
-                updateSeatCount();
-            }
+            handleSeatClick(seat);
         });
 
         GridLayoutManager layoutManager1 = new GridLayoutManager(this, 4);
@@ -116,22 +106,74 @@ public class AdminAddBookingActivity extends AppCompatActivity {
 
         // Floor 2 (Tầng B) Adapter
         floor2Adapter = new SeatAdapter(floor2Seats, seat -> {
-            if (!seat.isBooked()) {
-                seat.setSelected(!seat.isSelected());
-                if (seat.isSelected()) {
-                    selectedSeats.add(seat.getLabel());
-                } else {
-                    selectedSeats.remove(seat.getLabel());
-                }
-                floor1Adapter.notifyDataSetChanged();
-                floor2Adapter.notifyDataSetChanged();
-                updateSeatCount();
-            }
+            handleSeatClick(seat);
         });
 
         GridLayoutManager layoutManager2 = new GridLayoutManager(this, 4);
         floor2RecyclerView.setLayoutManager(layoutManager2);
         floor2RecyclerView.setAdapter(floor2Adapter);
+    }
+
+    private void handleSeatClick(Seat seat) {
+        // Kiểm tra loại ghế
+        boolean isAdminMarked = seat.isAdminMarked(); // isBooked=true, bookingId=null
+
+        if (isAdminMarked) {
+            // Ghế được admin đánh dấu - hiển thị dialog confirm gỡ
+            showRemoveSeatDialog(seat);
+        } else {
+            // Ghế trống - select/deselect bình thường
+            seat.setSelected(!seat.isSelected());
+            if (seat.isSelected()) {
+                selectedSeats.add(seat.getLabel());
+            } else {
+                selectedSeats.remove(seat.getLabel());
+            }
+            floor1Adapter.notifyDataSetChanged();
+            floor2Adapter.notifyDataSetChanged();
+            updateSeatCount();
+        }
+    }
+
+    private void showRemoveSeatDialog(Seat seat) {
+        new android.app.AlertDialog.Builder(this)
+            .setTitle("Gỡ vé")
+            .setMessage("Gỡ vé này?")
+            .setPositiveButton("Gỡ", (dialog, which) -> {
+                removeSeatBooking(seat);
+            })
+            .setNegativeButton("Hủy", null)
+            .show();
+    }
+
+    private void removeSeatBooking(Seat seat) {
+        progressBar.setVisibility(View.VISIBLE);
+
+        // Gọi API để update is_booked = 0
+        apiService.removeSeatBooking(tripId, seat.getLabel())
+            .enqueue(new android.retrofit2.Callback<Map<String, Object>>() {
+                @Override
+                public void onResponse(android.retrofit2.Call<Map<String, Object>> call,
+                                     android.retrofit2.Response<Map<String, Object>> response) {
+                    progressBar.setVisibility(View.GONE);
+                    if (response.isSuccessful()) {
+                        // Update local state
+                        seat.setBooked(false);
+                        seat.setBookingId(null);
+                        floor1Adapter.notifyDataSetChanged();
+                        floor2Adapter.notifyDataSetChanged();
+                        Toast.makeText(AdminAddBookingActivity.this, "Gỡ vé thành công", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(AdminAddBookingActivity.this, "Lỗi: Không thể gỡ vé", Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                @Override
+                public void onFailure(android.retrofit2.Call<Map<String, Object>> call, Throwable t) {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(AdminAddBookingActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
     }
 
     private void fetchTripDetails() {

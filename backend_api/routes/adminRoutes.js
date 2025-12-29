@@ -846,4 +846,76 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
   }
 });
 
+// 4. Gỡ vé (admin remove seat booking - update is_booked = 0)
+router.delete("/trips/:tripId/seats/:seatLabel", checkAdminRole, async (req, res) => {
+  const { tripId, seatLabel } = req.params;
+
+  const tripIdNum = parseInt(tripId, 10);
+  if (Number.isNaN(tripIdNum)) {
+    return res.status(400).json({ message: "Invalid trip ID" });
+  }
+
+  if (!seatLabel) {
+    return res.status(400).json({ message: "Missing seat label" });
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Lấy thông tin ghế hiện tại
+    const seatRes = await client.query(
+      "SELECT id, is_booked, booking_id FROM seats WHERE trip_id=$1 AND label=$2 FOR UPDATE",
+      [tripIdNum, seatLabel]
+    );
+
+    if (!seatRes.rowCount) {
+      await client.query("ROLLBACK");
+      client.release();
+      return res.status(404).json({ message: "Seat not found" });
+    }
+
+    const seat = seatRes.rows[0];
+
+    // Chỉ cho gỡ ghế được admin đánh dấu (is_booked=1 nhưng booking_id=NULL)
+    if (!seat.is_booked || seat.booking_id !== null) {
+      await client.query("ROLLBACK");
+      client.release();
+      return res.status(409).json({
+        message: "Không thể gỡ vé này - chỉ có thể gỡ ghế được admin đánh dấu",
+        is_booked: seat.is_booked,
+        booking_id: seat.booking_id
+      });
+    }
+
+    // Update ghế: is_booked = 0
+    await client.query(
+      "UPDATE seats SET is_booked=0 WHERE id=$1",
+      [seat.id]
+    );
+
+    // Tăng seats_available lên 1
+    await client.query(
+      "UPDATE trips SET seats_available = seats_available + 1 WHERE id=$1",
+      [tripIdNum]
+    );
+
+    await client.query("COMMIT");
+    client.release();
+
+    console.log(`✅ [admin.removeSeat] Removed booking for seat ${seatLabel} on trip ${tripIdNum}`);
+    res.json({
+      message: "Gỡ vé thành công",
+      seat_label: seatLabel,
+      is_booked: false
+    });
+
+  } catch (err) {
+    try { await client.query("ROLLBACK"); } catch (e) { /* ignore */ }
+    client.release();
+    console.error("Error removing seat booking:", err);
+    res.status(500).json({ message: "Error removing seat booking", error: err.message });
+  }
+});
+
 module.exports = router;

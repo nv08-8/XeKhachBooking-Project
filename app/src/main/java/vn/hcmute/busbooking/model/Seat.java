@@ -14,6 +14,9 @@ public class Seat {
     @SerializedName(value = "isBooked", alternate = {"is_booked"})
     private boolean isBooked;
 
+    @SerializedName("booking_id")
+    private Long bookingId;
+
     private boolean isSelected;
 
     public Seat() {
@@ -38,6 +41,14 @@ public class Seat {
     public boolean isBooked() { return isBooked; }
     public void setBooked(boolean booked) { isBooked = booked; }
 
+    public Long getBookingId() { return bookingId; }
+    public void setBookingId(Long bookingId) { this.bookingId = bookingId; }
+
     public boolean isSelected() { return isSelected; }
     public void setSelected(boolean selected) { isSelected = selected; }
+
+    // Kiểm tra xem ghế có phải được admin đánh dấu (no booking_id)
+    public boolean isAdminMarked() {
+        return isBooked && bookingId == null;
+    }
 }

@@ -64,24 +64,37 @@ public class SeatAdapter extends RecyclerView.Adapter<SeatAdapter.SeatViewHolder
         void bind(final Seat seat, final OnSeatClickListener listener) {
             // Set text safely, defaulting to empty string if label is null
             seatTextView.setText(seat.getLabel() != null ? seat.getLabel() : "");
-            seatTextView.setEnabled(!seat.isBooked());
+
+            // Các loại ghế:
+            // 1. isBooked=true, bookingId!=null → ghế của khách đặt (disable hoàn toàn)
+            // 2. isBooked=true, bookingId=null → ghế admin đánh dấu (có thể gỡ)
+            // 3. isBooked=false → ghế trống (có thể chọn)
+
+            boolean isCustomerBooked = seat.isBooked() && seat.getBookingId() != null;
+            boolean isAdminMarked = seat.isAdminMarked();
+
+            seatTextView.setEnabled(!isCustomerBooked); // Chỉ disable nếu khách đặt
             seatTextView.setSelected(seat.isSelected());
 
             int textColor;
-            if (seat.isBooked()) {
+            if (isCustomerBooked) {
+                // Ghế khách đặt - xám, không thể tương tác
                 textColor = ContextCompat.getColor(itemView.getContext(), R.color.textSecondary);
             } else if (seat.isSelected()) {
+                // Ghế được chọn - trắng
                 textColor = ContextCompat.getColor(itemView.getContext(), R.color.white);
             } else {
+                // Ghế trống hoặc admin đánh dấu - màu bình thường
                 textColor = ContextCompat.getColor(itemView.getContext(), R.color.textPrimary);
             }
             seatTextView.setTextColor(textColor);
 
-            if (!seat.isBooked()) {
-                itemView.setOnClickListener(v -> listener.onSeatClick(seat));
-            } else {
-                // Remove listener for booked seats to avoid unintended clicks on recycled views
+            if (isCustomerBooked) {
+                // Ghế khách đặt - không cho click
                 itemView.setOnClickListener(null);
+            } else {
+                // Ghế trống hoặc admin đánh dấu - cho click
+                itemView.setOnClickListener(v -> listener.onSeatClick(seat));
             }
         }
     }
