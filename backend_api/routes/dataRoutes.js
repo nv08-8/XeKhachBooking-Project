@@ -132,7 +132,11 @@ router.get("/trips/:id/seats", async (req, res) => {
         // 4. Lọc và trả về kết quả
         let finalSeats = allSeats;
         if (available === 'true') {
+            // Chỉ trả về ghế khả dụng (chưa được đặt và không phải lối đi)
             finalSeats = allSeats.filter(seat => !seat.isBooked && seat.seatType !== 'aisle');
+        } else {
+            // Mặc định: trả về tất cả các ghế (không phải lối đi)
+            finalSeats = allSeats.filter(seat => seat.seatType !== 'aisle');
         }
 
         return res.json(finalSeats);
