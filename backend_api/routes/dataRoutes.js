@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
+const { generateDetailedSeatLayout } = require('../data/seat_layout.js');
 
 // GET /api/routes?origin=&destination=&q=
 router.get("/routes", async (req, res) => {
@@ -89,46 +90,64 @@ router.get("/trips", async (req, res) => {
 
 // GET /api/trips/:id/seats?available=true
 router.get("/trips/:id/seats", async (req, res) => {
-  const tripId = parseInt(req.params.id, 10);
-  const { available } = req.query;
+    const tripId = parseInt(req.params.id, 10);
+    const { available } = req.query;
 
-  if (Number.isNaN(tripId)) return res.status(400).json({ message: "Invalid trip id" });
+    if (Number.isNaN(tripId)) {
+        return res.status(400).json({ message: "Invalid trip id" });
+    }
 
-  let sql = "SELECT id, trip_id, label, type, is_booked, booking_id FROM seats WHERE trip_id=$1";
-  const params = [tripId];
+    try {
+        // 1. Lấy thông tin chuyến đi để biết tổng số ghế và loại xe
+        const tripRes = await db.query("SELECT seats_total, bus_type FROM trips WHERE id = $1", [tripId]);
+        if (tripRes.rows.length === 0) {
+            return res.status(404).json({ message: "Trip not found" });
+        }
+        const { seats_total, bus_type } = tripRes.rows[0];
 
-  if (available === "true") {
-    sql += " AND is_booked = 0";
-  }
+        // 2. Lấy danh sách các ghế đã được đặt từ DB
+        const bookedSeatsRes = await db.query("SELECT label FROM seats WHERE trip_id = $1 AND is_booked = TRUE", [tripId]);
+        const bookedSeatLabels = new Set(bookedSeatsRes.rows.map(seat => seat.label));
 
-  // Sắp xếp thông minh: A1 -> A2 -> ... -> A10
-  sql += " ORDER BY LENGTH(label), label";
+        // 3. Tạo ra một sơ đồ ghế đầy đủ và hợp nhất trạng thái
+        const fullSeatLayout = generateDetailedSeatLayout(bus_type, seats_total);
+        const allSeats = fullSeatLayout.flat().map(seat => {
+            if (seat.type === 'aisle' || !seat.label) {
+                return {
+                    label: seat.label || '',
+                    seatType: 'aisle',
+                    isBooked: false,
+                };
+            }
 
-  try {
-    const { rows } = await db.query(sql, params);
+            const isBooked = bookedSeatLabels.has(seat.label);
+            return {
+                trip_id: tripId,
+                label: seat.label,
+                seatType: seat.type || 'seat',
+                isBooked: isBooked,
+            };
+        });
+        
+        // 4. Lọc và trả về kết quả
+        let finalSeats = allSeats;
+        if (available === 'true') {
+            finalSeats = allSeats.filter(seat => !seat.isBooked && seat.seatType !== 'aisle');
+        }
 
-    // QUAN TRỌNG: Map dữ liệu để Android dễ xử lý
-    // Chuyển is_booked từ 0/1 sang false/true
-    const formattedRows = rows.map(seat => ({
-        ...seat,
-        is_booked: seat.is_booked === 1 || seat.is_booked === true // Đảm bảo luôn là boolean
-    }));
+        return res.json(finalSeats);
 
-    return res.json(formattedRows);
-  } catch (err) {
-    console.error("Lỗi lấy ghế:", err);
-    return res.status(500).json({ message: "Lỗi phía server." });
-  }
+    } catch (err) {
+        console.error(`Lỗi lấy ghế cho chuyến ${tripId}:`, err);
+        return res.status(500).json({ message: "Lỗi phía server." });
+    }
 });
+
 
 // GET /api/trips/:id/pickup-locations
 router.get("/trips/:id/pickup-locations", async (req, res) => {
     const { id } = req.params;
     try {
-        // Strategy: Get trip's origin and filter stops that are geographically near the origin
-        // For "Đà Lạt" origin, only show stops in "Lâm Đồng" province
-        // For "TP.HCM" origin, only show stops in "TP.HCM" or "Hồ Chí Minh"
-
         const result = await db.query(
             `SELECT rs.id, rs.name, rs.address, rs.type, rs.order_index, r.origin
              FROM route_stops rs
@@ -144,12 +163,9 @@ router.get("/trips/:id/pickup-locations", async (req, res) => {
             return res.json([]);
         }
 
-        // Filter based on matching province/city
         const origin = result.rows[0].origin || '';
         const filtered = result.rows.filter(stop => {
             const address = stop.address || stop.name || '';
-
-            // Map common origins to their province keywords
             const provinceMap = {
                 'đà lạt': ['lâm đồng', 'đà lạt'],
                 'dalat': ['lâm đồng', 'đà lạt', 'lam dong'],
@@ -162,7 +178,6 @@ router.get("/trips/:id/pickup-locations", async (req, res) => {
                 'vũng tàu': ['bà rịa vũng tàu', 'vũng tàu', 'vung tau']
             };
 
-            // Find matching keywords for origin
             const originLower = origin.toLowerCase().trim();
             let keywords = [];
 
@@ -173,12 +188,10 @@ router.get("/trips/:id/pickup-locations", async (req, res) => {
                 }
             }
 
-            // If no specific map, use origin as-is
             if (keywords.length === 0) {
                 keywords = [originLower];
             }
 
-            // Check if stop's address contains any of the keywords
             const addressLower = address.toLowerCase();
             const nameLower = (stop.name || '').toLowerCase();
 
@@ -199,9 +212,6 @@ router.get("/trips/:id/pickup-locations", async (req, res) => {
 router.get("/trips/:id/dropoff-locations", async (req, res) => {
     const { id } = req.params;
     try {
-        // Strategy: Get trip's destination and filter stops that are geographically near the destination
-        // For "Nha Trang" destination, only show stops in "Khánh Hòa" province
-
         const result = await db.query(
             `SELECT rs.id, rs.name, rs.address, rs.type, rs.order_index, r.destination
              FROM route_stops rs
@@ -216,13 +226,9 @@ router.get("/trips/:id/dropoff-locations", async (req, res) => {
         if (!result.rows || result.rows.length === 0) {
             return res.json([]);
         }
-
-        // Filter based on matching province/city
         const destination = result.rows[0].destination || '';
         const filtered = result.rows.filter(stop => {
             const address = stop.address || stop.name || '';
-
-            // Map common destinations to their province keywords
             const provinceMap = {
                 'đà lạt': ['lâm đồng', 'đà lạt'],
                 'dalat': ['lâm đồng', 'đà lạt', 'lam dong'],
@@ -234,8 +240,6 @@ router.get("/trips/:id/dropoff-locations", async (req, res) => {
                 'cần thơ': ['cần thơ', 'can tho'],
                 'vũng tàu': ['bà rịa vũng tàu', 'vũng tàu', 'vung tau']
             };
-
-            // Find matching keywords for destination
             const destLower = destination.toLowerCase().trim();
             let keywords = [];
 
@@ -246,12 +250,10 @@ router.get("/trips/:id/dropoff-locations", async (req, res) => {
                 }
             }
 
-            // If no specific map, use destination as-is
             if (keywords.length === 0) {
                 keywords = [destLower];
             }
 
-            // Check if stop's address contains any of the keywords
             const addressLower = address.toLowerCase();
             const nameLower = (stop.name || '').toLowerCase();
 

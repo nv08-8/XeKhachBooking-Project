@@ -21,6 +21,7 @@ public class AdminHomeActivity extends AppCompatActivity {
 
 
         View btnManageRoutes = findViewById(R.id.btnManageRoutes);
+        View btnManageTrips = findViewById(R.id.btnManageTrips);
         View btnManageBookings = findViewById(R.id.btnManageBookings);
         View btnRevenueStats = findViewById(R.id.btnRevenueStats);
         View btnManageUsers = findViewById(R.id.btnManageUsers);
@@ -30,6 +31,7 @@ public class AdminHomeActivity extends AppCompatActivity {
 
 
         if (btnManageRoutes != null) btnManageRoutes.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageRoutesActivity.class)));
+        if (btnManageTrips != null) btnManageTrips.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageTripsActivity.class)));
         if (btnManageBookings != null) btnManageBookings.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageBookingsActivity.class)));
         if (btnRevenueStats != null) btnRevenueStats.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, RevenueStatsActivity.class)));
         if (btnManageUsers != null) btnManageUsers.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageUsersActivity.class)));
