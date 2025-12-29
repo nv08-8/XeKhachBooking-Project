@@ -201,7 +201,7 @@ router.get("/bookings", checkAdminRole, async (req, res) => {
   let sql = `
     SELECT b.*, u.name, u.email, t.departure_time, r.origin, r.destination
     FROM bookings b
-    JOIN users u ON u.id = b.user_id
+    LEFT JOIN users u ON u.id = b.user_id
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
     WHERE 1=1
@@ -812,11 +812,12 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
     try {
       bookingRes = await client.query(
         `INSERT INTO bookings (
-          trip_id, total_amount, price_paid, status, payment_method,
+          user_id, trip_id, total_amount, price_paid, status, payment_method,
           passenger_info, created_at, paid_at, seats_count
-        ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9)
         RETURNING id`,
         [
+          null, // Admin-created bookings don't have a user_id (walk-in customers)
           trip_id,
           totalAmount,
           payment_method === 'offline' ? totalAmount : 0,
@@ -832,11 +833,12 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
       if (err.message && err.message.includes('paid_at')) {
         bookingRes = await client.query(
           `INSERT INTO bookings (
-            trip_id, total_amount, price_paid, status, payment_method,
+            user_id, trip_id, total_amount, price_paid, status, payment_method,
             passenger_info, created_at, seats_count
-          ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
           RETURNING id`,
           [
+            null, // Admin-created bookings don't have a user_id (walk-in customers)
             trip_id,
             totalAmount,
             payment_method === 'offline' ? totalAmount : 0,
@@ -846,6 +848,10 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
             seat_labels.length
           ]
         );
+      } else if (err.message && err.message.includes('user_id')) {
+        // If user_id column has NOT NULL constraint, we need to alter the schema
+        // For now, log error and inform the admin
+        throw new Error('Database schema error: user_id cannot be NULL. Please alter the bookings table to allow NULL user_id for admin-created bookings.');
       } else {
         throw err;
       }
