@@ -14,8 +14,12 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.MaterialToolbar;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import retrofit2.Call;
@@ -43,11 +47,8 @@ public class ManageRoutesActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_manage_routes);
 
-        // Setup toolbar
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
-        if (toolbar != null) {
-            toolbar.setNavigationOnClickListener(v -> onBackPressed());
-        }
+        toolbar.setNavigationOnClickListener(v -> onBackPressed());
 
         sessionManager = new SessionManager(this);
         apiService = ApiClient.getClient().create(ApiService.class);
@@ -58,9 +59,7 @@ public class ManageRoutesActivity extends AppCompatActivity {
         btnAddRoute = findViewById(R.id.btnAddRoute);
         btnRefreshRoutes = findViewById(R.id.btnRefreshRoutes);
 
-        if (rvRoutes != null) {
-            rvRoutes.setLayoutManager(new LinearLayoutManager(this));
-        }
+        rvRoutes.setLayoutManager(new LinearLayoutManager(this));
 
         adapter = new RoutesAdapter(routesList, new RoutesAdapter.OnRouteClickListener() {
             @Override
@@ -69,7 +68,7 @@ public class ManageRoutesActivity extends AppCompatActivity {
                 Object idObj = route.get("id");
                 if (idObj != null) {
                     try {
-                        int routeId = new Double(idObj.toString()).intValue();
+                        int routeId = (int) Double.parseDouble(idObj.toString());
                         intent.putExtra("route_id", routeId);
                         startActivity(intent);
                     } catch (NumberFormatException e) {
@@ -84,7 +83,7 @@ public class ManageRoutesActivity extends AppCompatActivity {
                 Object idObj = route.get("id");
                 if (idObj != null) {
                     try {
-                        int routeId = new Double(idObj.toString()).intValue();
+                        int routeId = (int) Double.parseDouble(idObj.toString());
                         intent.putExtra("route_id", routeId);
                         startActivity(intent);
                     } catch (NumberFormatException e) {
@@ -103,9 +102,8 @@ public class ManageRoutesActivity extends AppCompatActivity {
                             Object idObj = route.get("id");
                             if (idObj != null) {
                                 try {
-                                    int routeId = new Double(idObj.toString()).intValue();
-                                    Call<Map<String, Object>> call = apiService.deleteRoute(adminId, routeId);
-                                    call.enqueue(new Callback<Map<String, Object>>() {
+                                    int routeId = (int) Double.parseDouble(idObj.toString());
+                                    apiService.deleteRoute(adminId, routeId).enqueue(new Callback<Map<String, Object>>() {
                                         @Override
                                         public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                                             if (response.isSuccessful()) {
@@ -131,20 +129,9 @@ public class ManageRoutesActivity extends AppCompatActivity {
             }
         });
 
-        if (rvRoutes != null) {
-            rvRoutes.setAdapter(adapter);
-        }
-
-        if (btnAddRoute != null) {
-            btnAddRoute.setOnClickListener(v -> {
-                Intent intent = new Intent(ManageRoutesActivity.this, RouteFormActivity.class);
-                startActivity(intent);
-            });
-        }
-
-        if (btnRefreshRoutes != null) {
-            btnRefreshRoutes.setOnClickListener(v -> fetchRoutes());
-        }
+        rvRoutes.setAdapter(adapter);
+        btnAddRoute.setOnClickListener(v -> startActivity(new Intent(ManageRoutesActivity.this, RouteFormActivity.class)));
+        btnRefreshRoutes.setOnClickListener(v -> fetchRoutes());
 
         fetchRoutes();
     }
@@ -154,33 +141,89 @@ public class ManageRoutesActivity extends AppCompatActivity {
         rvRoutes.setVisibility(View.GONE);
         tvEmptyRoutes.setVisibility(View.GONE);
 
-        Call<List<Map<String, Object>>> call = apiService.getRoutes(null, null, null);
-        call.enqueue(new Callback<List<Map<String, Object>>>() {
+        // 1. Fetch all routes
+        apiService.getRoutes(null, null, null).enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
-            public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
-                progressRoutes.setVisibility(View.GONE);
-                if (!response.isSuccessful() || response.body() == null) {
-                    tvEmptyRoutes.setText("Không thể tải tuyến (code=" + response.code() + ")");
+            public void onResponse(Call<List<Map<String, Object>>> routesCall, Response<List<Map<String, Object>>> routesResponse) {
+                if (!routesResponse.isSuccessful() || routesResponse.body() == null) {
+                    progressRoutes.setVisibility(View.GONE);
+                    tvEmptyRoutes.setText("Không thể tải tuyến (code=" + routesResponse.code() + ")");
                     tvEmptyRoutes.setVisibility(View.VISIBLE);
                     return;
                 }
-                List<Map<String, Object>> routes = response.body();
-                if (routes.isEmpty()) {
-                    tvEmptyRoutes.setVisibility(View.VISIBLE);
-                } else {
-                    routesList.clear();
-                    routesList.addAll(routes);
-                    adapter.notifyDataSetChanged();
-                    rvRoutes.setVisibility(View.VISIBLE);
-                }
+                List<Map<String, Object>> routes = routesResponse.body();
+
+                // 2. Fetch all trips to calculate upcoming counts
+                apiService.getTrips(null, null, null, null).enqueue(new Callback<List<Map<String, Object>>>() {
+                    @Override
+                    public void onResponse(Call<List<Map<String, Object>>> tripsCall, Response<List<Map<String, Object>>> tripsResponse) {
+                        if (tripsResponse.isSuccessful() && tripsResponse.body() != null) {
+                            List<Map<String, Object>> allTrips = tripsResponse.body();
+                            Map<Double, Integer> upcomingTripCounts = new HashMap<>();
+                            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
+                            Date now = new Date();
+
+                            // 3a. Aggregate upcoming trip counts
+                            for (Map<String, Object> trip : allTrips) {
+                                try {
+                                    Object departureTimeObj = trip.get("departure_time");
+                                    if (departureTimeObj instanceof String) {
+                                        Date departureDate = sdf.parse((String) departureTimeObj);
+                                        if (departureDate != null && !departureDate.before(now)) {
+                                            Object routeIdObj = trip.get("route_id");
+                                            if (routeIdObj != null) {
+                                                Double routeId = Double.parseDouble(routeIdObj.toString());
+                                                upcomingTripCounts.put(routeId, upcomingTripCounts.getOrDefault(routeId, 0) + 1);
+                                            }
+                                        }
+                                    }
+                                } catch (Exception e) {
+                                    // Ignore trips with parsing errors
+                                }
+                            }
+
+                            // 3b. Enrich routes with the calculated counts
+                            for (Map<String, Object> route : routes) {
+                                Object routeIdObj = route.get("id");
+                                if (routeIdObj != null) {
+                                    try {
+                                        Double routeId = Double.parseDouble(routeIdObj.toString());
+                                        route.put("upcoming_trip_count", upcomingTripCounts.getOrDefault(routeId, 0));
+                                    } catch (NumberFormatException ignored) {}
+                                }
+                            }
+                        }
+                        updateRoutesList(routes);
+                    }
+
+                    @Override
+                    public void onFailure(Call<List<Map<String, Object>>> tripsCall, Throwable t) {
+                        // If trips call fails, just show routes without counts
+                        updateRoutesList(routes);
+                    }
+                });
             }
 
             @Override
             public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
-                progressRoutes.setVisibility(View.GONE);
+                updateRoutesList(new ArrayList<>());
                 tvEmptyRoutes.setText("Lỗi: " + t.getMessage());
                 tvEmptyRoutes.setVisibility(View.VISIBLE);
             }
         });
+    }
+
+    private void updateRoutesList(List<Map<String, Object>> routes) {
+        progressRoutes.setVisibility(View.GONE);
+        if (routes.isEmpty()) {
+            tvEmptyRoutes.setVisibility(View.VISIBLE);
+            rvRoutes.setVisibility(View.GONE);
+        } else {
+            routesList.clear();
+            routesList.addAll(routes);
+            adapter.notifyDataSetChanged();
+            tvEmptyRoutes.setVisibility(View.GONE);
+            rvRoutes.setVisibility(View.VISIBLE);
+        }
     }
 }

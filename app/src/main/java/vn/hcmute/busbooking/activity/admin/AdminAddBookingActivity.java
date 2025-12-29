@@ -36,7 +36,7 @@ import vn.hcmute.busbooking.utils.SessionManager;
 
 public class AdminAddBookingActivity extends AppCompatActivity {
 
-    private RecyclerView seatRecyclerView;
+    private RecyclerView floor1RecyclerView, floor2RecyclerView;
     private TextView tvTripInfo, tvTotalPrice, tvSeatCount;
     private Button btnCreateBooking;
     private ProgressBar progressBar;
@@ -44,14 +44,14 @@ public class AdminAddBookingActivity extends AppCompatActivity {
 
     private ApiService apiService;
     private SessionManager sessionManager;
-    private SeatAdapter seatAdapter;
-    private final List<Seat> seatList = new ArrayList<>();
+    private SeatAdapter floor1Adapter, floor2Adapter;
+    private final List<Seat> floor1Seats = new ArrayList<>();
+    private final List<Seat> floor2Seats = new ArrayList<>();
     private final Set<String> selectedSeats = new HashSet<>();
 
     private int tripId;
     private double tripPrice = 0;
     private String tripInfo = "";
-    private int totalSeats = 0; // Biến để lưu tổng số ghế
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,12 +72,13 @@ public class AdminAddBookingActivity extends AppCompatActivity {
 
         setupToolbar();
         fetchTripDetails();
-        setupSeatAdapter();
+        setupSeatAdapters();
     }
 
     private void initViews() {
         toolbar = findViewById(R.id.toolbar);
-        seatRecyclerView = findViewById(R.id.seatRecyclerView);
+        floor1RecyclerView = findViewById(R.id.floor1RecyclerView);
+        floor2RecyclerView = findViewById(R.id.floor2RecyclerView);
         tvTripInfo = findViewById(R.id.tvTripInfo);
         tvTotalPrice = findViewById(R.id.tvTotalPrice);
         tvSeatCount = findViewById(R.id.tvSeatCount);
@@ -93,8 +94,9 @@ public class AdminAddBookingActivity extends AppCompatActivity {
         toolbar.setNavigationOnClickListener(v -> finish());
     }
 
-    private void setupSeatAdapter() {
-        seatAdapter = new SeatAdapter(seatList, seat -> {
+    private void setupSeatAdapters() {
+        // Floor 1 (Tầng A) Adapter
+        floor1Adapter = new SeatAdapter(floor1Seats, seat -> {
             if (!seat.isBooked()) {
                 seat.setSelected(!seat.isSelected());
                 if (seat.isSelected()) {
@@ -102,14 +104,34 @@ public class AdminAddBookingActivity extends AppCompatActivity {
                 } else {
                     selectedSeats.remove(seat.getLabel());
                 }
-                seatAdapter.notifyDataSetChanged();
+                floor1Adapter.notifyDataSetChanged();
+                floor2Adapter.notifyDataSetChanged();
                 updateSeatCount();
             }
         });
 
-        GridLayoutManager layoutManager = new GridLayoutManager(this, 4);
-        seatRecyclerView.setLayoutManager(layoutManager);
-        seatRecyclerView.setAdapter(seatAdapter);
+        GridLayoutManager layoutManager1 = new GridLayoutManager(this, 4);
+        floor1RecyclerView.setLayoutManager(layoutManager1);
+        floor1RecyclerView.setAdapter(floor1Adapter);
+
+        // Floor 2 (Tầng B) Adapter
+        floor2Adapter = new SeatAdapter(floor2Seats, seat -> {
+            if (!seat.isBooked()) {
+                seat.setSelected(!seat.isSelected());
+                if (seat.isSelected()) {
+                    selectedSeats.add(seat.getLabel());
+                } else {
+                    selectedSeats.remove(seat.getLabel());
+                }
+                floor1Adapter.notifyDataSetChanged();
+                floor2Adapter.notifyDataSetChanged();
+                updateSeatCount();
+            }
+        });
+
+        GridLayoutManager layoutManager2 = new GridLayoutManager(this, 4);
+        floor2RecyclerView.setLayoutManager(layoutManager2);
+        floor2RecyclerView.setAdapter(floor2Adapter);
     }
 
     private void fetchTripDetails() {
@@ -123,13 +145,6 @@ public class AdminAddBookingActivity extends AppCompatActivity {
                     tripPrice = parseDouble(trip.get("price"));
                     tripInfo = String.format("%s - %s", trip.get("origin"), trip.get("destination"));
                     tvTripInfo.setText(tripInfo);
-
-                    // Lưu tổng số ghế
-                    Object seatsTotalObj = trip.get("seats_total");
-                    if (seatsTotalObj != null) {
-                        totalSeats = (int) Double.parseDouble(seatsTotalObj.toString());
-                    }
-
                     fetchSeats();
                 } else {
                     Toast.makeText(AdminAddBookingActivity.this, "Failed to load trip details", Toast.LENGTH_SHORT).show();
@@ -152,39 +167,67 @@ public class AdminAddBookingActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<List<Seat>> call, Response<List<Seat>> response) {
                 progressBar.setVisibility(View.GONE);
-                seatList.clear();
 
-                if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
-                    // Nếu API trả về danh sách ghế, sử dụng nó
-                    seatList.addAll(response.body());
-                } else {
-                    // Nếu API trả về danh sách rỗng, tạo danh sách ghế mặc định
-                    if (totalSeats > 0) {
-                        for (int i = 1; i <= totalSeats; i++) {
-                            seatList.add(new Seat("A" + i));
-                        }
+                android.util.Log.d("AdminAddBooking", "fetchSeats response code: " + response.code());
+                android.util.Log.d("AdminAddBooking", "fetchSeats response successful: " + response.isSuccessful());
+
+                if (response.isSuccessful() && response.body() != null) {
+                    // Nếu API trả về danh sách ghế (có thể rỗng hoặc có dữ liệu)
+                    android.util.Log.d("AdminAddBooking", "Got " + response.body().size() + " seats from API");
+                    generateSeatMap(response.body());
+
+                    if (response.body().isEmpty()) {
+                        Toast.makeText(AdminAddBookingActivity.this, "Chuyến này chưa có ghế trong hệ thống", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(AdminAddBookingActivity.this, "Danh sách ghế đã tải thành công", Toast.LENGTH_SHORT).show();
                     }
-                    Toast.makeText(AdminAddBookingActivity.this, "Chuyến này chưa có người đặt, hiển thị ghế mặc định.", Toast.LENGTH_LONG).show();
+                } else {
+                    // Nếu API call fail (error status code)
+                    android.util.Log.d("AdminAddBooking", "API call failed with status: " + response.code());
+                    floor1Seats.clear();
+                    floor2Seats.clear();
+                    floor1Adapter.notifyDataSetChanged();
+                    floor2Adapter.notifyDataSetChanged();
+                    Toast.makeText(AdminAddBookingActivity.this, "Không thể tải danh sách ghế từ server", Toast.LENGTH_SHORT).show();
                 }
-                seatAdapter.notifyDataSetChanged();
             }
 
             @Override
             public void onFailure(Call<List<Seat>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
-                // Nếu có lỗi, vẫn thử tạo danh sách ghế mặc định
-                if (totalSeats > 0) {
-                    seatList.clear();
-                    for (int i = 1; i <= totalSeats; i++) {
-                        seatList.add(new Seat("A" + i));
-                    }
-                    seatAdapter.notifyDataSetChanged();
-                    Toast.makeText(AdminAddBookingActivity.this, "Lỗi tải ghế, hiển thị ghế mặc định.", Toast.LENGTH_LONG).show();
-                } else {
-                    Toast.makeText(AdminAddBookingActivity.this, "Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                }
+                android.util.Log.e("AdminAddBooking", "fetchSeats failed: " + t.getMessage(), t);
+                // Nếu request fail hoàn toàn
+                floor1Seats.clear();
+                floor2Seats.clear();
+                floor1Adapter.notifyDataSetChanged();
+                floor2Adapter.notifyDataSetChanged();
+                Toast.makeText(AdminAddBookingActivity.this, "Lỗi kết nối: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void generateSeatMap(List<Seat> allSeats) {
+        floor1Seats.clear();
+        floor2Seats.clear();
+
+        for (Seat seat : allSeats) {
+            if (seat.getLabel() != null) {
+                char firstChar = seat.getLabel().charAt(0);
+                // Tầng A (starts with A)
+                if (firstChar == 'A' || firstChar == 'a') {
+                    floor1Seats.add(seat);
+                }
+                // Tầng B (starts with B)
+                else if (firstChar == 'B' || firstChar == 'b') {
+                    floor2Seats.add(seat);
+                }
+            }
+        }
+
+        floor1Adapter.notifyDataSetChanged();
+        floor2Adapter.notifyDataSetChanged();
+
+        android.util.Log.d("AdminAddBooking", "Floor A: " + floor1Seats.size() + " seats, Floor B: " + floor2Seats.size() + " seats");
     }
 
     private void updateSeatCount() {

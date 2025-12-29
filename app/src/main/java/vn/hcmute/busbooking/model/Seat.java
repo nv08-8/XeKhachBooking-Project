@@ -8,10 +8,10 @@ public class Seat {
     @SerializedName("label")
     private String label;
 
-    @SerializedName("type")
-    private String seatType; // Changed from type to seatType
+    @SerializedName(value = "seatType", alternate = {"type"})
+    private String seatType;
 
-    @SerializedName("is_booked")
+    @SerializedName(value = "isBooked", alternate = {"is_booked"})
     private boolean isBooked;
 
     private boolean isSelected;
@@ -20,7 +20,6 @@ public class Seat {
         this.isSelected = false;
     }
 
-    // Added constructor to match usage in SeatSelectionActivity
     public Seat(String label) {
         this.label = label;
         this.isSelected = false;
@@ -33,8 +32,8 @@ public class Seat {
     public String getLabel() { return label; }
     public void setLabel(String label) { this.label = label; }
 
-    public String getSeatType() { return seatType; } // Changed from getType
-    public void setSeatType(String seatType) { this.seatType = seatType; } // Changed from setType
+    public String getSeatType() { return seatType; }
+    public void setSeatType(String seatType) { this.seatType = seatType; }
 
     public boolean isBooked() { return isBooked; }
     public void setBooked(boolean booked) { isBooked = booked; }

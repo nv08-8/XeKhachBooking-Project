@@ -42,8 +42,6 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
         Object destObj = route.get("destination");
         Object priceObj = route.get("price");
         Object durationObj = route.get("duration_min");
-        Object upcomingTripCountObj = route.get("upcoming_trip_count");
-        Object totalTripCountObj = route.get("total_trip_count"); // Fallback
         Object distanceObj = route.get("distance_km");
 
         String title = (originObj != null ? originObj : "?") + " - " + (destObj != null ? destObj : "?");
@@ -58,22 +56,28 @@ public class RoutesAdapter extends RecyclerView.Adapter<RoutesAdapter.RouteViewH
         }
 
         if (holder.tvRouteTripCount != null) {
-            Object tripCountToDisplay = (upcomingTripCountObj != null) ? upcomingTripCountObj : totalTripCountObj;
-            if (tripCountToDisplay != null) {
-                try {
-                    int tripCount = Integer.parseInt(tripCountToDisplay.toString());
-                    holder.tvRouteTripCount.setText("Sắp khởi hành: " + tripCount);
-                } catch (NumberFormatException e) {
-                    holder.tvRouteTripCount.setText("N/A");
-                }
-            } else {
-                holder.tvRouteTripCount.setText("N/A");
+            // Attempt to get trip count from multiple possible keys
+            Object tripCountObj = route.get("upcoming_trip_count");
+            if (tripCountObj == null) {
+                tripCountObj = route.get("trips_count");
             }
+
+            int tripCount = 0; // Default to 0
+            if (tripCountObj != null) {
+                try {
+                    // Use Double.parseDouble to handle potential float values (e.g., 10.0)
+                    tripCount = (int) Double.parseDouble(tripCountObj.toString());
+                } catch (NumberFormatException e) {
+                    tripCount = 0; // If parsing fails, default to 0
+                }
+            }
+            holder.tvRouteTripCount.setText("Sắp khởi hành: " + tripCount);
         }
+
 
         if (distanceObj != null && holder.tvRouteDistance != null) {
             try {
-                double distance = new Double(distanceObj.toString()).doubleValue();
+                double distance = Double.parseDouble(distanceObj.toString());
                 if (distance == (long) distance) {
                     holder.tvRouteDistance.setText(String.format("%d km", (long) distance));
                 } else {
