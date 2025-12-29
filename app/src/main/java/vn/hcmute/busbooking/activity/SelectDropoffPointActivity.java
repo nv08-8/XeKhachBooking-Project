@@ -27,6 +27,7 @@ import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.Location;
 import vn.hcmute.busbooking.model.Trip;
+import vn.hcmute.busbooking.util.CurrencyUtil;
 
 public class SelectDropoffPointActivity extends AppCompatActivity {
 
@@ -44,6 +45,10 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_select_dropoff_point);
+
+        // Setup toolbar
+        com.google.android.material.appbar.MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        toolbar.setNavigationOnClickListener(v -> finish());
 
         // Get data from previous activity
         trip = getIntent().getParcelableExtra("trip");
@@ -68,8 +73,7 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
         // Display subtotal
         if (seatLabels != null && trip != null) {
             double totalAmount = seatLabels.size() * trip.getPrice();
-            NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
-            tvSubtotal.setText(formatter.format(totalAmount));
+            tvSubtotal.setText(CurrencyUtil.formatVND(totalAmount));
         }
 
         // Fetch locations

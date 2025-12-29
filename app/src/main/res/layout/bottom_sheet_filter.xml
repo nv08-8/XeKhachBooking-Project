@@ -35,7 +35,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="end"
-            android:text="0đ - 2.000.000đ"
+            android:text="0 VND - 2.000.000 VND"
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/textPrimary" />

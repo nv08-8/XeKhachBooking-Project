@@ -82,7 +82,7 @@
                             android:textColor="@color/colorPrimary"
                             android:textSize="18sp"
                             android:textStyle="bold"
-                            tools:text="350.000đ" />
+                            tools:text="350.000 VND" />
 
                     </LinearLayout>
 

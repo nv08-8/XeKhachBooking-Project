@@ -19,7 +19,6 @@ import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 
-import java.text.NumberFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -33,6 +32,7 @@ import retrofit2.Response;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
+import vn.hcmute.busbooking.util.CurrencyUtil;
 
 public class BookingDetailActivity extends AppCompatActivity {
 
@@ -181,9 +181,7 @@ public class BookingDetailActivity extends AppCompatActivity {
         tvDiscount = findViewById(R.id.tvDiscount);
         tvTotalPrice = findViewById(R.id.tvTotalPrice);
         discountRow = findViewById(R.id.discountRow);
-        promoCodeRow = findViewById(R.id.promoCodeRow);
         tvPromoCode = findViewById(R.id.tvPromoCode);
-        tvPromoCodeLabel = findViewById(R.id.tvPromoCodeLabel);
 
         qrCodeSection = findViewById(R.id.qrCodeSection);
         ivQrCode = findViewById(R.id.ivQrCode);
@@ -254,7 +252,7 @@ public class BookingDetailActivity extends AppCompatActivity {
         if (tvBusType != null && busType != null) tvBusType.setText(busType);
 
         // Always set app name to GoUTE
-        if (tvAppName != null) tvAppName.setText("GoUTE");
+        if (tvAppName != null) tvAppName.setText(R.string.logo_default);
 
         String origin = (String) data.get("origin");
         String destination = (String) data.get("destination");
@@ -378,8 +376,7 @@ public class BookingDetailActivity extends AppCompatActivity {
         // Debug logs
         Log.d(TAG, "Price breakdown - Base: " + basePrice + ", Discount: " + discountAmount + ", Total: " + totalAmount + ", PromoCode: " + promoCode);
 
-        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
-        String amountStr = formatter.format(totalAmount);
+        String amountStr = CurrencyUtil.formatVND(totalAmount);
 
         // Update pay button
         if (btnPayTicket != null) btnPayTicket.setText("Thanh toán • " + amountStr);
@@ -388,8 +385,8 @@ public class BookingDetailActivity extends AppCompatActivity {
         if (cardPriceBreakdown != null) {
             cardPriceBreakdown.setVisibility(View.VISIBLE);
 
-            if (tvBasePrice != null) tvBasePrice.setText(formatter.format(basePrice));
-            if (tvTotalPrice != null) tvTotalPrice.setText(formatter.format(totalAmount));
+            if (tvBasePrice != null) tvBasePrice.setText(CurrencyUtil.formatVND(basePrice));
+            if (tvTotalPrice != null) tvTotalPrice.setText(CurrencyUtil.formatVND(totalAmount));
 
             // Show promo code row if promo code exists
             if (promoCode != null && promoCodeRow != null && tvPromoCode != null) {
@@ -403,7 +400,7 @@ public class BookingDetailActivity extends AppCompatActivity {
             if (discountAmount > 0 && discountRow != null && tvDiscount != null) {
                 Log.d(TAG, "Showing discount row with amount: " + discountAmount);
                 discountRow.setVisibility(View.VISIBLE);
-                tvDiscount.setText("-" + formatter.format(discountAmount));
+                tvDiscount.setText("-" + CurrencyUtil.formatVND(discountAmount));
             } else if (discountRow != null) {
                 Log.d(TAG, "Hiding discount row - discountAmount: " + discountAmount + ", discountRow null: " + (discountRow == null) + ", tvDiscount null: " + (tvDiscount == null));
                 discountRow.setVisibility(View.GONE);

@@ -392,7 +392,7 @@
             android:textColor="@color/textPrimary"
             android:textSize="20sp"
             android:textStyle="bold"
-            tools:text="750.000đ" />
+            tools:text="750.000 VND" />
 
         <Button
             android:id="@+id/btnBookNow"

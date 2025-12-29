@@ -138,7 +138,7 @@
                     android:id="@+id/tvSubtotal"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="250.000đ"
+                    android:text="250.000 VND"
                     android:textColor="@android:color/black"
                     android:textSize="18sp"
                     android:textStyle="bold"

@@ -49,6 +49,7 @@ import vn.hcmute.busbooking.model.PaymentRequest;
 import vn.hcmute.busbooking.model.PaymentResponse;
 import vn.hcmute.busbooking.model.Trip;
 import vn.hcmute.busbooking.utils.SessionManager;
+import vn.hcmute.busbooking.util.CurrencyUtil;
 
 public class PaymentActivity extends AppCompatActivity {
 
@@ -56,7 +57,7 @@ public class PaymentActivity extends AppCompatActivity {
     private static final String PREFS_NAME = "payment_timers";
     private static final long HOLD_DURATION_MS = 10 * 60 * 1000L; // 10 minutes
 
-    private TextView tvBusOperator, tvBusType, tvPickup, tvDropoff, tvDate, tvSeat, tvDepartureTime, tvArrivalTime;
+    private TextView tvBusOperator, tvBusType, tvAppName, tvPickup, tvDropoff, tvDate, tvSeat, tvDepartureTime, tvArrivalTime;
     private TextView tvOrigin, tvDestination;
     private TextView tvCountdown;
     private TextView tvPassengerName, tvPassengerPhone;
@@ -263,6 +264,7 @@ public class PaymentActivity extends AppCompatActivity {
     private void initializeViews() {
         tvBusOperator = findViewById(R.id.tvBusOperator);
         tvBusType = findViewById(R.id.tvBusType);
+        tvAppName = findViewById(R.id.tvAppName);
         tvOrigin = findViewById(R.id.tvOrigin);
         tvDestination = findViewById(R.id.tvDestination);
         // Layout uses tvPickupLocation / tvDropoffLocation ids — map them to tvPickup/tvDropoff variables
@@ -340,6 +342,11 @@ public class PaymentActivity extends AppCompatActivity {
         tvBusOperator.setText(trip.getOperator());
         tvBusType.setText(trip.getBusType());
 
+        // Set app name in badge
+        if (tvAppName != null) {
+            tvAppName.setText(R.string.logo_default);
+        }
+
         // Set origin and destination (large text in the trip card)
         if (tvOrigin != null) {
             tvOrigin.setText(trip.getOrigin());
@@ -375,16 +382,15 @@ public class PaymentActivity extends AppCompatActivity {
             tvPassengerPhone.setText(maskPhone(phoneToShow));
         }
 
-        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
         double subtotal = (bookingTotalAmount != null) ? bookingTotalAmount : (trip.getPrice() * (seatLabels != null ? seatLabels.size() : 0));
-        tvSubtotal.setText(formatter.format(subtotal));
+        tvSubtotal.setText(CurrencyUtil.formatVND(subtotal));
 
         double totalToShow = subtotal - appliedDiscount; // appliedDiscount is 0 if none
         if (totalToShow < 0) totalToShow = 0;
-        tvTotal.setText(formatter.format(totalToShow));
+        tvTotal.setText(CurrencyUtil.formatVND(totalToShow));
 
         // Update bottom bar total and keep button text simple
-        tvBottomTotal.setText(formatter.format(totalToShow));
+        tvBottomTotal.setText(CurrencyUtil.formatVND(totalToShow));
         btnConfirmPayment.setText(R.string.title_payment);
     }
     
@@ -1387,17 +1393,17 @@ public class PaymentActivity extends AppCompatActivity {
                                 double newTotal = Math.max(0, subtotal - appliedDiscount);
                                 Log.i(TAG, "💰 Applying discount: subtotal=" + subtotal + ", discount=" + appliedDiscount + ", newTotal=" + newTotal);
 
-                                tvDiscountApplied.setText(getString(R.string.discount_applied, NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(appliedDiscount), NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(newTotal)));
+                                tvDiscountApplied.setText(getString(R.string.discount_applied, CurrencyUtil.formatVND(appliedDiscount)));
                                 tvDiscountApplied.setVisibility(View.VISIBLE);
                                 tvPromoDetails.setVisibility(View.VISIBLE);
-                                tvSubtotal.setText(NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(subtotal));
-                                tvTotal.setText(NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(newTotal));
-                                tvBottomTotal.setText(NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(newTotal));
+                                tvSubtotal.setText(CurrencyUtil.formatVND(subtotal));
+                                tvTotal.setText(CurrencyUtil.formatVND(newTotal));
+                                tvBottomTotal.setText(CurrencyUtil.formatVND(newTotal));
                                 btnApplyPromo.setText(getString(R.string.remove_promo));
 
                                 // Show success toast
                                 Toast.makeText(PaymentActivity.this,
-                                    "✅ Áp dụng thành công! Giảm " + NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(appliedDiscount),
+                                    "✅ Áp dụng thành công! Giảm " + CurrencyUtil.formatVND(appliedDiscount),
                                     Toast.LENGTH_LONG).show();
 
                                 Log.i(TAG, "🎉 UI updated successfully!");
@@ -1419,7 +1425,7 @@ public class PaymentActivity extends AppCompatActivity {
                             } else if (lower.contains("not started") || lower.contains("chưa có hiệu lực")) {
                                 reason = getString(R.string.msg_promo_not_started);
                             } else if (lower.contains(">=") || lower.contains("đơn hàng") || lower.contains("đơn hàng phải")) {
-                                reason = getString(R.string.msg_promo_min_price, NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(res.getPromotion() != null ? res.getPromotion().getMin_price() : 0));
+                                reason = getString(R.string.msg_promo_min_price, CurrencyUtil.formatVND(res.getPromotion() != null ? res.getPromotion().getMin_price() : 0));
                             }
                             Toast.makeText(PaymentActivity.this, reason, Toast.LENGTH_LONG).show();
                         }
@@ -1483,7 +1489,7 @@ public class PaymentActivity extends AppCompatActivity {
                     try {
                         double minPrice = Double.parseDouble(String.valueOf(minPriceObj));
                         if (minPrice > 0) {
-                            sb.append("Đơn tối thiểu: ").append(currencyFormat.format(minPrice)).append("\n");
+                            sb.append("Đơn tối thiểu: ").append(CurrencyUtil.formatVND(minPrice)).append("\n");
                         }
                     } catch (NumberFormatException ignored) {}
                 }
@@ -1494,7 +1500,7 @@ public class PaymentActivity extends AppCompatActivity {
                     try {
                         double maxDiscount = Double.parseDouble(String.valueOf(maxDiscountObj));
                         if (maxDiscount > 0) {
-                            sb.append("\nGiảm tối đa: ").append(currencyFormat.format(maxDiscount)).append("\n");
+                            sb.append("\nGiảm tối đa: ").append(CurrencyUtil.formatVND(maxDiscount)).append("\n");
                         }
                     } catch (NumberFormatException ignored) {}
                 }
@@ -1561,13 +1567,12 @@ public class PaymentActivity extends AppCompatActivity {
         appliedPromotionCode = null;
         appliedDiscount = 0.0;
         appliedPromotion = null;
-        NumberFormat nf = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
         double subtotal = (bookingTotalAmount != null) ? bookingTotalAmount : (trip.getPrice() * seatLabels.size());
         tvDiscountApplied.setVisibility(View.GONE);
         tvPromoDetails.setVisibility(View.GONE);
-        tvSubtotal.setText(nf.format(subtotal));
-        tvTotal.setText(nf.format(subtotal));
-        tvBottomTotal.setText(nf.format(subtotal));
+        tvSubtotal.setText(CurrencyUtil.formatVND(subtotal));
+        tvTotal.setText(CurrencyUtil.formatVND(subtotal));
+        tvBottomTotal.setText(CurrencyUtil.formatVND(subtotal));
         btnApplyPromo.setText(getString(R.string.apply_promo));
          etPromoCode.setText("");
     }

@@ -164,7 +164,7 @@
                 android:textColor="@android:color/black"
                 android:textSize="22sp"
                 android:textStyle="bold"
-                tools:text="500.000đ" />
+                tools:text="500.000 VND" />
         </LinearLayout>
 
         <com.google.android.material.button.MaterialButton

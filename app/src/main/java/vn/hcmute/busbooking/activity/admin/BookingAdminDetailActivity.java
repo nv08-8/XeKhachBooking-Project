@@ -27,6 +27,7 @@ import retrofit2.Response;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
+import vn.hcmute.busbooking.util.CurrencyUtil;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class BookingAdminDetailActivity extends AppCompatActivity {
@@ -160,8 +161,7 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
         } else if (totalAmountObj instanceof Number) {
             totalAmount = ((Number) totalAmountObj).doubleValue();
         } 
-        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
-        tvTotalAmount.setText(formatter.format(totalAmount));
+        tvTotalAmount.setText(CurrencyUtil.formatVND(totalAmount));
 
         // Determine UI by status
         String status = (String) data.get("status");

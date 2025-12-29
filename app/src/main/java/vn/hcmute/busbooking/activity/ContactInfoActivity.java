@@ -18,6 +18,7 @@ import java.util.Locale;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.model.Location;
 import vn.hcmute.busbooking.model.Trip;
+import vn.hcmute.busbooking.util.CurrencyUtil;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class ContactInfoActivity extends AppCompatActivity {
@@ -95,8 +96,7 @@ public class ContactInfoActivity extends AppCompatActivity {
         // Display subtotal
         if (seatLabels != null && trip != null) {
             double totalAmount = seatLabels.size() * trip.getPrice();
-            NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
-            tvSubtotal.setText(formatter.format(totalAmount));
+            tvSubtotal.setText(CurrencyUtil.formatVND(totalAmount));
         }
 
         // Handle continue button

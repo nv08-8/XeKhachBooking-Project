@@ -238,7 +238,7 @@
                             android:id="@+id/tvTotalAmount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="500.000đ"
+                            android:text="500.000 VND"
                             android:textColor="@color/colorAccent"
                             android:textSize="18sp"
                             android:textStyle="bold" />

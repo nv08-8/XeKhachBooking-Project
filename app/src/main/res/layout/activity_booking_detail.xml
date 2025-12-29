@@ -527,7 +527,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Giá vé"
+                        android:text="Thành tiền"
                         android:textColor="#8E8E93"
                         android:textSize="14sp" />
 
@@ -535,37 +535,9 @@
                         android:id="@+id/tvBasePrice"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="350.000đ"
-                        android:textColor="@android:color/black"
+                        android:text="-50.000 VND"
+                        android:textColor="@color/black"
                         android:textSize="14sp" />
-                </LinearLayout>
-
-                <!-- Promo Code (if applicable) -->
-                <LinearLayout
-                    android:id="@+id/promoCodeRow"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:orientation="horizontal"
-                    android:visibility="gone">
-
-                    <TextView
-                        android:id="@+id/tvPromoCodeLabel"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Mã giảm giá"
-                        android:textColor="#8E8E93"
-                        android:textSize="14sp" />
-
-                    <TextView
-                        android:id="@+id/tvPromoCode"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="SUMMER20"
-                        android:textColor="#34C759"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
                 </LinearLayout>
 
                 <!-- Discount (if applicable) -->
@@ -581,7 +553,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Giảm giá"
+                        android:text="Giảm giá (Voucher)"
                         android:textColor="#8E8E93"
                         android:textSize="14sp" />
 
@@ -622,7 +594,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="300.000đ"
-                        android:textColor="#007AFF"
+                        android:textColor="@color/Green"
                         android:textSize="16sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -798,7 +770,7 @@
                 android:layout_height="56dp"
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
-                android:text="Thanh toán • 350.000đ"
+                android:text="Thanh toán • 350.000 VND"
                 android:textColor="@android:color/white"
                 android:textSize="16sp"
                 android:textStyle="bold"

@@ -18,7 +18,7 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:layout_marginTop="36dp"
+            android:layout_marginTop="0dp"
             android:background="@android:color/transparent"
             app:navigationIcon="@drawable/ic_arrow_back"
             app:title="Thanh toán"
@@ -67,7 +67,7 @@
                             android:orientation="vertical"
                             android:padding="20dp">
 
-                            <!-- Bus Type Badge row (left small type, right operator badge) -->
+                            <!-- Bus Type Badge row (left shows actual bus type, right shows app name) -->
                             <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -82,17 +82,18 @@
                                     android:contentDescription="@null" />
 
                                 <TextView
+                                    android:id="@+id/tvBusType"
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
                                     android:layout_weight="1"
                                     android:layout_marginStart="8dp"
-                                    android:text="@string/bus_type_bed"
+                                    android:text="Limousine 24 giường"
                                     android:textColor="@android:color/white"
                                     android:textSize="14sp" />
 
-                                <!-- operator badge: keep id tvBusType for compatibility with code that sets bus type (we'll use tvBusOperator for the operator text) -->
+                                <!-- App name badge -->
                                 <TextView
-                                    android:id="@+id/tvBusType"
+                                    android:id="@+id/tvAppName"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="@string/logo_default"
@@ -496,6 +497,16 @@
                             android:layout_marginTop="8dp" />
 
                         <TextView
+                            android:id="@+id/tvDiscountApplied"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text=""
+                            android:textColor="@android:color/holo_green_dark"
+                            android:textStyle="bold"
+                            android:visibility="gone"
+                            android:layout_marginTop="8dp" />
+
+                        <View android:layout_width="match_parent" android:layout_height="8dp" />
                             android:id="@+id/tvDiscountApplied"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"

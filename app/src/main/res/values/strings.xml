@@ -66,7 +66,7 @@
     <string name="apply_promo">Áp dụng</string>
     <string name="remove_promo">Xóa</string>
     <string name="view_promo_details">Xem chi tiết</string>
-    <string name="discount_applied">Giảm %1$s — Tổng: %2$s</string>
+    <string name="discount_applied">Giảm %1$s</string>
     <string name="label_total">Tổng cộng</string>
     <string name="label_payment_methods">Chọn phương thức thanh toán</string>
     <string name="pm_card">Thẻ Tín dụng/ Thẻ ghi nợ</string>
@@ -178,7 +178,7 @@
     <string name="sample_departure">22:00 • 15/10/2023</string>
     <string name="change_to_offline">Đổi sang thanh toán tại nhà xe</string>
     <string name="total_label">Tổng tiền</string>
-    <string name="zero_currency">0đ</string>
+    <string name="zero_currency">0 VND</string>
     <string name="pay_button">Thanh toán</string>
     <string name="content_desc_bus_logo">Logo nhà xe</string>
 

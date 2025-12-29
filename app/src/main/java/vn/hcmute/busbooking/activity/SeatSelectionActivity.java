@@ -31,6 +31,7 @@ import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.Seat;
 import vn.hcmute.busbooking.model.Trip;
+import vn.hcmute.busbooking.util.CurrencyUtil;
 
 public class SeatSelectionActivity extends AppCompatActivity {
 
@@ -214,8 +215,7 @@ public class SeatSelectionActivity extends AppCompatActivity {
 
     private void updateSelectedInfo() {
         double totalAmount = selectedSeats.size() * trip.getPrice();
-        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
-        tvSubtotal.setText(formatter.format(totalAmount));
+        tvSubtotal.setText(CurrencyUtil.formatVND(totalAmount));
         btnContinue.setEnabled(!selectedSeats.isEmpty());
     }
 
