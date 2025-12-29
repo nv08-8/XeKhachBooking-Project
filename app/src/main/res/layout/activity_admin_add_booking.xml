@@ -114,71 +114,16 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Passenger Info Section -->
+            <!-- Info Section -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/passenger_info"
-                android:textStyle="bold"
-                android:textSize="16sp"
-                android:textColor="@color/textPrimary"
-                android:layout_marginBottom="8dp" />
-
-            <!-- Passenger Name -->
-            <EditText
-                android:id="@+id/etPassengerName"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="@string/passenger_name"
-                android:inputType="text"
-                android:background="@drawable/bg_edit_text"
-                android:padding="12dp"
-                android:layout_marginBottom="8dp"
-                android:textColor="@color/textPrimary"
-                android:textColorHint="@color/textSecondary" />
-
-            <!-- Passenger Phone -->
-            <EditText
-                android:id="@+id/etPassengerPhone"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="@string/passenger_phone"
-                android:inputType="phone"
-                android:background="@drawable/bg_edit_text"
-                android:padding="12dp"
-                android:layout_marginBottom="8dp"
-                android:textColor="@color/textPrimary"
-                android:textColorHint="@color/textSecondary" />
-
-            <!-- Passenger Email -->
-            <EditText
-                android:id="@+id/etPassengerEmail"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="@string/passenger_email"
-                android:inputType="textEmailAddress"
-                android:background="@drawable/bg_edit_text"
-                android:padding="12dp"
-                android:layout_marginBottom="16dp"
-                android:textColor="@color/textPrimary"
-                android:textColorHint="@color/textSecondary" />
-
-            <!-- Payment Method -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/payment_method"
+                android:text="Chọn các ghế đã bán từ nhà xe"
                 android:textStyle="bold"
                 android:textSize="14sp"
-                android:textColor="@color/textPrimary"
-                android:layout_marginBottom="8dp" />
-
-            <Spinner
-                android:id="@+id/spinnerPaymentMethod"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginBottom="16dp"
-                android:entries="@array/payment_methods" />
+                android:textColor="@color/textSecondary"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp" />
 
         </LinearLayout>
     </ScrollView>

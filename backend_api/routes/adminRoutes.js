@@ -772,13 +772,13 @@ router.post("/confirm-offline-payment/:id", checkAdminRole, async (req, res) => 
 });
 
 // ============================================================
-// ADMIN: CREATE BOOKING FOR OFFLINE CUSTOMER
+// ADMIN: MARK SEATS AS SOLD (for seats already sold by bus company)
 // ============================================================
 router.post("/bookings", checkAdminRole, async (req, res) => {
-  const { trip_id, seat_labels, passenger_name, passenger_phone, passenger_email, payment_method } = req.body;
+  const { trip_id, seat_labels } = req.body;
 
-  if (!trip_id || !Array.isArray(seat_labels) || seat_labels.length === 0 || !passenger_name || !passenger_phone) {
-    return res.status(400).json({ message: "Missing required fields" });
+  if (!trip_id || !Array.isArray(seat_labels) || seat_labels.length === 0) {
+    return res.status(400).json({ message: "Missing required fields: trip_id and seat_labels" });
   }
 
   const client = await db.connect();
@@ -791,7 +791,7 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
 
     // Check if trip exists
     const tripResult = await client.query(
-      'SELECT id, price FROM trips WHERE id=$1 FOR UPDATE',
+      'SELECT id FROM trips WHERE id=$1 FOR UPDATE',
       [trip_id]
     );
     if (!tripResult.rowCount) {
@@ -800,66 +800,8 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
       return res.status(404).json({ message: "Trip not found" });
     }
 
-    const tripPrice = parseFloat(tripResult.rows[0].price) || 0;
-    const totalAmount = Number((tripPrice * seat_labels.length).toFixed(2));
-
-    // For admin-created offline bookings, set as confirmed immediately
-    const bookingStatus = payment_method === 'offline' ? 'confirmed' : 'pending';
-    const paidAt = payment_method === 'offline' ? new Date() : null;
-
-    // Create booking - try with paid_at first, fallback if column doesn't exist
-    let bookingRes;
-    try {
-      bookingRes = await client.query(
-        `INSERT INTO bookings (
-          user_id, trip_id, total_amount, price_paid, status, payment_method,
-          passenger_info, created_at, paid_at, seats_count
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9)
-        RETURNING id`,
-        [
-          null, // Admin-created bookings don't have a user_id (walk-in customers)
-          trip_id,
-          totalAmount,
-          payment_method === 'offline' ? totalAmount : 0,
-          bookingStatus,
-          payment_method || 'offline',
-          JSON.stringify({ name: passenger_name, phone: passenger_phone, email: passenger_email }),
-          paidAt,
-          seat_labels.length
-        ]
-      );
-    } catch (err) {
-      // If paid_at column doesn't exist, fallback to insert without it
-      if (err.message && err.message.includes('paid_at')) {
-        bookingRes = await client.query(
-          `INSERT INTO bookings (
-            user_id, trip_id, total_amount, price_paid, status, payment_method,
-            passenger_info, created_at, seats_count
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
-          RETURNING id`,
-          [
-            null, // Admin-created bookings don't have a user_id (walk-in customers)
-            trip_id,
-            totalAmount,
-            payment_method === 'offline' ? totalAmount : 0,
-            bookingStatus,
-            payment_method || 'offline',
-            JSON.stringify({ name: passenger_name, phone: passenger_phone, email: passenger_email }),
-            seat_labels.length
-          ]
-        );
-      } else if (err.message && err.message.includes('user_id')) {
-        // If user_id column has NOT NULL constraint, we need to alter the schema
-        // For now, log error and inform the admin
-        throw new Error('Database schema error: user_id cannot be NULL. Please alter the bookings table to allow NULL user_id for admin-created bookings.');
-      } else {
-        throw err;
-      }
-    }
-
-    const bookingId = bookingRes.rows[0].id;
-
-    // Update seats to mark as booked
+    // Mark seats as booked (no booking record created)
+    // This is for marking seats already sold by the bus company
     for (const label of seat_labels) {
       let seatRes = await client.query(
         'SELECT id FROM seats WHERE trip_id=$1 AND label=$2 FOR UPDATE',
@@ -867,34 +809,40 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
       );
 
       if (!seatRes.rowCount) {
+        // Seat doesn't exist, create it
         await client.query(
-          'INSERT INTO seats (trip_id, label, type, is_booked, booking_id) VALUES ($1, $2, $3, 1, $4) ON CONFLICT (trip_id, label) DO UPDATE SET is_booked=1, booking_id=$4',
-          [trip_id, label, 'seat', bookingId]
+          'INSERT INTO seats (trip_id, label, type, is_booked, booking_id) VALUES ($1, $2, $3, 1, NULL)',
+          [trip_id, label, 'seat']
         );
       } else {
+        // Seat exists, mark as booked (booking_id = NULL means it's not an app booking)
         await client.query(
-          'UPDATE seats SET is_booked=1, booking_id=$1 WHERE trip_id=$2 AND label=$3',
-          [bookingId, trip_id, label]
+          'UPDATE seats SET is_booked=1, booking_id=NULL WHERE trip_id=$1 AND label=$2',
+          [trip_id, label]
         );
       }
     }
+
+    // Decrease seats_available count
+    await client.query(
+      'UPDATE trips SET seats_available = seats_available - $1 WHERE id=$2',
+      [seat_labels.length, trip_id]
+    );
 
     await client.query('COMMIT');
     client.release();
 
     res.status(201).json({
-      id: bookingId,
+      message: `Marked ${seat_labels.length} seat(s) as sold`,
       trip_id,
-      total_amount: totalAmount,
-      status: bookingStatus,
-      seats_count: seat_labels.length,
-      message: "Booking created successfully"
+      seats_marked: seat_labels,
+      seats_count: seat_labels.length
     });
   } catch (err) {
     try { await client.query("ROLLBACK"); } catch (e) { /* ignore */ }
     client.release();
-    console.error("Error creating admin booking:", err);
-    res.status(500).json({ message: "Error creating booking", error: err.message });
+    console.error("Error marking seats as sold:", err);
+    res.status(500).json({ message: "Error marking seats", error: err.message });
   }
 });
 

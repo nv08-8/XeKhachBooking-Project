@@ -38,8 +38,6 @@ public class AdminAddBookingActivity extends AppCompatActivity {
 
     private RecyclerView seatRecyclerView;
     private TextView tvTripInfo, tvTotalPrice, tvSeatCount;
-    private EditText etPassengerName, etPassengerPhone, etPassengerEmail;
-    private Spinner spinnerPaymentMethod;
     private Button btnCreateBooking;
     private ProgressBar progressBar;
     private Toolbar toolbar;
@@ -82,10 +80,6 @@ public class AdminAddBookingActivity extends AppCompatActivity {
         tvTripInfo = findViewById(R.id.tvTripInfo);
         tvTotalPrice = findViewById(R.id.tvTotalPrice);
         tvSeatCount = findViewById(R.id.tvSeatCount);
-        etPassengerName = findViewById(R.id.etPassengerName);
-        etPassengerPhone = findViewById(R.id.etPassengerPhone);
-        etPassengerEmail = findViewById(R.id.etPassengerEmail);
-        spinnerPaymentMethod = findViewById(R.id.spinnerPaymentMethod);
         btnCreateBooking = findViewById(R.id.btnCreateBooking);
         progressBar = findViewById(R.id.progressBar);
 
@@ -170,47 +164,26 @@ public class AdminAddBookingActivity extends AppCompatActivity {
 
     private void updateSeatCount() {
         int count = selectedSeats.size();
-        double totalPrice = tripPrice * count;
         tvSeatCount.setText(String.format(Locale.getDefault(), "%d ghế", count));
-        tvTotalPrice.setText(formatPrice(totalPrice));
+        tvTotalPrice.setText("(Đánh dấu)");
     }
 
     private void validateAndCreateBooking() {
-        String passengerName = etPassengerName.getText().toString().trim();
-        String passengerPhone = etPassengerPhone.getText().toString().trim();
-        String passengerEmail = etPassengerEmail.getText().toString().trim();
-
         if (selectedSeats.isEmpty()) {
-            Toast.makeText(this, "Please select at least one seat", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Vui lòng chọn ít nhất 1 ghế", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        if (passengerName.isEmpty()) {
-            Toast.makeText(this, "Please enter passenger name", Toast.LENGTH_SHORT).show();
-            etPassengerName.requestFocus();
-            return;
-        }
-
-        if (passengerPhone.isEmpty()) {
-            Toast.makeText(this, "Please enter passenger phone", Toast.LENGTH_SHORT).show();
-            etPassengerPhone.requestFocus();
-            return;
-        }
-
-        String paymentMethod = spinnerPaymentMethod.getSelectedItem().toString().toLowerCase();
-        createBooking(passengerName, passengerPhone, passengerEmail, paymentMethod);
+        // Since we're just marking seats as sold, no passenger info needed
+        createBooking();
     }
 
-    private void createBooking(String name, String phone, String email, String paymentMethod) {
+    private void createBooking() {
         progressBar.setVisibility(View.VISIBLE);
 
         Map<String, Object> body = new HashMap<>();
         body.put("trip_id", tripId);
         body.put("seat_labels", new ArrayList<>(selectedSeats));
-        body.put("passenger_name", name);
-        body.put("passenger_phone", phone);
-        body.put("passenger_email", email);
-        body.put("payment_method", paymentMethod);
 
         int userId = sessionManager.getUserId();
         apiService.adminCreateBooking(userId, body).enqueue(new Callback<Map<String, Object>>() {
@@ -218,17 +191,17 @@ public class AdminAddBookingActivity extends AppCompatActivity {
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 progressBar.setVisibility(View.GONE);
                 if (response.isSuccessful()) {
-                    Toast.makeText(AdminAddBookingActivity.this, "Booking created successfully", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(AdminAddBookingActivity.this, "Đánh dấu ghế thành công", Toast.LENGTH_SHORT).show();
                     finish();
                 } else {
-                    Toast.makeText(AdminAddBookingActivity.this, "Failed to create booking", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(AdminAddBookingActivity.this, "Lỗi: Không thể đánh dấu ghế", Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
-                Toast.makeText(AdminAddBookingActivity.this, "Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(AdminAddBookingActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -240,12 +213,6 @@ public class AdminAddBookingActivity extends AppCompatActivity {
         } catch (NumberFormatException e) {
             return 0;
         }
-    }
-
-    private String formatPrice(double price) {
-        NumberFormat nf = NumberFormat.getInstance(Locale.GERMANY);
-        nf.setMaximumFractionDigits(0);
-        return nf.format(price) + "đ";
     }
 }
 
