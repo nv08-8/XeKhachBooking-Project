@@ -270,6 +270,22 @@ public class GuestHomeActivity extends AppCompatActivity {
         rvTestimonials.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 
         popularRoutesAdapter = new PopularRoutesAdapter(new java.util.ArrayList<>());
+        popularRoutesAdapter.setOnRouteClickListener((origin, destination) -> {
+            // Auto-search with today's date when popular route is clicked
+            Log.d("GuestHomeActivity", "Popular route clicked - Auto-searching: " + origin + " -> " + destination);
+            boolean isReturn = switchReturn.isChecked();
+
+            // Get today's date formatted as dd/MM/yyyy
+            SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+            String todayDate = dateFormat.format(Calendar.getInstance().getTime());
+
+            Intent intent = new Intent(GuestHomeActivity.this, TripListActivity.class);
+            intent.putExtra("origin", origin);
+            intent.putExtra("destination", destination);
+            intent.putExtra("date", todayDate);
+            intent.putExtra("isReturn", isReturn);
+            startActivity(intent);
+        });
         promotionsAdapter = new PromotionsAdapter(new java.util.ArrayList<>());
         testimonialsAdapter = new TestimonialsAdapter(new java.util.ArrayList<>());
 
@@ -363,6 +379,22 @@ public class GuestHomeActivity extends AppCompatActivity {
                     // Update adapter with all routes
                     Log.d("GuestHomeActivity", "All routes loaded, updating adapter with " + routes.size() + " routes");
                     popularRoutesAdapter = new PopularRoutesAdapter(routes);
+                    popularRoutesAdapter.setOnRouteClickListener((origin, destination) -> {
+                        // Auto-search with today's date
+                        Log.d("GuestHomeActivity", "Popular route clicked - Auto-searching: " + origin + " -> " + destination);
+                        boolean isReturn = switchReturn.isChecked();
+
+                        // Get today's date formatted as dd/MM/yyyy
+                        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+                        String todayDate = dateFormat.format(Calendar.getInstance().getTime());
+
+                        Intent intent = new Intent(GuestHomeActivity.this, TripListActivity.class);
+                        intent.putExtra("origin", origin);
+                        intent.putExtra("destination", destination);
+                        intent.putExtra("date", todayDate);
+                        intent.putExtra("isReturn", isReturn);
+                        startActivity(intent);
+                    });
                     rvPopularRoutes.setAdapter(popularRoutesAdapter);
                 } else {
                     Log.w("GuestHomeActivity", "Popular routes response failed or empty: successful=" + response.isSuccessful() + ", body=" + (response.body() != null ? response.body().size() : "null"));
@@ -528,6 +560,22 @@ public class GuestHomeActivity extends AppCompatActivity {
         routes.add(new PopularRoute("Hồ Chí Minh – Vũng Tàu", "Từ 120.000đ", R.drawable.img_route3));
 
         popularRoutesAdapter = new PopularRoutesAdapter(routes);
+        popularRoutesAdapter.setOnRouteClickListener((origin, destination) -> {
+            // Auto-search with today's date
+            Log.d("GuestHomeActivity", "Popular route clicked - Auto-searching: " + origin + " -> " + destination);
+            boolean isReturn = switchReturn.isChecked();
+
+            // Get today's date formatted as dd/MM/yyyy
+            SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+            String todayDate = dateFormat.format(Calendar.getInstance().getTime());
+
+            Intent intent = new Intent(GuestHomeActivity.this, TripListActivity.class);
+            intent.putExtra("origin", origin);
+            intent.putExtra("destination", destination);
+            intent.putExtra("date", todayDate);
+            intent.putExtra("isReturn", isReturn);
+            startActivity(intent);
+        });
         rvPopularRoutes.setAdapter(popularRoutesAdapter);
 
         List<Promotion> promotions = new ArrayList<>();

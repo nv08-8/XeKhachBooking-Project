@@ -101,13 +101,8 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             tvDate.setText(formatDate(booking.getDeparture_time()));
             tvDuration.setText(formatDuration(booking.getDuration()));
 
-<<<<<<< Updated upstream
-            // setStatus needs booking id to lookup pending countdown
-            setStatus(tvStatus, booking.getStatus(), booking.getId(), pendingCountdowns);
-=======
             // setStatus needs booking id to lookup pending countdown and payment method
             setStatus(tvStatus, booking, pendingCountdowns);
->>>>>>> Stashed changes
         }
 
         private String formatTime(String isoString) {
@@ -149,14 +144,19 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             }
         }
 
-<<<<<<< Updated upstream
-        private void setStatus(TextView tvStatus, String status, int bookingId, Map<Integer, Long> pendingCountdowns) {
-=======
         private void setStatus(TextView tvStatus, Booking booking, Map<Integer, Long> pendingCountdowns) {
->>>>>>> Stashed changes
             Context context = tvStatus.getContext();
             String status = booking.getStatus();
             
+            // 🔍 DEBUG: Log booking status details
+            android.util.Log.d("BookingAdapter", String.format(
+                "Booking #%d: status='%s', payment_method='%s', arrival='%s'",
+                booking.getId(),
+                status,
+                booking.getPayment_method(),
+                booking.getArrival_time()
+            ));
+
             if (status == null) {
                 tvStatus.setVisibility(View.GONE);
                 return;
@@ -182,24 +182,6 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
                 }
             } catch (Exception ignored) {}
 
-<<<<<<< Updated upstream
-            switch (status) {
-                case "confirmed":
-                    tvStatus.setText("Đã thanh toán");
-                    backgroundColor = ContextCompat.getColor(context, R.color.lightGreen);
-                    textColor = ContextCompat.getColor(context, R.color.darkGreen);
-                    break;
-                case "pending":
-                    // show countdown if available
-                    Long rem = null;
-                    if (pendingCountdowns != null) rem = pendingCountdowns.get(bookingId);
-                    String pendingText = "Chờ thanh toán";
-                    if (rem != null) {
-                        long seconds = Math.max(0, rem / 1000);
-                        long mm = seconds / 60;
-                        long ss = seconds % 60;
-                        pendingText = String.format(Locale.getDefault(), "Chờ thanh toán (%02d:%02d)", mm, ss);
-=======
             long now = System.currentTimeMillis();
             
             if (status.equalsIgnoreCase("completed")) {
@@ -226,39 +208,45 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
                  backgroundColor = ContextCompat.getColor(context, R.color.lightRed);
                  textColor = ContextCompat.getColor(context, R.color.darkRed);
             } else if (status.equalsIgnoreCase("pending")) {
-                if (arrivalTime != -1 && now > arrivalTime) {
-                     // Pending but trip finished -> Missed trip -> Cancelled
-                     statusText = "Đã hủy";
-                     backgroundColor = ContextCompat.getColor(context, R.color.lightRed);
-                     textColor = ContextCompat.getColor(context, R.color.darkRed);
+                // Check payment method to determine behavior
+                String paymentMethod = booking.getPayment_method();
+                boolean isOfflinePayment = paymentMethod != null &&
+                    (paymentMethod.toLowerCase().contains("cash") ||
+                     paymentMethod.toLowerCase().contains("offline") ||
+                     paymentMethod.toLowerCase().contains("cod") ||
+                     paymentMethod.toLowerCase().contains("counter"));
+
+                // Check if trip has ended
+                boolean tripEnded = (arrivalTime != -1 && now > arrivalTime);
+
+                if (tripEnded) {
+                    // ✅ After trip ends: ALL pending bookings (online & offline) show "Đã hủy"
+                    statusText = "Đã hủy";
+                    backgroundColor = ContextCompat.getColor(context, R.color.lightRed);
+                    textColor = ContextCompat.getColor(context, R.color.darkRed);
                 } else {
-                    // Pending status logic
-                    String paymentMethod = booking.getPayment_method();
-                    boolean isOfflinePayment = paymentMethod != null &&
-                        (paymentMethod.toLowerCase().contains("cash") ||
-                         paymentMethod.toLowerCase().contains("offline") ||
-                         paymentMethod.toLowerCase().contains("cod") ||
-                         paymentMethod.toLowerCase().contains("counter"));
-    
+                    // Before trip ends: different behavior for online vs offline
                     if (isOfflinePayment) {
-                         statusText = "Chờ xác nhận"; // Offline payment
+                        // Offline payment: show "Chờ thanh toán" (awaiting payment)
+                        statusText = "Chờ thanh toán";
+                        backgroundColor = ContextCompat.getColor(context, R.color.lightYellow);
+                        textColor = ContextCompat.getColor(context, R.color.darkYellow);
                     } else {
-                         // Online payment pending
-                         Long rem = null;
-                         if (pendingCountdowns != null) rem = pendingCountdowns.get(booking.getId());
-                         
-                         if (rem != null && rem > 0) {
+                        // Online payment: show countdown or "Chờ thanh toán"
+                        Long rem = null;
+                        if (pendingCountdowns != null) rem = pendingCountdowns.get(booking.getId());
+
+                        if (rem != null && rem > 0) {
                             long seconds = rem / 1000;
                             long mm = seconds / 60;
                             long ss = seconds % 60;
                             statusText = String.format(Locale.getDefault(), "Chờ thanh toán (%02d:%02d)", mm, ss);
-                         } else {
-                            statusText = "Chờ thanh toán"; 
-                         }
->>>>>>> Stashed changes
+                        } else {
+                            statusText = "Chờ thanh toán";
+                        }
+                        backgroundColor = ContextCompat.getColor(context, R.color.lightYellow);
+                        textColor = ContextCompat.getColor(context, R.color.darkYellow);
                     }
-                    backgroundColor = ContextCompat.getColor(context, R.color.lightYellow);
-                    textColor = ContextCompat.getColor(context, R.color.darkYellow);
                 }
             } else {
                 // Other statuses

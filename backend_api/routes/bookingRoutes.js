@@ -251,7 +251,7 @@ router.get('/bookings/:id', async (req, res) => {
            b.status, b.metadata, b.pickup_stop_id, b.dropoff_stop_id, b.payment_method,
            b.passenger_info, b.created_at, b.paid_at, b.cancelled_at, b.expired_at,
            b.price_paid,
-           t.departure_time, t.arrival_time, t.operator, t.bus_type,
+           t.departure_time, t.arrival_time, t.operator, t.bus_type, t.price AS seat_price,
            r.origin, r.destination,
            u.name AS passenger_name, u.phone AS passenger_phone,
            pickup_stop.name AS pickup_location, pickup_stop.address AS pickup_address,
@@ -268,7 +268,7 @@ router.get('/bookings/:id', async (req, res) => {
     LEFT JOIN route_stops pickup_stop ON pickup_stop.id = b.pickup_stop_id
     LEFT JOIN route_stops dropoff_stop ON dropoff_stop.id = b.dropoff_stop_id
     WHERE b.id=$1
-    GROUP BY b.id, t.id, t.departure_time, t.arrival_time, t.operator, t.bus_type,
+    GROUP BY b.id, t.id, t.departure_time, t.arrival_time, t.operator, t.bus_type, t.price,
              r.id, r.origin, r.destination,
              u.id, u.name, u.phone,
              pickup_stop.id, pickup_stop.name, pickup_stop.address,
@@ -277,7 +277,22 @@ router.get('/bookings/:id', async (req, res) => {
   try {
     const { rows } = await db.query(sql, [id]);
     if (!rows.length) return res.status(404).json({ message: 'Booking not found' });
-    res.json(rows[0]);
+
+    const booking = rows[0];
+
+    // Calculate base_price and discount_amount
+    const seatsCount = booking.seats_count || 0;
+    const seatPrice = parseFloat(booking.seat_price) || 0;
+    const basePrice = seatPrice * seatsCount;
+    const totalAmount = parseFloat(booking.total_amount) || parseFloat(booking.price_paid) || 0;
+    const discountAmount = basePrice > totalAmount ? basePrice - totalAmount : 0;
+
+    // Add calculated fields to response
+    booking.base_price = basePrice;
+    booking.discount_amount = discountAmount;
+    booking.promo_code = booking.promotion_code; // Alias for consistency
+
+    res.json(booking);
   } catch (err) {
     console.error('Failed to fetch booking:', err);
     res.status(500).json({ message: 'Failed to fetch booking' });

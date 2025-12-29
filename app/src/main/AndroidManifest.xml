@@ -33,6 +33,7 @@
         <activity android:name=".activity.SeatSelectionActivity" />
         <activity android:name=".activity.SelectPickupPointActivity" />
         <activity android:name=".activity.SelectDropoffPointActivity" />
+        <activity android:name=".activity.ContactInfoActivity" />
         <activity android:name=".activity.MyBookingsActivity" />
         <activity android:name=".activity.guest.GuestMyBookingsActivity" />
         <activity android:name=".activity.LoginActivity" />

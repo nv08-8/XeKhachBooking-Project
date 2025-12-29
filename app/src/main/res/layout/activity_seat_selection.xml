@@ -20,11 +20,13 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            android:layout_marginTop="36dp"
+            android:background="@android:color/transparent"
             app:navigationIcon="@drawable/ic_arrow_back"
-            app:navigationIconTint="@color/textPrimary"
-            app:title="Chọn chỗ"
+            app:title="Thông tin vé"
             app:titleCentered="true"
-            app:titleTextColor="@color/textPrimary" />
+            app:titleTextAppearance="@style/Toolbar.TitleText" />
+
     </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Seat Legend -->
@@ -33,7 +35,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="60dp"
+        android:layout_marginTop="20dp"
         android:layout_marginEnd="16dp"
         app:flexWrap="wrap"
         app:layout_constraintEnd_toEndOf="parent"
@@ -78,7 +80,7 @@
     <androidx.cardview.widget.CardView
         android:id="@+id/seatCard"
         android:layout_width="383dp"
-        android:layout_height="509dp"
+        android:layout_height="430dp"
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
@@ -92,7 +94,7 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="490dp"
+            android:layout_height="455dp"
             android:baselineAligned="false"
             android:orientation="horizontal"
             android:paddingTop="16dp"
@@ -200,6 +202,13 @@
             android:layout_alignParentStart="true"
             android:layout_centerVertical="true"
             android:orientation="vertical">
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tạm tính"
+                android:textColor="@color/textSecondary"
+                android:textSize="14sp" />
 
             <TextView
                 android:id="@+id/tvSubtotal"

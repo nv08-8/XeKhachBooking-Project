@@ -102,6 +102,22 @@ public class MainActivity extends AppCompatActivity {
             rvPopularRoutes.setHasFixedSize(true);
             rvPopularRoutes.setNestedScrollingEnabled(false);
             popularRoutesAdapter = new PopularRoutesAdapter(new ArrayList<>());
+            popularRoutesAdapter.setOnRouteClickListener((origin, destination) -> {
+                // Auto-search with today's date when popular route is clicked
+                Log.d("MainActivity", "Popular route clicked - Auto-searching: " + origin + " -> " + destination);
+                boolean isReturn = switchReturn.isChecked();
+
+                // Get today's date formatted as dd/MM/yyyy
+                SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+                String todayDate = dateFormat.format(Calendar.getInstance().getTime());
+
+                Intent intent = new Intent(MainActivity.this, TripListActivity.class);
+                intent.putExtra("origin", origin);
+                intent.putExtra("destination", destination);
+                intent.putExtra("date", todayDate);
+                intent.putExtra("isReturn", isReturn);
+                startActivity(intent);
+            });
             rvPopularRoutes.setAdapter(popularRoutesAdapter);
         }
 
@@ -454,6 +470,22 @@ public class MainActivity extends AppCompatActivity {
                     // Update adapter with all routes
                     Log.d("MainActivity", "All routes loaded, updating adapter with " + routes.size() + " routes");
                     popularRoutesAdapter = new PopularRoutesAdapter(routes);
+                    popularRoutesAdapter.setOnRouteClickListener((origin, destination) -> {
+                        // Auto-search with today's date
+                        Log.d("MainActivity", "Popular route clicked - Auto-searching: " + origin + " -> " + destination);
+                        boolean isReturn = switchReturn.isChecked();
+
+                        // Get today's date formatted as dd/MM/yyyy
+                        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+                        String todayDate = dateFormat.format(Calendar.getInstance().getTime());
+
+                        Intent intent = new Intent(MainActivity.this, TripListActivity.class);
+                        intent.putExtra("origin", origin);
+                        intent.putExtra("destination", destination);
+                        intent.putExtra("date", todayDate);
+                        intent.putExtra("isReturn", isReturn);
+                        startActivity(intent);
+                    });
                     rvPopularRoutes.setAdapter(popularRoutesAdapter);
                 } else {
                     Log.w("MainActivity", "Popular routes response failed or empty, using mock data");
@@ -618,6 +650,22 @@ public class MainActivity extends AppCompatActivity {
         routes.add(new PopularRoute("TP.HCM - Nha Trang", "Từ 199.000đ", R.drawable.img_route3));
 
         popularRoutesAdapter = new PopularRoutesAdapter(routes);
+        popularRoutesAdapter.setOnRouteClickListener((origin, destination) -> {
+            // Auto-search with today's date
+            Log.d("MainActivity", "Popular route clicked - Auto-searching: " + origin + " -> " + destination);
+            boolean isReturn = switchReturn.isChecked();
+
+            // Get today's date formatted as dd/MM/yyyy
+            SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+            String todayDate = dateFormat.format(Calendar.getInstance().getTime());
+
+            Intent intent = new Intent(MainActivity.this, TripListActivity.class);
+            intent.putExtra("origin", origin);
+            intent.putExtra("destination", destination);
+            intent.putExtra("date", todayDate);
+            intent.putExtra("isReturn", isReturn);
+            startActivity(intent);
+        });
         rvPopularRoutes.setAdapter(popularRoutesAdapter);
     }
 

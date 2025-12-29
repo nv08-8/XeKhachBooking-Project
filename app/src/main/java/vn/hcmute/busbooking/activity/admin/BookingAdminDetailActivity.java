@@ -207,13 +207,13 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
         if (status == null) return "";
         switch (status) {
             case "confirmed":
-                return "Đã xác nhận";
+                return "Đã thanh toán";
             case "cancelled":
                 return "Đã hủy";
             case "pending":
-                return "Chờ xác nhận";
+                return "Chờ thanh toán";
             case "completed":
-                return "Đã hoàn thành";
+                return "Đã đi";
             case "expired":
                 return "Hết hạn";
             default:

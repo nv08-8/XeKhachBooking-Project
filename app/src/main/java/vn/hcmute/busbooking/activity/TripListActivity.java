@@ -1,9 +1,17 @@
 package vn.hcmute.busbooking.activity;
 
+import android.app.DatePickerDialog;
+import android.app.Dialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.EditText;
 import android.text.Editable;
@@ -26,6 +34,7 @@ import com.google.android.material.button.MaterialButton;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -120,14 +129,7 @@ public class TripListActivity extends AppCompatActivity implements FilterBottomS
         tvDate.setText(String.format(Locale.getDefault(), "Ngày: %s", travelDate));
 
         if (tvChange != null) {
-            tvChange.setOnClickListener(v -> {
-                // Open MainActivity so user can change origin/destination/date
-                Intent intent = new Intent(TripListActivity.this, vn.hcmute.busbooking.MainActivity.class);
-                intent.putExtra("origin", origin);
-                intent.putExtra("destination", destination);
-                intent.putExtra("date", travelDate);
-                startActivity(intent);
-            });
+            tvChange.setOnClickListener(v -> showSearchUpperSheet());
         }
 
         rvTrips.setLayoutManager(new LinearLayoutManager(this));
@@ -580,5 +582,104 @@ public class TripListActivity extends AppCompatActivity implements FilterBottomS
             // Overnight range (e.g., 22 to 4) -> true if dep >= start OR dep <= end
             return dep >= start || dep <= end;
         }
+    }
+
+    /**
+     * Show upper sheet dialog for changing search criteria (origin, destination, date)
+     */
+    private void showSearchUpperSheet() {
+        Dialog dialog = new Dialog(this, R.style.UpperSheetDialogStyle);
+        View sheetView = getLayoutInflater().inflate(R.layout.upper_sheet_search, null);
+        dialog.setContentView(sheetView);
+
+        // Set dialog window properties to display at top
+        Window window = dialog.getWindow();
+        if (window != null) {
+            WindowManager.LayoutParams params = window.getAttributes();
+            params.gravity = Gravity.TOP;
+            params.width = WindowManager.LayoutParams.MATCH_PARENT;
+            params.height = WindowManager.LayoutParams.WRAP_CONTENT;
+            window.setAttributes(params);
+        }
+
+        // Find views
+        AutoCompleteTextView etOrigin = sheetView.findViewById(R.id.etOrigin);
+        AutoCompleteTextView etDestination = sheetView.findViewById(R.id.etDestination);
+        TextView tvDateDialog = sheetView.findViewById(R.id.tvDate);
+        MaterialButton btnSearch = sheetView.findViewById(R.id.btnSearchTrips);
+        MaterialButton btnClose = sheetView.findViewById(R.id.btnCloseSearch);
+        ImageView ivSwap = sheetView.findViewById(R.id.ivSwap);
+
+        // Handle close button click
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        // Handle swap button click
+        if (ivSwap != null) {
+            ivSwap.setOnClickListener(v -> {
+                String from = etOrigin.getText().toString();
+                String to = etDestination.getText().toString();
+                etOrigin.setText(to);
+                etDestination.setText(from);
+            });
+        }
+
+        // Setup location dropdown
+        String[] locations = {"TP.HCM", "Hà Nội", "Đà Nẵng", "Đà Lạt", "Nha Trang", "Buôn Ma Thuột", "Vũng Tàu", "Cam Ranh"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, locations);
+        etOrigin.setAdapter(adapter);
+        etDestination.setAdapter(adapter);
+
+        // Set current values
+        etOrigin.setText(origin, false);
+        etDestination.setText(destination, false);
+        tvDateDialog.setText(travelDate);
+
+        // Setup date picker
+        Calendar calendar = Calendar.getInstance();
+        tvDateDialog.setOnClickListener(v -> {
+            DatePickerDialog datePickerDialog = new DatePickerDialog(
+                this,
+                (view, year, month, dayOfMonth) -> {
+                    calendar.set(year, month, dayOfMonth);
+                    SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+                    String selectedDate = sdf.format(calendar.getTime());
+                    tvDateDialog.setText(selectedDate);
+                },
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH)
+            );
+            datePickerDialog.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
+            datePickerDialog.show();
+        });
+
+        // Handle search button click
+        btnSearch.setOnClickListener(v -> {
+            String newOrigin = etOrigin.getText().toString().trim();
+            String newDestination = etDestination.getText().toString().trim();
+            String newDate = tvDateDialog.getText().toString().trim();
+
+            if (newOrigin.isEmpty() || newDestination.isEmpty()) {
+                Toast.makeText(this, "Vui lòng chọn điểm đi và điểm đến", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Update current values
+            origin = newOrigin;
+            destination = newDestination;
+            travelDate = newDate;
+
+            // Update UI - use the Activity's tvDate and tvRoute TextViews
+            tvRoute.setText(String.format(Locale.getDefault(), "%s → %s", origin, destination));
+            this.tvDate.setText(String.format(Locale.getDefault(), "Ngày: %s", travelDate));
+
+            // Fetch new trips
+            fetchTrips(origin, destination, travelDate);
+
+            // Dismiss dialog
+            dialog.dismiss();
+        });
+
+        dialog.show();
     }
 }

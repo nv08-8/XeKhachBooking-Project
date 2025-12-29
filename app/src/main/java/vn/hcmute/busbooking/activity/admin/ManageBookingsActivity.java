@@ -122,9 +122,9 @@ public class ManageBookingsActivity extends AppCompatActivity {
         int userId = sessionManager.getUserId();
         String status = null;
         int selectedPosition = spinnerBookingStatus.getSelectedItemPosition();
-        // Assuming the spinner items are: ["Tất cả", "Chờ xác nhận", "Đã xác nhận", "Đã hủy"]
+        // Assuming the spinner items are: ["Tất cả", "Chờ thanh toán", "Đã thanh toán", "Đã hủy"]
         switch (selectedPosition) {
-            case 1: // Chờ xác nhận
+            case 1: // Chờ thanh toán
                 status = "pending";
                 break;
             case 2: // Đã xác nhận
