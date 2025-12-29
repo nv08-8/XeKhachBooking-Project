@@ -200,10 +200,12 @@ public class AdminAddBookingActivity extends AppCompatActivity {
         if (seatList.isEmpty()) {
             // Nếu totalSeats không hợp lệ, dùng giá trị mặc định
             int seatsToCreate = (totalSeats > 0) ? totalSeats : 40;
-            android.util.Log.d("AdminAddBooking", "Creating " + seatsToCreate + " seats");
+            android.util.Log.d("AdminAddBooking", "Creating " + seatsToCreate + " seats (fallback, all unbooked)");
 
             for (int i = 1; i <= seatsToCreate; i++) {
-                seatList.add(new Seat("A" + i));
+                Seat seat = new Seat("A" + i);
+                seat.setBooked(false); // Fallback: tất cả ghế chưa đặt
+                seatList.add(seat);
             }
             android.util.Log.d("AdminAddBooking", "Generated " + seatList.size() + " seats");
             seatAdapter.notifyDataSetChanged();

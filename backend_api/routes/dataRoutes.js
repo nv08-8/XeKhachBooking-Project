@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
+const { generateAndCacheSeats } = require('../utils/seatGenerator');
 
 // GET /api/routes?origin=&destination=&q=
 router.get("/routes", async (req, res) => {
@@ -96,27 +97,37 @@ router.get("/trips/:id/seats", async (req, res) => {
         return res.status(400).json({ message: "Invalid trip id" });
     }
 
+    const client = await db.connect();
     try {
-        // 1. Lấy thông tin chuyến đi để biết tổng số ghế
-        const tripRes = await db.query("SELECT seats_total FROM trips WHERE id = $1", [tripId]);
+        // 1. Generate ghế nếu chưa có (như seatsRoutes làm)
+        await generateAndCacheSeats(client, tripId);
+
+        // 2. Lấy thông tin chuyến đi để biết tổng số ghế
+        const tripRes = await client.query("SELECT seats_total FROM trips WHERE id = $1", [tripId]);
         if (tripRes.rows.length === 0) {
+            client.release();
             return res.status(404).json({ message: "Trip not found" });
         }
         const { seats_total } = tripRes.rows[0];
 
-        // 2. Lấy danh sách các ghế đã được đặt từ DB
-        const bookedSeatsRes = await db.query(
-            "SELECT label FROM seats WHERE trip_id = $1 AND is_booked = TRUE",
+        // 3. Query tất cả ghế từ database (đã được generate ở bước 1)
+        const seatsRes = await client.query(
+            "SELECT label, is_booked FROM seats WHERE trip_id = $1 ORDER BY LENGTH(label), label",
             [tripId]
         );
-        const bookedSeatLabels = new Set(bookedSeatsRes.rows.map(seat => seat.label));
 
-        // 3. Sinh danh sách ghế mặc định (A1, A2, A3, ...)
+        // 4. Tạo map từ label -> isBooked status từ database
+        const dbSeatMap = {};
+        seatsRes.rows.forEach(seat => {
+            dbSeatMap[seat.label] = seat.is_booked;
+        });
+
+        // 5. Sinh danh sách ghế hoàn chỉnh (A1, A2, A3, ...)
         const allSeats = [];
         if (seats_total && seats_total > 0) {
             for (let i = 1; i <= seats_total; i++) {
                 const label = "A" + i;
-                const isBooked = bookedSeatLabels.has(label);
+                const isBooked = dbSeatMap[label] || false; // Lấy từ DB, mặc định false nếu không có
                 allSeats.push({
                     label: label,
                     isBooked: isBooked,
@@ -124,19 +135,21 @@ router.get("/trips/:id/seats", async (req, res) => {
             }
         }
 
-        // 4. Lọc theo available parameter
+        // 6. Lọc theo available parameter
         let finalSeats = allSeats;
         if (available === 'true') {
             // Chỉ trả về ghế khả dụng (chưa được đặt)
             finalSeats = allSeats.filter(seat => !seat.isBooked);
         }
 
-        console.log(`✅ Trip ${tripId}: returned ${finalSeats.length}/${allSeats.length} seats`);
+        console.log(`✅ Trip ${tripId}: returned ${finalSeats.length}/${allSeats.length} seats (${seatsRes.rows.length} from DB)`);
         return res.json(finalSeats);
 
     } catch (err) {
         console.error(`Lỗi lấy ghế cho chuyến ${tripId}:`, err);
         return res.status(500).json({ message: "Lỗi phía server." });
+    } finally {
+        client.release();
     }
 });
 
