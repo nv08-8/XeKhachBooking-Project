@@ -97,64 +97,34 @@ router.get("/trips/:id/seats", async (req, res) => {
     }
 
     try {
-        // 1. Lấy thông tin chuyến đi để biết tổng số ghế
-        console.log(`[Seats] Fetching trip ${tripId} details...`);
-        const tripRes = await db.query("SELECT seats_total FROM trips WHERE id = $1", [tripId]);
+        console.log(`[Seats] Fetching seats for trip ${tripId}...`);
 
-        if (tripRes.rows.length === 0) {
-            console.error(`[Seats] Trip ${tripId} not found`);
-            return res.status(404).json({ message: "Trip not found" });
-        }
+        // Query tất cả ghế từ database
+        const seatsRes = await db.query(
+            "SELECT label, is_booked FROM seats WHERE trip_id = $1 ORDER BY LENGTH(label), label",
+            [tripId]
+        );
 
-        const { seats_total } = tripRes.rows[0];
-        console.log(`[Seats] Trip ${tripId} has seats_total = ${seats_total}`);
+        console.log(`[Seats] Found ${seatsRes.rows.length} seats in database for trip ${tripId}`);
 
-        // 2. Query tất cả ghế từ database
-        console.log(`[Seats] Querying seats for trip ${tripId}...`);
-        let seatsRes;
-        try {
-            seatsRes = await db.query(
-                "SELECT label, is_booked FROM seats WHERE trip_id = $1 ORDER BY LENGTH(label), label",
-                [tripId]
-            );
-            console.log(`[Seats] Found ${seatsRes.rows.length} seats in database`);
-        } catch (queryErr) {
-            console.warn(`[Seats] Query failed: ${queryErr.message}`);
-            seatsRes = { rows: [] };
-        }
+        // Chuyển is_booked (0 hoặc 1) thành boolean
+        let allSeats = seatsRes.rows.map(seat => ({
+            label: seat.label,
+            isBooked: seat.is_booked === 1 || seat.is_booked === true
+        }));
 
-        // 3. Tạo map từ label -> isBooked status từ database
-        const dbSeatMap = {};
-        seatsRes.rows.forEach(seat => {
-            // Chuyển is_booked (0 hoặc 1) thành boolean
-            dbSeatMap[seat.label] = seat.is_booked === 1 || seat.is_booked === true;
-        });
-
-        // 4. Sinh danh sách ghế hoàn chỉnh (A1, A2, A3, ...)
-        const allSeats = [];
-        if (seats_total && seats_total > 0) {
-            for (let i = 1; i <= seats_total; i++) {
-                const label = "A" + i;
-                // Nếu ghế tồn tại trong DB, dùng status từ DB. Nếu không, mặc định = false (unbooked)
-                const isBooked = (label in dbSeatMap) ? dbSeatMap[label] : false;
-                allSeats.push({
-                    label: label,
-                    isBooked: isBooked,
-                });
-            }
-        }
-
-        // 5. Lọc theo available parameter
+        // Lọc theo available parameter
         let finalSeats = allSeats;
         if (available === 'true') {
             finalSeats = allSeats.filter(seat => !seat.isBooked);
+            console.log(`[Seats] Filtered to ${finalSeats.length} available seats`);
         }
 
-        console.log(`✅ [Seats] Trip ${tripId}: returned ${finalSeats.length}/${allSeats.length} seats (${seatsRes.rows.length} from DB)`);
+        console.log(`✅ [Seats] Trip ${tripId}: returned ${finalSeats.length}/${allSeats.length} seats`);
         return res.json(finalSeats);
 
     } catch (err) {
-        console.error(`❌ [Seats] Unexpected error for trip ${tripId}:`, err.message);
+        console.error(`❌ [Seats] Error for trip ${tripId}:`, err.message);
         console.error(err.stack);
         return res.status(500).json({ message: "Lỗi phía server: " + err.message });
     }
