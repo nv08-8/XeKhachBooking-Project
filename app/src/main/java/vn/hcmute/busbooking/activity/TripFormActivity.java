@@ -125,25 +125,23 @@ public class TripFormActivity extends AppCompatActivity {
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 LoadingUtil.hideLoading();
                 if (response.isSuccessful() && response.body() != null) {
-                    Map<String, Object> responseData = response.body();
-                    if (responseData.get("data") instanceof Map) {
-                        Map<String, Object> trip = (Map<String, Object>) responseData.get("data");
+                    Map<String, Object> trip = response.body();
+                    // Response is now returned directly (not wrapped in success/data)
 
-                        etOperator.setText(String.valueOf(trip.get("operator")));
-                        etBusType.setText(String.valueOf(trip.get("bus_type")));
-                        etDepartureTime.setText(String.valueOf(trip.get("departure_time")));
-                        etArrivalTime.setText(String.valueOf(trip.get("arrival_time")));
-                        etPrice.setText(String.valueOf(trip.get("price")));
-                        etSeatsTotal.setText(String.valueOf(trip.get("seats_total")));
+                    etOperator.setText(String.valueOf(trip.get("operator")));
+                    etBusType.setText(String.valueOf(trip.get("bus_type")));
+                    etDepartureTime.setText(String.valueOf(trip.get("departure_time")));
+                    etArrivalTime.setText(String.valueOf(trip.get("arrival_time")));
+                    etPrice.setText(String.valueOf(trip.get("price")));
+                    etSeatsTotal.setText(String.valueOf(trip.get("seats_total")));
 
-                        int routeIdToSelect = getIntFromObject(trip.get("route_id"));
-                        if (routeIdToSelect != -1) {
-                            for (int i = 0; i < routesList.size(); i++) {
-                                int listRouteId = getIntFromObject(routesList.get(i).get("id"));
-                                if (listRouteId == routeIdToSelect) {
-                                    spinnerRoute.setSelection(i);
-                                    break;
-                                }
+                    int routeIdToSelect = getIntFromObject(trip.get("route_id"));
+                    if (routeIdToSelect != -1) {
+                        for (int i = 0; i < routesList.size(); i++) {
+                            int listRouteId = getIntFromObject(routesList.get(i).get("id"));
+                            if (listRouteId == routeIdToSelect) {
+                                spinnerRoute.setSelection(i);
+                                break;
                             }
                         }
                     }

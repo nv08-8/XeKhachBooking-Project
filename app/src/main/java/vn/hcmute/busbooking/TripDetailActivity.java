@@ -97,11 +97,9 @@ public class TripDetailActivity extends AppCompatActivity {
         apiService.getTripDetails(tripId).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                if (response.isSuccessful() && response.body() != null && (Boolean) response.body().get("success")) {
-                    Gson gson = new Gson();
-                    Type tripType = new TypeToken<Map<String, Object>>() {}.getType();
-                    Map<String, Object> data = gson.fromJson(gson.toJson(response.body().get("data")), tripType);
-                    updateUiWithTripDetails(data);
+                if (response.isSuccessful() && response.body() != null) {
+                    // Response is now returned directly (not wrapped in success/data)
+                    updateUiWithTripDetails(response.body());
                 } else {
                     Toast.makeText(TripDetailActivity.this, "Không thể tải chi tiết chuyến đi", Toast.LENGTH_SHORT).show();
                 }
