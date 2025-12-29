@@ -169,7 +169,7 @@
 
     <!-- Admin Add Booking Strings -->
     <string name="trip_info">Thông tin chuyến</string>
-    <string name="select_seats">Chọn ghế</string>
+    <string name="select_seats_for_booking">Chọn ghế</string>
     <string name="selected_seats">Ghế đã chọn</string>
     <string name="total_price">Tổng giá</string>
     <string name="passenger_info">Thông tin hành khách</string>
