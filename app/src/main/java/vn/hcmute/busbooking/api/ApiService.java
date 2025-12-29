@@ -29,6 +29,9 @@ public interface ApiService {
     );
 
     @GET("api/trips/{id}/seats")
+    Call<List<Seat>> getSeats(@Path("id") int tripId);
+
+    @GET("api/trips/{id}/seats")
     Call<List<Seat>> getSeats( // Changed to return List<Seat>
             @Path("id") int tripId,
             @Query("available") String available

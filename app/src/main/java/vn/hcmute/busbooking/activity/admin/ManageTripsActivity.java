@@ -38,12 +38,12 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
     private RecyclerView rvTrips;
     private ProgressBar progressTrips;
     private TextView tvEmptyTrips;
-    private Button btnAddTrip, btnRefreshTrips; // Thêm btnRefreshTrips
+    private Button btnAddTrip, btnRefreshTrips;
     private TripsAdapter adapter;
     private List<Map<String, Object>> tripList = new ArrayList<>();
     private SessionManager sessionManager;
     private ApiService apiService;
-    private int routeId = -1; // Biến để lưu routeId
+    private int routeId = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,9 +61,8 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
         progressTrips = findViewById(R.id.progressTrips);
         tvEmptyTrips = findViewById(R.id.tvEmptyTrips);
         btnAddTrip = findViewById(R.id.btnAddTrip);
-        btnRefreshTrips = findViewById(R.id.btnRefreshTrips); // Tìm view cho nút Refresh
+        btnRefreshTrips = findViewById(R.id.btnRefreshTrips);
 
-        // Lấy route_id từ Intent
         routeId = getIntent().getIntExtra("route_id", -1);
 
         rvTrips.setLayoutManager(new LinearLayoutManager(this));
@@ -78,7 +77,6 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
             startActivity(intent);
         });
 
-        // Gán sự kiện click cho nút Refresh
         btnRefreshTrips.setOnClickListener(v -> {
             Toast.makeText(this, "Đang tải lại...", Toast.LENGTH_SHORT).show();
             fetchTrips(routeId);
@@ -90,12 +88,11 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
     private void fetchTrips(int routeId) {
         progressTrips.setVisibility(View.VISIBLE);
         tvEmptyTrips.setVisibility(View.GONE);
-        rvTrips.setVisibility(View.GONE); // Ẩn danh sách để tạo hiệu ứng reload
+        rvTrips.setVisibility(View.GONE);
 
-        // Truyền routeId vào API call nếu nó hợp lệ
         Integer routeIdParam = (routeId != -1) ? routeId : null;
         Call<List<Map<String, Object>>> call = apiService.getTrips(routeIdParam, null, null, null);
-        
+
         call.enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
             public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
@@ -138,18 +135,33 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
         });
     }
 
+    private int getTripIdFromMap(Map<String, Object> trip) {
+        Object idObj = trip.get("trip_id");
+        if (idObj == null) {
+            idObj = trip.get("id");
+        }
+
+        if (idObj == null) {
+            return -1; // Hoặc đưa ra một ngoại lệ
+        }
+
+        try {
+            // Xử lý các trường hợp ID có thể là Double (ví dụ: 64.0) hoặc String
+            return (int) Double.parseDouble(idObj.toString());
+        } catch (NumberFormatException e) {
+            return -1; // Hoặc xử lý lỗi một cách thích hợp
+        }
+    }
+
     @Override
     public void onEditTrip(Map<String, Object> trip) {
-        Intent intent = new Intent(this, TripFormActivity.class);
-        Object idObj = trip.get("id");
-        if (idObj != null) {
-            try {
-                int tripId = new Double(idObj.toString()).intValue();
-                intent.putExtra("trip_id", tripId);
-                startActivity(intent);
-            } catch (NumberFormatException e) {
-                Toast.makeText(this, "ID chuyến đi không hợp lệ", Toast.LENGTH_SHORT).show();
-            }
+        int tripId = getTripIdFromMap(trip);
+        if (tripId != -1) {
+            Intent intent = new Intent(this, TripFormActivity.class);
+            intent.putExtra("trip_id", tripId);
+            startActivity(intent);
+        } else {
+            Toast.makeText(this, "ID chuyến đi không hợp lệ", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -159,31 +171,28 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
                 .setTitle("Xác nhận xóa")
                 .setMessage("Bạn có chắc chắn muốn xóa chuyến đi này?")
                 .setPositiveButton("Xóa", (dialog, which) -> {
-                    int adminId = sessionManager.getUserId();
-                    Object idObj = trip.get("id");
-                     if (idObj != null) {
-                        try {
-                            int tripId = new Double(idObj.toString()).intValue();
-                            Call<Map<String, Object>> call = apiService.deleteTrip(adminId, tripId);
-                            call.enqueue(new Callback<Map<String, Object>>() {
-                                @Override
-                                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                                    if (response.isSuccessful()) {
-                                        Toast.makeText(ManageTripsActivity.this, "Xóa thành công", Toast.LENGTH_SHORT).show();
-                                        fetchTrips(routeId);
-                                    } else {
-                                        Toast.makeText(ManageTripsActivity.this, "Xóa thất bại", Toast.LENGTH_SHORT).show();
-                                    }
+                    int tripId = getTripIdFromMap(trip);
+                    if (tripId != -1) {
+                        int adminId = sessionManager.getUserId();
+                        Call<Map<String, Object>> call = apiService.deleteTrip(adminId, tripId);
+                        call.enqueue(new Callback<Map<String, Object>>() {
+                            @Override
+                            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                                if (response.isSuccessful()) {
+                                    Toast.makeText(ManageTripsActivity.this, "Xóa thành công", Toast.LENGTH_SHORT).show();
+                                    fetchTrips(routeId);
+                                } else {
+                                    Toast.makeText(ManageTripsActivity.this, "Xóa thất bại", Toast.LENGTH_SHORT).show();
                                 }
+                            }
 
-                                @Override
-                                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                                    Toast.makeText(ManageTripsActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                        } catch (NumberFormatException e) {
-                            Toast.makeText(this, "ID chuyến đi không hợp lệ", Toast.LENGTH_SHORT).show();
-                        }
+                            @Override
+                            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                                Toast.makeText(ManageTripsActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    } else {
+                        Toast.makeText(this, "ID chuyến đi không hợp lệ", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .setNegativeButton("Hủy", null)
@@ -192,16 +201,13 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
 
     @Override
     public void onManageSeats(Map<String, Object> trip) {
-        Object idObj = trip.get("id");
-        if (idObj != null) {
-            try {
-                int tripId = new Double(idObj.toString()).intValue();
-                Intent intent = new Intent(this, AdminAddBookingActivity.class);
-                intent.putExtra("trip_id", tripId);
-                startActivity(intent);
-            } catch (NumberFormatException e) {
-                Toast.makeText(this, "ID chuyến đi không hợp lệ", Toast.LENGTH_SHORT).show();
-            }
+        int tripId = getTripIdFromMap(trip);
+        if (tripId != -1) {
+            Intent intent = new Intent(this, AdminAddBookingActivity.class);
+            intent.putExtra("trip_id", tripId);
+            startActivity(intent);
+        } else {
+            Toast.makeText(this, "ID chuyến đi không hợp lệ", Toast.LENGTH_SHORT).show();
         }
     }
 

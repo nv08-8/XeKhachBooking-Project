@@ -51,6 +51,7 @@ public class AdminAddBookingActivity extends AppCompatActivity {
     private int tripId;
     private double tripPrice = 0;
     private String tripInfo = "";
+    private int totalSeats = 0; // Biến để lưu tổng số ghế
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -123,6 +124,12 @@ public class AdminAddBookingActivity extends AppCompatActivity {
                     tripInfo = String.format("%s - %s", trip.get("origin"), trip.get("destination"));
                     tvTripInfo.setText(tripInfo);
 
+                    // Lưu tổng số ghế
+                    Object seatsTotalObj = trip.get("seats_total");
+                    if (seatsTotalObj != null) {
+                        totalSeats = (int) Double.parseDouble(seatsTotalObj.toString());
+                    }
+
                     fetchSeats();
                 } else {
                     Toast.makeText(AdminAddBookingActivity.this, "Failed to load trip details", Toast.LENGTH_SHORT).show();
@@ -141,23 +148,41 @@ public class AdminAddBookingActivity extends AppCompatActivity {
 
     private void fetchSeats() {
         progressBar.setVisibility(View.VISIBLE);
-        apiService.getSeats(tripId, null).enqueue(new Callback<List<Seat>>() {
+        apiService.getSeats(tripId).enqueue(new Callback<List<Seat>>() {
             @Override
             public void onResponse(Call<List<Seat>> call, Response<List<Seat>> response) {
                 progressBar.setVisibility(View.GONE);
-                if (response.isSuccessful() && response.body() != null) {
-                    seatList.clear();
+                seatList.clear();
+
+                if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
+                    // Nếu API trả về danh sách ghế, sử dụng nó
                     seatList.addAll(response.body());
-                    seatAdapter.notifyDataSetChanged();
                 } else {
-                    Toast.makeText(AdminAddBookingActivity.this, "Failed to load seats", Toast.LENGTH_SHORT).show();
+                    // Nếu API trả về danh sách rỗng, tạo danh sách ghế mặc định
+                    if (totalSeats > 0) {
+                        for (int i = 1; i <= totalSeats; i++) {
+                            seatList.add(new Seat("A" + i));
+                        }
+                    }
+                    Toast.makeText(AdminAddBookingActivity.this, "Chuyến này chưa có người đặt, hiển thị ghế mặc định.", Toast.LENGTH_LONG).show();
                 }
+                seatAdapter.notifyDataSetChanged();
             }
 
             @Override
             public void onFailure(Call<List<Seat>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
-                Toast.makeText(AdminAddBookingActivity.this, "Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                // Nếu có lỗi, vẫn thử tạo danh sách ghế mặc định
+                if (totalSeats > 0) {
+                    seatList.clear();
+                    for (int i = 1; i <= totalSeats; i++) {
+                        seatList.add(new Seat("A" + i));
+                    }
+                    seatAdapter.notifyDataSetChanged();
+                    Toast.makeText(AdminAddBookingActivity.this, "Lỗi tải ghế, hiển thị ghế mặc định.", Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(AdminAddBookingActivity.this, "Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                }
             }
         });
     }
@@ -215,4 +240,3 @@ public class AdminAddBookingActivity extends AppCompatActivity {
         }
     }
 }
-

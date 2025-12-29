@@ -12,7 +12,7 @@
         android:background="@color/colorPrimary"
         android:elevation="4dp" />
 
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -56,7 +56,7 @@
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/seatRecyclerView"
                 android:layout_width="match_parent"
-                android:layout_height="200dp"
+                android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp" />
 
             <!-- Seat Count & Price -->
@@ -126,7 +126,7 @@
                 android:layout_marginBottom="16dp" />
 
         </LinearLayout>
-    </ScrollView>
+    </androidx.core.widget.NestedScrollView>
 
     <!-- Progress Bar -->
     <ProgressBar
@@ -149,4 +149,3 @@
         android:elevation="4dp" />
 
 </LinearLayout>
-
