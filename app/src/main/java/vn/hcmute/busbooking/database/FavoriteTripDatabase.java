@@ -65,6 +65,12 @@ public class FavoriteTripDatabase extends SQLiteOpenHelper {
         onCreate(db);
     }
 
+    @Override
+    public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        // Handle downgrade by dropping and recreating the table
+        onUpgrade(db, oldVersion, newVersion);
+    }
+
     public void addFavoriteTrip(Trip trip) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();

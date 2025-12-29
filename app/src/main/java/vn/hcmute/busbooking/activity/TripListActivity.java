@@ -300,23 +300,41 @@ public class TripListActivity extends AppCompatActivity implements FilterBottomS
         apiService.getTrips(null, from, to, apiDate).enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
             public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    List<Trip> trips = new ArrayList<>();
-                    for (Map<String, Object> map : response.body()) {
-                        trips.add(new Trip(map));
+                try {
+                    if (response.isSuccessful() && response.body() != null) {
+                        Log.d(TAG, "API response successful, got " + response.body().size() + " trips");
+                        List<Trip> trips = new ArrayList<>();
+                        for (Map<String, Object> map : response.body()) {
+                            try {
+                                Trip trip = new Trip(map);
+                                trips.add(trip);
+                                Log.d(TAG, "Trip created: id=" + trip.getId() + ", origin=" + trip.getOrigin() + ", dest=" + trip.getDestination());
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error creating Trip from map: " + map, e);
+                            }
+                        }
+                        allTrips = trips;
+                        Log.d(TAG, "Total trips after parsing: " + allTrips.size());
+                        applyFilters();
+                    } else {
+                        Log.w(TAG, "API response not successful: " + response.code());
+                        allTrips.clear();
+                        applyFilters();
                     }
-                    allTrips = trips;
-                    applyFilters();
-                } else {
+                } catch (Exception e) {
+                    Log.e(TAG, "Error in onResponse: " + e.getMessage(), e);
                     allTrips.clear();
                     applyFilters();
+                    Toast.makeText(TripListActivity.this, "Lỗi: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
+                Log.e(TAG, "API request failed: " + t.getMessage(), t);
                 allTrips.clear();
                 applyFilters();
+                Toast.makeText(TripListActivity.this, "Lỗi kết nối: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -341,90 +359,133 @@ public class TripListActivity extends AppCompatActivity implements FilterBottomS
     }
 
     private void applyFilters() {
-        List<Trip> filteredTrips = new ArrayList<>();
-        for (Trip trip : allTrips) {
-            // Price filter
-            if (!(trip.getPrice() >= minPrice && trip.getPrice() <= maxPrice)) continue;
-
-            // Time filter
-            String departure = trip.getDepartureTime();
-            double depHour = parseToFractionalHours(departure);
-            if (Double.isNaN(depHour)) {
-                Log.w(TAG, "Unparsable departure time: " + departure);
-                continue; // exclude unparsable times
+        try {
+            if (allTrips == null) {
+                Log.w(TAG, "applyFilters: allTrips is null");
+                return;
             }
 
-            if (!isInTimeRange(depHour, this.minTime, this.maxTime)) continue;
+            List<Trip> filteredTrips = new ArrayList<>();
+            for (Trip trip : allTrips) {
+                if (trip == null) {
+                    Log.w(TAG, "Trip is null, skipping");
+                    continue;
+                }
 
-            // Operator filter (if any selected)
-            if (selectedOperator != null && !selectedOperator.isEmpty()) {
-                String op = trip.getOperator();
-                if (op == null) continue;
-                String normOp = normalize(op);
-                String normSel = normalize(selectedOperator);
-                if (!normOp.contains(normSel)) continue;
+                // Price filter
+                try {
+                    if (!(trip.getPrice() >= minPrice && trip.getPrice() <= maxPrice)) continue;
+                } catch (Exception e) {
+                    Log.w(TAG, "Error in price filter: " + e.getMessage());
+                    continue;
+                }
+
+                // Time filter
+                String departure = trip.getDepartureTime();
+                double depHour = parseToFractionalHours(departure);
+                if (Double.isNaN(depHour)) {
+                    Log.w(TAG, "Unparsable departure time: " + departure + " for trip id: " + trip.getId());
+                    continue;
+                }
+
+                if (!isInTimeRange(depHour, this.minTime, this.maxTime)) continue;
+
+                // Operator filter
+                if (selectedOperator != null && !selectedOperator.isEmpty()) {
+                    String op = trip.getOperator();
+                    if (op == null) continue;
+                    String normOp = normalize(op);
+                    String normSel = normalize(selectedOperator);
+                    if (!normOp.contains(normSel)) continue;
+                }
+
+                // Bus type filter
+                if (selectedBusType != null && !selectedBusType.isEmpty()) {
+                    String bt = trip.getBusType();
+                    if (bt == null) continue;
+                    if (!normalize(bt).contains(normalize(selectedBusType))) continue;
+                }
+
+                // Pickup/dropoff filter
+                if (selectedPickup != null && !selectedPickup.isEmpty()) {
+                    String or = trip.getOrigin();
+                    if (or == null) continue;
+                    if (!normalize(or).contains(normalize(selectedPickup))) continue;
+                }
+                if (selectedDropoff != null && !selectedDropoff.isEmpty()) {
+                    String de = trip.getDestination();
+                    if (de == null) continue;
+                    if (!normalize(de).contains(normalize(selectedDropoff))) continue;
+                }
+
+                // Search query filter
+                if (searchQuery != null && !searchQuery.isEmpty()) {
+                    String haystack = "";
+                    if (trip.getOperator() != null) haystack += trip.getOperator() + " ";
+                    if (trip.getOrigin() != null) haystack += trip.getOrigin() + " ";
+                    if (trip.getDestination() != null) haystack += trip.getDestination() + " ";
+                    if (trip.getBusType() != null) haystack += trip.getBusType() + " ";
+                    if (!haystack.toLowerCase(Locale.getDefault()).contains(searchQuery)) continue;
+                }
+
+                filteredTrips.add(trip);
             }
 
-            // Bus type filter
-            if (selectedBusType != null && !selectedBusType.isEmpty()) {
-                String bt = trip.getBusType();
-                if (bt == null) continue;
-                if (!normalize(bt).contains(normalize(selectedBusType))) continue;
+            // Sorting
+            if (sortMode != 0) {
+                switch (sortMode) {
+                    case 1:
+                        Collections.sort(filteredTrips, (a, b) -> Double.compare(a.getPrice(), b.getPrice()));
+                        break;
+                    case 2:
+                        Collections.sort(filteredTrips, (a, b) -> Double.compare(b.getPrice(), a.getPrice()));
+                        break;
+                    case 3:
+                        Collections.sort(filteredTrips, (a, b) -> {
+                            double aHour = parseToFractionalHours(a.getDepartureTime());
+                            double bHour = parseToFractionalHours(b.getDepartureTime());
+                            return Double.compare(aHour, bHour);
+                        });
+                        break;
+                    case 4:
+                        Collections.sort(filteredTrips, (a, b) -> {
+                            double aHour = parseToFractionalHours(a.getDepartureTime());
+                            double bHour = parseToFractionalHours(b.getDepartureTime());
+                            return Double.compare(bHour, aHour);
+                        });
+                        break;
+                }
             }
 
-            // Pickup/dropoff filter (we map pickup->origin, dropoff->destination)
-            if (selectedPickup != null && !selectedPickup.isEmpty()) {
-                String or = trip.getOrigin(); if (or == null) continue;
-                if (!normalize(or).contains(normalize(selectedPickup))) continue;
-            }
-            if (selectedDropoff != null && !selectedDropoff.isEmpty()) {
-                String de = trip.getDestination(); if (de == null) continue;
-                if (!normalize(de).contains(normalize(selectedDropoff))) continue;
+            Log.d(TAG, "Filtered trips: " + filteredTrips.size() + " from " + allTrips.size());
+
+            if (tripAdapter == null) {
+                Log.e(TAG, "tripAdapter is null!");
+                return;
             }
 
-            // Search query filter: match on operator, origin, destination, bus name (if provided)
-            if (searchQuery != null && !searchQuery.isEmpty()) {
-                String haystack = "";
-                if (trip.getOperator() != null) haystack += trip.getOperator() + " ";
-                if (trip.getOrigin() != null) haystack += trip.getOrigin() + " ";
-                if (trip.getDestination() != null) haystack += trip.getDestination() + " ";
-                if (trip.getBusType() != null) haystack += trip.getBusType() + " ";
-                if (!haystack.toLowerCase(Locale.getDefault()).contains(searchQuery)) continue;
+            tripAdapter.updateTrips(filteredTrips);
+
+            if (rvTrips == null || tvEmptyState == null) {
+                Log.e(TAG, "rvTrips or tvEmptyState is null!");
+                return;
             }
 
-            filteredTrips.add(trip);
-        }
-
-        // Sorting
-        if (sortMode != 0) {
-            switch (sortMode) {
-                case 1: // price asc
-                    Collections.sort(filteredTrips, (a, b) -> Double.compare(a.getPrice(), b.getPrice()));
-                    break;
-                case 2: // price desc
-                    Collections.sort(filteredTrips, (a, b) -> Double.compare(b.getPrice(), a.getPrice()));
-                    break;
-                case 3: // time asc
-                    Collections.sort(filteredTrips, (a, b) -> Double.compare(parseToFractionalHours(a.getDepartureTime()), parseToFractionalHours(b.getDepartureTime())));
-                    break;
-                case 4: // time desc
-                    Collections.sort(filteredTrips, (a, b) -> Double.compare(parseToFractionalHours(b.getDepartureTime()), parseToFractionalHours(a.getDepartureTime())));
-                    break;
+            if (filteredTrips.isEmpty()) {
+                rvTrips.setVisibility(View.GONE);
+                tvEmptyState.setVisibility(View.VISIBLE);
+            } else {
+                rvTrips.setVisibility(View.VISIBLE);
+                tvEmptyState.setVisibility(View.GONE);
             }
-        }
-
-        tripAdapter.updateTrips(filteredTrips);
-
-        if (filteredTrips.isEmpty()) {
-            tvEmptyState.setVisibility(View.VISIBLE);
-            rvTrips.setVisibility(View.GONE);
-        } else {
-            tvEmptyState.setVisibility(View.GONE);
-            rvTrips.setVisibility(View.VISIBLE);
+        } catch (Exception e) {
+            Log.e(TAG, "Error in applyFilters: " + e.getMessage(), e);
+            e.printStackTrace();
+            Toast.makeText(TripListActivity.this, "Lỗi filter: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
-     private void updateSortButtonText() {
+    private void updateSortButtonText() {
          if (btnSort == null) return;
          String txt;
          switch (sortMode) {
