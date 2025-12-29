@@ -2,7 +2,6 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
-const { generateDetailedSeatLayout } = require('../data/seat_layout.js');
 
 // GET /api/routes?origin=&destination=&q=
 router.get("/routes", async (req, res) => {
@@ -98,47 +97,41 @@ router.get("/trips/:id/seats", async (req, res) => {
     }
 
     try {
-        // 1. Lấy thông tin chuyến đi để biết tổng số ghế và loại xe
-        const tripRes = await db.query("SELECT seats_total, bus_type FROM trips WHERE id = $1", [tripId]);
+        // 1. Lấy thông tin chuyến đi để biết tổng số ghế
+        const tripRes = await db.query("SELECT seats_total FROM trips WHERE id = $1", [tripId]);
         if (tripRes.rows.length === 0) {
             return res.status(404).json({ message: "Trip not found" });
         }
-        const { seats_total, bus_type } = tripRes.rows[0];
+        const { seats_total } = tripRes.rows[0];
 
         // 2. Lấy danh sách các ghế đã được đặt từ DB
-        const bookedSeatsRes = await db.query("SELECT label FROM seats WHERE trip_id = $1 AND is_booked = TRUE", [tripId]);
+        const bookedSeatsRes = await db.query(
+            "SELECT label FROM seats WHERE trip_id = $1 AND is_booked = TRUE",
+            [tripId]
+        );
         const bookedSeatLabels = new Set(bookedSeatsRes.rows.map(seat => seat.label));
 
-        // 3. Tạo ra một sơ đồ ghế đầy đủ và hợp nhất trạng thái
-        const fullSeatLayout = generateDetailedSeatLayout(bus_type, seats_total);
-        const allSeats = fullSeatLayout.flat().map(seat => {
-            if (seat.type === 'aisle' || !seat.label) {
-                return {
-                    label: seat.label || '',
-                    seatType: 'aisle',
-                    isBooked: false,
-                };
+        // 3. Sinh danh sách ghế mặc định (A1, A2, A3, ...)
+        const allSeats = [];
+        if (seats_total && seats_total > 0) {
+            for (let i = 1; i <= seats_total; i++) {
+                const label = "A" + i;
+                const isBooked = bookedSeatLabels.has(label);
+                allSeats.push({
+                    label: label,
+                    isBooked: isBooked,
+                });
             }
-
-            const isBooked = bookedSeatLabels.has(seat.label);
-            return {
-                trip_id: tripId,
-                label: seat.label,
-                seatType: seat.type || 'seat',
-                isBooked: isBooked,
-            };
-        });
-        
-        // 4. Lọc và trả về kết quả
-        let finalSeats = allSeats;
-        if (available === 'true') {
-            // Chỉ trả về ghế khả dụng (chưa được đặt và không phải lối đi)
-            finalSeats = allSeats.filter(seat => !seat.isBooked && seat.seatType !== 'aisle');
-        } else {
-            // Mặc định: trả về tất cả các ghế (không phải lối đi)
-            finalSeats = allSeats.filter(seat => seat.seatType !== 'aisle');
         }
 
+        // 4. Lọc theo available parameter
+        let finalSeats = allSeats;
+        if (available === 'true') {
+            // Chỉ trả về ghế khả dụng (chưa được đặt)
+            finalSeats = allSeats.filter(seat => !seat.isBooked);
+        }
+
+        console.log(`✅ Trip ${tripId}: returned ${finalSeats.length}/${allSeats.length} seats`);
         return res.json(finalSeats);
 
     } catch (err) {
