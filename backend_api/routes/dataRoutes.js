@@ -2,7 +2,6 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
-const { generateAndCacheSeats } = require('../utils/seatGenerator');
 
 // GET /api/routes?origin=&destination=&q=
 router.get("/routes", async (req, res) => {
@@ -97,32 +96,50 @@ router.get("/trips/:id/seats", async (req, res) => {
         return res.status(400).json({ message: "Invalid trip id" });
     }
 
-    const client = await db.connect();
     try {
-        // 1. Generate ghế nếu chưa có (như seatsRoutes làm)
-        await generateAndCacheSeats(client, tripId);
-
-        // 2. Lấy thông tin chuyến đi để biết tổng số ghế
-        const tripRes = await client.query("SELECT seats_total FROM trips WHERE id = $1", [tripId]);
+        // 1. Lấy thông tin chuyến đi để biết tổng số ghế
+        const tripRes = await db.query("SELECT seats_total FROM trips WHERE id = $1", [tripId]);
         if (tripRes.rows.length === 0) {
-            client.release();
             return res.status(404).json({ message: "Trip not found" });
         }
         const { seats_total } = tripRes.rows[0];
 
-        // 3. Query tất cả ghế từ database (đã được generate ở bước 1)
-        const seatsRes = await client.query(
+        // 2. Kiểm tra xem ghế đã được tạo chưa
+        const seatCheckRes = await db.query(
+            "SELECT COUNT(*) as count FROM seats WHERE trip_id = $1",
+            [tripId]
+        );
+        const existingSeatsCount = parseInt(seatCheckRes.rows[0].count, 10);
+
+        // 3. Nếu chưa có ghế, tạo ghế mặc định
+        if (existingSeatsCount === 0 && seats_total > 0) {
+            console.log(`[Auto-Generate] Creating ${seats_total} default seats for trip ${tripId}`);
+            for (let i = 1; i <= seats_total; i++) {
+                const label = "A" + i;
+                try {
+                    await db.query(
+                        'INSERT INTO seats (trip_id, label, is_booked) VALUES ($1, $2, 0) ON CONFLICT (trip_id, label) DO NOTHING',
+                        [tripId, label]
+                    );
+                } catch (insertErr) {
+                    console.warn(`Could not insert seat ${label}: ${insertErr.message}`);
+                }
+            }
+        }
+
+        // 4. Query tất cả ghế từ database
+        const seatsRes = await db.query(
             "SELECT label, is_booked FROM seats WHERE trip_id = $1 ORDER BY LENGTH(label), label",
             [tripId]
         );
 
-        // 4. Tạo map từ label -> isBooked status từ database
+        // 5. Tạo map từ label -> isBooked status từ database
         const dbSeatMap = {};
         seatsRes.rows.forEach(seat => {
             dbSeatMap[seat.label] = seat.is_booked;
         });
 
-        // 5. Sinh danh sách ghế hoàn chỉnh (A1, A2, A3, ...)
+        // 6. Sinh danh sách ghế hoàn chỉnh (A1, A2, A3, ...)
         const allSeats = [];
         if (seats_total && seats_total > 0) {
             for (let i = 1; i <= seats_total; i++) {
@@ -135,7 +152,7 @@ router.get("/trips/:id/seats", async (req, res) => {
             }
         }
 
-        // 6. Lọc theo available parameter
+        // 7. Lọc theo available parameter
         let finalSeats = allSeats;
         if (available === 'true') {
             // Chỉ trả về ghế khả dụng (chưa được đặt)
@@ -148,8 +165,6 @@ router.get("/trips/:id/seats", async (req, res) => {
     } catch (err) {
         console.error(`Lỗi lấy ghế cho chuyến ${tripId}:`, err);
         return res.status(500).json({ message: "Lỗi phía server." });
-    } finally {
-        client.release();
     }
 });
 
