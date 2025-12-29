@@ -8,6 +8,8 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.chip.Chip;
+
 import java.util.List;
 
 import vn.hcmute.busbooking.R;
@@ -38,9 +40,16 @@ public class PromotionsAdapter extends RecyclerView.Adapter<PromotionsAdapter.Pr
     @Override
     public void onBindViewHolder(@NonNull PromotionViewHolder holder, int position) {
         Promotion promotion = promotionList.get(position);
-        holder.tvPromoCode.setText(promotion.getCode());
+        holder.chipPromoCode.setText(promotion.getCode());
         holder.tvPromoDetails.setText("Giảm " + promotion.getDiscount_value() + (promotion.getDiscount_type().equals("percent") ? "%" : "đ"));
-        holder.tvPromoDate.setText("Hết hạn: " + promotion.getEnd_date());
+        
+        String endDate = promotion.getEnd_date();
+        if (endDate != null && endDate.contains("T")) {
+            String formattedDate = endDate.substring(0, endDate.indexOf("T"));
+            holder.tvPromoDate.setText("Hết hạn: " + formattedDate);
+        } else {
+            holder.tvPromoDate.setText("Hết hạn: " + endDate);
+        }
 
         holder.btnEditPromotion.setOnClickListener(v -> {
             if (listener != null) {
@@ -61,12 +70,13 @@ public class PromotionsAdapter extends RecyclerView.Adapter<PromotionsAdapter.Pr
     }
 
     static class PromotionViewHolder extends RecyclerView.ViewHolder {
-        TextView tvPromoCode, tvPromoDetails, tvPromoDate;
+        Chip chipPromoCode;
+        TextView tvPromoDetails, tvPromoDate;
         ImageButton btnEditPromotion, btnDeletePromotion;
 
         public PromotionViewHolder(@NonNull View itemView) {
             super(itemView);
-            tvPromoCode = itemView.findViewById(R.id.tvPromoCode);
+            chipPromoCode = itemView.findViewById(R.id.chipPromoCode);
             tvPromoDetails = itemView.findViewById(R.id.tvPromoDetails);
             tvPromoDate = itemView.findViewById(R.id.tvPromoDate);
             btnEditPromotion = itemView.findViewById(R.id.btnEditPromotion);

@@ -12,7 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import android.widget.Button;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +43,8 @@ public class ManagePromotionsActivity extends AppCompatActivity implements Promo
         setContentView(R.layout.activity_manage_promotions);
 
         rvPromotions = findViewById(R.id.rvPromotions);
-        FloatingActionButton fabAddPromotion = findViewById(R.id.fabAddPromotion);
+        Button btnAddPromotion = findViewById(R.id.btnAddPromotion);
+        Button btnRefreshPromotions = findViewById(R.id.btnRefreshPromotions);
         progressPromotions = findViewById(R.id.progressPromotions);
         tvEmptyPromotions = findViewById(R.id.tvEmptyPromotions);
 
@@ -53,10 +54,12 @@ public class ManagePromotionsActivity extends AppCompatActivity implements Promo
         setupRecyclerView();
         fetchPromotions();
 
-        fabAddPromotion.setOnClickListener(v -> {
+        btnAddPromotion.setOnClickListener(v -> {
             Intent intent = new Intent(ManagePromotionsActivity.this, PromotionFormActivity.class);
             startActivity(intent);
         });
+
+        btnRefreshPromotions.setOnClickListener(v -> fetchPromotions());
     }
 
     @Override

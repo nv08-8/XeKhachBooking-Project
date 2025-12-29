@@ -1,66 +1,88 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/background"
+    android:orientation="vertical"
     tools:context=".activity.admin.ManagePromotionsActivity">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/appBarLayout"
-        android:layout_width="0dp"
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:layout_marginTop="36dp"
+        android:background="@android:color/transparent"
+        app:title="Quản lý Khuyến mãi"
+        app:titleTextAppearance="@style/ToolbarTitleStyle"
+        app:titleTextColor="@color/textPrimary"
+        app:titleCentered="true"
+        app:navigationIcon="@drawable/ic_arrow_back" />
+
+    <!-- Action Buttons (dưới toolbar) -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:layout_marginTop="16dp"
+        android:gravity="end">
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@drawable/ic_arrow_back"
-            app:title="Quản lý Khuyến mãi" />
+        <Button
+            android:id="@+id/btnAddPromotion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="4dp"
+            android:background="@drawable/button_add_green"
+            android:paddingHorizontal="16dp"
+            android:text="+ Thêm khuyến mãi"
+            android:textColor="@color/white"
+            android:textSize="12sp" />
 
-    </com.google.android.material.appbar.AppBarLayout>
+        <Button
+            android:id="@+id/btnRefreshPromotions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="4dp"
+            android:background="@drawable/button_refresh"
+            android:paddingHorizontal="12dp"
+            android:text="🔄 Tải lại"
+            android:textColor="@color/white"
+            android:textSize="12sp" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvPromotions"
-        android:layout_width="0dp"
+    </LinearLayout>
+
+    <!-- Progress & List -->
+    <FrameLayout
+        android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/appBarLayout" />
+        android:layout_weight="1">
 
-    <TextView
-        android:id="@+id/tvEmptyPromotions"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Không có khuyến mãi nào"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/appBarLayout" />
+        <ProgressBar
+            android:id="@+id/progressPromotions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone" />
 
-    <ProgressBar
-        android:id="@+id/progressPromotions"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/appBarLayout" />
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvPromotions"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="8dp"
+            android:visibility="gone" />
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fabAddPromotion"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:src="@drawable/ic_add"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        <TextView
+            android:id="@+id/tvEmptyPromotions"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="Không có khuyến mãi nào"
+            android:gravity="center"
+            android:textSize="16sp"
+            android:textColor="@color/textSecondary"
+            android:visibility="visible" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    </FrameLayout>
+
+</LinearLayout>
