@@ -19,8 +19,6 @@ const seatsRoutes = require("./routes/seatsRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const driversRoutes = require("./routes/driversRoutes"); // Import new routes
 
-// Initialize cron jobs (auto-complete bookings)
-const bookingStatusJob = require("./jobs/bookingStatus.job");
 
 app.use(express.json());
 app.use(cors());
@@ -87,8 +85,8 @@ const io = new Server(server, {
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me';
 
-// Connect Socket.IO to cron job for real-time updates
-bookingStatusJob.setSocketIO(io);
+// Connect Socket.IO to booking routes for CRON job real-time updates
+bookingRoutes.setSocketIO(io);
 
 // Simple socket auth: client passes ?token=JWT; server verifies token and lets socket join user room
 io.on('connection', async (socket) => {
@@ -145,13 +143,18 @@ async function expirePendingBookings() {
         // Criteria:
         // 1. Online Payment (QR/Card) -> expire after TTL (10 mins)
         // 2. Offline Payment -> NOT EXPIRED AUTOMATICALLY (as per request)
+        // ✅ Filter out known offline payment methods at SQL level to avoid fetching them
+        // ✅ Also exclude bookings with NULL payment_method (treat as offline for safety)
         const sql = `SELECT b.id, b.user_id, b.trip_id, t.arrival_time, b.metadata, b.created_at, b.payment_method
                      FROM bookings b
                      JOIN trips t ON t.id = b.trip_id
                      WHERE b.status='pending' 
-                     AND (b.created_at < NOW() - INTERVAL '${BOOKING_PENDING_TTL_MINUTES} minutes')`; 
-                     // Removed "OR t.arrival_time < NOW()" from SQL to avoid fetching offline bookings unnecessarily
-        
+                     AND (b.created_at < NOW() - INTERVAL '${BOOKING_PENDING_TTL_MINUTES} minutes')
+                     AND b.payment_method IS NOT NULL
+                     AND LOWER(b.payment_method) NOT IN ('cash', 'offline', 'cod', 'counter')
+                     AND LOWER(b.payment_method) NOT LIKE '%offline%'
+                     AND LOWER(b.payment_method) NOT LIKE '%cash%'`;
+
         const { rows } = await db.query(sql);
         if (!rows || rows.length === 0) return;
 
@@ -176,13 +179,14 @@ async function expirePendingBookings() {
                 }
 
                 // ✅ CRITICAL: Check payment_method FIRST - Offline payments should NEVER be auto-expired
+                // (Note: SQL filter should exclude most offline bookings; this is a safety fallback)
                 if (booking.payment_method) {
                     const method = String(booking.payment_method).toLowerCase();
                     if (['cash', 'offline', 'cod', 'counter'].includes(method)) {
                         // This is an offline payment - DO NOT EXPIRE IT
                         await client.query('ROLLBACK');
                         client.release();
-                        // console.log(`Skipping offline payment booking id=${booking.id} (method=${method})`);
+                        console.log(`✅ [EXPIRE-SKIP] Offline payment booking #${booking.id} (method=${method}) - NOT expired`);
                         continue;
                     }
                 }
@@ -232,15 +236,19 @@ async function expirePendingBookings() {
                 let shouldCancel = false;
                 let newStatus = 'cancelled'; // Default
 
+                console.log(`📋 [EXPIRE-CHECK] Booking #${booking.id}: payment_method="${booking.payment_method}", isOnline=${isOnlinePayment}, age=${Math.round((now - createdAt)/60000)}min`);
+
                 if (isOnlinePayment) {
                     // Online payment: expire if TTL passed
                     if (now > ttlLimit) {
                         shouldCancel = true;
                         newStatus = 'expired'; // More accurate status for timeout
+                        console.log(`❌ [EXPIRE-YES] Booking #${booking.id} will be expired (online payment timeout)`);
                     }
                 } else {
                     // Offline/Cash: Do NOT expire automatically
                     shouldCancel = false;
+                    console.log(`✅ [EXPIRE-NO] Booking #${booking.id} will NOT be expired (offline payment)`);
                 }
 
                 if (!shouldCancel) {

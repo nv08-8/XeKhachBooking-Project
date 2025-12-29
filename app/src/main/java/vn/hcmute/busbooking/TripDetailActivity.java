@@ -2,6 +2,7 @@ package vn.hcmute.busbooking;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -35,9 +36,13 @@ import vn.hcmute.busbooking.activity.SeatSelectionActivity;
 import vn.hcmute.busbooking.adapter.ImageSliderAdapter;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
+import vn.hcmute.busbooking.database.FavoriteTripDatabase;
 import vn.hcmute.busbooking.model.Trip;
+import vn.hcmute.busbooking.utils.SessionManager;
 
 public class TripDetailActivity extends AppCompatActivity {
+
+    private static final String TAG = "TripDetailActivity";
 
     private ViewPager2 imageViewPager;
     private LinearLayout dotsIndicator;
@@ -48,8 +53,12 @@ public class TripDetailActivity extends AppCompatActivity {
     private TextView txtRating, txtReviews;
     private ProgressBar progressBar5, progressBar4, progressBar3, progressBar2, progressBar1;
     private TextView txtPercent5, txtPercent4, txtPercent3, txtPercent2, txtPercent1;
+    private ImageView btnFavorite;
 
     private Trip trip;
+    private FavoriteTripDatabase favoriteTripDatabase;
+    private SessionManager sessionManager;
+    private boolean isFavorite = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,9 +66,17 @@ public class TripDetailActivity extends AppCompatActivity {
         setContentView(R.layout.activity_trip_detail);
         initViews();
 
+        favoriteTripDatabase = new FavoriteTripDatabase(this);
+        sessionManager = new SessionManager(this);
+
         trip = getIntent().getParcelableExtra("trip");
 
         if (trip != null) {
+            // Display basic trip info immediately from the Trip object
+            displayBasicTripInfo();
+            updateFavoriteIcon();
+
+            // Then fetch additional details (amenities, timeline, reviews) from API
             fetchTripDetails(trip.getId());
         } else {
             Toast.makeText(this, "Không có thông tin chuyến đi", Toast.LENGTH_SHORT).show();
@@ -67,6 +84,15 @@ public class TripDetailActivity extends AppCompatActivity {
         }
 
         findViewById(R.id.toolbar).setOnClickListener(v -> finish());
+        btnFavorite.setOnClickListener(v -> toggleFavorite());
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (trip != null) {
+            updateFavoriteIcon();
+        }
     }
 
     private void initViews() {
@@ -90,44 +116,91 @@ public class TripDetailActivity extends AppCompatActivity {
         txtPercent3 = findViewById(R.id.txtPercent3);
         txtPercent4 = findViewById(R.id.txtPercent4);
         txtPercent5 = findViewById(R.id.txtPercent5);
+        btnFavorite = findViewById(R.id.btnFavorite);
+    }
+
+    private void displayBasicTripInfo() {
+        Log.d(TAG, "=== displayBasicTripInfo() START ===");
+        Log.d(TAG, "Trip ID: " + trip.getId());
+        Log.d(TAG, "Trip RouteID: " + trip.getRouteId());
+        Log.d(TAG, "Trip Operator: " + trip.getOperator());
+        Log.d(TAG, "Trip BusType: " + trip.getBusType());
+        Log.d(TAG, "Trip Price: " + trip.getPrice());
+        Log.d(TAG, "Trip Origin: " + trip.getOrigin());
+        Log.d(TAG, "Trip Destination: " + trip.getDestination());
+
+        // Display operator name and bus type immediately
+        if (trip.getOperator() != null) {
+            txtOperatorName.setText(trip.getOperator());
+            Log.d(TAG, "Set txtOperatorName to: " + trip.getOperator());
+        }
+        if (trip.getBusType() != null) {
+            txtBusType.setText(trip.getBusType());
+            Log.d(TAG, "Set txtBusType to: " + trip.getBusType());
+        }
+
+        // Display price
+        txtPrice.setText(String.format(Locale.getDefault(), "%,.0f ₫", trip.getPrice()));
+        Log.d(TAG, "Set txtPrice to: " + String.format(Locale.getDefault(), "%,.0f ₫", trip.getPrice()));
+
+        // Setup book button with basic info
+        btnBookNow.setOnClickListener(v -> {
+            Intent intent = new Intent(TripDetailActivity.this, SeatSelectionActivity.class);
+            intent.putExtra("trip", trip);
+            startActivity(intent);
+        });
+
+        // Setup image slider with placeholder drawable (no external URL to avoid Glide errors)
+        setupImageSliderWithPlaceholder();
+
+        Log.d(TAG, "=== displayBasicTripInfo() END ===");
     }
 
     private void fetchTripDetails(int tripId) {
+        Log.d(TAG, "Fetching additional trip details for ID: " + tripId);
         ApiService apiService = ApiClient.getClient().create(ApiService.class);
         apiService.getTripDetails(tripId).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                Log.d(TAG, "Response received - Code: " + response.code());
+
                 if (response.isSuccessful() && response.body() != null) {
-                    // Response is now returned directly (not wrapped in success/data)
-                    updateUiWithTripDetails(response.body());
+                    Map<String, Object> responseBody = response.body();
+                    Log.d(TAG, "Response body keys: " + responseBody.keySet());
+
+                    // Check if response has 'data' field directly (some APIs return data directly)
+                    Object dataObj = responseBody.get("data");
+
+                    if (dataObj != null) {
+                        Log.d(TAG, "Found 'data' field in response");
+                        Gson gson = new Gson();
+                        Type tripType = new TypeToken<Map<String, Object>>() {}.getType();
+                        Map<String, Object> data = gson.fromJson(gson.toJson(dataObj), tripType);
+                        updateAdditionalTripDetails(data);
+                    } else if (responseBody.containsKey("operator")) {
+                        // Response IS the data (no wrapper)
+                        Log.d(TAG, "Response body IS the trip data (no wrapper)");
+                        updateAdditionalTripDetails(responseBody);
+                    } else {
+                        Log.e(TAG, "Response format not recognized. Keys: " + responseBody.keySet());
+                        // Still show the basic info we already have
+                    }
                 } else {
-                    Toast.makeText(TripDetailActivity.this, "Không thể tải chi tiết chuyến đi", Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Response not successful or body is null. Code: " + response.code());
+                    // Still show the basic info we already have
                 }
             }
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                Toast.makeText(TripDetailActivity.this, "Lỗi mạng", Toast.LENGTH_SHORT).show();
+                Log.e(TAG, "Failed to fetch additional trip details", t);
+                // Still show the basic info we already have
             }
         });
     }
 
-    private void updateUiWithTripDetails(Map<String, Object> data) {
-        txtOperatorName.setText((String) data.get("operator"));
-        txtBusType.setText((String) data.get("bus_type"));
-        Object priceObj = data.get("price");
-        if (priceObj instanceof String) {
-            try {
-                double price = Double.parseDouble((String) priceObj);
-                txtPrice.setText(String.format(Locale.getDefault(), "%,.0f ₫", price));
-            } catch (NumberFormatException e) {
-                txtPrice.setText("N/A");
-            }
-        } else if (priceObj instanceof Double) {
-            txtPrice.setText(String.format(Locale.getDefault(), "%,.0f ₫", (Double) priceObj));
-        }
-
-
+    private void updateAdditionalTripDetails(Map<String, Object> data) {
+        // Update bus images if available
         Object imageUrlsObj = data.get("bus_image_url");
         List<String> imageUrls = new ArrayList<>();
         if (imageUrlsObj instanceof String) {
@@ -145,30 +218,40 @@ public class TripDetailActivity extends AppCompatActivity {
                     .collect(Collectors.toList());
         }
 
-        if (imageUrls.isEmpty()) {
-            imageUrls.add("https://placehold.co/600x300?text=No+Image");
+        if (!imageUrls.isEmpty()) {
+            // Show image slider when images are available
+            imageViewPager.setVisibility(View.VISIBLE);
+            dotsIndicator.setVisibility(View.VISIBLE);
+            setupImageSlider(imageUrls);
         }
 
-        setupImageSlider(imageUrls);
-
+        // Update amenities if available
         if (data.get("amenities") instanceof Map) {
             displayAmenities((Map<String, Boolean>) data.get("amenities"));
         }
 
+        // Update timeline if available
         if (data.get("timeline") instanceof List) {
             displayTimeline((List<Map<String, Object>>) data.get("timeline"));
         }
 
+        // Update reviews if available
         if (data.get("reviews") instanceof List) {
             displayReviews((List<Map<String, Object>>) data.get("reviews"));
         }
 
-        btnBookNow.setOnClickListener(v -> {
-            Intent intent = new Intent(TripDetailActivity.this, SeatSelectionActivity.class);
-            trip.setSeatLayout(new Gson().toJson(data.get("seat_layout")));
-            intent.putExtra("trip", trip);
-            startActivity(intent);
-        });
+        // Update seat layout if available for booking
+        if (data.get("seat_layout") != null) {
+            String seatLayoutJson = new Gson().toJson(data.get("seat_layout"));
+            trip.setSeatLayout(seatLayoutJson);
+
+            // Update book button with seat layout
+            btnBookNow.setOnClickListener(v -> {
+                Intent intent = new Intent(TripDetailActivity.this, SeatSelectionActivity.class);
+                intent.putExtra("trip", trip);
+                startActivity(intent);
+            });
+        }
     }
 
     private void displayAmenities(Map<String, Boolean> amenities) {
@@ -203,6 +286,13 @@ public class TripDetailActivity extends AppCompatActivity {
         View amenityView = getLayoutInflater().inflate(R.layout.item_amenity, layoutAmenities, false);
         ((TextView) amenityView.findViewById(R.id.txtAmenity)).setText(name);
         layoutAmenities.addView(amenityView);
+    }
+
+    private void setupImageSliderWithPlaceholder() {
+        // Don't load any images initially to avoid Glide errors
+        // Just show empty slider, images will be loaded when API returns data
+        imageViewPager.setVisibility(View.GONE);
+        dotsIndicator.setVisibility(View.GONE);
     }
 
     private void displayTimeline(List<Map<String, Object>> timelineData) {
@@ -319,5 +409,64 @@ public class TripDetailActivity extends AppCompatActivity {
     private void setRatingBar(ProgressBar progressBar, TextView txtPercent, int percent) {
         progressBar.setProgress(percent);
         txtPercent.setText(String.format(Locale.getDefault(), "%d%%", percent));
+    }
+
+    private void toggleFavorite() {
+        Log.d(TAG, "toggleFavorite() called");
+        Integer userId = sessionManager.getUserId();
+        Log.d(TAG, "User ID: " + userId);
+
+        if (userId == null) {
+            Toast.makeText(this, "Vui lòng đăng nhập để yêu thích", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (trip == null) {
+            Log.e(TAG, "Trip is null, cannot toggle favorite");
+            return;
+        }
+
+        // Use the trip ID directly (matches database trip_id column)
+        int tripId = trip.getId();
+        Log.d(TAG, "Trip ID: " + tripId + ", Route ID: " + trip.getRouteId() + ", Current isFavorite: " + isFavorite);
+
+        if (isFavorite) {
+            favoriteTripDatabase.removeFavoriteTrip(tripId, userId);
+            isFavorite = false;
+            Log.d(TAG, "Removed from favorites");
+            Toast.makeText(this, "Đã xóa khỏi yêu thích", Toast.LENGTH_SHORT).show();
+        } else {
+            favoriteTripDatabase.addFavoriteTrip(trip, userId);
+            isFavorite = true;
+            Log.d(TAG, "Added to favorites");
+            Toast.makeText(this, "Đã thêm vào yêu thích", Toast.LENGTH_SHORT).show();
+        }
+
+        // Update the icon directly based on the new state
+        int iconRes = isFavorite ? R.drawable.ic_favorite_filled : R.drawable.ic_favorite_border;
+        Log.d(TAG, "Setting icon resource: " + (isFavorite ? "ic_favorite_filled" : "ic_favorite_border"));
+        btnFavorite.setImageResource(iconRes);
+    }
+
+    private void updateFavoriteIcon() {
+        if (trip == null) {
+            Log.e(TAG, "Trip is null, cannot update favorite icon");
+            return;
+        }
+
+        Integer userId = sessionManager.getUserId();
+        if (userId != null) {
+            // Use the trip ID directly (matches database trip_id column)
+            int tripId = trip.getId();
+            isFavorite = favoriteTripDatabase.isFavorite(tripId, userId);
+            Log.d(TAG, "updateFavoriteIcon() - Trip ID: " + tripId + ", Route ID: " + trip.getRouteId() + ", isFavorite: " + isFavorite);
+        } else {
+            isFavorite = false;
+            Log.d(TAG, "updateFavoriteIcon() - User not logged in, setting isFavorite to false");
+        }
+
+        int iconRes = isFavorite ? R.drawable.ic_favorite_filled : R.drawable.ic_favorite_border;
+        Log.d(TAG, "Setting icon resource: " + (isFavorite ? "ic_favorite_filled" : "ic_favorite_border"));
+        btnFavorite.setImageResource(iconRes);
     }
 }

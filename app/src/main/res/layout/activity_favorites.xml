@@ -26,6 +26,8 @@
         app:elevation="0dp"
         app:layout_constraintTop_toTopOf="parent">
 
+
+
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
@@ -36,18 +38,73 @@
             app:titleCentered="true"
             app:titleTextAppearance="@style/Toolbar.TitleText" />
 
+        <View
+            android:id="@+id/divider_"
+            android:layout_width="match_parent"
+            android:layout_height="0.5dp"
+            android:background="#AF999999"
+            />
+
     </com.google.android.material.appbar.AppBarLayout>
+
+    <View
+        android:id="@+id/divider"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="#AF999999"
+        android:layout_marginTop="0dp"
+
+        app:layout_constraintTop_toBottomOf="@id/appBarLayout"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+
+    <!-- Date selector tabs -->
+    <HorizontalScrollView
+        android:id="@+id/dateScrollView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@android:color/white"
+        android:scrollbars="none"
+        android:paddingTop="16dp"
+        android:paddingBottom="4dp"
+        app:layout_constraintTop_toBottomOf="@id/divider"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:id="@+id/dateTabsContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp">
+            <!-- Date tabs will be added programmatically -->
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <View
+        android:id="@+id/divider_1"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="#AF999999"
+        android:layout_marginTop="0dp"
+
+        app:layout_constraintTop_toBottomOf="@id/dateScrollView"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvFavorites"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"
+        android:paddingTop="8dp"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         app:layout_constraintBottom_toTopOf="@+id/bottomNavCard"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/appBarLayout"
+        app:layout_constraintTop_toBottomOf="@+id/divider_1"
         tools:listitem="@layout/item_trip" />
 
     <TextView
@@ -55,14 +112,14 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:text="Bạn chưa thêm mục yêu thích nào"
+        android:text="Không có chuyến đi yêu thích nào trong ngày này"
         android:textColor="@color/textSecondary"
         android:textSize="16sp"
         android:visibility="visible"
         app:layout_constraintBottom_toTopOf="@+id/bottomNavCard"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/appBarLayout" />
+        app:layout_constraintTop_toBottomOf="@+id/divider_1" />
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/bottomNavCard"

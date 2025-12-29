@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tag IDs for date tabs -->
+    <item name="tag_underline" type="id"/>
+    <item name="tag_day_label" type="id"/>
+    <item name="tag_date_text" type="id"/>
+</resources>
+

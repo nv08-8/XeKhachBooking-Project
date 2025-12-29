@@ -100,11 +100,11 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
 
         switch (status.toLowerCase()) {
             case "pending":
-                statusText = "Chờ xác nhận";
+                statusText = "Chờ thanh toán";
                 background = ContextCompat.getDrawable(context, R.drawable.bg_status_pending);
                 break;
             case "confirmed":
-                statusText = "Đã xác nhận";
+                statusText = "Đã thanh toán";
                 background = ContextCompat.getDrawable(context, R.drawable.bg_status_confirmed);
                 break;
             case "cancelled":

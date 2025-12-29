@@ -123,8 +123,8 @@ public class BackupBookingAdapter extends RecyclerView.Adapter<BackupBookingAdap
     private String getStatusText(String status) {
         if (status == null) return "";
         switch (status) {
-            case "confirmed": return "Đã xác nhận";
-            case "pending": return "Chờ xác nhận";
+            case "confirmed": return "Đã thanh toán";
+            case "pending": return "Chờ thanh toán";
             case "cancelled": return "Đã hủy";
             case "refunded": return "Đã hoàn tiền";
             default: return status;

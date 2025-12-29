@@ -12,8 +12,8 @@
 
     <string-array name="booking_status">
         <item>Tất cả</item>
-        <item>Chờ xác nhận</item>
-        <item>Đã xác nhận</item>
+        <item>Chờ thanh toán</item>
+        <item>Đã thanh toán</item>
         <item>Đã hủy</item>
     </string-array>
 

@@ -2,6 +2,18 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 const { generateAndCacheSeats } = require("../utils/seatGenerator");
+const cron = require("node-cron");
+
+// Will be set by server.js after io is initialized
+let io = null;
+
+/**
+ * Set Socket.IO instance for real-time notifications
+ */
+function setSocketIO(socketIO) {
+  io = socketIO;
+  console.log("✅ Socket.IO connected to booking routes");
+}
 
 // Helper functions for transaction management
 const beginTransaction = () => db.connect();
@@ -160,6 +172,9 @@ router.post("/bookings", async (req, res) => {
     await client.query('UPDATE trips SET seats_available = seats_available - $1 WHERE id=$2', [requiredSeats, trip_id]);
 
     await commitAndRelease(client);
+
+    console.log(`✅ [BOOKING-CREATED] Booking #${bookingId} created: user=${user_id}, trip=${trip_id}, payment_method="${finalPaymentMethod}", status="pending", seats=[${seat_labels.join(',')}]`);
+
     res.json({ message: 'Booking created successfully', booking_ids: bookingIds, total_amount: finalAmount });
 
   } catch (err) {
@@ -196,11 +211,15 @@ router.get('/bookings/my', async (req, res) => {
 
   const sql = `
     SELECT b.id, b.status, b.price_paid, b.created_at, b.total_amount, b.payment_method,
+           b.passenger_info,
            t.departure_time, t.arrival_time, t.operator, t.bus_type,
            r.origin, r.destination,
            pickup_stop.name AS pickup_location,
            dropoff_stop.name AS dropoff_location,
-           COALESCE(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]) AS seat_labels
+           COALESCE(
+             array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL),
+             ARRAY[]::text[]
+           ) AS seat_labels
     FROM bookings b
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
@@ -228,13 +247,19 @@ router.get('/bookings/my', async (req, res) => {
 router.get('/bookings/:id', async (req, res) => {
   const { id } = req.params;
   const sql = `
-    SELECT b.*, 
-           t.departure_time, t.arrival_time, t.operator, 
-           r.origin, r.destination, 
+    SELECT b.id, b.user_id, b.trip_id, b.total_amount, b.seats_count, b.promotion_code,
+           b.status, b.metadata, b.pickup_stop_id, b.dropoff_stop_id, b.payment_method,
+           b.passenger_info, b.created_at, b.paid_at, b.cancelled_at, b.expired_at,
+           b.price_paid,
+           t.departure_time, t.arrival_time, t.operator, t.bus_type, t.price AS seat_price,
+           r.origin, r.destination,
            u.name AS passenger_name, u.phone AS passenger_phone,
            pickup_stop.name AS pickup_location, pickup_stop.address AS pickup_address,
            dropoff_stop.name AS dropoff_location, dropoff_stop.address AS dropoff_address,
-           COALESCE(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]) AS seat_labels
+           COALESCE(
+             array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL),
+             ARRAY[]::text[]
+           ) AS seat_labels
     FROM bookings b
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
@@ -243,12 +268,31 @@ router.get('/bookings/:id', async (req, res) => {
     LEFT JOIN route_stops pickup_stop ON pickup_stop.id = b.pickup_stop_id
     LEFT JOIN route_stops dropoff_stop ON dropoff_stop.id = b.dropoff_stop_id
     WHERE b.id=$1
-    GROUP BY b.id, t.id, r.id, u.id, pickup_stop.id, dropoff_stop.id
+    GROUP BY b.id, t.id, t.departure_time, t.arrival_time, t.operator, t.bus_type, t.price,
+             r.id, r.origin, r.destination,
+             u.id, u.name, u.phone,
+             pickup_stop.id, pickup_stop.name, pickup_stop.address,
+             dropoff_stop.id, dropoff_stop.name, dropoff_stop.address
   `;
   try {
     const { rows } = await db.query(sql, [id]);
     if (!rows.length) return res.status(404).json({ message: 'Booking not found' });
-    res.json(rows[0]);
+
+    const booking = rows[0];
+
+    // Calculate base_price and discount_amount
+    const seatsCount = booking.seats_count || 0;
+    const seatPrice = parseFloat(booking.seat_price) || 0;
+    const basePrice = seatPrice * seatsCount;
+    const totalAmount = parseFloat(booking.total_amount) || parseFloat(booking.price_paid) || 0;
+    const discountAmount = basePrice > totalAmount ? basePrice - totalAmount : 0;
+
+    // Add calculated fields to response
+    booking.base_price = basePrice;
+    booking.discount_amount = discountAmount;
+    booking.promo_code = booking.promotion_code; // Alias for consistency
+
+    res.json(booking);
   } catch (err) {
     console.error('Failed to fetch booking:', err);
     res.status(500).json({ message: 'Failed to fetch booking' });
@@ -299,6 +343,7 @@ router.post('/bookings/:id/cancel', async (req, res) => {
         refundAmount = 0;
         newStatus = 'cancelled';
     }
+
 
     await client.query(
         'UPDATE bookings SET status=$1, cancelled_at=NOW(), metadata = metadata || $2::jsonb WHERE id=$3',
@@ -600,4 +645,102 @@ router.post('/bookings/:id/confirm-offline-payment', async (req, res) => {
   }
 });
 
+// ==========================================
+// CRON JOB: Auto-finalize bookings
+// ==========================================
+
+/**
+ * Cron Job: Auto-finalize bookings after trip arrival
+ * Runs every 5 minutes to:
+ * 1. Complete paid bookings (confirmed + price_paid > 0)
+ * 2. Cancel unpaid bookings (pending + price_paid = 0)
+ */
+cron.schedule("*/5 * * * *", async () => {
+  try {
+    console.log("\n🕐 [CRON] Finalizing bookings after trip arrival...");
+
+    // 1️⃣ Complete paid bookings
+    const completeResult = await db.query(`
+      UPDATE bookings b
+      SET status = 'completed', completed_at = NOW()
+      FROM trips t
+      WHERE b.trip_id = t.id
+        AND t.arrival_time < NOW()
+        AND b.status = 'confirmed'
+        AND COALESCE(b.price_paid, 0) > 0
+        AND b.completed_at IS NULL
+      RETURNING b.id, b.user_id, b.trip_id, t.arrival_time
+    `);
+
+    const completedBookings = completeResult.rows;
+
+    // 2️⃣ Cancel unpaid bookings after trip arrival (both online and offline)
+    // ✅ Cancel ALL pending bookings with price_paid = 0 after trip ends
+    // Note: Offline bookings are NOT expired after 10 minutes, but ARE cancelled after trip ends
+    const cancelResult = await db.query(`
+      UPDATE bookings b
+      SET status = 'cancelled', cancelled_at = NOW()
+      FROM trips t
+      WHERE b.trip_id = t.id
+        AND t.arrival_time < NOW()
+        AND b.status = 'pending'
+        AND COALESCE(b.price_paid, 0) = 0
+        AND b.cancelled_at IS NULL
+      RETURNING b.id, b.user_id, b.trip_id, t.arrival_time, b.payment_method
+    `);
+
+    const cancelledBookings = cancelResult.rows;
+
+    // Log results
+    if (completedBookings.length === 0 && cancelledBookings.length === 0) {
+      console.log("   ℹ️  No bookings to finalize");
+      return;
+    }
+
+    // Handle completed bookings
+    if (completedBookings.length > 0) {
+      console.log(`   ✅ Completed ${completedBookings.length} paid booking(s):`);
+      for (const booking of completedBookings) {
+        console.log(`      • Booking #${booking.id} -> completed (arrival: ${new Date(booking.arrival_time).toLocaleString()})`);
+
+        // Emit socket event to user for real-time update
+        if (io) {
+          io.to(`user_${booking.user_id}`).emit('booking_event', {
+            id: booking.id,
+            trip_id: booking.trip_id,
+            status: 'completed'
+          });
+        }
+      }
+    }
+
+    // Handle cancelled bookings
+    if (cancelledBookings.length > 0) {
+      console.log(`   ❌ Cancelled ${cancelledBookings.length} unpaid booking(s) after trip ended:`);
+      for (const booking of cancelledBookings) {
+        const method = booking.payment_method || 'unknown';
+        const arrival = new Date(booking.arrival_time).toLocaleString();
+        console.log(`      • Booking #${booking.id} (payment: ${method}) -> cancelled (trip arrival: ${arrival})`);
+
+        // Emit socket event to user for real-time update
+        if (io) {
+          io.to(`user_${booking.user_id}`).emit('booking_event', {
+            id: booking.id,
+            trip_id: booking.trip_id,
+            status: 'cancelled'
+          });
+        }
+      }
+    }
+
+    console.log(`   📊 Summary: ${completedBookings.length} completed, ${cancelledBookings.length} cancelled`);
+
+  } catch (err) {
+    console.error("❌ [CRON ERROR] Auto-finalize job failed:", err.message);
+  }
+});
+
+console.log("✅ Cron job initialized: Auto-finalize bookings every 5 minutes (complete paid, cancel unpaid)");
+
 module.exports = router;
+module.exports.setSocketIO = setSocketIO;

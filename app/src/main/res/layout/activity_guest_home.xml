@@ -132,7 +132,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:background="@drawable/bg_search_field"
-                            android:drawableStart="@drawable/ic_origin_dot_24"
+                            android:drawableStart="@drawable/ic_origin_dot"
                             android:drawablePadding="12dp"
                             android:gravity="center_vertical"
                             android:hint="Chọn điểm đi"
@@ -155,8 +155,7 @@
                             android:padding="6dp"
                             android:src="@drawable/ic_swap_vert_24"
                             app:layout_constraintEnd_toEndOf="parent"
-                            app:layout_constraintTop_toBottomOf="@+id/etOrigin"
-                            app:tint="@color/colorPrimary" />
+                            app:layout_constraintTop_toBottomOf="@+id/etOrigin"/>
 
 
                         <!-- Destination -->
@@ -177,7 +176,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:background="@drawable/bg_search_field"
-                            android:drawableStart="@drawable/ic_location_on_24"
+                            android:drawableStart="@drawable/ic_location_on"
                             android:drawablePadding="12dp"
                             android:gravity="center_vertical"
                             android:hint="Chọn điểm đến"

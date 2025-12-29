@@ -20,9 +20,23 @@ import vn.hcmute.busbooking.model.PopularRoute;
 public class PopularRoutesAdapter extends RecyclerView.Adapter<PopularRoutesAdapter.ViewHolder> {
 
     private List<PopularRoute> routeList;
+    private OnRouteClickListener clickListener;
+
+    public interface OnRouteClickListener {
+        void onRouteClick(String origin, String destination);
+    }
 
     public PopularRoutesAdapter(List<PopularRoute> routeList) {
         this.routeList = routeList;
+    }
+
+    public PopularRoutesAdapter(List<PopularRoute> routeList, OnRouteClickListener listener) {
+        this.routeList = routeList;
+        this.clickListener = listener;
+    }
+
+    public void setOnRouteClickListener(OnRouteClickListener listener) {
+        this.clickListener = listener;
     }
 
     @NonNull
@@ -37,6 +51,25 @@ public class PopularRoutesAdapter extends RecyclerView.Adapter<PopularRoutesAdap
         PopularRoute route = routeList.get(position);
         holder.tvRouteName.setText(route.getName());
         holder.tvRoutePrice.setText(route.getPrice());
+
+        // Set click listener
+        holder.itemView.setOnClickListener(v -> {
+            if (clickListener != null) {
+                // Parse route name to extract origin and destination
+                // Format: "Đà Lạt → Nha Trang" or "Đà Lạt - Nha Trang"
+                String routeName = route.getName();
+                String[] parts = routeName.split("→|->|−|—");
+
+                if (parts.length >= 2) {
+                    String origin = parts[0].trim();
+                    String destination = parts[1].trim();
+                    android.util.Log.d("PopularRoutesAdapter", "Route clicked: " + origin + " -> " + destination);
+                    clickListener.onRouteClick(origin, destination);
+                } else {
+                    android.util.Log.w("PopularRoutesAdapter", "Could not parse route name: " + routeName);
+                }
+            }
+        });
 
         // Load image from URL if available, otherwise use drawable resource
         if (route.hasImageUrl()) {

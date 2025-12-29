@@ -250,25 +250,6 @@ public class MyBookingsActivity extends AppCompatActivity {
             
             // --- LOGIC PHÂN LOẠI ---
 
-<<<<<<< Updated upstream
-            // User requested: "Hiện tại" shows tickets the user booked AND
-            // - not yet departure (chưa tới ngày đi)
-            // - not boarded yet (we approximate this by departure_time > now)
-            // - not cancelled/expired
-            // ✅ IMPORTANT: ALL pending bookings (including offline) should ALWAYS show in "Hiện tại"
-            if (status.equals("pending")) {
-                // ✅ Always show pending bookings in current, regardless of date parsing
-                listCurrent.add(booking);
-            } else if (timeMillis == -1) {
-                // Unknown date -> keep in current so user can see/manage it
-                listCurrent.add(booking);
-            } else if (timeMillis > nowMillis) {
-                // departure in future -> current
-                listCurrent.add(booking);
-            } else {
-                // departure in past -> already gone
-                listPast.add(booking);
-=======
             // 1. Tab "Hiện tại": Hiển thị TẤT CẢ các vé trong 3 tháng gần nhất (bất kể trạng thái)
             long sortTime = parseDateToMillis(booking.getDeparture_time());
             if (sortTime == -1) sortTime = parseDateToMillis(booking.getCreated_at());
@@ -295,12 +276,11 @@ public class MyBookingsActivity extends AppCompatActivity {
                 if (arrivalTime > 0 && nowMillis > arrivalTime) {
                     listPast.add(booking);
                 }
->>>>>>> Stashed changes
             }
          }
 
         // Sort lists
-        // Hiện tại: Mới nhất lên đầu (Descending) để dễ nhìn
+        // Hiện tại: Mới nhất lên đầu (Descending)
         Comparator<Booking> descByDeparture = (a, b) -> Long.compare(parseDateToMillis(b.getDeparture_time()), parseDateToMillis(a.getDeparture_time()));
         
         try {
@@ -487,6 +467,20 @@ public class MyBookingsActivity extends AppCompatActivity {
             if (b == null) continue;
             if (b.getStatus() == null) continue;
             if (!b.getStatus().equalsIgnoreCase("pending")) continue;
+
+            // ✅ Skip offline payment bookings - they should NOT be auto-cancelled after 10 minutes
+            String paymentMethod = b.getPayment_method();
+            boolean isOfflinePayment = paymentMethod != null &&
+                (paymentMethod.toLowerCase().contains("cash") ||
+                 paymentMethod.toLowerCase().contains("offline") ||
+                 paymentMethod.toLowerCase().contains("cod") ||
+                 paymentMethod.toLowerCase().contains("counter"));
+
+            if (isOfflinePayment) {
+                // Offline payment booking - skip countdown and auto-cancel
+                continue;
+            }
+
             int id = b.getId();
             long created = parseDateToMillis(b.getCreated_at());
             if (created <= 0) {
@@ -496,7 +490,7 @@ public class MyBookingsActivity extends AppCompatActivity {
             long rem = (created + ttl) - now;
             Long prev = pendingCountdowns.get(id);
             if (rem <= 0) {
-                // expired -> cancel booking via API
+                // expired -> cancel booking via API (ONLY for online payment)
                 toCancel.add(id);
                 if (prev != null) {
                     pendingCountdowns.remove(id);

@@ -400,7 +400,7 @@
                             android:id="@+id/tvTotalAmount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="500.000đ"
+                            android:text="500.000 VND"
                             android:textSize="16sp"
                             android:textStyle="bold"
                             android:textColor="@color/white" />

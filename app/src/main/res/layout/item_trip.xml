@@ -83,7 +83,7 @@
                             android:textColor="@color/colorPrimary"
                             android:textSize="18sp"
                             android:textStyle="bold"
-                            tools:text="350.000đ" />
+                            tools:text="350.000 VND" />
 
                     </LinearLayout>
 
@@ -256,10 +256,9 @@
         android:contentDescription="@string/content_description_save_trip"
         android:elevation="5dp"
         android:padding="8dp"
-        android:src="@drawable/ic_favorite_filled"
+        android:src="@drawable/ic_favorite_border"
         app:layout_constraintBottom_toTopOf="@+id/cardView"
         app:layout_constraintEnd_toEndOf="@id/cardView"
-        app:layout_constraintTop_toTopOf="@+id/cardView"
-        app:tint="@color/textSecondary" />
+        app:layout_constraintTop_toTopOf="@+id/cardView" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

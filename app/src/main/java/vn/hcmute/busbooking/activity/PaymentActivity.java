@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import okhttp3.ResponseBody; // added for safe response body handling
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -48,6 +49,7 @@ import vn.hcmute.busbooking.model.PaymentRequest;
 import vn.hcmute.busbooking.model.PaymentResponse;
 import vn.hcmute.busbooking.model.Trip;
 import vn.hcmute.busbooking.utils.SessionManager;
+import vn.hcmute.busbooking.util.CurrencyUtil;
 
 public class PaymentActivity extends AppCompatActivity {
 
@@ -55,8 +57,10 @@ public class PaymentActivity extends AppCompatActivity {
     private static final String PREFS_NAME = "payment_timers";
     private static final long HOLD_DURATION_MS = 10 * 60 * 1000L; // 10 minutes
 
-    private TextView tvBusOperator, tvBusType, tvPickup, tvDropoff, tvDate, tvSeat, tvDepartureTime, tvArrivalTime;
+    private TextView tvBusOperator, tvBusType, tvAppName, tvPickup, tvDropoff, tvDate, tvSeat, tvDepartureTime, tvArrivalTime;
+    private TextView tvOrigin, tvDestination;
     private TextView tvCountdown;
+    private TextView tvPassengerName, tvPassengerPhone;
     private TextView tvBottomTotal;
     private Button btnConfirmPayment;
     private com.google.android.material.button.MaterialButton btnChangeToOffline;
@@ -86,7 +90,6 @@ public class PaymentActivity extends AppCompatActivity {
     private String dropoffStopName;
 
     private android.os.CountDownTimer countDownTimer;
-    private long millisUntilFinished = 0L;
     private MaterialCardView cardCountdown;
 
     // Promo fields
@@ -175,6 +178,9 @@ public class PaymentActivity extends AppCompatActivity {
         btnChangeToOffline.setOnClickListener(v -> changePaymentMethodToOffline());
 
         btnConfirmPayment.setOnClickListener(v -> {
+            Log.d(TAG, "🔵 btnConfirmPayment CLICKED!");
+            Log.d(TAG, "isPendingPayment=" + isPendingPayment + ", bookingIds=" + (bookingIds != null ? bookingIds : "null"));
+
             if (isPendingPayment) {
                 // Check if user is trying to change payment method
                 int selectedMethod = getSelectedPaymentMethodId();
@@ -258,12 +264,22 @@ public class PaymentActivity extends AppCompatActivity {
     private void initializeViews() {
         tvBusOperator = findViewById(R.id.tvBusOperator);
         tvBusType = findViewById(R.id.tvBusType);
-        tvPickup = findViewById(R.id.tvPickup);
-        tvDropoff = findViewById(R.id.tvDropoff);
-        tvDate = findViewById(R.id.tvDate);
-        tvSeat = findViewById(R.id.tvSeat);
+        tvAppName = findViewById(R.id.tvAppName);
+        tvOrigin = findViewById(R.id.tvOrigin);
+        tvDestination = findViewById(R.id.tvDestination);
+        // Layout uses tvPickupLocation / tvDropoffLocation ids — map them to tvPickup/tvDropoff variables
+        tvPickup = findViewById(R.id.tvPickupLocation);
+        tvDropoff = findViewById(R.id.tvDropoffLocation);
+        // tvDate view doesn't exist in layout, set to null to avoid crash
+        tvDate = null; // findViewById(R.id.tvDate);
+        // seat textview id in layout is tvSeatNumber
+        tvSeat = findViewById(R.id.tvSeatNumber);
+        tvPassengerName = findViewById(R.id.tvPassengerName);
+        // phone field id in layout is tvPhoneNumber
+        tvPassengerPhone = findViewById(R.id.tvPhoneNumber);
         tvDepartureTime = findViewById(R.id.tvDepartureTime);
-        tvArrivalTime = findViewById(R.id.tvArrivalTime);
+        // tvArrivalTime view doesn't exist in layout, set to null to avoid crash
+        tvArrivalTime = null; // findViewById(R.id.tvArrivalTime);
         tvCountdown = findViewById(R.id.tvCountdown);
         tvBottomTotal = findViewById(R.id.tvBottomTotal);
         cardCountdown = findViewById(R.id.cardCountdown);
@@ -325,25 +341,56 @@ public class PaymentActivity extends AppCompatActivity {
     private void populateBookingSummary() {
         tvBusOperator.setText(trip.getOperator());
         tvBusType.setText(trip.getBusType());
-        tvPickup.setText(pickupStopName);
-        tvDropoff.setText(dropoffStopName);
-        tvDate.setText(formatDisplayDate(trip.getDepartureTime()));
-        tvDepartureTime.setText(formatDisplayTime(trip.getDepartureTime()));
-        tvArrivalTime.setText(formatDisplayTime(trip.getArrivalTime()));
 
-        String seatText = TextUtils.join(", ", seatLabels);
-        tvSeat.setText("Ghế: " + seatText);
+        // Set app name in badge
+        if (tvAppName != null) {
+            tvAppName.setText(R.string.logo_default);
+        }
 
-        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
-        double subtotal = (bookingTotalAmount != null) ? bookingTotalAmount : (trip.getPrice() * seatLabels.size());
-        tvSubtotal.setText(formatter.format(subtotal));
+        // Set origin and destination (large text in the trip card)
+        if (tvOrigin != null) {
+            tvOrigin.setText(trip.getOrigin());
+        }
+        if (tvDestination != null) {
+            tvDestination.setText(trip.getDestination());
+        }
+
+        // Use pickup/dropoff names for the small detail card
+        tvPickup.setText(pickupStopName != null ? pickupStopName : "");
+        tvDropoff.setText(dropoffStopName != null ? dropoffStopName : "");
+        if (tvDate != null) {
+            tvDate.setText(formatDisplayDate(trip.getDepartureTime()));
+        }
+        // Format: "16:00 - Thứ Năm, 01/01/2026"
+        tvDepartureTime.setText(formatDisplayDateTime(trip.getDepartureTime()));
+        if (tvArrivalTime != null) {
+            tvArrivalTime.setText(formatDisplayTime(trip.getArrivalTime()));
+        }
+
+        String seatText = (seatLabels != null) ? TextUtils.join(", ", seatLabels) : "";
+        tvSeat.setText(seatText);
+
+        // Passenger name / phone - prefer explicit intent extras, else session
+        if (fullName != null && !fullName.isEmpty()) {
+            tvPassengerName.setText(fullName);
+        } else if (sessionManager.getUserName() != null) {
+            tvPassengerName.setText(sessionManager.getUserName());
+        }
+
+        String phoneToShow = (phoneNumber != null) ? phoneNumber : sessionManager.getUserPhone();
+        if (phoneToShow != null) {
+            tvPassengerPhone.setText(maskPhone(phoneToShow));
+        }
+
+        double subtotal = (bookingTotalAmount != null) ? bookingTotalAmount : (trip.getPrice() * (seatLabels != null ? seatLabels.size() : 0));
+        tvSubtotal.setText(CurrencyUtil.formatVND(subtotal));
 
         double totalToShow = subtotal - appliedDiscount; // appliedDiscount is 0 if none
         if (totalToShow < 0) totalToShow = 0;
-        tvTotal.setText(formatter.format(totalToShow));
+        tvTotal.setText(CurrencyUtil.formatVND(totalToShow));
 
         // Update bottom bar total and keep button text simple
-        tvBottomTotal.setText(formatter.format(totalToShow));
+        tvBottomTotal.setText(CurrencyUtil.formatVND(totalToShow));
         btnConfirmPayment.setText(R.string.title_payment);
     }
     
@@ -352,6 +399,7 @@ public class PaymentActivity extends AppCompatActivity {
         try {
             SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
             Date date = isoFormat.parse(isoDate);
+            if (date == null) return "";
             SimpleDateFormat displayFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
             return displayFormat.format(date);
         } catch (ParseException e) {
@@ -365,6 +413,7 @@ public class PaymentActivity extends AppCompatActivity {
         try {
             SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
             Date date = isoFormat.parse(isoDate);
+            if (date == null) return "";
             SimpleDateFormat displayFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
             return displayFormat.format(date);
         } catch (ParseException e) {
@@ -373,92 +422,48 @@ public class PaymentActivity extends AppCompatActivity {
         }
     }
 
-    private void setupPaymentMethodSelection() {
-        View.OnClickListener listener = v -> {
-            // ✅ Removed isPendingPayment check - allow users to change payment methods
-            // The enable/disable logic is handled in fetchBookingDetailsAndInit()
-
-            int id = v.getId();
-            if (id == R.id.cardCreditCard || id == R.id.rbCreditCard) {
-                selectPaymentMethod(R.id.rbCreditCard);
-            } else if (id == R.id.cardQrPayment || id == R.id.rbQrPayment) {
-                selectPaymentMethod(R.id.rbQrPayment);
-            } else if (id == R.id.cardPayAtOffice || id == R.id.rbPayAtOffice) {
-                selectPaymentMethod(R.id.rbPayAtOffice);
-            }
-        };
-
-        cardCreditCard.setOnClickListener(listener);
-        cardQrPayment.setOnClickListener(listener);
-        cardPayAtOffice.setOnClickListener(listener);
-        rbCreditCard.setOnClickListener(listener);
-        rbQrPayment.setOnClickListener(listener);
-        rbPayAtOffice.setOnClickListener(listener);
-
-        if (!isPendingPayment) {
-            selectPaymentMethod(R.id.rbCreditCard);
+    private String formatDisplayDateTime(String isoDate) {
+        if (isoDate == null) return "";
+        try {
+            SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
+            Date date = isoFormat.parse(isoDate);
+            if (date == null) return "";
+            // Format: "16:00 - Thứ Năm, 01/01/2026"
+            SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+            SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd/MM/yyyy", new Locale("vi", "VN"));
+            return timeFormat.format(date) + " - " + dateFormat.format(date);
+        } catch (ParseException e) {
+            Log.e(TAG, "Error parsing datetime: " + isoDate, e);
+            return "";
         }
     }
 
-    private void selectPaymentMethod(int selectedId) {
-        rbCreditCard.setChecked(selectedId == R.id.rbCreditCard);
-        rbQrPayment.setChecked(selectedId == R.id.rbQrPayment);
-        rbPayAtOffice.setChecked(selectedId == R.id.rbPayAtOffice);
-
-        creditCardForm.setVisibility(rbCreditCard.isChecked() ? View.VISIBLE : View.GONE);
-
-        updateCardAppearance(cardCreditCard, rbCreditCard.isChecked());
-        updateCardAppearance(cardQrPayment, rbQrPayment.isChecked());
-        updateCardAppearance(cardPayAtOffice, rbPayAtOffice.isChecked());
-    }
-
-    private void updateCardAppearance(MaterialCardView card, boolean isSelected) {
-        if (isSelected) {
-            card.setStrokeWidth(2);
-            card.setStrokeColor(ContextCompat.getColor(this, R.color.colorPrimary));
-            card.setCardBackgroundColor(ContextCompat.getColor(this, R.color.backgroundLight));
-        } else {
-            card.setStrokeWidth(0);
-            card.setCardBackgroundColor(ContextCompat.getColor(this, R.color.white));
-        }
-    }
-
-    private int getSelectedPaymentMethodId() {
-        if (rbCreditCard.isChecked()) return R.id.rbCreditCard;
-        if (rbQrPayment.isChecked()) return R.id.rbQrPayment;
-        if (rbPayAtOffice.isChecked()) return R.id.rbPayAtOffice;
-        return -1;
+    // Mask phone number for display: keep first 3 and last 3 digits, replace middle with ***
+    private String maskPhone(String phone) {
+        if (phone == null) return "";
+        String digits = phone.replaceAll("\\D", "");
+        if (digits.length() <= 6) return phone;
+        String start = digits.substring(0, 3);
+        String end = digits.substring(digits.length() - 3);
+        return start + "***" + end;
     }
 
     /**
-     * Normalize payment method strings for consistent comparison
-     * Maps various payment method names to either "online" or "offline"
-     * @param method The payment method string from UI or API
-     * @return "online" for QR/Card payments, "offline" for cash payments
+     * Normalize payment method to simplified categories: "online", "offline" or "unknown".
      */
     private String normalizePaymentMethod(String method) {
         if (method == null) return "unknown";
-
         String lower = method.toLowerCase(Locale.getDefault());
-
-        // Online payment methods
-        if (lower.contains("qr") || lower.contains("payos") ||
-            lower.contains("card") || lower.contains("credit") ||
-            lower.contains("momo") || lower.contains("vnpay") ||
-            lower.equals("online")) {
+        // Online
+        if (lower.contains("qr") || lower.contains("payos") || lower.contains("card") || lower.contains("credit") || lower.contains("momo") || lower.contains("vnpay") || lower.contains("online")) {
             return "online";
         }
-
-        // Offline payment methods
-        if (lower.contains("cash") || lower.contains("offline") ||
-            lower.contains("cod") || lower.contains("counter") ||
-            lower.equals("offline")) {
+        // Offline
+        if (lower.contains("cash") || lower.contains("offline") || lower.contains("cod") || lower.contains("counter")) {
             return "offline";
         }
-
-        return lower; // Return as-is if can't classify
+        return "unknown";
     }
-
 
     private void createBookingAndProcessPayment() {
         Integer userId = sessionManager.getUserId();
@@ -559,8 +564,8 @@ public class PaymentActivity extends AppCompatActivity {
                 } else {
                     String errorMessage = "Không thể tạo đặt vé.";
                     if (response.errorBody() != null) {
-                        try {
-                            String errorString = response.errorBody().string();
+                        try (ResponseBody rb = response.errorBody()) {
+                            String errorString = rb.string();
                             JSONObject errorJson = new JSONObject(errorString);
                             errorMessage = errorJson.optString("message", errorMessage);
 
@@ -693,10 +698,6 @@ public class PaymentActivity extends AppCompatActivity {
         });
     }
 
-    private void processCashPayment(List<Integer> ids) {
-        confirmNextPayment(ids, 0, "cash");
-    }
-
     private void confirmNextPayment(List<Integer> ids, int index, String paymentMethod) {
         if (index >= ids.size()) {
             onAllPaymentsSuccess(ids.get(0));
@@ -742,8 +743,14 @@ public class PaymentActivity extends AppCompatActivity {
     }
 
     private void setLoadingState(boolean isLoading) {
+        Log.d(TAG, "setLoadingState: isLoading=" + isLoading + ", btnEnabled=" + !isLoading);
         progressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
         btnConfirmPayment.setEnabled(!isLoading);
+
+        // Extra debug: log button state
+        Log.d(TAG, "Button state after setLoadingState: enabled=" + btnConfirmPayment.isEnabled() +
+                   ", clickable=" + btnConfirmPayment.isClickable() +
+                   ", visibility=" + (btnConfirmPayment.getVisibility() == View.VISIBLE ? "VISIBLE" : "HIDDEN"));
     }
 
     @Override
@@ -897,19 +904,16 @@ public class PaymentActivity extends AppCompatActivity {
 
     // Countdown helpers
     private void startCountdown(long millis) {
-        millisUntilFinished = millis;
         if (countDownTimer != null) countDownTimer.cancel();
         countDownTimer = new android.os.CountDownTimer(millis, 1000) {
             @Override
             public void onTick(long l) {
-                millisUntilFinished = l;
                 tvCountdown.setText(formatMillis(l));
             }
 
             @Override
             public void onFinish() {
-                millisUntilFinished = 0;
-                tvCountdown.setText("00:00");
+                tvCountdown.setText(getString(R.string.countdown_zero));
                 onHoldExpired();
             }
          }.start();
@@ -1023,10 +1027,12 @@ public class PaymentActivity extends AppCompatActivity {
                         if (data.get("departure_time") instanceof String) t.setDepartureTime((String) data.get("departure_time"));
                         if (data.get("arrival_time") instanceof String) t.setArrivalTime((String) data.get("arrival_time"));
                         // price: prefer booking total_amount if present
-                        if (data.get("total_amount") instanceof Number) {
-                            bookingTotalAmount = ((Number) data.get("total_amount")).doubleValue();
-                        } else if (data.get("total_amount") instanceof String) {
-                            try { bookingTotalAmount = Double.parseDouble((String) data.get("total_amount")); } catch (Exception ignored) {}
+                        Object totalAmountObj = data.get("total_amount");
+                        if (totalAmountObj instanceof Number) {
+                            Number n = (Number) totalAmountObj;
+                            if (n != null) bookingTotalAmount = n.doubleValue();
+                        } else if (totalAmountObj instanceof String) {
+                            try { bookingTotalAmount = Double.parseDouble((String) totalAmountObj); } catch (Exception ignored) {}
                         }
 
                         trip = t;
@@ -1084,42 +1090,44 @@ public class PaymentActivity extends AppCompatActivity {
 
                         // Save expiry derived from created_at if not already saved
                         Object createdObj = data.get("created_at");
+
+                        // prepare variables used later
                         long createdMs = -1L;
+                        long primary = bookingId;
+
+                        // Only calculate expiry if we have valid created_at from server
                         if (createdObj instanceof String) {
                             try {
                                 SimpleDateFormat iso = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
                                 iso.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
                                 Date d = iso.parse((String) createdObj);
-                                if (d != null) createdMs = d.getTime();
+                                if (d != null) {
+                                    createdMs = d.getTime();
+                                    long expiryToUse = createdMs + HOLD_DURATION_MS;
+                                    saveExpiryForBooking(primary, expiryToUse);
+                                    Log.d(TAG, "📅 Calculated expiry from created_at: " + new Date(expiryToUse));
+                                } else {
+                                    Log.e(TAG, "⚠️ Cannot calculate expiry - created_at is invalid!");
+                                    // Don't save any expiry - let payment stay pending without auto-cancel
+                                }
                             } catch (Exception e) {
                                 // Try without milliseconds
                                 try {
                                     SimpleDateFormat iso2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault());
                                     iso2.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
                                     Date d2 = iso2.parse((String) createdObj);
-                                    if (d2 != null) createdMs = d2.getTime();
+                                    if (d2 != null) {
+                                        createdMs = d2.getTime();
+                                        long expiryToUse = createdMs + HOLD_DURATION_MS;
+                                        saveExpiryForBooking(primary, expiryToUse);
+                                        Log.d(TAG, "📅 Calculated expiry from created_at (no ms): " + new Date(expiryToUse));
+                                    } else {
+                                        Log.e(TAG, "⚠️ Cannot calculate expiry - created_at is invalid!");
+                                    }
                                 } catch (Exception ignored) {
                                     Log.e(TAG, "Failed to parse created_at: " + createdObj);
                                 }
                             }
-                        }
-
-                        long primary = bookingId;
-                        long existingExpiry = getExpiryForBooking(primary);
-                        long expiryToUse = existingExpiry;
-
-                        if (existingExpiry == -1L) {
-                            // Only calculate expiry if we have valid created_at from server
-                            if (createdMs > 0) {
-                                expiryToUse = createdMs + HOLD_DURATION_MS;
-                                saveExpiryForBooking(primary, expiryToUse);
-                                Log.d(TAG, "📅 Calculated expiry from created_at: " + new Date(expiryToUse));
-                            } else {
-                                Log.e(TAG, "⚠️ Cannot calculate expiry - created_at is invalid!");
-                                // Don't save any expiry - let payment stay pending without auto-cancel
-                            }
-                        } else {
-                            Log.d(TAG, "📅 Using existing expiry: " + new Date(existingExpiry));
                         }
 
                         // Continue initialization
@@ -1169,6 +1177,9 @@ public class PaymentActivity extends AppCompatActivity {
                                 } else {
                                     Log.w(TAG, "⚠️ No valid expiry time - countdown not started");
                                 }
+
+                                // Enable payment button for online payment bookings
+                                setLoadingState(false);
                             } else if (isCurrentlyOfflinePayment) {
                                 // Currently offline payment (Cash) - allow switching to online
                                 selectPaymentMethod(R.id.rbPayAtOffice);
@@ -1184,6 +1195,10 @@ public class PaymentActivity extends AppCompatActivity {
                                 if (btnChangeToOffline != null) btnChangeToOffline.setVisibility(View.GONE);
                                 // Clear expiry timestamp to prevent auto-cancellation
                                 saveExpiryForBooking(primary, -1L);
+
+                                // ✅ IMPORTANT: Enable the payment button after loading offline booking
+                                setLoadingState(false);
+                                Log.d(TAG, "✅ Offline payment booking loaded - payment button enabled");
                             } else {
                                 // Unknown payment method - default to allowing all methods
                                 selectPaymentMethod(R.id.rbQrPayment);
@@ -1193,6 +1208,9 @@ public class PaymentActivity extends AppCompatActivity {
                                 rbQrPayment.setEnabled(true);
                                 cardPayAtOffice.setClickable(true);
                                 rbPayAtOffice.setEnabled(true);
+
+                                // Enable payment button
+                                setLoadingState(false);
                             }
                         } else {
                             // Not pending/expired - normal flow
@@ -1232,6 +1250,68 @@ public class PaymentActivity extends AppCompatActivity {
     private boolean selectedMethodIsQr() {
         int selected = getSelectedPaymentMethodId();
         return selected == R.id.rbQrPayment;
+    }
+
+    // Returns the currently selected payment method radio id
+    private int getSelectedPaymentMethodId() {
+        if (rbCreditCard != null && rbCreditCard.isChecked()) return R.id.rbCreditCard;
+        if (rbQrPayment != null && rbQrPayment.isChecked()) return R.id.rbQrPayment;
+        if (rbPayAtOffice != null && rbPayAtOffice.isChecked()) return R.id.rbPayAtOffice;
+        return -1;
+    }
+
+    // Apply visual selection to the payment cards and show/hide associated forms
+    private void selectPaymentMethod(int selectedId) {
+        if (rbCreditCard != null) rbCreditCard.setChecked(selectedId == R.id.rbCreditCard);
+        if (rbQrPayment != null) rbQrPayment.setChecked(selectedId == R.id.rbQrPayment);
+        if (rbPayAtOffice != null) rbPayAtOffice.setChecked(selectedId == R.id.rbPayAtOffice);
+
+        if (creditCardForm != null) creditCardForm.setVisibility(rbCreditCard != null && rbCreditCard.isChecked() ? View.VISIBLE : View.GONE);
+
+        if (cardCreditCard != null) updateCardAppearance(cardCreditCard, rbCreditCard != null && rbCreditCard.isChecked());
+        if (cardQrPayment != null) updateCardAppearance(cardQrPayment, rbQrPayment != null && rbQrPayment.isChecked());
+        if (cardPayAtOffice != null) updateCardAppearance(cardPayAtOffice, rbPayAtOffice != null && rbPayAtOffice.isChecked());
+    }
+
+    private void updateCardAppearance(MaterialCardView card, boolean isSelected) {
+        try {
+            if (card == null) return;
+            if (isSelected) {
+                card.setStrokeWidth(2);
+                card.setCardBackgroundColor(ContextCompat.getColor(this, R.color.backgroundLight));
+            } else {
+                card.setStrokeWidth(0);
+                card.setCardBackgroundColor(ContextCompat.getColor(this, R.color.white));
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void setupPaymentMethodSelection() {
+        View.OnClickListener listener = v -> {
+            int id = v.getId();
+            if (id == R.id.cardCreditCard || id == R.id.rbCreditCard) {
+                selectPaymentMethod(R.id.rbCreditCard);
+            } else if (id == R.id.cardQrPayment || id == R.id.rbQrPayment) {
+                selectPaymentMethod(R.id.rbQrPayment);
+            } else if (id == R.id.cardPayAtOffice || id == R.id.rbPayAtOffice) {
+                selectPaymentMethod(R.id.rbPayAtOffice);
+            }
+        };
+
+        if (cardCreditCard != null) cardCreditCard.setOnClickListener(listener);
+        if (cardQrPayment != null) cardQrPayment.setOnClickListener(listener);
+        if (cardPayAtOffice != null) cardPayAtOffice.setOnClickListener(listener);
+        if (rbCreditCard != null) rbCreditCard.setOnClickListener(listener);
+        if (rbQrPayment != null) rbQrPayment.setOnClickListener(listener);
+        if (rbPayAtOffice != null) rbPayAtOffice.setOnClickListener(listener);
+
+        // Default selection for new bookings
+        if (!isPendingPayment) selectPaymentMethod(R.id.rbCreditCard);
+    }
+
+    // Simple offline payment flow wrapper
+    private void processCashPayment(List<Integer> ids) {
+        confirmNextPayment(ids, 0, "cash");
     }
 
     private void setupPromoHandlers() {
@@ -1313,17 +1393,17 @@ public class PaymentActivity extends AppCompatActivity {
                                 double newTotal = Math.max(0, subtotal - appliedDiscount);
                                 Log.i(TAG, "💰 Applying discount: subtotal=" + subtotal + ", discount=" + appliedDiscount + ", newTotal=" + newTotal);
 
-                                tvDiscountApplied.setText(getString(R.string.discount_applied, NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(appliedDiscount), NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(newTotal)));
+                                tvDiscountApplied.setText(getString(R.string.discount_applied, CurrencyUtil.formatVND(appliedDiscount)));
                                 tvDiscountApplied.setVisibility(View.VISIBLE);
                                 tvPromoDetails.setVisibility(View.VISIBLE);
-                                tvSubtotal.setText(NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(subtotal));
-                                tvTotal.setText(NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(newTotal));
-                                tvBottomTotal.setText(NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(newTotal));
+                                tvSubtotal.setText(CurrencyUtil.formatVND(subtotal));
+                                tvTotal.setText(CurrencyUtil.formatVND(newTotal));
+                                tvBottomTotal.setText(CurrencyUtil.formatVND(newTotal));
                                 btnApplyPromo.setText(getString(R.string.remove_promo));
 
                                 // Show success toast
                                 Toast.makeText(PaymentActivity.this,
-                                    "✅ Áp dụng thành công! Giảm " + NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(appliedDiscount),
+                                    "✅ Áp dụng thành công! Giảm " + CurrencyUtil.formatVND(appliedDiscount),
                                     Toast.LENGTH_LONG).show();
 
                                 Log.i(TAG, "🎉 UI updated successfully!");
@@ -1345,7 +1425,7 @@ public class PaymentActivity extends AppCompatActivity {
                             } else if (lower.contains("not started") || lower.contains("chưa có hiệu lực")) {
                                 reason = getString(R.string.msg_promo_not_started);
                             } else if (lower.contains(">=") || lower.contains("đơn hàng") || lower.contains("đơn hàng phải")) {
-                                reason = getString(R.string.msg_promo_min_price, NumberFormat.getCurrencyInstance(new Locale("vi","VN")).format(res.getPromotion() != null ? res.getPromotion().getMin_price() : 0));
+                                reason = getString(R.string.msg_promo_min_price, CurrencyUtil.formatVND(res.getPromotion() != null ? res.getPromotion().getMin_price() : 0));
                             }
                             Toast.makeText(PaymentActivity.this, reason, Toast.LENGTH_LONG).show();
                         }
@@ -1409,7 +1489,7 @@ public class PaymentActivity extends AppCompatActivity {
                     try {
                         double minPrice = Double.parseDouble(String.valueOf(minPriceObj));
                         if (minPrice > 0) {
-                            sb.append("Đơn tối thiểu: ").append(currencyFormat.format(minPrice)).append("\n");
+                            sb.append("Đơn tối thiểu: ").append(CurrencyUtil.formatVND(minPrice)).append("\n");
                         }
                     } catch (NumberFormatException ignored) {}
                 }
@@ -1420,7 +1500,7 @@ public class PaymentActivity extends AppCompatActivity {
                     try {
                         double maxDiscount = Double.parseDouble(String.valueOf(maxDiscountObj));
                         if (maxDiscount > 0) {
-                            sb.append("\nGiảm tối đa: ").append(currencyFormat.format(maxDiscount)).append("\n");
+                            sb.append("\nGiảm tối đa: ").append(CurrencyUtil.formatVND(maxDiscount)).append("\n");
                         }
                     } catch (NumberFormatException ignored) {}
                 }
@@ -1487,13 +1567,12 @@ public class PaymentActivity extends AppCompatActivity {
         appliedPromotionCode = null;
         appliedDiscount = 0.0;
         appliedPromotion = null;
-        NumberFormat nf = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
         double subtotal = (bookingTotalAmount != null) ? bookingTotalAmount : (trip.getPrice() * seatLabels.size());
         tvDiscountApplied.setVisibility(View.GONE);
         tvPromoDetails.setVisibility(View.GONE);
-        tvSubtotal.setText(nf.format(subtotal));
-        tvTotal.setText(nf.format(subtotal));
-        tvBottomTotal.setText(nf.format(subtotal));
+        tvSubtotal.setText(CurrencyUtil.formatVND(subtotal));
+        tvTotal.setText(CurrencyUtil.formatVND(subtotal));
+        tvBottomTotal.setText(CurrencyUtil.formatVND(subtotal));
         btnApplyPromo.setText(getString(R.string.apply_promo));
          etPromoCode.setText("");
     }
@@ -1668,10 +1747,12 @@ public class PaymentActivity extends AppCompatActivity {
                     String errorMsg = "Không thể đổi phương thức thanh toán";
                     try {
                         if (response.errorBody() != null) {
-                            String errorBody = response.errorBody().string();
-                            Log.e(TAG, "Error body: " + errorBody);
-                            JSONObject errorJson = new JSONObject(errorBody);
-                            errorMsg = errorJson.optString("message", errorMsg);
+                            try (ResponseBody rb = response.errorBody()) {
+                                String errorBody = rb.string();
+                                Log.e(TAG, "Error body: " + errorBody);
+                                JSONObject errorJson = new JSONObject(errorBody);
+                                errorMsg = errorJson.optString("message", errorMsg);
+                            }
                         }
                     } catch (Exception e) {
                         Log.e(TAG, "Error parsing error response", e);
@@ -1698,7 +1779,7 @@ public class PaymentActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle("Xác nhận đổi phương thức")
                 .setMessage("Bạn muốn đổi sang thanh toán tại nhà xe?\n\n" +
-                        "• Vé sẽ KHÔNG bị tự động hủy\n" +
+                        "• Vé sẽ KHÔN bị tự động hủy\n" +
                         "• Bạn cần thanh toán trước khi lên xe")
                 .setPositiveButton("Đồng ý", (dialog, which) -> {
                     setLoadingState(true);

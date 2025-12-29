@@ -27,6 +27,7 @@ import retrofit2.Response;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
+import vn.hcmute.busbooking.util.CurrencyUtil;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class BookingAdminDetailActivity extends AppCompatActivity {
@@ -160,8 +161,7 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
         } else if (totalAmountObj instanceof Number) {
             totalAmount = ((Number) totalAmountObj).doubleValue();
         } 
-        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
-        tvTotalAmount.setText(formatter.format(totalAmount));
+        tvTotalAmount.setText(CurrencyUtil.formatVND(totalAmount));
 
         // Determine UI by status
         String status = (String) data.get("status");
@@ -207,13 +207,13 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
         if (status == null) return "";
         switch (status) {
             case "confirmed":
-                return "Đã xác nhận";
+                return "Đã thanh toán";
             case "cancelled":
                 return "Đã hủy";
             case "pending":
-                return "Chờ xác nhận";
+                return "Chờ thanh toán";
             case "completed":
-                return "Đã hoàn thành";
+                return "Đã đi";
             case "expired":
                 return "Hết hạn";
             default:
