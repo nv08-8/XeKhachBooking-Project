@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
+const { generateBookingCode } = require("../utils/bookingHelper");
 
 // ============================================================
 // MIDDLEWARE: Kiểm tra quyền admin
@@ -772,7 +773,7 @@ router.post("/confirm-offline-payment/:id", checkAdminRole, async (req, res) => 
 });
 
 // ============================================================
-// ADMIN: MARK SEATS AS SOLD (for seats already sold by bus company)
+// ADMIN: CREATE BOOKING FOR OFFLINE/WALK-IN CUSTOMERS
 // ============================================================
 router.post("/bookings", checkAdminRole, async (req, res) => {
   const { trip_id, seat_labels } = req.body;
@@ -789,9 +790,9 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
     const { generateAndCacheSeats } = require("../utils/seatGenerator");
     await generateAndCacheSeats(client, trip_id);
 
-    // Check if trip exists
+    // Check if trip exists and get price
     const tripResult = await client.query(
-      'SELECT id FROM trips WHERE id=$1 FOR UPDATE',
+      'SELECT id, price, seats_available FROM trips WHERE id=$1 FOR UPDATE',
       [trip_id]
     );
     if (!tripResult.rowCount) {
@@ -800,8 +801,22 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
       return res.status(404).json({ message: "Trip not found" });
     }
 
-    // Mark seats as booked (no booking record created)
-    // This is for marking seats already sold by the bus company
+    const trip = tripResult.rows[0];
+    const tripPrice = parseFloat(trip.price) || 0;
+    const totalAmount = tripPrice * seat_labels.length;
+
+    // Generate booking code for this offline booking
+    const bookingCode = generateBookingCode(trip_id);
+
+    // Create booking record (user_id is NULL for admin-created bookings)
+    const bookingInsert = await client.query(
+      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, status, payment_method, booking_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [null, trip_id, totalAmount, seat_labels.length, 'confirmed', 'offline', bookingCode]
+    );
+    const bookingId = bookingInsert.rows[0].id;
+
+    // Link seats to this booking
     for (const label of seat_labels) {
       let seatRes = await client.query(
         'SELECT id FROM seats WHERE trip_id=$1 AND label=$2 FOR UPDATE',
@@ -811,19 +826,25 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
       if (!seatRes.rowCount) {
         // Seat doesn't exist, create it
         await client.query(
-          'INSERT INTO seats (trip_id, label, type, is_booked, booking_id) VALUES ($1, $2, $3, 1, NULL)',
-          [trip_id, label, 'seat']
+          'INSERT INTO seats (trip_id, label, type, is_booked, booking_id) VALUES ($1, $2, $3, 1, $4)',
+          [trip_id, label, 'seat', bookingId]
         );
       } else {
-        // Seat exists, mark as booked (booking_id = NULL means it's not an app booking)
+        // Seat exists, link it to booking and mark as booked
         await client.query(
-          'UPDATE seats SET is_booked=1, booking_id=NULL WHERE trip_id=$1 AND label=$2',
-          [trip_id, label]
+          'UPDATE seats SET is_booked=1, booking_id=$1 WHERE trip_id=$2 AND label=$3',
+          [bookingId, trip_id, label]
         );
       }
+
+      // Also create booking_items record
+      await client.query(
+        'INSERT INTO booking_items (booking_id, seat_code, price) VALUES ($1, $2, $3)',
+        [bookingId, label, tripPrice]
+      );
     }
 
-    // Decrease seats_available count
+    // Update trip seats available
     await client.query(
       'UPDATE trips SET seats_available = seats_available - $1 WHERE id=$2',
       [seat_labels.length, trip_id]
@@ -832,17 +853,22 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
     await client.query('COMMIT');
     client.release();
 
+    console.log(`✅ Admin created booking #${bookingId} for trip ${trip_id} with code ${bookingCode}`);
+
     res.status(201).json({
-      message: `Marked ${seat_labels.length} seat(s) as sold`,
+      message: `Tạo vé thành công cho ${seat_labels.length} ghế`,
+      booking_id: bookingId,
+      booking_code: bookingCode,
       trip_id,
       seats_marked: seat_labels,
-      seats_count: seat_labels.length
+      seats_count: seat_labels.length,
+      total_amount: totalAmount
     });
   } catch (err) {
     try { await client.query("ROLLBACK"); } catch (e) { /* ignore */ }
     client.release();
-    console.error("Error marking seats as sold:", err);
-    res.status(500).json({ message: "Error marking seats", error: err.message });
+    console.error("Error creating admin booking:", err);
+    res.status(500).json({ message: "Error creating booking", error: err.message });
   }
 });
 

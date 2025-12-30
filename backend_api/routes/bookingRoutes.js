@@ -8,6 +8,19 @@ const cron = require("node-cron");
 let io = null;
 
 /**
+ * Generate a unique booking code for ticket verification
+ * Format: XK{TRIP_ID}{RANDOM_HASH} (e.g., XK99A7B2C5)
+ * Can be encoded into QR code for offline verification
+ */
+function generateBookingCode(tripId) {
+  // Generate a random hex string (6 characters)
+  const randomPart = Math.random().toString(16).substring(2, 8).toUpperCase();
+  // Pad trip_id with zeros to ensure it's 4 digits
+  const tripPart = String(tripId).padStart(4, '0');
+  return `XK${tripPart}${randomPart}`;
+}
+
+/**
  * Set Socket.IO instance for real-time notifications
  */
 function setSocketIO(socketIO) {
@@ -150,10 +163,13 @@ router.post("/bookings", async (req, res) => {
     if (finalPassengerEmail) passengerInfo.email = finalPassengerEmail;
     const passengerInfoJson = Object.keys(passengerInfo).length > 0 ? JSON.stringify(passengerInfo) : null;
 
+    // Generate unique booking code for QR verification
+    const bookingCode = generateBookingCode(trip_id);
+
     const bookingInsert = await client.query(
-      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_info)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-      [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, 'pending', metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id, finalPaymentMethod, passengerInfoJson]
+      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_info, booking_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+      [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, 'pending', metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id, finalPaymentMethod, passengerInfoJson, bookingCode]
     );
     const bookingId = bookingInsert.rows[0].id;
     
@@ -211,7 +227,7 @@ router.get('/bookings/my', async (req, res) => {
 
   const sql = `
     SELECT b.id, b.status, b.price_paid, b.created_at, b.total_amount, b.payment_method,
-           b.passenger_info,
+           b.passenger_info, b.booking_code,
            t.departure_time, t.arrival_time, t.operator, t.bus_type,
            r.origin, r.destination,
            pickup_stop.name AS pickup_location,
@@ -250,7 +266,7 @@ router.get('/bookings/:id', async (req, res) => {
     SELECT b.id, b.user_id, b.trip_id, b.total_amount, b.seats_count, b.promotion_code,
            b.status, b.metadata, b.pickup_stop_id, b.dropoff_stop_id, b.payment_method,
            b.passenger_info, b.created_at, b.paid_at, b.cancelled_at, b.expired_at,
-           b.price_paid,
+           b.price_paid, b.booking_code,
            t.departure_time, t.arrival_time, t.operator, t.bus_type, t.price AS seat_price,
            r.origin, r.destination,
            u.name AS passenger_name, u.phone AS passenger_phone,

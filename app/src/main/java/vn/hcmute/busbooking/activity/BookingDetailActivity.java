@@ -48,6 +48,7 @@ public class BookingDetailActivity extends AppCompatActivity {
     private TextView tvPaymentMethodName, tvPaymentMethodDesc;
     private TextView tvBasePrice, tvDiscount, tvTotalPrice;
     private TextView tvPromoCode, tvPromoCodeLabel;
+    private TextView tvBookingCode;
     private ImageView ivPaymentMethodIcon;
     private View cardWaiting, cardPaymentMethod, cardPaymentMethodInfo, cardPriceBreakdown;
     private View qrCodeSection, actionButtonsContainer;
@@ -186,6 +187,7 @@ public class BookingDetailActivity extends AppCompatActivity {
         qrCodeSection = findViewById(R.id.qrCodeSection);
         ivQrCode = findViewById(R.id.ivQrCode);
         tvQrHint = findViewById(R.id.tvQrHint);
+        tvBookingCode = findViewById(R.id.tvBookingCode);
 
         actionButtonsContainer = findViewById(R.id.actionButtonsContainer);
         btnCancelTicket = findViewById(R.id.btnCancelTicket);
@@ -271,6 +273,14 @@ public class BookingDetailActivity extends AppCompatActivity {
         if (tvPassengerName != null) tvPassengerName.setText((String) data.get("passenger_name"));
         if (tvPhoneNumber != null) tvPhoneNumber.setText((String) data.get("passenger_phone"));
         
+        // Display booking code if available
+        if (tvBookingCode != null) {
+            String bookingCode = (String) data.get("booking_code");
+            if (bookingCode != null && !bookingCode.isEmpty()) {
+                tvBookingCode.setText(bookingCode);
+            }
+        }
+
         if (tvSeatNumber != null) {
             try {
                 Object seatLabelsObj = data.get("seat_labels");
