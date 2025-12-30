@@ -67,7 +67,6 @@
                             android:orientation="vertical"
                             android:padding="20dp">
 
-                            <!-- Bus Type Badge row (left shows actual bus type, right shows app name) -->
                             <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -91,7 +90,6 @@
                                     android:textColor="@android:color/white"
                                     android:textSize="14sp" />
 
-                                <!-- App name badge -->
                                 <TextView
                                     android:id="@+id/tvAppName"
                                     android:layout_width="wrap_content"
@@ -107,7 +105,6 @@
                                     android:paddingBottom="4dp" />
                             </LinearLayout>
 
-                            <!-- Operator Name (kept id for code compatibility) -->
                             <TextView
                                 android:id="@+id/tvBusOperator"
                                 android:layout_width="wrap_content"
@@ -118,7 +115,6 @@
                                 android:textSize="13sp"
                                 android:letterSpacing="0.05" />
 
-                            <!-- Route with large origin/destination -->
                             <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -154,7 +150,6 @@
                                     android:textStyle="bold" />
                             </LinearLayout>
 
-                            <!-- Departure Time -->
                             <TextView
                                 android:id="@+id/tvDepartureTime"
                                 android:layout_width="wrap_content"
@@ -184,7 +179,6 @@
                         android:orientation="vertical"
                         android:padding="20dp">
 
-                        <!-- 1. Passenger Info (Moved to Top) -->
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -263,8 +257,6 @@
                             android:layout_marginBottom="20dp"
                             android:background="#F2F2F7" />
 
-                        <!-- 2. Pickup/Dropoff Locations (Moved Below) -->
-                        <!-- Pickup Location -->
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -312,7 +304,6 @@
                             </LinearLayout>
                         </LinearLayout>
 
-                        <!-- Dropoff Location -->
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -364,7 +355,7 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Countdown for pending payment (visible only when booking is pending) -->
+                <!-- Countdown -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardCountdown"
                     android:layout_width="match_parent"
@@ -402,7 +393,6 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Change to Offline Payment Button (visible only when QR payment is pending) -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnChangeToOffline"
                     android:layout_width="match_parent"
@@ -460,7 +450,19 @@
 
                         <View android:layout_width="match_parent" android:layout_height="8dp" />
 
-                        <!-- Promo input row -->
+                        <TextView
+                            android:id="@+id/tvSelectPromo"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Chọn mã khuyến mãi"
+                            android:textColor="@color/colorPrimary"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="8dp"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:foreground="?attr/selectableItemBackground" />
+
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -476,7 +478,7 @@
                                 android:background="@drawable/bg_edit_text"
                                 android:padding="12dp"
                                 android:inputType="text"
-                                android:autofillHints="creditCardNumber" />
+                                android:autofillHints="none" />
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/btnApplyPromo"
@@ -506,17 +508,7 @@
                             android:visibility="gone"
                             android:layout_marginTop="8dp" />
 
-                        <View android:layout_width="match_parent" android:layout_height="8dp" />
-                            android:id="@+id/tvDiscountApplied"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text=""
-                            android:textColor="@android:color/holo_green_dark"
-                            android:textStyle="bold"
-                            android:visibility="gone"
-                            android:layout_marginTop="8dp" />
-
-                        <View android:layout_width="match_parent" android:layout_height="8dp" />
+                        <View android:layout_width="match_parent" android:layout_height="12dp" />
 
                         <View
                             android:layout_width="match_parent"
@@ -700,7 +692,7 @@
                         android:padding="16dp"
                         android:layout_marginBottom="16dp"
                         android:inputType="number"
-                        android:autofillHints="creditCardNumber"/>
+                        android:autofillHints="none"/>
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -728,7 +720,7 @@
                                 android:background="@drawable/bg_edit_text"
                                 android:padding="16dp"
                                 android:inputType="date"
-                                android:autofillHints="creditCardExpirationDate"/>
+                                android:autofillHints="none"/>
                         </LinearLayout>
 
                         <LinearLayout
@@ -750,7 +742,7 @@
                                 android:background="@drawable/bg_edit_text"
                                 android:padding="16dp"
                                 android:inputType="numberPassword"
-                                android:autofillHints="creditCardSecurityCode"/>
+                                android:autofillHints="none"/>
                         </LinearLayout>
                     </LinearLayout>
 
@@ -760,7 +752,7 @@
 
         </androidx.core.widget.NestedScrollView>
 
-        <!-- Bottom Bar - Horizontal layout like pickup/dropoff pages -->
+        <!-- Bottom Bar -->
         <LinearLayout
             android:id="@+id/bottom_bar"
             android:layout_width="0dp"

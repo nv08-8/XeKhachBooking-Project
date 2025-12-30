@@ -5,7 +5,9 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -14,6 +16,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.EditText;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -21,9 +24,12 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.widget.NestedScrollView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.card.MaterialCardView;
 
 import org.json.JSONObject;
@@ -43,10 +49,12 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 import vn.hcmute.busbooking.R;
+import vn.hcmute.busbooking.adapter.PromotionsAdapter;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.PaymentRequest;
 import vn.hcmute.busbooking.model.PaymentResponse;
+import vn.hcmute.busbooking.model.Promotion;
 import vn.hcmute.busbooking.model.Trip;
 import vn.hcmute.busbooking.utils.SessionManager;
 import vn.hcmute.busbooking.util.CurrencyUtil;
@@ -95,7 +103,7 @@ public class PaymentActivity extends AppCompatActivity {
     // Promo fields
     private EditText etPromoCode;
     private com.google.android.material.button.MaterialButton btnApplyPromo;
-    private TextView tvPromoDetails, tvDiscountApplied, tvSubtotal, tvTotal;
+    private TextView tvPromoDetails, tvDiscountApplied, tvSubtotal, tvTotal, tvSelectPromo;
     private String appliedPromotionCode = null;
     private double appliedDiscount = 0.0;
     private Map<String, Object> appliedPromotion = null;
@@ -301,6 +309,7 @@ public class PaymentActivity extends AppCompatActivity {
         tvDiscountApplied = findViewById(R.id.tvDiscountApplied);
         tvSubtotal = findViewById(R.id.tvSubtotal);
         tvTotal = findViewById(R.id.tvTotal);
+        tvSelectPromo = findViewById(R.id.tvSelectPromo);
     }
 
     private boolean collectIntentData() {
@@ -339,38 +348,21 @@ public class PaymentActivity extends AppCompatActivity {
     }
 
     private void populateBookingSummary() {
-        tvBusOperator.setText(trip.getOperator());
-        tvBusType.setText(trip.getBusType());
-
-        // Set app name in badge
-        if (tvAppName != null) {
-            tvAppName.setText(R.string.logo_default);
+        if (trip != null) {
+            tvBusOperator.setText(trip.getOperator());
+            tvBusType.setText(trip.getBusType());
+            if (tvOrigin != null) tvOrigin.setText(trip.getOrigin());
+            if (tvDestination != null) tvDestination.setText(trip.getDestination());
+            tvDepartureTime.setText(formatDisplayDateTime(trip.getDepartureTime()));
         }
 
-        // Set origin and destination (large text in the trip card)
-        if (tvOrigin != null) {
-            tvOrigin.setText(trip.getOrigin());
-        }
-        if (tvDestination != null) {
-            tvDestination.setText(trip.getDestination());
-        }
-
-        // Use pickup/dropoff names for the small detail card
+        if (tvAppName != null) tvAppName.setText(R.string.logo_default);
         tvPickup.setText(pickupStopName != null ? pickupStopName : "");
         tvDropoff.setText(dropoffStopName != null ? dropoffStopName : "");
-        if (tvDate != null) {
-            tvDate.setText(formatDisplayDate(trip.getDepartureTime()));
-        }
-        // Format: "16:00 - Thứ Năm, 01/01/2026"
-        tvDepartureTime.setText(formatDisplayDateTime(trip.getDepartureTime()));
-        if (tvArrivalTime != null) {
-            tvArrivalTime.setText(formatDisplayTime(trip.getArrivalTime()));
-        }
 
         String seatText = (seatLabels != null) ? TextUtils.join(", ", seatLabels) : "";
         tvSeat.setText(seatText);
 
-        // Passenger name / phone - prefer explicit intent extras, else session
         if (fullName != null && !fullName.isEmpty()) {
             tvPassengerName.setText(fullName);
         } else if (sessionManager.getUserName() != null) {
@@ -382,14 +374,16 @@ public class PaymentActivity extends AppCompatActivity {
             tvPassengerPhone.setText(maskPhone(phoneToShow));
         }
 
-        double subtotal = (bookingTotalAmount != null) ? bookingTotalAmount : (trip.getPrice() * (seatLabels != null ? seatLabels.size() : 0));
+        updatePricingUI();
+    }
+
+    private void updatePricingUI() {
+        double subtotal = (bookingTotalAmount != null) ? bookingTotalAmount : (trip != null ? trip.getPrice() * (seatLabels != null ? seatLabels.size() : 0) : 0);
         tvSubtotal.setText(CurrencyUtil.formatVND(subtotal));
 
-        double totalToShow = subtotal - appliedDiscount; // appliedDiscount is 0 if none
+        double totalToShow = subtotal - appliedDiscount;
         if (totalToShow < 0) totalToShow = 0;
         tvTotal.setText(CurrencyUtil.formatVND(totalToShow));
-
-        // Update bottom bar total and keep button text simple
         tvBottomTotal.setText(CurrencyUtil.formatVND(totalToShow));
         btnConfirmPayment.setText(R.string.title_payment);
     }
@@ -653,20 +647,15 @@ public class PaymentActivity extends AppCompatActivity {
             Log.d(TAG, "Using price from bookingTotalAmount: " + pricePerSeat);
         }
 
-        int amount = (int) (pricePerSeat * seatLabels.size());
+        double subtotal = (bookingTotalAmount != null) ? bookingTotalAmount : (trip.getPrice() * seatLabels.size());
+        int finalAmount = (int) (subtotal - appliedDiscount);
+        if (finalAmount < 2000) finalAmount = 2000; // PayOS minimum
 
-        if (amount <= 0) {
-            setLoadingState(false);
-            handlePaymentError("Không xác định được số tiền thanh toán. Vui lòng thử lại.");
-            Log.e(TAG, "❌ processPayosPayment: amount is 0 or negative!");
-            return;
-        }
-
-        Log.d(TAG, "Creating PayOS payment: orderId=" + orderId + ", amount=" + amount +
+        Log.d(TAG, "Creating PayOS payment: orderId=" + orderId + ", amount=" + finalAmount +
                    ", bookingIds=" + ids + ", name=" + paymentFullName +
                    ", seatCount=" + seatLabels.size());
 
-        PaymentRequest request = new PaymentRequest(orderId, amount, ids, paymentFullName, paymentEmail, paymentPhone);
+        PaymentRequest request = new PaymentRequest(orderId, finalAmount, ids, paymentFullName, paymentEmail, paymentPhone);
 
         apiService.createPayosPayment(request).enqueue(new Callback<PaymentResponse>() {
             @Override
@@ -1317,6 +1306,10 @@ public class PaymentActivity extends AppCompatActivity {
     private void setupPromoHandlers() {
         NumberFormat nf = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
 
+        if (tvSelectPromo != null) {
+            tvSelectPromo.setOnClickListener(v -> showPromotionsBottomSheet());
+        }
+
         btnApplyPromo.setOnClickListener(v -> {
             // debounce fast repeated taps
             long now = System.currentTimeMillis();
@@ -1333,122 +1326,7 @@ public class PaymentActivity extends AppCompatActivity {
                 Toast.makeText(this, "Vui lòng nhập mã giảm giá", Toast.LENGTH_SHORT).show();
                 return;
             }
-            // compute current subtotal
-            double subtotal = (bookingTotalAmount != null) ? bookingTotalAmount : (trip.getPrice() * seatLabels.size());
-
-            // DEBUG: log click and subtotal
-            Log.i(TAG, "PROMO apply clicked: code=" + code + ", subtotal=" + subtotal + ", appliedPromotionCode=" + appliedPromotionCode);
-
-            // Show feedback to user
-            Toast.makeText(this, "Đang kiểm tra mã " + code + "...", Toast.LENGTH_SHORT).show();
-
-            btnApplyPromo.setEnabled(false);
-            Map<String, Object> body = new HashMap<>();
-            body.put("code", code);
-            body.put("amount", subtotal);
-
-            // DEBUG: log request body
-            Log.d(TAG, "PROMO request body: " + body.toString());
-
-            apiService.validatePromotion(body).enqueue(new Callback<vn.hcmute.busbooking.model.PromotionValidateResponse>() {
-                @Override
-                public void onResponse(Call<vn.hcmute.busbooking.model.PromotionValidateResponse> call, Response<vn.hcmute.busbooking.model.PromotionValidateResponse> response) {
-                    btnApplyPromo.setEnabled(true);
-                    // DEBUG: log response code and whether body present
-                    try {
-                        Log.i(TAG, "PROMO response: successful=" + response.isSuccessful() + ", code=" + response.code());
-                        if (!response.isSuccessful()) {
-                            String err = response.errorBody() != null ? response.errorBody().string() : "(no error body)";
-                            Log.w(TAG, "PROMO response error body: " + err);
-                        } else if (response.body() == null) {
-                            Log.w(TAG, "PROMO response body is null");
-                        } else {
-                            vn.hcmute.busbooking.model.PromotionValidateResponse resDbg = response.body();
-                            Log.i(TAG, "PROMO response body: valid=" + resDbg.isValid() + ", discount=" + resDbg.getDiscount() + ", final_amount=" + resDbg.getFinal_amount());
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "PROMO response logging error", e);
-                    }
-
-                    if (response.isSuccessful() && response.body() != null) {
-                        vn.hcmute.busbooking.model.PromotionValidateResponse res = response.body();
-                        Log.i(TAG, "✅ PROMO validation result: valid=" + res.isValid() + ", discount=" + res.getDiscount());
-
-                        if (res.isValid()) {
-                            try {
-                                appliedPromotionCode = code;
-                                appliedDiscount = res.getDiscount();
-                                appliedPromotion = new HashMap<>();
-                                if (res.getPromotion() != null) {
-                                    vn.hcmute.busbooking.model.Promotion p = res.getPromotion();
-                                    appliedPromotion.put("code", p.getCode());
-                                    appliedPromotion.put("discount_type", p.getDiscount_type());
-                                    appliedPromotion.put("discount_value", p.getDiscount_value());
-                                    appliedPromotion.put("min_price", p.getMin_price());
-                                    appliedPromotion.put("max_discount", p.getMax_discount());
-                                    appliedPromotion.put("start_date", p.getStart_date());
-                                    appliedPromotion.put("end_date", p.getEnd_date());
-                                }
-
-                                double newTotal = Math.max(0, subtotal - appliedDiscount);
-                                Log.i(TAG, "💰 Applying discount: subtotal=" + subtotal + ", discount=" + appliedDiscount + ", newTotal=" + newTotal);
-
-                                tvDiscountApplied.setText(getString(R.string.discount_applied, CurrencyUtil.formatVND(appliedDiscount)));
-                                tvDiscountApplied.setVisibility(View.VISIBLE);
-                                tvPromoDetails.setVisibility(View.VISIBLE);
-                                tvSubtotal.setText(CurrencyUtil.formatVND(subtotal));
-                                tvTotal.setText(CurrencyUtil.formatVND(newTotal));
-                                tvBottomTotal.setText(CurrencyUtil.formatVND(newTotal));
-                                btnApplyPromo.setText(getString(R.string.remove_promo));
-
-                                // Show success toast
-                                Toast.makeText(PaymentActivity.this,
-                                    "✅ Áp dụng thành công! Giảm " + CurrencyUtil.formatVND(appliedDiscount),
-                                    Toast.LENGTH_LONG).show();
-
-                                Log.i(TAG, "🎉 UI updated successfully!");
-                            } catch (Exception ex) {
-                                Log.e(TAG, "❌ Error applying promotion:", ex);
-                                Toast.makeText(PaymentActivity.this, "Lỗi áp dụng mã: " + ex.getMessage(), Toast.LENGTH_LONG).show();
-                            }
-                        } else {
-                            String reason = res.getReason();
-                            if (reason == null) reason = getString(R.string.msg_invalid_promo);
-                            // Map common reason keywords to user-friendly messages
-                            String lower = reason.toLowerCase();
-                            if (lower.contains("not exist") || lower.contains("không tồn tại")) {
-                                reason = getString(R.string.msg_promo_not_found);
-                            } else if (lower.contains("inactive") || lower.contains("không còn hiệu lực")) {
-                                reason = getString(R.string.msg_promo_inactive);
-                            } else if (lower.contains("expired") || lower.contains("hết hạn") || lower.contains("đã hết hạn")) {
-                                reason = getString(R.string.msg_promo_expired);
-                            } else if (lower.contains("not started") || lower.contains("chưa có hiệu lực")) {
-                                reason = getString(R.string.msg_promo_not_started);
-                            } else if (lower.contains(">=") || lower.contains("đơn hàng") || lower.contains("đơn hàng phải")) {
-                                reason = getString(R.string.msg_promo_min_price, CurrencyUtil.formatVND(res.getPromotion() != null ? res.getPromotion().getMin_price() : 0));
-                            }
-                            Toast.makeText(PaymentActivity.this, reason, Toast.LENGTH_LONG).show();
-                        }
-                    } else {
-                        Toast.makeText(PaymentActivity.this, getString(R.string.msg_invalid_promo), Toast.LENGTH_SHORT).show();
-                    }
-                }
-
-                @Override
-                public void onFailure(Call<vn.hcmute.busbooking.model.PromotionValidateResponse> call, Throwable t) {
-                    btnApplyPromo.setEnabled(true);
-                    Log.e(TAG, "PROMO request failed", t);
-                    String errorMsg = "Lỗi kết nối: ";
-                    if (t instanceof java.net.SocketTimeoutException) {
-                        errorMsg += "Timeout - server phản hồi quá lâu. Vui lòng thử lại.";
-                    } else if (t instanceof java.net.UnknownHostException) {
-                        errorMsg += "Không thể kết nối đến server.";
-                    } else {
-                        errorMsg += (t.getMessage() != null ? t.getMessage() : "Vui lòng thử lại");
-                    }
-                    Toast.makeText(PaymentActivity.this, errorMsg, Toast.LENGTH_LONG).show();
-                }
-            });
+            validateAndApplyPromo(code);
         });
 
         tvPromoDetails.setOnClickListener(v -> {
@@ -1563,18 +1441,146 @@ public class PaymentActivity extends AppCompatActivity {
         });
     }
 
+    private void showPromotionsBottomSheet() {
+        BottomSheetDialog bottomSheet = new BottomSheetDialog(this);
+        View view = getLayoutInflater().inflate(R.layout.layout_promotions_selection, null);
+        bottomSheet.setContentView(view);
+
+        RecyclerView rvPromos = view.findViewById(R.id.rvPromotions);
+        ProgressBar progress = view.findViewById(R.id.progressPromos);
+        TextView tvEmpty = view.findViewById(R.id.tvEmptyPromos);
+
+        rvPromos.setLayoutManager(new LinearLayoutManager(this));
+        
+        apiService.getPromotions().enqueue(new Callback<List<Map<String, Object>>>() {
+            @Override
+            public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
+                progress.setVisibility(View.GONE);
+                if (response.isSuccessful() && response.body() != null) {
+                    List<Promotion> activePromos = new ArrayList<>();
+                    for (Map<String, Object> map : response.body()) {
+                        Promotion p = new Promotion(map);
+                        if ("active".equalsIgnoreCase(p.getStatus())) {
+                            activePromos.add(p);
+                        }
+                    }
+
+                    if (activePromos.isEmpty()) {
+                        tvEmpty.setVisibility(View.VISIBLE);
+                    } else {
+                        setupSelectionAdapter(rvPromos, activePromos, bottomSheet);
+                    }
+                } else {
+                    tvEmpty.setText("Không thể tải danh sách");
+                    tvEmpty.setVisibility(View.VISIBLE);
+                }
+            }
+
+            @Override public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
+                progress.setVisibility(View.GONE);
+                tvEmpty.setText("Lỗi kết nối");
+                tvEmpty.setVisibility(View.VISIBLE);
+            }
+        });
+
+        bottomSheet.show();
+    }
+
+    private void setupSelectionAdapter(RecyclerView rv, List<Promotion> list, BottomSheetDialog dialog) {
+        rv.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+            @NonNull @Override public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_promotion_selection, parent, false);
+                return new RecyclerView.ViewHolder(v) {};
+            }
+            @Override public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+                Promotion p = list.get(position);
+                TextView title = holder.itemView.findViewById(R.id.tvPromoCode);
+                TextView desc = holder.itemView.findViewById(R.id.tvPromoDesc);
+                title.setText(p.getCode());
+                desc.setText(p.getDescription());
+                holder.itemView.setOnClickListener(v -> {
+                    etPromoCode.setText(p.getCode());
+                    validateAndApplyPromo(p.getCode());
+                    dialog.dismiss();
+                });
+            }
+            @Override public int getItemCount() { return list.size(); }
+        });
+    }
+
+    private void validateAndApplyPromo(String code) {
+        // compute current subtotal
+        double subtotal = (bookingTotalAmount != null) ? bookingTotalAmount : (trip.getPrice() * seatLabels.size());
+
+        // Show feedback to user
+        Toast.makeText(this, "Đang kiểm tra mã " + code + "...", Toast.LENGTH_SHORT).show();
+
+        btnApplyPromo.setEnabled(false);
+        Map<String, Object> body = new HashMap<>();
+        body.put("code", code);
+        body.put("amount", subtotal);
+
+        apiService.validatePromotion(body).enqueue(new Callback<vn.hcmute.busbooking.model.PromotionValidateResponse>() {
+            @Override
+            public void onResponse(Call<vn.hcmute.busbooking.model.PromotionValidateResponse> call, Response<vn.hcmute.busbooking.model.PromotionValidateResponse> response) {
+                btnApplyPromo.setEnabled(true);
+                if (response.isSuccessful() && response.body() != null) {
+                    vn.hcmute.busbooking.model.PromotionValidateResponse res = response.body();
+                    if (res.isValid()) {
+                        try {
+                            appliedPromotionCode = code;
+                            appliedDiscount = res.getDiscount();
+                            appliedPromotion = new HashMap<>();
+                            if (res.getPromotion() != null) {
+                                vn.hcmute.busbooking.model.Promotion p = res.getPromotion();
+                                appliedPromotion.put("code", p.getCode());
+                                appliedPromotion.put("discount_type", p.getDiscount_type());
+                                appliedPromotion.put("discount_value", p.getDiscount_value());
+                                appliedPromotion.put("min_price", p.getMin_price());
+                                appliedPromotion.put("max_discount", p.getMax_discount());
+                                appliedPromotion.put("start_date", p.getStart_date());
+                                appliedPromotion.put("end_date", p.getEnd_date());
+                            }
+
+                            tvDiscountApplied.setText(getString(R.string.discount_applied, CurrencyUtil.formatVND(appliedDiscount)));
+                            tvDiscountApplied.setVisibility(View.VISIBLE);
+                            tvPromoDetails.setVisibility(View.VISIBLE);
+                            btnApplyPromo.setText(getString(R.string.remove_promo));
+                            updatePricingUI();
+
+                            Toast.makeText(PaymentActivity.this,
+                                "✅ Áp dụng thành công! Giảm " + CurrencyUtil.formatVND(appliedDiscount),
+                                Toast.LENGTH_LONG).show();
+                        } catch (Exception ex) {
+                            Toast.makeText(PaymentActivity.this, "Lỗi áp dụng mã: " + ex.getMessage(), Toast.LENGTH_LONG).show();
+                        }
+                    } else {
+                        String reason = res.getReason();
+                        if (reason == null) reason = getString(R.string.msg_invalid_promo);
+                        Toast.makeText(PaymentActivity.this, reason, Toast.LENGTH_LONG).show();
+                    }
+                } else {
+                    Toast.makeText(PaymentActivity.this, getString(R.string.msg_invalid_promo), Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<vn.hcmute.busbooking.model.PromotionValidateResponse> call, Throwable t) {
+                btnApplyPromo.setEnabled(true);
+                Toast.makeText(PaymentActivity.this, "Lỗi kết nối", Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
     private void clearAppliedPromotion() {
         appliedPromotionCode = null;
         appliedDiscount = 0.0;
         appliedPromotion = null;
-        double subtotal = (bookingTotalAmount != null) ? bookingTotalAmount : (trip.getPrice() * seatLabels.size());
         tvDiscountApplied.setVisibility(View.GONE);
         tvPromoDetails.setVisibility(View.GONE);
-        tvSubtotal.setText(CurrencyUtil.formatVND(subtotal));
-        tvTotal.setText(CurrencyUtil.formatVND(subtotal));
-        tvBottomTotal.setText(CurrencyUtil.formatVND(subtotal));
         btnApplyPromo.setText(getString(R.string.apply_promo));
-         etPromoCode.setText("");
+        etPromoCode.setText("");
+        updatePricingUI();
     }
 
     /**
