@@ -35,12 +35,21 @@ public class BookingDetailsAdapter extends RecyclerView.Adapter<BookingDetailsAd
     private String formatDateTime(String dateTimeStr) {
         if (dateTimeStr == null) return "";
         try {
+            // Try parsing with milliseconds and Z first
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
             Date date = sdf.parse(dateTimeStr);
             SimpleDateFormat newSdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
             return newSdf.format(date);
         } catch (ParseException e) {
-            return dateTimeStr; // Return original if parsing fails
+            try {
+                // Try parsing without milliseconds (local format)
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US);
+                Date date = sdf.parse(dateTimeStr);
+                SimpleDateFormat newSdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
+                return newSdf.format(date);
+            } catch (ParseException e2) {
+                return dateTimeStr; // Return original if parsing fails
+            }
         }
     }
 

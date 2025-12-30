@@ -109,7 +109,7 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             if (isoString == null) return "";
             try {
                 SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+                //isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
                 Date date = isoFormat.parse(isoString);
                 if (date == null) return "";
                 SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
@@ -123,7 +123,7 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             if (isoString == null) return "";
             try {
                 SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+                // No timezone conversion - database has local time
                 Date date = isoFormat.parse(isoString);
                 if (date == null) return "";
                 SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd/MM/yyyy", new Locale("vi", "VN"));
@@ -172,7 +172,7 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             long arrivalTime = -1;
             try {
                 SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+                // No timezone conversion - database has local time
                 Date d = isoFormat.parse(booking.getArrival_time());
                 if (d != null) arrivalTime = d.getTime();
                 else {

@@ -505,7 +505,7 @@ public class BookingDetailActivity extends AppCompatActivity {
              long arrivalTime = -1;
              try {
                 SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+                // No timezone conversion - database has local time
                 Date d = isoFormat.parse((String) data.get("arrival_time"));
                 if (d != null) arrivalTime = d.getTime();
              } catch (Exception ignored) {}
@@ -549,13 +549,13 @@ public class BookingDetailActivity extends AppCompatActivity {
         if (createdAtStr != null) {
              try {
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+                // No timezone conversion - database has local time
                 Date d = sdf.parse(createdAtStr);
                 if (d != null) createdMillis = d.getTime();
             } catch (ParseException e) {
                 try {
                      SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
-                     sdf2.setTimeZone(TimeZone.getTimeZone("UTC"));
+                     // No timezone conversion - database has local time
                      Date d2 = sdf2.parse(createdAtStr);
                      if (d2 != null) createdMillis = d2.getTime();
                 } catch (ParseException ignored) {}
@@ -608,7 +608,7 @@ public class BookingDetailActivity extends AppCompatActivity {
         if (isoString == null) return "";
         try {
             SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-            isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+            // No timezone conversion - database has local time
             Date date = isoFormat.parse(isoString);
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
             return timeFormat.format(date);
@@ -619,7 +619,7 @@ public class BookingDetailActivity extends AppCompatActivity {
         if (isoString == null) return "";
         try {
             SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-            isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+            // No timezone conversion - database has local time
             Date date = isoFormat.parse(isoString);
             SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd/MM/yyyy", new Locale("vi", "VN"));
             return dateFormat.format(date);

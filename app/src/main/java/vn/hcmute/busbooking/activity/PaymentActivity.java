@@ -1099,7 +1099,7 @@ public class PaymentActivity extends AppCompatActivity {
                         if (createdObj instanceof String) {
                             try {
                                 SimpleDateFormat iso = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                                iso.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+                                 // No timezone conversion - database has local time
                                 Date d = iso.parse((String) createdObj);
                                 if (d != null) {
                                     createdMs = d.getTime();
@@ -1114,7 +1114,7 @@ public class PaymentActivity extends AppCompatActivity {
                                 // Try without milliseconds
                                 try {
                                     SimpleDateFormat iso2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault());
-                                    iso2.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+                                    // No timezone conversion - database has local time
                                     Date d2 = iso2.parse((String) createdObj);
                                     if (d2 != null) {
                                         createdMs = d2.getTime();
