@@ -3,28 +3,30 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginVertical="8dp"
     app:cardCornerRadius="12dp"
-    app:cardElevation="6dp">
+    app:cardElevation="4dp"
+    app:cardBackgroundColor="@color/white">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp"
-        android:background="@drawable/gradient_revenue_card">
+        android:padding="16dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
             <ImageView
                 android:id="@+id/ivRevenueIcon"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
                 android:src="@drawable/ic_chart_bar"
-                android:tint="@color/white"
+                app:tint="@color/colorPrimary"
                 android:layout_marginEnd="12dp" />
 
             <LinearLayout
@@ -37,29 +39,40 @@
                     android:id="@+id/tvRevenueTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Hà Nội - Hải Phòng"
+                    android:text="Tiêu đề"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/white" />
+                    android:textColor="@color/textPrimary" />
 
                 <TextView
                     android:id="@+id/tvRevenueDate"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="21/11/2025"
+                    android:text="Ngày"
                     android:textSize="12sp"
-                    android:textColor="#E0E0E0"
-                    android:layout_marginTop="4dp" />
+                    android:textColor="@color/textSecondary"
+                    android:layout_marginTop="2dp" />
 
             </LinearLayout>
 
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_chevron_right"
+                app:tint="@color/textSecondary" />
+
         </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#F0F0F0"
+            android:layout_marginVertical="12dp" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="12dp">
+            android:orientation="horizontal">
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -72,16 +85,16 @@
                     android:layout_height="wrap_content"
                     android:text="Doanh thu"
                     android:textSize="12sp"
-                    android:textColor="#D0D0D0" />
+                    android:textColor="@color/textSecondary" />
 
                 <TextView
                     android:id="@+id/tvRevenueAmount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="15.000.000 VNĐ"
-                    android:textSize="14sp"
+                    android:text="0 VNĐ"
+                    android:textSize="15sp"
                     android:textStyle="bold"
-                    android:textColor="@color/white"
+                    android:textColor="@color/colorPrimary"
                     android:layout_marginTop="4dp" />
 
             </LinearLayout>
@@ -97,16 +110,16 @@
                     android:layout_height="wrap_content"
                     android:text="Số vé"
                     android:textSize="12sp"
-                    android:textColor="#D0D0D0" />
+                    android:textColor="@color/textSecondary" />
 
                 <TextView
                     android:id="@+id/tvRevenueTickets"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="100 vé"
-                    android:textSize="14sp"
+                    android:text="0 vé"
+                    android:textSize="15sp"
                     android:textStyle="bold"
-                    android:textColor="@color/white"
+                    android:textColor="@color/textPrimary"
                     android:layout_marginTop="4dp" />
 
             </LinearLayout>
@@ -116,4 +129,3 @@
     </LinearLayout>
 
 </androidx.cardview.widget.CardView>
-

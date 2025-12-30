@@ -8,6 +8,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -35,12 +36,34 @@ public class BookingDetailsAdapter extends RecyclerView.Adapter<BookingDetailsAd
     private String formatDateTime(String dateTimeStr) {
         if (dateTimeStr == null) return "";
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
-            Date date = sdf.parse(dateTimeStr);
-            SimpleDateFormat newSdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
-            return newSdf.format(date);
-        } catch (ParseException e) {
-            return dateTimeStr; // Return original if parsing fails
+            Date date = null;
+            if (dateTimeStr.contains("T")) {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+                date = sdf.parse(dateTimeStr);
+            } else {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+                date = sdf.parse(dateTimeStr);
+            }
+            
+            if (date != null) {
+                SimpleDateFormat newSdf = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US);
+                return newSdf.format(date);
+            }
+        } catch (Exception e) {
+            // Fallback for messy strings
+            if (dateTimeStr.length() >= 10) return dateTimeStr.substring(0, 10);
+        }
+        return dateTimeStr;
+    }
+
+    private String formatCurrency(Object amountObj) {
+        if (amountObj == null) return "0 VNĐ";
+        try {
+            double amount = Double.parseDouble(amountObj.toString());
+            DecimalFormat formatter = new DecimalFormat("#,###");
+            return formatter.format(amount) + " VNĐ";
+        } catch (Exception e) {
+            return amountObj.toString() + " VNĐ";
         }
     }
 
@@ -48,12 +71,12 @@ public class BookingDetailsAdapter extends RecyclerView.Adapter<BookingDetailsAd
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Map<String, Object> detail = bookingDetails.get(position);
 
-        holder.tvBookingId.setText("Mã đặt vé: #" + detail.get("booking_id").toString());
+        holder.tvBookingId.setText("#" + detail.get("booking_id").toString());
         holder.tvUserName.setText(detail.get("user_name").toString());
-        holder.tvRouteInfo.setText("Tuyến: " + detail.get("route_info").toString());
-        holder.tvDepartureTime.setText("Khởi hành: " + formatDateTime(detail.get("departure_time").toString()));
-        holder.tvTicketCount.setText("Số vé: " + detail.get("ticket_count").toString());
-        holder.tvTotalPrice.setText("Tổng tiền: " + detail.get("total_price").toString() + " VNĐ");
+        holder.tvRouteInfo.setText(detail.get("route_info").toString());
+        holder.tvDepartureTime.setText(formatDateTime(detail.get("departure_time").toString()));
+        holder.tvTicketCount.setText(detail.get("ticket_count").toString() + " vé");
+        holder.tvTotalPrice.setText(formatCurrency(detail.get("total_price")));
     }
 
     @Override

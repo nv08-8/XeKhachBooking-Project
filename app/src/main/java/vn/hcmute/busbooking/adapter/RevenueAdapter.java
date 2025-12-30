@@ -6,6 +6,7 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -36,35 +37,74 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
     }
 
     private String formatDateValue(Object dateObj) {
-        if (dateObj == null) return "";
+        if (dateObj == null) return "Không rõ ngày";
         String dateStr = dateObj.toString();
+        
         try {
-            // Handle full date-time format
+            Date date = null;
             if (dateStr.contains("T")) {
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
-                Date date = sdf.parse(dateStr);
-                SimpleDateFormat newSdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+                date = sdf.parse(dateStr);
+            } else if (dateStr.contains(" ")) {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+                date = sdf.parse(dateStr);
+            } else if (dateStr.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+                date = sdf.parse(dateStr);
+            }
+
+            if (date != null) {
+                SimpleDateFormat newSdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
                 return newSdf.format(date);
             }
-        } catch (ParseException e) {
-            // Fallback for other formats or if parsing fails
+        } catch (Exception e) {
+            // Fallback: If it's yyyy-MM-dd... just take the first 10 chars and reformat manually
+            if (dateStr.length() >= 10 && dateStr.charAt(4) == '-' && dateStr.charAt(7) == '-') {
+                String y = dateStr.substring(0, 4);
+                String m = dateStr.substring(5, 7);
+                String d = dateStr.substring(8, 10);
+                return d + "/" + m + "/" + y;
+            }
         }
         return dateStr;
+    }
+
+    private String formatCurrency(Object amountObj) {
+        if (amountObj == null) return "0 VNĐ";
+        try {
+            double amount = Double.parseDouble(amountObj.toString());
+            DecimalFormat formatter = new DecimalFormat("#,###");
+            return formatter.format(amount) + " VNĐ";
+        } catch (Exception e) {
+            return amountObj.toString() + " VNĐ";
+        }
     }
 
     @Override
     public void onBindViewHolder(RevenueViewHolder holder, int position) {
         Map<String, Object> revenue = revenues.get(position);
 
-        Object routeObj = revenue.get("route");
-        Object dateObj = revenue.get("date");
-        Object totalObj = revenue.get("total_revenue");
-        Object ticketsObj = revenue.get("total_tickets");
+        Object groupKey = revenue.get("group_key");
+        Object totalRev = revenue.get("total_revenue");
+        Object totalBookings = revenue.get("total_bookings");
+        
+        String title = "?";
+        String date = formatDateValue(groupKey);
 
-        holder.tvRevenueTitle.setText(routeObj != null ? routeObj.toString() : "?");
-        holder.tvRevenueDate.setText(formatDateValue(dateObj));
-        holder.tvRevenueAmount.setText((totalObj != null ? totalObj : "0") + " VNĐ");
-        holder.tvRevenueTickets.setText((ticketsObj != null ? ticketsObj : "0") + " vé");
+        if (revenue.containsKey("origin") && revenue.containsKey("destination")) {
+            title = revenue.get("origin") + " - " + revenue.get("destination");
+            if (revenue.containsKey("departure_time")) {
+                date = formatDateValue(revenue.get("departure_time"));
+            }
+        } else {
+            // For date/month/year, show a cleaner title
+            title = "Báo cáo doanh thu";
+        }
+
+        holder.tvRevenueTitle.setText(title);
+        holder.tvRevenueDate.setText(date);
+        holder.tvRevenueAmount.setText(formatCurrency(totalRev));
+        holder.tvRevenueTickets.setText((totalBookings != null ? totalBookings.toString() : "0") + " vé");
 
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {
