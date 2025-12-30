@@ -4,14 +4,19 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/background">
+    android:background="@drawable/background">
 
-    <androidx.appcompat.widget.Toolbar
+    <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="@color/colorPrimary"
-        android:elevation="4dp" />
+        android:layout_marginTop="36dp"
+        android:background="@android:color/transparent"
+        app:title="Thêm vé đặt trước"
+        app:titleTextAppearance="@style/ToolbarTitleStyle"
+        app:titleTextColor="@color/textPrimary"
+        app:titleCentered="true"
+        app:navigationIcon="@drawable/ic_arrow_back" />
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"

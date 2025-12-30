@@ -6,36 +6,18 @@
     android:orientation="vertical"
     android:background="@color/background">
 
-    <!-- Header -->
-    <FrameLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/colorPrimary">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="20dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Báo cáo doanh thu"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:textColor="@color/white" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Xem doanh thu theo tuyến, ngày, tháng, năm"
-                android:textSize="12sp"
-                android:textColor="#E0E0E0"
-                android:layout_marginTop="4dp" />
-
-        </LinearLayout>
-    </FrameLayout>
+        android:layout_height="?attr/actionBarSize"
+        android:layout_marginTop="36dp"
+        android:background="@android:color/transparent"
+        app:title="Báo cáo doanh thu"
+        app:titleTextAppearance="@style/ToolbarTitleStyle"
+        app:titleTextColor="@color/textPrimary"
+        app:subtitleTextColor="@color/textSecondary"
+        app:titleCentered="true"
+        app:navigationIcon="@drawable/ic_arrow_back" />
 
     <!-- Filter Options -->
     <LinearLayout
