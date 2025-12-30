@@ -227,7 +227,7 @@ router.get('/bookings/my', async (req, res) => {
 
   const sql = `
     SELECT b.id, b.status, b.price_paid, b.created_at, b.total_amount, b.payment_method,
-           b.passenger_info, b.booking_code,
+           b.passenger_info, COALESCE(b.booking_code, '') as booking_code,
            t.departure_time, t.arrival_time, t.operator, t.bus_type,
            r.origin, r.destination,
            pickup_stop.name AS pickup_location,
@@ -266,7 +266,7 @@ router.get('/bookings/:id', async (req, res) => {
     SELECT b.id, b.user_id, b.trip_id, b.total_amount, b.seats_count, b.promotion_code,
            b.status, b.metadata, b.pickup_stop_id, b.dropoff_stop_id, b.payment_method,
            b.passenger_info, b.created_at, b.paid_at, b.cancelled_at, b.expired_at,
-           b.price_paid, b.booking_code,
+           b.price_paid, COALESCE(b.booking_code, '') as booking_code,
            t.departure_time, t.arrival_time, t.operator, t.bus_type, t.price AS seat_price,
            r.origin, r.destination,
            u.name AS passenger_name, u.phone AS passenger_phone,
