@@ -431,6 +431,7 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
     let orderByClause;
 
     switch (groupBy) {
+        case 'day':
         case 'date':
             groupByClause = "DATE(b.created_at)";
             orderByClause = "group_key DESC";
@@ -454,19 +455,19 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
         case 'route':
             groupByClause = "r.id, r.origin, r.destination";
             orderByClause = "total_revenue DESC NULLS LAST";
-            query = query.replace("%s", "r.id, r.origin, r.destination");
+            query = query.replace("%s", "r.id AS group_key, r.origin, r.destination");
             break;
         case 'trip':
             groupByClause = "t.id, t.departure_time, r.origin, r.destination";
             orderByClause = "total_revenue DESC NULLS LAST";
-            query = query.replace("%s", "t.id, t.departure_time, r.origin, r.destination");
+            query = query.replace("%s", "t.id AS group_key, t.departure_time, r.origin, r.destination");
             if (route_id) {
                 params.push(route_id);
                 query += ` AND t.route_id = $${params.length}`;
             }
             break;
         default:
-            return res.status(400).json({ message: "Invalid groupBy value" });
+            return res.status(400).json({ message: "Invalid groupBy value: " + groupBy });
     }
 
     if (groupBy !== 'route' && groupBy !== 'trip') {
@@ -509,7 +510,7 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
   `;
   const params = [];
 
-  if (group_by === "day") {
+  if (group_by === "day" || group_by === "date") {
     sql += ` AND DATE(b.created_at) = $1`;
     params.push(value);
   } else if (group_by === "month") {
@@ -521,6 +522,9 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
   } else if (group_by === "route") {
     // Assuming value is route_id
     sql += ` AND t.route_id = $1`;
+    params.push(value);
+  } else if (group_by === "trip") {
+    sql += ` AND t.id = $1`;
     params.push(value);
   }
 
