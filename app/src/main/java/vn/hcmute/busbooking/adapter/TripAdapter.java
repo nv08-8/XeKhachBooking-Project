@@ -7,9 +7,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.button.MaterialButton;
@@ -17,11 +17,17 @@ import com.google.android.material.button.MaterialButton;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 import vn.hcmute.busbooking.R;
-import vn.hcmute.busbooking.database.FavoriteTripDatabase;
+import vn.hcmute.busbooking.api.ApiClient;
+import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.Trip;
 import vn.hcmute.busbooking.utils.SessionManager;
 
@@ -29,19 +35,21 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
 
     private List<Trip> tripList;
     private OnItemClickListener listener;
-    private FavoriteTripDatabase favoriteTripDb;
     private Context context;
     private SessionManager sessionManager;
+    private ApiService apiService;
+    private List<Integer> favoriteTripIds;
 
     public interface OnItemClickListener {
         void onItemClick(Trip trip);
     }
 
-    public TripAdapter(Context context, List<Trip> tripList) {
+    public TripAdapter(Context context, List<Trip> tripList, List<Integer> favoriteTripIds) {
         this.context = context;
         this.tripList = tripList;
-        this.favoriteTripDb = new FavoriteTripDatabase(context);
         this.sessionManager = new SessionManager(context);
+        this.apiService = ApiClient.getClient().create(ApiService.class);
+        this.favoriteTripIds = favoriteTripIds;
     }
 
     public void setOnItemClickListener(OnItemClickListener listener) {
@@ -103,7 +111,6 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
         holder.tvOrigin.setText(trip.getFromLocation());
         holder.tvDestination.setText(trip.getToLocation());
 
-        // Calculate actual duration from departure and arrival times
         if (departureTimeStr != null && arrivalTimeStr != null) {
             try {
                 SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
@@ -124,7 +131,6 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
                 }
             } catch (ParseException e) {
                 e.printStackTrace();
-                // Fallback to duration from trip object if parsing fails
                 Double duration = trip.getDurationHours();
                 if (duration != null) {
                     if (duration % 1 == 0) {
@@ -137,7 +143,6 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
                 }
             }
         } else {
-            // Fallback to duration from trip object
             Double duration = trip.getDurationHours();
             if (duration != null) {
                 if (duration % 1 == 0) {
@@ -157,32 +162,55 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
             holder.tvSeatsLeft.setText("");
         }
 
-        // Get current user ID
         Integer userId = sessionManager.getUserId();
-
-        // Use the trip ID directly (matches database trip_id column)
         int tripId = trip.getId();
 
         if (userId != null) {
-            // Update favorite icon based on current state
-            boolean isFavorite = favoriteTripDb.isFavorite(tripId, userId);
+            boolean isFavorite = favoriteTripIds.contains(tripId);
             holder.btnFavorite.setImageResource(isFavorite ? R.drawable.ic_favorite_filled : R.drawable.ic_favorite_border);
 
             holder.btnFavorite.setOnClickListener(v -> {
-                boolean isCurrentlyFavorite = favoriteTripDb.isFavorite(tripId, userId);
+                boolean isCurrentlyFavorite = favoriteTripIds.contains(tripId);
                 if (isCurrentlyFavorite) {
-                    favoriteTripDb.removeFavoriteTrip(tripId, userId);
-                    holder.btnFavorite.setImageResource(R.drawable.ic_favorite_border);
+                    apiService.removeFavorite(userId, tripId).enqueue(new Callback<Map<String, Object>>() {
+                        @Override
+                        public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                            if (response.isSuccessful()) {
+                                favoriteTripIds.remove(Integer.valueOf(tripId));
+                                holder.btnFavorite.setImageResource(R.drawable.ic_favorite_border);
+                                Toast.makeText(context, "Đã xóa khỏi yêu thích", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                            // Do nothing
+                        }
+                    });
                 } else {
-                    favoriteTripDb.addFavoriteTrip(trip, userId);
-                    holder.btnFavorite.setImageResource(R.drawable.ic_favorite_filled);
+                    Map<String, Integer> body = new HashMap<>();
+                    body.put("trip_id", tripId);
+                    apiService.addFavorite(userId, body).enqueue(new Callback<Map<String, Object>>() {
+                        @Override
+                        public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                            if (response.isSuccessful()) {
+                                favoriteTripIds.add(tripId);
+                                holder.btnFavorite.setImageResource(R.drawable.ic_favorite_filled);
+                                Toast.makeText(context, "Đã thêm vào yêu thích", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                            // Do nothing
+                        }
+                    });
                 }
             });
         } else {
-            // User not logged in - show empty heart, clicking opens login
             holder.btnFavorite.setImageResource(R.drawable.ic_favorite_border);
             holder.btnFavorite.setOnClickListener(v -> {
-                android.widget.Toast.makeText(context, "Vui lòng đăng nhập để yêu thích", android.widget.Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "Vui lòng đăng nhập để yêu thích", Toast.LENGTH_SHORT).show();
             });
         }
 
@@ -192,7 +220,7 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
             } else {
                 Context ctx = v.getContext();
                 Intent intent = new Intent(ctx, vn.hcmute.busbooking.TripDetailActivity.class);
-                intent.putExtra("trip", trip);
+                intent.putExtra("trip_id", trip.getId());
                 ctx.startActivity(intent);
             }
         });

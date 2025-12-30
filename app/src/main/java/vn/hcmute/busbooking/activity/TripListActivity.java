@@ -133,7 +133,7 @@ public class TripListActivity extends AppCompatActivity implements FilterBottomS
         }
 
         rvTrips.setLayoutManager(new LinearLayoutManager(this));
-        tripAdapter = new TripAdapter(this, new ArrayList<>());
+        tripAdapter = new TripAdapter(this, new ArrayList<Trip>(), new ArrayList<Integer>());
         rvTrips.setAdapter(tripAdapter);
 
         tripAdapter.setOnItemClickListener(trip -> {

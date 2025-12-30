@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -89,7 +90,7 @@ public class FavoritesActivity extends AppCompatActivity {
         if (rvFavorites != null) {
             rvFavorites.setLayoutManager(new LinearLayoutManager(this));
             rvFavorites.setHasFixedSize(true);
-            tripAdapter = new TripAdapter(this, new ArrayList<>());
+            tripAdapter = new TripAdapter(this, new ArrayList<>(), new ArrayList<>());
             tripAdapter.setOnItemClickListener(trip -> {
                 Intent intent = new Intent(FavoritesActivity.this, TripDetailActivity.class);
                 intent.putExtra("trip_id", trip.getId()); // Pass trip ID instead of the whole object
@@ -178,6 +179,9 @@ public class FavoritesActivity extends AppCompatActivity {
             public void onResponse(Call<List<Trip>> call, Response<List<Trip>> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     allFavoriteTrips = response.body();
+                    List<Integer> favoriteIds = allFavoriteTrips.stream().map(Trip::getId).collect(Collectors.toList());
+                    tripAdapter = new TripAdapter(FavoritesActivity.this, allFavoriteTrips, favoriteIds);
+                    rvFavorites.setAdapter(tripAdapter);
                     Log.d(TAG, "Loaded " + allFavoriteTrips.size() + " favorite trips from API");
                     filterTripsByDate();
                 } else {
@@ -199,7 +203,6 @@ public class FavoritesActivity extends AppCompatActivity {
 
         Calendar today = Calendar.getInstance();
 
-        // Add 7 day tabs (today + 6 days)
         for (int i = 0; i < 7; i++) {
             Calendar date = (Calendar) today.clone();
             date.add(Calendar.DAY_OF_YEAR, i);
@@ -209,7 +212,6 @@ public class FavoritesActivity extends AppCompatActivity {
             dateTabViews.add(tabView);
         }
 
-        // Add "Choose date" button
         View chooseDateView = createChooseDateTab();
         dateTabsContainer.addView(chooseDateView);
     }
