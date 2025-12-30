@@ -200,21 +200,15 @@ public interface ApiService {
     Call<Void> deleteUser(@Header("user-id") int adminId, @Path("id") int userId);
 
     // ========== REVENUE STATISTICS ==========
-    @GET("api/admin/revenue/by-route")
-    Call<List<Map<String, Object>>> getRevenueByRoute(@Header("user-id") int userId);
-
-    @GET("api/admin/revenue/by-date")
-    Call<List<Map<String, Object>>> getRevenueByDate(
+    @GET("api/admin/revenue")
+    Call<List<Map<String, Object>>> getRevenue(
             @Header("user-id") int userId,
+            @Query("groupBy") String groupBy,
+            @Query("route_id") Integer routeId,
+            @Query("trip_id") Integer tripId,
             @Query("from_date") String fromDate,
             @Query("to_date") String toDate
     );
-
-    @GET("api/admin/revenue/by-month")
-    Call<List<Map<String, Object>>> getRevenueByMonth(@Header("user-id") int userId);
-
-    @GET("api/admin/revenue/by-year")
-    Call<List<Map<String, Object>>> getRevenueByYear(@Header("user-id") int userId);
 
     @GET("api/admin/revenue/details")
     Call<List<Map<String, Object>>> getRevenueDetails(
