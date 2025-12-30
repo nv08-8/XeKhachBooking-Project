@@ -11,6 +11,7 @@ import android.view.ViewGroup;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -24,22 +25,23 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.android.material.card.MaterialCardView;
 
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 import vn.hcmute.busbooking.MainActivity;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.TripDetailActivity;
 import vn.hcmute.busbooking.activity.guest.GuestAccountActivity;
 import vn.hcmute.busbooking.adapter.TripAdapter;
-import vn.hcmute.busbooking.database.FavoriteTripDatabase;
+import vn.hcmute.busbooking.api.ApiClient;
+import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.Trip;
 import vn.hcmute.busbooking.utils.SessionManager;
 
@@ -52,10 +54,10 @@ public class FavoritesActivity extends AppCompatActivity {
     private TripAdapter tripAdapter;
     private AppBarLayout appBarLayout;
     private View statusBarScrim;
-    private FavoriteTripDatabase favoriteTripDatabase;
     private BottomNavigationView bottomNav;
     private LinearLayout dateTabsContainer;
     private HorizontalScrollView dateScrollView;
+    private ApiService apiService;
 
     private List<Trip> allFavoriteTrips = new ArrayList<>();
     private Calendar selectedDate = Calendar.getInstance();
@@ -77,7 +79,7 @@ public class FavoritesActivity extends AppCompatActivity {
         handleWindowInsets();
 
         sessionManager = new SessionManager(this);
-        favoriteTripDatabase = new FavoriteTripDatabase(this);
+        apiService = ApiClient.getClient().create(ApiService.class);
 
         dateScrollView = findViewById(R.id.dateScrollView);
         dateTabsContainer = findViewById(R.id.dateTabsContainer);
@@ -88,10 +90,9 @@ public class FavoritesActivity extends AppCompatActivity {
             rvFavorites.setLayoutManager(new LinearLayoutManager(this));
             rvFavorites.setHasFixedSize(true);
             tripAdapter = new TripAdapter(this, new ArrayList<>());
-            // Set click listener to open TripDetailActivity
             tripAdapter.setOnItemClickListener(trip -> {
                 Intent intent = new Intent(FavoritesActivity.this, TripDetailActivity.class);
-                intent.putExtra("trip", trip);
+                intent.putExtra("trip_id", trip.getId()); // Pass trip ID instead of the whole object
                 startActivity(intent);
             });
             rvFavorites.setAdapter(tripAdapter);
@@ -160,15 +161,10 @@ public class FavoritesActivity extends AppCompatActivity {
     private void loadFavoriteTrips() {
         Log.d(TAG, "loadFavoriteTrips() called");
 
-        if (favoriteTripDatabase == null || rvFavorites == null || tripAdapter == null) {
-            Log.e(TAG, "One or more required objects are null");
-            return;
-        }
-        
         Integer userId = sessionManager.getUserId();
         Log.d(TAG, "User ID: " + userId);
 
-        if (userId == null) { // User not logged in, clear list
+        if (userId == null) { // User not logged in
             Log.d(TAG, "User not logged in");
             rvFavorites.setVisibility(View.GONE);
             tvFavoritesEmpty.setText("Vui lòng đăng nhập để xem các chuyến đi yêu thích");
@@ -177,14 +173,24 @@ public class FavoritesActivity extends AppCompatActivity {
             return;
         }
 
-        // Remove any duplicate favorites before loading
-        favoriteTripDatabase.removeDuplicateFavorites(userId);
+        apiService.getFavorites(userId).enqueue(new Callback<List<Trip>>() {
+            @Override
+            public void onResponse(Call<List<Trip>> call, Response<List<Trip>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    allFavoriteTrips = response.body();
+                    Log.d(TAG, "Loaded " + allFavoriteTrips.size() + " favorite trips from API");
+                    filterTripsByDate();
+                } else {
+                    Toast.makeText(FavoritesActivity.this, "Không thể tải danh sách yêu thích", Toast.LENGTH_SHORT).show();
+                }
+            }
 
-        allFavoriteTrips = favoriteTripDatabase.getAllFavoriteTrips(userId);
-        Log.d(TAG, "Loaded " + allFavoriteTrips.size() + " favorite trips");
-
-        // Filter trips by selected date
-        filterTripsByDate();
+            @Override
+            public void onFailure(Call<List<Trip>> call, Throwable t) {
+                Log.e(TAG, "Failed to load favorites from API", t);
+                Toast.makeText(FavoritesActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void setupDateTabs() {
@@ -219,9 +225,8 @@ public class FavoritesActivity extends AppCompatActivity {
         tabLayout.setOrientation(LinearLayout.VERTICAL);
         tabLayout.setGravity(Gravity.CENTER);
         tabLayout.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
-        tabLayout.setMinimumWidth(dpToPx(80)); // Đảm bảo đủ rộng cho "Hôm nay", "Ngày mai"
+        tabLayout.setMinimumWidth(dpToPx(80));
 
-        // Day label (Hôm nay, Ngày mai, Thứ 5...)
         TextView tvDayLabel = new TextView(this);
         tvDayLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         tvDayLabel.setTextColor(isSelected ?
@@ -229,8 +234,8 @@ public class FavoritesActivity extends AppCompatActivity {
             ContextCompat.getColor(this, R.color.textSecondary));
         tvDayLabel.setText(getDayLabel(date));
         tvDayLabel.setGravity(Gravity.CENTER);
-        tvDayLabel.setSingleLine(false); // Cho phép xuống dòng nếu cần
-        tvDayLabel.setMaxLines(1); // Nhưng giới hạn 1 dòng
+        tvDayLabel.setSingleLine(false);
+        tvDayLabel.setMaxLines(1);
         tvDayLabel.setEllipsize(android.text.TextUtils.TruncateAt.END);
         if (isSelected) {
             tvDayLabel.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -242,7 +247,6 @@ public class FavoritesActivity extends AppCompatActivity {
         tvDayLabel.setLayoutParams(labelParams);
         tabLayout.addView(tvDayLabel);
 
-        // Date (30/12)
         TextView tvDate = new TextView(this);
         tvDate.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
         tvDate.setTextColor(isSelected ?
@@ -262,7 +266,6 @@ public class FavoritesActivity extends AppCompatActivity {
         tvDate.setLayoutParams(dateParams);
         tabLayout.addView(tvDate);
 
-        // Blue underline indicator for selected tab
         View underline = new View(this);
         LinearLayout.LayoutParams underlineParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -274,7 +277,6 @@ public class FavoritesActivity extends AppCompatActivity {
             android.graphics.Color.TRANSPARENT);
         tabLayout.addView(underline);
 
-        // Set click listener
         Calendar finalDate = (Calendar) date.clone();
         tabLayout.setOnClickListener(v -> {
             selectedDate = finalDate;
@@ -282,7 +284,6 @@ public class FavoritesActivity extends AppCompatActivity {
             filterTripsByDate();
         });
 
-        // Store reference for later update
         tabLayout.setTag(R.id.tag_underline, underline);
         tabLayout.setTag(R.id.tag_day_label, tvDayLabel);
         tabLayout.setTag(R.id.tag_date_text, tvDate);
@@ -301,14 +302,12 @@ public class FavoritesActivity extends AppCompatActivity {
         tabLayout.setGravity(Gravity.CENTER);
         tabLayout.setPadding(dpToPx(4), dpToPx(8), dpToPx(4), dpToPx(8));
 
-        // Calendar icon
         TextView tvIcon = new TextView(this);
         tvIcon.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28);
         tvIcon.setText("📅");
         tvIcon.setGravity(Gravity.CENTER);
         tabLayout.addView(tvIcon);
 
-        // "Chọn ngày" label
         TextView tvLabel = new TextView(this);
         tvLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         tvLabel.setTextColor(ContextCompat.getColor(this, R.color.colorPrimary));
@@ -322,7 +321,6 @@ public class FavoritesActivity extends AppCompatActivity {
         tvLabel.setLayoutParams(labelParams);
         tabLayout.addView(tvLabel);
 
-        // Set click listener to open date picker
         tabLayout.setOnClickListener(v -> showDatePicker());
 
         return tabLayout;
@@ -334,7 +332,6 @@ public class FavoritesActivity extends AppCompatActivity {
             this,
             (view, year, month, dayOfMonth) -> {
                 selectedDate.set(year, month, dayOfMonth);
-                // Rebuild tabs to show custom date if needed
                 setupDateTabs();
                 filterTripsByDate();
             },
@@ -347,7 +344,6 @@ public class FavoritesActivity extends AppCompatActivity {
     }
 
     private void updateSelectedDateTab() {
-        // Update all tabs to reflect selected state
         Calendar today = Calendar.getInstance();
         for (int i = 0; i < Math.min(dateTabViews.size(), 7); i++) {
             Calendar tabDate = (Calendar) today.clone();
@@ -356,13 +352,11 @@ public class FavoritesActivity extends AppCompatActivity {
             boolean isSelected = isSameDay(tabDate, selectedDate);
             View tabView = dateTabViews.get(i);
 
-            // Get views from tags
             TextView tvDayLabel = (TextView) tabView.getTag(R.id.tag_day_label);
             TextView tvDate = (TextView) tabView.getTag(R.id.tag_date_text);
             View underline = (View) tabView.getTag(R.id.tag_underline);
 
             if (tvDayLabel != null && tvDate != null && underline != null) {
-                // Update colors and styles
                 tvDayLabel.setTextColor(isSelected ?
                     ContextCompat.getColor(this, R.color.textPrimary) :
                     ContextCompat.getColor(this, R.color.textSecondary));
@@ -370,11 +364,9 @@ public class FavoritesActivity extends AppCompatActivity {
                     ContextCompat.getColor(this, R.color.textPrimary) :
                     ContextCompat.getColor(this, R.color.textSecondary));
 
-                // Set bold for selected tab
                 tvDayLabel.setTypeface(null, isSelected ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
                 tvDate.setTypeface(null, isSelected ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
 
-                // Show/hide underline
                 underline.setBackgroundColor(isSelected ?
                     ContextCompat.getColor(this, R.color.colorPrimary) :
                     android.graphics.Color.TRANSPARENT);

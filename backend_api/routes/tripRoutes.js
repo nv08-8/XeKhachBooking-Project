@@ -3,6 +3,17 @@ const router = express.Router();
 const db = require("../db");
 const { generateDetailedSeatLayout } = require('../data/seat_layout.js');
 
+// Middleware to check for user_id header
+const checkUserId = (req, res, next) => {
+  const userId = req.headers['user-id'];
+  if (!userId) {
+    return res.status(401).json({ message: "Unauthorized: Missing user ID" });
+  }
+  req.userId = userId; // Attach userId to the request object
+  next();
+};
+
+
 /* ============================================================
     1. GET TRIPS (with optional search)
        - GET /api/trips
@@ -225,6 +236,79 @@ router.get("/trips/:id", async (req, res) => {
         });
     }
 });
+
+/* ============================================================
+    3. FAVORITES
+       - GET /api/favorites
+       - POST /api/favorites
+       - DELETE /api/favorites/:trip_id
+   ============================================================ */
+
+router.get("/favorites", checkUserId, async (req, res) => {
+  try {
+    const sql = `
+        SELECT t.*, r.origin, r.destination
+        FROM favorites f
+        JOIN trips t ON f.trip_id = t.id
+        JOIN routes r ON t.route_id = r.id
+        WHERE f.user_id = $1
+        ORDER BY f.created_at DESC
+    `;
+    const { rows } = await db.query(sql, [req.userId]);
+    res.json(rows);
+  } catch (err) {
+    console.error("Error fetching favorites:", err);
+    res.status(500).json({ message: "Lỗi khi lấy danh sách yêu thích" });
+  }
+});
+
+router.post("/favorites", checkUserId, async (req, res) => {
+  const { trip_id } = req.body;
+  if (!trip_id) {
+    return res.status(400).json({ message: "Thiếu trip_id" });
+  }
+
+  try {
+    const sql = `
+        INSERT INTO favorites (user_id, trip_id, created_at)
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (user_id, trip_id) DO NOTHING
+        RETURNING *
+    `;
+    const { rows } = await db.query(sql, [req.userId, trip_id]);
+    if (rows.length === 0) {
+        return res.status(200).json({ message: "Đã có trong danh sách yêu thích" });
+    }
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error("Error adding favorite:", err);
+    res.status(500).json({ message: "Lỗi khi thêm vào danh sách yêu thích" });
+  }
+});
+
+router.delete("/favorites/:trip_id", checkUserId, async (req, res) => {
+  const { trip_id } = req.params;
+  if (!trip_id) {
+    return res.status(400).json({ message: "Thiếu trip_id" });
+  }
+
+  try {
+    const sql = `
+        DELETE FROM favorites
+        WHERE user_id = $1 AND trip_id = $2
+        RETURNING id
+    `;
+    const { rowCount } = await db.query(sql, [req.userId, trip_id]);
+    if (rowCount === 0) {
+        return res.status(404).json({ message: "Không tìm thấy trong danh sách yêu thích" });
+    }
+    res.json({ message: "Xóa khỏi danh sách yêu thích thành công" });
+  } catch (err) {
+    console.error("Error deleting favorite:", err);
+    res.status(500).json({ message: "Lỗi khi xóa khỏi danh sách yêu thích" });
+  }
+});
+
 
 function getAmenitiesByBusType(busType) {
     const amenities = { wifi: false, water: false, ac: true, wc: false, tv: false, charging: false };

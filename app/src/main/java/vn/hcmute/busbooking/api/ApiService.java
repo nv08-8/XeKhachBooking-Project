@@ -133,6 +133,17 @@ public interface ApiService {
     @GET("api/trips/{id}/dropoff-locations")
     Call<List<Location>> getDropoffLocations(@Path("id") int tripId);
 
+    // ----- User Favorites -----
+    @GET("api/favorites")
+    Call<List<Trip>> getFavorites(@Header("user-id") int userId);
+
+    @POST("api/favorites")
+    Call<Map<String, Object>> addFavorite(@Header("user-id") int userId, @Body Map<String, Integer> body);
+
+    @DELETE("api/favorites/{trip_id}")
+    Call<Map<String, Object>> removeFavorite(@Header("user-id") int userId, @Path("trip_id") int tripId);
+
+
     // ----- Admin endpoints (FULL) -----
 
     // ========== ROUTES MANAGEMENT ==========
