@@ -129,7 +129,9 @@ public class SeatSelectionActivity extends AppCompatActivity {
             Floor floor1 = layout.floors.get(0);
             populateFloor(floor1, floor1Seats, bookedSeats, 0);
             floor1Adapter = new SeatAdapter(floor1Seats, this::onSeatSelected);
-            floor1RecyclerView.setLayoutManager(new GridLayoutManager(this, floor1.cols));
+            // For 32-seat bus (1 extra end bed), keep 3 columns. Otherwise use extra_end_bed count.
+            int floor1Cols = (floor1.extra_end_bed > 0 && floor1.extra_end_bed != 1) ? floor1.extra_end_bed : floor1.cols;
+            floor1RecyclerView.setLayoutManager(new GridLayoutManager(this, floor1Cols));
             floor1RecyclerView.setAdapter(floor1Adapter);
         }
 
@@ -138,7 +140,9 @@ public class SeatSelectionActivity extends AppCompatActivity {
             Floor floor2 = layout.floors.get(1);
             populateFloor(floor2, floor2Seats, bookedSeats, 1);
             floor2Adapter = new SeatAdapter(floor2Seats, this::onSeatSelected);
-            floor2RecyclerView.setLayoutManager(new GridLayoutManager(this, floor2.cols));
+            // For 32-seat bus (1 extra end bed), keep 3 columns. Otherwise use extra_end_bed count.
+            int floor2Cols = (floor2.extra_end_bed > 0 && floor2.extra_end_bed != 1) ? floor2.extra_end_bed : floor2.cols;
+            floor2RecyclerView.setLayoutManager(new GridLayoutManager(this, floor2Cols));
             floor2RecyclerView.setAdapter(floor2Adapter);
             findViewById(R.id.tvFloor2Header).setVisibility(View.VISIBLE);
         } else {
@@ -151,9 +155,28 @@ public class SeatSelectionActivity extends AppCompatActivity {
     private void populateFloor(Floor floor, List<Seat> seatList, Set<String> bookedSeats, int floorIndex) {
         if (floor.seats == null) return;
 
-        int totalCells = floor.rows * floor.cols;
+        // Calculate total rows including extra end bed row
+        int actualRows = floor.rows;
+        int actualCols = floor.cols;
+        boolean hasExtraEndBed = floor.extra_end_bed > 0;
+
+        // If there are extra end beds, add an extra row
+        if (hasExtraEndBed) {
+            actualRows = floor.rows + 1;
+            // The grid width depends on the number of extra end beds
+            // For 1 extra end bed (32-seat bus), keep 3 columns to show all regular seats
+            // For 4-5 extra end beds, use extra_end_bed count for uniform layout
+            if (floor.extra_end_bed == 1 && floor.cols == 3) {
+                actualCols = 3; // Keep 3 columns for 32-seat bus
+            } else {
+                actualCols = floor.extra_end_bed;
+            }
+        }
+
+        int totalCells = actualRows * actualCols;
         Seat[] seatGrid = new Seat[totalCells];
 
+        // Initialize all cells as aisle (empty)
         for (int i = 0; i < totalCells; i++) {
             Seat aisle = new Seat("");
             aisle.setSeatType("aisle");
@@ -171,7 +194,30 @@ public class SeatSelectionActivity extends AppCompatActivity {
         String prefix = floorIndex >= 0 && floorIndex < seatLetters.length() ? String.valueOf(seatLetters.charAt(floorIndex)) : "A";
         int seq = 1;
         for (SeatInfo seatInfo : seatInfos) {
-            int index = seatInfo.row * floor.cols + seatInfo.col;
+            int gridCol = seatInfo.col;
+
+            // Apply column mapping for regular rows with 3 columns to create aisles
+            if (hasExtraEndBed && seatInfo.row < floor.rows && floor.cols == 3) {
+                if (floor.extra_end_bed == 5) {
+                    // Xe 40 chỗ (5 ghế băng cuối): Map col 0 -> 0, col 1 -> 2, col 2 -> 4 (lối đi ở cột 1, 3)
+                    gridCol = seatInfo.col * 2;
+                } else if (floor.extra_end_bed == 4) {
+                    // Xe 38 chỗ (4 ghế băng cuối): Map col 0 -> 0, col 1 -> 2, col 2 -> 3 (lối đi ở cột 1)
+                    if (seatInfo.col == 0) {
+                        gridCol = 0;
+                    } else if (seatInfo.col == 1) {
+                        gridCol = 2;
+                    } else if (seatInfo.col == 2) {
+                        gridCol = 3;
+                    }
+                }
+                // For 1 extra end bed (32-seat bus), no mapping needed - keep original 3-column layout
+            }
+            
+            // For the extra end bed row seats (already at correct position - col 0)
+            // No need to adjust position for 32-seat bus extra end bed
+
+            int index = seatInfo.row * actualCols + gridCol;
             if (index >= 0 && index < totalCells) {
                 String displayLabel = prefix + seq;
                 seq++;
@@ -227,6 +273,7 @@ public class SeatSelectionActivity extends AppCompatActivity {
         int floor;
         int rows;
         int cols;
+        int extra_end_bed;
         List<SeatInfo> seats;
     }
 
