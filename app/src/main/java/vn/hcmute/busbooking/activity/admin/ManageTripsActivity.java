@@ -3,8 +3,11 @@ package vn.hcmute.busbooking.activity.admin;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ProgressBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,6 +31,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.activity.TripFormActivity;
+import vn.hcmute.busbooking.activity.admin.AdminAddBookingActivity;
 import vn.hcmute.busbooking.adapter.admin.TripsAdapter;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
@@ -39,11 +43,14 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
     private ProgressBar progressTrips;
     private TextView tvEmptyTrips;
     private Button btnAddTrip, btnRefreshTrips;
+    private Spinner spinnerOperatorFilter;
     private TripsAdapter adapter;
     private List<Map<String, Object>> tripList = new ArrayList<>();
+    private List<String> operatorList = new ArrayList<>();
     private SessionManager sessionManager;
     private ApiService apiService;
     private int routeId = -1;
+    private String selectedOperator = "Tất cả nhà xe";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,7 +59,9 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
 
         sessionManager = new SessionManager(this);
         apiService = ApiClient.getClient().create(ApiService.class);
@@ -62,6 +71,7 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
         tvEmptyTrips = findViewById(R.id.tvEmptyTrips);
         btnAddTrip = findViewById(R.id.btnAddTrip);
         btnRefreshTrips = findViewById(R.id.btnRefreshTrips);
+        spinnerOperatorFilter = findViewById(R.id.spinnerOperatorFilter);
 
         routeId = getIntent().getIntExtra("route_id", -1);
 
@@ -78,19 +88,60 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
         });
 
         btnRefreshTrips.setOnClickListener(v -> {
-            Toast.makeText(this, "Đang tải lại...", Toast.LENGTH_SHORT).show();
-            fetchTrips(routeId);
+            fetchOperators();
+            fetchTrips(routeId, selectedOperator);
         });
 
-        fetchTrips(routeId);
+        setupFilterListeners();
+        fetchOperators();
+        fetchTrips(routeId, selectedOperator);
     }
 
-    private void fetchTrips(int routeId) {
+    private void setupFilterListeners() {
+        spinnerOperatorFilter.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                selectedOperator = operatorList.get(position);
+                fetchTrips(routeId, selectedOperator);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+    }
+
+    private void fetchOperators() {
+        apiService.getOperators().enqueue(new Callback<List<String>>() {
+            @Override
+            public void onResponse(Call<List<String>> call, Response<List<String>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    operatorList.clear();
+                    operatorList.add("Tất cả nhà xe");
+                    operatorList.addAll(response.body());
+
+                    ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(ManageTripsActivity.this,
+                            android.R.layout.simple_spinner_item, operatorList);
+                    spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                    spinnerOperatorFilter.setAdapter(spinnerAdapter);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<String>> call, Throwable t) {
+                // Handle error
+            }
+        });
+    }
+
+    private void fetchTrips(int routeId, String operator) {
         progressTrips.setVisibility(View.VISIBLE);
         tvEmptyTrips.setVisibility(View.GONE);
         rvTrips.setVisibility(View.GONE);
 
         Integer routeIdParam = (routeId != -1) ? routeId : null;
+        
+        // Use getTrips(routeId, origin, destination, date) but it doesn't support operator directly in current ApiService
+        // I need to check if ApiService has a method that supports operator or filter manually
         Call<List<Map<String, Object>>> call = apiService.getTrips(routeIdParam, null, null, null);
 
         call.enqueue(new Callback<List<Map<String, Object>>>() {
@@ -98,10 +149,18 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
             public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
                 progressTrips.setVisibility(View.GONE);
                 if (response.isSuccessful() && response.body() != null) {
-                    List<Map<String, Object>> trips = response.body();
+                    List<Map<String, Object>> allTrips = response.body();
+                    List<Map<String, Object>> filteredTrips = new ArrayList<>();
+
+                    for (Map<String, Object> trip : allTrips) {
+                        String tripOperator = (String) trip.get("operator");
+                        if (operator.equals("Tất cả nhà xe") || (tripOperator != null && tripOperator.equals(operator))) {
+                            filteredTrips.add(trip);
+                        }
+                    }
 
                     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                    Collections.sort(trips, (t1, t2) -> {
+                    Collections.sort(filteredTrips, (t1, t2) -> {
                         try {
                             Date d1 = sdf.parse((String) t1.get("departure_time"));
                             Date d2 = sdf.parse((String) t2.get("departure_time"));
@@ -112,7 +171,7 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
                     });
 
                     tripList.clear();
-                    tripList.addAll(trips);
+                    tripList.addAll(filteredTrips);
                     adapter.notifyDataSetChanged();
 
                     if (tripList.isEmpty()) {
@@ -142,14 +201,13 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
         }
 
         if (idObj == null) {
-            return -1; // Hoặc đưa ra một ngoại lệ
+            return -1;
         }
 
         try {
-            // Xử lý các trường hợp ID có thể là Double (ví dụ: 64.0) hoặc String
             return (int) Double.parseDouble(idObj.toString());
         } catch (NumberFormatException e) {
-            return -1; // Hoặc xử lý lỗi một cách thích hợp
+            return -1;
         }
     }
 
@@ -180,7 +238,7 @@ public class ManageTripsActivity extends AppCompatActivity implements TripsAdapt
                             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                                 if (response.isSuccessful()) {
                                     Toast.makeText(ManageTripsActivity.this, "Xóa thành công", Toast.LENGTH_SHORT).show();
-                                    fetchTrips(routeId);
+                                    fetchTrips(routeId, selectedOperator);
                                 } else {
                                     Toast.makeText(ManageTripsActivity.this, "Xóa thất bại", Toast.LENGTH_SHORT).show();
                                 }
