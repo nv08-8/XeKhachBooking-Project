@@ -230,11 +230,6 @@ public class MyBookingsActivity extends AppCompatActivity {
 
         long nowMillis = System.currentTimeMillis();
 
-        // 3 months ago limit
-        Calendar threeMonthsAgo = Calendar.getInstance();
-        threeMonthsAgo.add(Calendar.MONTH, -3);
-        long threeMonthsAgoMillis = threeMonthsAgo.getTimeInMillis();
-        
         for (Booking booking : bookings) {
             if (booking == null) continue;
             String status = booking.getStatus() == null ? "" : booking.getStatus().toLowerCase().trim();
@@ -247,40 +242,29 @@ public class MyBookingsActivity extends AppCompatActivity {
             }
 
             boolean isCancelled = status.equals("cancelled") || status.equals("canceled") || status.equals("expired") || status.contains("hủy") || status.contains("huy");
+            boolean isPending = status.equals("pending");
+            boolean isPast = (arrivalTime > 0 && nowMillis > arrivalTime);
+            boolean isConfirmed = !isCancelled && !isPending;
             
-            // --- LOGIC PHÂN LOẠI ---
+            // --- LOGIC PHÂN LOẠI MỚI ---
 
-            // 1. Tab "Hiện tại": Hiển thị TẤT CẢ các vé trong 3 tháng gần nhất (bất kể trạng thái)
-            long sortTime = parseDateToMillis(booking.getDeparture_time());
-            if (sortTime == -1) sortTime = parseDateToMillis(booking.getCreated_at());
-
-            if (sortTime == -1 || sortTime >= threeMonthsAgoMillis) {
+            // 1. Tab "Hiện tại": Chỉ hiện Chờ thanh toán và Đã thanh toán (chưa đi)
+            if (isPending || (isConfirmed && !isPast)) {
                 listCurrent.add(booking);
             }
 
             // 2. Tab "Đã hủy": Vé status hủy/hết hạn HOẶC pending mà quá giờ đến
-            if (isCancelled) {
+            if (isCancelled || (isPending && isPast)) {
                 listCancelled.add(booking);
-            } else if (status.equals("pending")) {
-                // Pending
-                // Nếu đã qua arrival_time -> coi như hủy (người dùng không đi được nữa)
-                if (arrivalTime > 0 && nowMillis > arrivalTime) {
-                     listCancelled.add(booking);
-                }
             }
 
-            // 3. Tab "Đã đi": Vé Confirmed/Completed và ĐÃ qua giờ đến
-            if (!isCancelled && !status.equals("pending")) {
-                // Confirmed / Completed / Or others
-                // Nếu đã qua arrival_time -> Coi như đã đi -> Tab Đã đi
-                if (arrivalTime > 0 && nowMillis > arrivalTime) {
-                    listPast.add(booking);
-                }
+            // 3. Tab "Đã đi": Vé Đã thanh toán và ĐÃ qua giờ đến
+            if (isConfirmed && isPast) {
+                listPast.add(booking);
             }
          }
 
         // Sort lists
-        // Hiện tại: Mới nhất lên đầu (Descending)
         Comparator<Booking> descByDeparture = (a, b) -> Long.compare(parseDateToMillis(b.getDeparture_time()), parseDateToMillis(a.getDeparture_time()));
         
         try {
