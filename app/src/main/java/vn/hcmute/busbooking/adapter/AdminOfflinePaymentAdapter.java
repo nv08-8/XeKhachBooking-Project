@@ -119,7 +119,7 @@ public class AdminOfflinePaymentAdapter extends RecyclerView.Adapter<AdminOfflin
             if (isoString == null) return "";
             try {
                 SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+                // No timezone conversion - database has local time
                 Date date = isoFormat.parse(isoString);
                 if (date == null) return "";
                 SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm", new Locale("vi", "VN"));

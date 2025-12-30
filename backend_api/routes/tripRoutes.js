@@ -107,12 +107,9 @@ const getTrips = async (req, res) => {
     res.json(results);
   } catch (err) {
     console.error("Lỗi khi truy vấn danh sách chuyến xe:", err);
-    return res.status(500).json({ message: "Lỗi phía server." });
-  }
 };
-
-// Explicitly define /trips/search BEFORE /trips/:id to avoid ID conflict
-// and to ensure both Guest and User can access it without middleware issues.
+            generic_bus_images: undefined
+            bus_image_url: finalImageUrl,
 router.get("/trips/search", getTrips);
 router.get("/trips", getTrips);
 
@@ -219,22 +216,19 @@ router.get("/trips/:id", async (req, res) => {
         delete trip.generic_bus_images;
 
         return res.json({
-            ...trip,
-            amenities,
-            timeline,
-            reviews: reviewsResult.rows,
-            departure_display: formatTime(trip.departure_time),
-            arrival_display: formatTime(trip.arrival_time),
-            duration_display: formatDuration(trip.duration_min)
-        });
-
+             let images = [];
+            data: {
+                ...trip,
+                amenities,
+                timeline,
+                reviews: reviewsResult.rows,
+             const valid = images.filter(url => url && typeof url === 'string' && !url.includes('tiktok.com'));
+             if (valid.length > 0) finalImageUrl = valid[0];
+            } catch (e) {}
     } catch (error) {
         console.error("Error fetching trip details:", error);
         return res.status(500).json({
-            success: false,
-            message: "Lỗi server khi lấy thông tin chuyến đi"
-        });
-    }
+        trip.bus_image_url = finalImageUrl;
 });
 
 /* ============================================================

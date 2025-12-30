@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -320,11 +319,19 @@ public class TripDetailActivity extends AppCompatActivity {
     private String formatTime(String isoString) {
         if (isoString == null) return "";
         try {
+            // Try parsing with milliseconds and Z (UTC format) first
             SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
             Date date = inputFormat.parse(isoString);
             return new SimpleDateFormat("HH:mm", Locale.getDefault()).format(date);
         } catch (Exception e) {
-            return "";
+            try {
+                // Try parsing without milliseconds (local format)
+                SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
+                Date date = inputFormat.parse(isoString);
+                return new SimpleDateFormat("HH:mm", Locale.getDefault()).format(date);
+            } catch (Exception e2) {
+                return "";
+            }
         }
     }
 
