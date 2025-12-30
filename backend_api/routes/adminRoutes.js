@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 const { generateBookingCode } = require("../utils/bookingHelper");
+const { generateDetailedSeatLayout } = require('../data/seat_layout.js');
 
 // ============================================================
 // MIDDLEWARE: Kiểm tra quyền admin
@@ -855,6 +856,47 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
     console.error("Error creating admin booking:", err);
     res.status(500).json({ message: "Error creating booking", error: err.message });
   }
+});
+
+/* ============================================================
+    TRIP MANAGEMENT (FULL INFO INCLUDING SEAT LAYOUT)
+   ============================================================ */
+
+router.get("/trips/:id", checkAdminRole, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const query = `
+            SELECT 
+                t.*, 
+                r.origin, r.destination, r.distance_km, r.duration_min,
+                COALESCE(b.seat_layout, (SELECT seat_layout FROM buses WHERE bus_type = t.bus_type LIMIT 1)) as seat_layout
+            FROM trips t
+            JOIN routes r ON t.route_id = r.id
+            LEFT JOIN buses b ON t.bus_id = b.id
+            WHERE t.id = $1
+        `;
+        const result = await db.query(query, [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "Không tìm thấy chuyến đi" });
+        }
+
+        const trip = result.rows[0];
+        
+        // Process seat layout using detailed generator if layout exists
+        if (trip.seat_layout) {
+            try {
+                let layout = (typeof trip.seat_layout === 'string') ? JSON.parse(trip.seat_layout) : trip.seat_layout;
+                trip.seat_layout = generateDetailedSeatLayout(trip.bus_type, layout);
+            } catch (e) {
+                console.error("Lỗi parse seat_layout cho admin:", e);
+            }
+        }
+
+        res.json(trip);
+    } catch (err) {
+        console.error("Error fetching trip for admin:", err);
+        res.status(500).json({ message: "Lỗi server khi lấy thông tin chuyến đi" });
+    }
 });
 
 module.exports = router;
