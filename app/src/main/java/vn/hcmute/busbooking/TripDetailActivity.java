@@ -70,17 +70,28 @@ public class TripDetailActivity extends AppCompatActivity {
         apiService = ApiClient.getClient().create(ApiService.class);
         sessionManager = new SessionManager(this);
 
+        // Get data from intent
         tripId = getIntent().getIntExtra("trip_id", 0);
+        trip = getIntent().getParcelableExtra("trip");
+
+        if (trip != null) {
+            // Show basic info first if object is passed
+            if (tripId == 0) tripId = trip.getId();
+            displayBasicTripInfo();
+        }
 
         if (tripId != 0) {
             // Fetch trip details from API
             fetchTripDetails(tripId);
-        } else {
+        } else if (trip == null) {
             Toast.makeText(this, "Không có thông tin chuyến đi", Toast.LENGTH_SHORT).show();
             finish();
         }
 
-        findViewById(R.id.toolbar).setOnClickListener(v -> finish());
+        View toolbar = findViewById(R.id.toolbar);
+        if (toolbar != null) {
+            toolbar.setOnClickListener(v -> finish());
+        }
         btnFavorite.setOnClickListener(v -> toggleFavorite());
     }
 
@@ -116,21 +127,25 @@ public class TripDetailActivity extends AppCompatActivity {
                 Log.d(TAG, "Response received - Code: " + response.code());
 
                 if (response.isSuccessful() && response.body() != null) {
-                    Gson gson = new Gson();
-                    trip = gson.fromJson(gson.toJson(response.body()), Trip.class);
+                    // Use the constructor that handles the map directly to avoid Gson's issues with nested objects
+                    trip = new Trip(response.body());
                     displayBasicTripInfo();
                     updateAdditionalTripDetails(response.body());
                     checkIfFavorite();
                 } else {
                     Log.e(TAG, "Response not successful or body is null. Code: " + response.code());
-                    Toast.makeText(TripDetailActivity.this, "Không thể tải thông tin chuyến đi", Toast.LENGTH_SHORT).show();
+                    if (trip == null) {
+                        Toast.makeText(TripDetailActivity.this, "Không thể tải thông tin chuyến đi", Toast.LENGTH_SHORT).show();
+                    }
                 }
             }
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                 Log.e(TAG, "Failed to fetch trip details", t);
-                Toast.makeText(TripDetailActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                if (trip == null) {
+                    Toast.makeText(TripDetailActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                }
             }
         });
     }

@@ -138,6 +138,7 @@ public class TripListActivity extends AppCompatActivity implements FilterBottomS
 
         tripAdapter.setOnItemClickListener(trip -> {
             Intent intent = new Intent(TripListActivity.this, vn.hcmute.busbooking.TripDetailActivity.class);
+            intent.putExtra("trip_id", trip.getId()); // Fix: pass trip_id so detail activity can load data
             intent.putExtra("trip", trip);
             intent.putExtra("isReturn", isReturn);
             intent.putExtra("returnOrigin", destination);
