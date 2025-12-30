@@ -34,16 +34,21 @@ public class UserAccountActivity extends AppCompatActivity {
         TextView tvUserName = findViewById(R.id.tvUserName);
         TextView tvUserEmail = findViewById(R.id.tvUserEmail);
         
+        // Quản lý vé
         TextView tvBookingHistory = findViewById(R.id.tvBookingHistory);
         TextView tvMyOffers = findViewById(R.id.tvMyOffers);
         TextView tvPaymentMethods = findViewById(R.id.tvPaymentMethods);
         
+        // Tài khoản & Cài đặt
         TextView tvPersonalInfo = findViewById(R.id.tvPersonalInfo);
         TextView tvChangePassword = findViewById(R.id.tvChangePassword);
         TextView tvLogout = findViewById(R.id.tvLogout);
+        
+        // Hỗ trợ & Pháp lý
         TextView tvHelpCenter = findViewById(R.id.tvHelpCenter);
         TextView tvTerms = findViewById(R.id.tvTerms);
         TextView tvPrivacyPolicy = findViewById(R.id.tvPrivacyPolicy);
+        
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
 
         //--- SET USER DATA ---
@@ -52,17 +57,26 @@ public class UserAccountActivity extends AppCompatActivity {
 
         //--- CLICK LISTENERS ---
 
-        tvBookingHistory.setOnClickListener(v -> {
-            startActivity(new Intent(UserAccountActivity.this, MyBookingsActivity.class));
-        });
+        // Lịch sử đặt vé -> Vé của tôi
+        if (tvBookingHistory != null) {
+            tvBookingHistory.setOnClickListener(v -> {
+                startActivity(new Intent(UserAccountActivity.this, MyBookingsActivity.class));
+            });
+        }
 
-        tvMyOffers.setOnClickListener(v -> {
-            startActivity(new Intent(UserAccountActivity.this, UserPromotionsActivity.class));
-        });
+        // Ưu đãi của tôi -> UserPromotionsActivity
+        if (tvMyOffers != null) {
+            tvMyOffers.setOnClickListener(v -> {
+                startActivity(new Intent(UserAccountActivity.this, UserPromotionsActivity.class));
+            });
+        }
 
-        tvPaymentMethods.setOnClickListener(v -> {
-            showPaymentMethodsDialog();
-        });
+        // Phương thức thanh toán -> Show Dialog
+        if (tvPaymentMethods != null) {
+            tvPaymentMethods.setOnClickListener(v -> {
+                showPaymentMethodsDialog();
+            });
+        }
 
         tvPersonalInfo.setOnClickListener(v -> {
             startActivity(new Intent(UserAccountActivity.this, PersonalInfoActivity.class));
@@ -127,8 +141,8 @@ public class UserAccountActivity extends AppCompatActivity {
         SessionManager sessionManager = new SessionManager(this);
         TextView tvUserName = findViewById(R.id.tvUserName);
         TextView tvUserEmail = findViewById(R.id.tvUserEmail);
-        tvUserName.setText(sessionManager.getUserName());
-        tvUserEmail.setText(sessionManager.getUserEmail());
+        if (tvUserName != null) tvUserName.setText(sessionManager.getUserName());
+        if (tvUserEmail != null) tvUserEmail.setText(sessionManager.getUserEmail());
 
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         if (bottomNav != null) {
