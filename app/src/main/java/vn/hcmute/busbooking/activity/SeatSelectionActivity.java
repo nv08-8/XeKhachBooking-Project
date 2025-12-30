@@ -129,7 +129,8 @@ public class SeatSelectionActivity extends AppCompatActivity {
             Floor floor1 = layout.floors.get(0);
             populateFloor(floor1, floor1Seats, bookedSeats, 0);
             floor1Adapter = new SeatAdapter(floor1Seats, this::onSeatSelected);
-            floor1RecyclerView.setLayoutManager(new GridLayoutManager(this, floor1.cols));
+            int floor1Cols = floor1.extra_end_bed > 0 ? floor1.extra_end_bed : floor1.cols;
+            floor1RecyclerView.setLayoutManager(new GridLayoutManager(this, floor1Cols));
             floor1RecyclerView.setAdapter(floor1Adapter);
         }
 
@@ -138,7 +139,8 @@ public class SeatSelectionActivity extends AppCompatActivity {
             Floor floor2 = layout.floors.get(1);
             populateFloor(floor2, floor2Seats, bookedSeats, 1);
             floor2Adapter = new SeatAdapter(floor2Seats, this::onSeatSelected);
-            floor2RecyclerView.setLayoutManager(new GridLayoutManager(this, floor2.cols));
+            int floor2Cols = floor2.extra_end_bed > 0 ? floor2.extra_end_bed : floor2.cols;
+            floor2RecyclerView.setLayoutManager(new GridLayoutManager(this, floor2Cols));
             floor2RecyclerView.setAdapter(floor2Adapter);
             findViewById(R.id.tvFloor2Header).setVisibility(View.VISIBLE);
         } else {
@@ -151,9 +153,22 @@ public class SeatSelectionActivity extends AppCompatActivity {
     private void populateFloor(Floor floor, List<Seat> seatList, Set<String> bookedSeats, int floorIndex) {
         if (floor.seats == null) return;
 
-        int totalCells = floor.rows * floor.cols;
+        // Calculate total rows including extra end bed row
+        int actualRows = floor.rows;
+        int actualCols = floor.cols;
+        boolean hasExtraEndBed = floor.extra_end_bed > 0;
+
+        // If there are extra end beds, add an extra row
+        if (hasExtraEndBed) {
+            actualRows = floor.rows + 1;
+            // The grid width should be the extra_end_bed count for uniform layout
+            actualCols = floor.extra_end_bed;
+        }
+
+        int totalCells = actualRows * actualCols;
         Seat[] seatGrid = new Seat[totalCells];
 
+        // Initialize all cells as aisle (empty)
         for (int i = 0; i < totalCells; i++) {
             Seat aisle = new Seat("");
             aisle.setSeatType("aisle");
@@ -171,7 +186,16 @@ public class SeatSelectionActivity extends AppCompatActivity {
         String prefix = floorIndex >= 0 && floorIndex < seatLetters.length() ? String.valueOf(seatLetters.charAt(floorIndex)) : "A";
         int seq = 1;
         for (SeatInfo seatInfo : seatInfos) {
-            int index = seatInfo.row * floor.cols + seatInfo.col;
+            int gridCol = seatInfo.col;
+
+            // For regular rows with 3 columns, map them to columns 0, 2, 4 (with aisles at 1, 3)
+            // to align with the extra_end_bed row which has 5 columns (0, 1, 2, 3, 4)
+            if (hasExtraEndBed && seatInfo.row < floor.rows && floor.cols == 3) {
+                // Map col 0 -> 0, col 1 -> 2, col 2 -> 4
+                gridCol = seatInfo.col * 2;
+            }
+
+            int index = seatInfo.row * actualCols + gridCol;
             if (index >= 0 && index < totalCells) {
                 String displayLabel = prefix + seq;
                 seq++;
@@ -227,6 +251,7 @@ public class SeatSelectionActivity extends AppCompatActivity {
         int floor;
         int rows;
         int cols;
+        int extra_end_bed;
         List<SeatInfo> seats;
     }
 
