@@ -21,8 +21,6 @@
         <item>Ngày</item>
         <item>Tháng</item>
         <item>Năm</item>
-        <item>Tuyến</item>
-        <item>Chuyến xe</item>
     </string-array>
 
     <string-array name="initial_price_range">

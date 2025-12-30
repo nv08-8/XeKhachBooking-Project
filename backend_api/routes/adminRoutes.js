@@ -412,83 +412,102 @@ router.delete("/users/:id", checkAdminRole, async (req, res) => {
 
 // ============================================================// ROUTES: BÁO CÁO DOANH THU// ============================================================
 
-router.get("/revenue", checkAdminRole, async (req, res) => {
-    const { groupBy, route_id, trip_id, from_date, to_date } = req.query;
-
-    let query = `
-        SELECT
-            %s AS group_key,
-            COUNT(b.id) AS total_bookings,
-            SUM(b.total_amount) AS total_revenue
-        FROM bookings b
-        JOIN trips t ON b.trip_id = t.id
-        JOIN routes r ON t.route_id = r.id
-        WHERE b.status = 'confirmed'
-    `;
-    const params = [];
-
-    let groupByClause;
-    let orderByClause;
-
-    switch (groupBy) {
-        case 'date':
-            groupByClause = "DATE(b.created_at)";
-            orderByClause = "group_key DESC";
-            if (from_date) {
-                params.push(from_date);
-                query += ` AND b.created_at >= $${params.length}`;
-            }
-            if (to_date) {
-                params.push(to_date);
-                query += ` AND b.created_at <= $${params.length}`;
-            }
-            break;
-        case 'month':
-            groupByClause = "TO_CHAR(b.created_at, 'YYYY-MM')";
-            orderByClause = "group_key DESC";
-            break;
-        case 'year':
-            groupByClause = "EXTRACT(YEAR FROM b.created_at)";
-            orderByClause = "group_key DESC";
-            break;
-        case 'route':
-            groupByClause = "r.id, r.origin, r.destination";
-            orderByClause = "total_revenue DESC NULLS LAST";
-            query = query.replace("%s", "r.id, r.origin, r.destination");
-            break;
-        case 'trip':
-            groupByClause = "t.id, t.departure_time, r.origin, r.destination";
-            orderByClause = "total_revenue DESC NULLS LAST";
-            query = query.replace("%s", "t.id, t.departure_time, r.origin, r.destination");
-            if (route_id) {
-                params.push(route_id);
-                query += ` AND t.route_id = $${params.length}`;
-            }
-            break;
-        default:
-            return res.status(400).json({ message: "Invalid groupBy value" });
-    }
-
-    if (groupBy !== 'route' && groupBy !== 'trip') {
-        query = query.replace("%s", groupByClause);
-    }
-
-    if (trip_id) {
-        params.push(trip_id);
-        query += ` AND b.trip_id = $${params.length}`;
-    }
-
-    query += ` GROUP BY ${groupByClause} ORDER BY ${orderByClause}`;
-
-    try {
-        const result = await db.query(query, params);
-        res.json(result.rows);
-    } catch (err) {
-        console.error(`Error fetching revenue by ${groupBy}:`, err);
-        res.status(500).json({ message: `Lỗi khi lấy doanh thu theo ${groupBy}` });
-    }
+// 1. Doanh thu theo tuyến xe
+router.get("/revenue/by-route", checkAdminRole, async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT
+        r.id,
+        r.origin,
+        r.destination,
+        COUNT(b.id) as total_bookings,
+        SUM(b.total_amount) as total_revenue
+      FROM routes r
+      JOIN trips t ON t.route_id = r.id
+      JOIN bookings b ON b.trip_id = t.id AND b.status = 'confirmed'
+      GROUP BY r.id, r.origin, r.destination
+      ORDER BY total_revenue DESC NULLS LAST
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching revenue by route:", err);
+    res.status(500).json({ message: "Lỗi khi lấy doanh thu theo tuyến" });
+  }
 });
 
+// 2. Doanh thu theo ngày
+router.get("/revenue/by-date", checkAdminRole, async (req, res) => {
+  const { from_date, to_date } = req.query;
+
+  let sql = `
+    SELECT
+      DATE(b.created_at) as date,
+      COUNT(b.id) as total_bookings,
+      SUM(b.total_amount) as total_revenue
+    FROM bookings b
+    WHERE b.status = 'confirmed'
+  `;
+  const params = [];
+
+  if (from_date) {
+    sql += " AND b.created_at >= $" + (params.length + 1);
+    params.push(from_date);
+  }
+  if (to_date) {
+    sql += " AND b.created_at <= $" + (params.length + 1);
+    params.push(to_date);
+  }
+
+  sql += " GROUP BY DATE(b.created_at) ORDER BY date DESC";
+
+  try {
+    const result = await db.query(sql, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching revenue by date:", err);
+    res.status(500).json({ message: "Lỗi khi lấy doanh thu theo ngày" });
+  }
+});
+
+// 3. Doanh thu theo tháng
+router.get("/revenue/by-month", checkAdminRole, async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT
+        TO_CHAR(b.created_at, 'YYYY-MM') as month,
+        COUNT(b.id) as total_bookings,
+        SUM(b.total_amount) as total_revenue
+      FROM bookings b
+      WHERE b.status = 'confirmed'
+      GROUP BY TO_CHAR(b.created_at, 'YYYY-MM')
+      ORDER BY month DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching revenue by month:", err);
+    res.status(500).json({ message: "Lỗi khi lấy doanh thu theo tháng" });
+  }
+});
+
+// 4. Doanh thu theo năm
+router.get("/revenue/by-year", checkAdminRole, async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT
+        EXTRACT(YEAR FROM b.created_at) as year,
+        COUNT(b.id) as total_bookings,
+        SUM(b.total_amount) as total_revenue
+      FROM bookings b
+      WHERE b.status = 'confirmed'
+      GROUP BY EXTRACT(YEAR FROM b.created_at)
+      ORDER BY year DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching revenue by year:", err);
+    res.status(500).json({ message: "Lỗi khi lấy doanh thu theo năm" });
+  }
+});
 
 // 5. Chi tiết doanh thu
 router.get("/revenue/details", checkAdminRole, async (req, res) => {

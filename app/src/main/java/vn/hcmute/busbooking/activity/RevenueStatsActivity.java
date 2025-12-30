@@ -5,14 +5,12 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -47,14 +45,13 @@ import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.adapter.RevenueAdapter;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
-import vn.hcmute.busbooking.model.Trip;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class RevenueStatsActivity extends AppCompatActivity implements RevenueAdapter.OnItemClickListener {
     private ProgressBar progressRevenue;
     private RecyclerView rvRevenue;
     private TextView tvEmptyRevenue;
-    private Spinner spinnerGroupBy, spinnerRoutes, spinnerTrips;
+    private Spinner spinnerGroupBy;
     private Button btnApplyFilter;
     private EditText etStartDate, etEndDate;
     private LinearLayout dateRangeFilter;
@@ -65,15 +62,11 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
     private RevenueAdapter adapter;
     private List<Map<String, Object>> revenueList = new ArrayList<>();
     private SessionManager sessionManager;
-    private ApiService apiService;
 
     private Calendar startCalendar = Calendar.getInstance();
     private Calendar endCalendar = Calendar.getInstance();
 
-    private String[] groupByValues = {"day", "month", "year", "route", "trip"};
-
-    private List<Map<String, Object>> routeList = new ArrayList<>();
-    private List<Trip> tripList = new ArrayList<>();
+    private String[] groupByValues = {"day", "month", "year", "route"};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,23 +74,17 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         setContentView(R.layout.activity_revenue_stats);
 
         sessionManager = new SessionManager(this);
-        apiService = ApiClient.getClient().create(ApiService.class);
 
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setDisplayShowHomeEnabled(true);
-        }
-        toolbar.setNavigationOnClickListener(v -> onSupportNavigateUp());
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setDisplayShowHomeEnabled(true);
+        toolbar.setNavigationOnClickListener(v -> finish());
 
-        // Find Views
         progressRevenue = findViewById(R.id.progressRevenue);
         rvRevenue = findViewById(R.id.rvRevenue);
         tvEmptyRevenue = findViewById(R.id.tvEmptyRevenue);
         spinnerGroupBy = findViewById(R.id.spinnerGroupBy);
-        spinnerRoutes = findViewById(R.id.spinnerRoutes);
-        spinnerTrips = findViewById(R.id.spinnerTrips);
         btnApplyFilter = findViewById(R.id.btnApplyFilter);
         etStartDate = findViewById(R.id.etStartDate);
         etEndDate = findViewById(R.id.etEndDate);
@@ -105,20 +92,11 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         barChart = findViewById(R.id.barChart);
         scrollView = findViewById(R.id.scrollView);
 
-        // Setup
+        // Setup RecyclerView
         rvRevenue.setLayoutManager(new LinearLayoutManager(this));
-        setDefaultDates();
+
         setupFilterListeners();
-
-        // Initial data fetch
-        fetchRoutes();
-    }
-
-    private void setDefaultDates() {
-        startCalendar.set(Calendar.DAY_OF_MONTH, 1); // First day of the current month
-        endCalendar = Calendar.getInstance(); // Today
-        updateEditText(etStartDate, startCalendar);
-        updateEditText(etEndDate, endCalendar);
+        fetchRevenueStats();
     }
 
     private void setupFilterListeners() {
@@ -130,85 +108,15 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         spinnerGroupBy.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String selectedGroupBy = groupByValues[position];
-                dateRangeFilter.setVisibility(selectedGroupBy.equals("day") ? View.VISIBLE : View.GONE);
-                spinnerRoutes.setVisibility(selectedGroupBy.equals("trip") || selectedGroupBy.equals("route") ? View.VISIBLE : View.GONE);
-                spinnerTrips.setVisibility(selectedGroupBy.equals("trip") ? View.VISIBLE : View.GONE);
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
-
-        spinnerRoutes.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (routeList.isEmpty() || position < 0 || position >= routeList.size()) return;
-                Map<String, Object> selectedRoute = routeList.get(position);
-                int routeId = ((Number) selectedRoute.get("id")).intValue();
-                fetchTripsForRoute(routeId);
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
-    }
-
-    private void fetchRoutes() {
-        apiService.getRoutes(null, null, null).enqueue(new Callback<List<Map<String, Object>>>() {
-            @Override
-            public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    routeList.clear();
-                    routeList.addAll(response.body());
-                    List<String> routeNames = new ArrayList<>();
-                    for (Map<String, Object> route : routeList) {
-                        routeNames.add(route.get("origin") + " - " + route.get("destination"));
-                    }
-                    ArrayAdapter<String> routeAdapter = new ArrayAdapter<>(RevenueStatsActivity.this, android.R.layout.simple_spinner_item, routeNames);
-                    routeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                    spinnerRoutes.setAdapter(routeAdapter);
-
-                    // Fetch initial revenue stats after routes are loaded
-                    fetchRevenueStats();
+                if (position == 0) { // Day
+                    dateRangeFilter.setVisibility(View.VISIBLE);
                 } else {
-                    Toast.makeText(RevenueStatsActivity.this, "Lỗi khi tải danh sách tuyến", Toast.LENGTH_SHORT).show();
+                    dateRangeFilter.setVisibility(View.GONE);
                 }
             }
 
             @Override
-            public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
-                Toast.makeText(RevenueStatsActivity.this, "Lỗi khi tải danh sách tuyến: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void fetchTripsForRoute(int routeId) {
-        apiService.getTrips(routeId, null, null, null).enqueue(new Callback<List<Map<String, Object>>>() {
-            @Override
-            public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    tripList.clear();
-                    for (Map<String, Object> tripMap : response.body()) {
-                        tripList.add(new Trip(tripMap));
-                    }
-
-                    List<String> tripNames = new ArrayList<>();
-                    for (Trip trip : tripList) {
-                        tripNames.add("Chuyến " + trip.getId() + " - " + trip.getDepartureTime());
-                    }
-                    ArrayAdapter<String> tripAdapter = new ArrayAdapter<>(RevenueStatsActivity.this, android.R.layout.simple_spinner_item, tripNames);
-                    tripAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                    spinnerTrips.setAdapter(tripAdapter);
-                } else {
-                    Toast.makeText(RevenueStatsActivity.this, "Lỗi khi tải danh sách chuyến", Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
-                Toast.makeText(RevenueStatsActivity.this, "Lỗi khi tải danh sách chuyến: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
+            public void onNothingSelected(AdapterView<?> parent) {}
         });
     }
 
@@ -235,26 +143,26 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         scrollView.setVisibility(View.GONE);
         tvEmptyRevenue.setVisibility(View.GONE);
 
-        int groupByPos = spinnerGroupBy.getSelectedItemPosition();
-        if (groupByPos < 0) return; // Don't fetch if spinner is not ready
+        String groupBy = groupByValues[spinnerGroupBy.getSelectedItemPosition()];
 
-        String groupBy = groupByValues[groupByPos];
-        String startDate = etStartDate.getText().toString();
-        String endDate = etEndDate.getText().toString();
-        Integer routeId = null;
-        Integer tripId = null;
+        ApiService api = ApiClient.getClient().create(ApiService.class);
+        int userId = sessionManager.getUserId();
 
-        int routePos = spinnerRoutes.getSelectedItemPosition();
-        if (spinnerRoutes.getVisibility() == View.VISIBLE && routePos >= 0 && routePos < routeList.size()) {
-            routeId = ((Number) routeList.get(routePos).get("id")).intValue();
+        Call<List<Map<String, Object>>> call;
+
+        if (groupBy.equals("day")) {
+            String startDate = etStartDate.getText().toString();
+            String endDate = etEndDate.getText().toString();
+            call = api.getRevenueByDate(userId, startDate, endDate);
+        } else if (groupBy.equals("month")) {
+            call = api.getRevenueByMonth(userId);
+        } else if (groupBy.equals("year")) {
+            call = api.getRevenueByYear(userId);
+        } else { // route
+            call = api.getRevenueByRoute(userId);
         }
 
-        int tripPos = spinnerTrips.getSelectedItemPosition();
-        if (spinnerTrips.getVisibility() == View.VISIBLE && tripPos >= 0 && tripPos < tripList.size()) {
-            tripId = tripList.get(tripPos).getId();
-        }
-
-        apiService.getRevenue(sessionManager.getUserId(), groupBy, routeId, tripId, startDate, endDate).enqueue(new Callback<List<Map<String, Object>>>() {
+        call.enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
             public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
                 progressRevenue.setVisibility(View.GONE);
@@ -269,16 +177,12 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
                 if (revenues == null || revenues.isEmpty()) {
                     tvEmptyRevenue.setText("Không có dữ liệu báo cáo");
                     tvEmptyRevenue.setVisibility(View.VISIBLE);
-                    barChart.setVisibility(View.GONE);
-                    rvRevenue.setVisibility(View.GONE);
                 } else {
                     revenueList.clear();
                     revenueList.addAll(revenues);
                     adapter = new RevenueAdapter(revenueList, RevenueStatsActivity.this);
                     rvRevenue.setAdapter(adapter);
                     scrollView.setVisibility(View.VISIBLE);
-                    rvRevenue.setVisibility(View.VISIBLE);
-                    barChart.setVisibility(View.VISIBLE);
                     setupBarChart();
                 }
             }
@@ -296,6 +200,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         if (dateObj == null) return "";
         String dateStr = dateObj.toString();
         try {
+            // Handle full date-time format
             if (dateStr.contains("T")) {
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
                 Date date = sdf.parse(dateStr);
@@ -303,38 +208,30 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
                 return newSdf.format(date);
             }
         } catch (ParseException e) {
+            // Fallback for other formats or if parsing fails
         }
         return dateStr;
     }
 
+
     private void setupBarChart() {
+        barChart.setVisibility(View.VISIBLE);
         List<BarEntry> entries = new ArrayList<>();
         List<String> labels = new ArrayList<>();
 
         for (int i = 0; i < revenueList.size(); i++) {
             Map<String, Object> revenue = revenueList.get(i);
-            float totalRevenue = 0;
-            Object revenueObj = revenue.get("total_revenue");
-            if (revenueObj instanceof Number) {
-                totalRevenue = ((Number) revenueObj).floatValue();
-            }
+            float totalRevenue = Float.parseFloat(revenue.get("total_revenue").toString());
             entries.add(new BarEntry(i, totalRevenue));
 
-            String groupBy = groupByValues[spinnerGroupBy.getSelectedItemPosition()];
-            switch (groupBy) {
-                case "day":
-                    labels.add(formatDateValue(revenue.get("group_key")));
-                    break;
-                case "month":
-                case "year":
-                    labels.add(String.valueOf(revenue.get("group_key")));
-                    break;
-                case "route":
-                    labels.add(revenue.get("origin") + " - " + revenue.get("destination"));
-                    break;
-                case "trip":
-                     labels.add("Chuyến " + revenue.get("group_key"));
-                    break;
+            if (revenue.containsKey("date")) {
+                labels.add(formatDateValue(revenue.get("date")));
+            } else if (revenue.containsKey("month")) {
+                labels.add(revenue.get("month").toString());
+            } else if (revenue.containsKey("year")) {
+                labels.add(revenue.get("year").toString());
+            } else if (revenue.containsKey("route")) {
+                labels.add(revenue.get("route").toString());
             }
         }
 
@@ -351,8 +248,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         xAxis.setLabelRotationAngle(-45);
 
         barChart.getDescription().setEnabled(false);
-        barChart.animateY(1000);
-        barChart.invalidate();
+        barChart.invalidate(); // refresh
 
         barChart.setOnChartValueSelectedListener(new OnChartValueSelectedListener() {
             @Override
@@ -373,28 +269,16 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
     private void handleItemClick(Map<String, Object> revenue) {
         String groupBy = groupByValues[spinnerGroupBy.getSelectedItemPosition()];
         String value = "";
-        // For details, we usually need an ID or a specific date/month/year string
-        switch (groupBy) {
-            case "day":
-                value = formatDateValue(revenue.get("group_key"));
-                break;
-            case "month":
-            case "year":
-                 value = String.valueOf(revenue.get("group_key"));
-                break;
-            case "route":
-            case "trip":
-                // In the consolidated API, the ID is the group_key for route and trip
-                Object idObj = revenue.get("group_key");
-                if (idObj instanceof Number) {
-                    value = String.valueOf(((Number) idObj).intValue());
-                }
-                break;
+        if (revenue.containsKey("date")) {
+            value = formatDateValue(revenue.get("date"));
+        } else if (revenue.containsKey("month")) {
+            value = revenue.get("month").toString();
+        } else if (revenue.containsKey("year")) {
+            value = revenue.get("year").toString();
+        } else if (revenue.containsKey("route")) {
+            value = revenue.get("route").toString();
         }
-
-        if (!value.isEmpty()) {
-            openDetailsActivity(groupBy, value);
-        }
+        openDetailsActivity(groupBy, value);
     }
 
     private void openDetailsActivity(String groupBy, String value) {
@@ -402,11 +286,5 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         intent.putExtra("groupBy", groupBy);
         intent.putExtra("value", value);
         startActivity(intent);
-    }
-
-    @Override
-    public boolean onSupportNavigateUp() {
-        onBackPressed();
-        return true;
     }
 }
