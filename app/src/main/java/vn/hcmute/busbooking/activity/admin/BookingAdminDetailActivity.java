@@ -181,7 +181,6 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
         if (isoString == null) return "";
         try {
             SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-            isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
             Date date = isoFormat.parse(isoString);
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
             return timeFormat.format(date);
@@ -194,7 +193,6 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
         if (isoString == null) return "";
         try {
             SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-            isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
             Date date = isoFormat.parse(isoString);
             SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd/MM/yyyy", new Locale("vi", "VN"));
             return dateFormat.format(date);

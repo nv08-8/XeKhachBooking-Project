@@ -17,7 +17,6 @@ const checkUserId = (req, res, next) => {
 /* ============================================================
     1. GET TRIPS (with optional search)
        - GET /api/trips
-       - GET /api/trips/search (alias for /api/trips to fix Auth/Route issues)
        - Query: route_id, origin, destination, date, status, bus_type, page, page_size
    ============================================================ */
 
@@ -53,8 +52,9 @@ const getTrips = async (req, res) => {
   if (date) {
     const startIdx = params.length + 1;
     const endIdx = params.length + 2;
+    // Removed 'Z' to avoid forcing UTC if server is in local time, but typically database stores in UTC
     sql += ` AND t.departure_time >= $${startIdx} AND t.departure_time < $${endIdx}`;
-    params.push(new Date(`${date}T00:00:00.000Z`), new Date(`${date}T23:59:59.999Z`));
+    params.push(new Date(`${date}T00:00:00`), new Date(`${date}T23:59:59`));
   }
   if (status) { sql += " AND t.status = $" + (params.length + 1); params.push(status); }
   if (bus_type) { sql += " AND t.bus_type ILIKE $" + (params.length + 1); params.push(`%${bus_type}%`); }
@@ -64,16 +64,11 @@ const getTrips = async (req, res) => {
 
   try {
     const { rows } = await db.query(sql, params);
-    console.log(`✅ [GET /api/trips] Query returned ${rows.length} trips`);
-    if (rows.length > 0) {
-      console.log('   First trip:', { id: rows[0].id, route: `${rows[0].origin} → ${rows[0].destination}`, departure: rows[0].departure_time });
-    }
-
+    
     // Process images
     const results = rows.map(row => {
         let finalImageUrl = row.specific_bus_image;
         
-        // If no specific image, try generic
         if (!finalImageUrl && row.generic_bus_images) {
             let images = [];
             try {
@@ -82,11 +77,8 @@ const getTrips = async (req, res) => {
                 } else if (Array.isArray(row.generic_bus_images)) {
                     images = row.generic_bus_images;
                 }
-            } catch (e) {
-                // ignore parse error
-            }
+            } catch (e) {}
             
-            // Filter valid non-TikTok images
             const valid = images.filter(url => 
                 url && typeof url === 'string' && !url.includes('tiktok.com')
             );
@@ -107,9 +99,10 @@ const getTrips = async (req, res) => {
     res.json(results);
   } catch (err) {
     console.error("Lỗi khi truy vấn danh sách chuyến xe:", err);
+    return res.status(500).json({ message: "Lỗi phía server." });
+  }
 };
-            generic_bus_images: undefined
-            bus_image_url: finalImageUrl,
+
 router.get("/trips/search", getTrips);
 router.get("/trips", getTrips);
 
@@ -133,7 +126,7 @@ router.get("/trips/:id", async (req, res) => {
             FROM trips t
             LEFT JOIN routes r ON t.route_id = r.id
             LEFT JOIN buses b ON t.bus_id = b.id
-            LEFT JOIN drivers d ON t.driver_id = d.id
+            LEFT JOIN drivers d ON d.id = t.driver_id
             WHERE t.id = $1
         `;
 
@@ -200,7 +193,7 @@ router.get("/trips/:id", async (req, res) => {
             }
         }
 
-        // Image fallback logic for detail view as well
+        // Image fallback logic
         let finalImageUrl = trip.specific_bus_image;
         if (!finalImageUrl && trip.generic_bus_images) {
              let images = [];
@@ -216,19 +209,22 @@ router.get("/trips/:id", async (req, res) => {
         delete trip.generic_bus_images;
 
         return res.json({
-             let images = [];
-            data: {
-                ...trip,
-                amenities,
-                timeline,
-                reviews: reviewsResult.rows,
-             const valid = images.filter(url => url && typeof url === 'string' && !url.includes('tiktok.com'));
-             if (valid.length > 0) finalImageUrl = valid[0];
-            } catch (e) {}
+            ...trip,
+            amenities,
+            timeline,
+            reviews: reviewsResult.rows,
+            departure_display: formatTime(trip.departure_time),
+            arrival_display: formatTime(trip.arrival_time),
+            duration_display: formatDuration(trip.duration_min)
+        });
+
     } catch (error) {
         console.error("Error fetching trip details:", error);
         return res.status(500).json({
-        trip.bus_image_url = finalImageUrl;
+            success: false,
+            message: "Lỗi server khi lấy thông tin chuyến đi"
+        });
+    }
 });
 
 /* ============================================================
