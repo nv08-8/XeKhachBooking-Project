@@ -4,6 +4,23 @@ const router = express.Router();
 const db = require("../db");
 const { generateBookingCode } = require("../utils/bookingHelper");
 
+// Helper function to check if a column exists in a table
+async function columnExists(tableName, columnName) {
+  try {
+    const result = await db.query(
+      `SELECT EXISTS(
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = $1 AND column_name = $2
+      )`,
+      [tableName, columnName]
+    );
+    return result.rows[0].exists;
+  } catch (err) {
+    console.warn(`Could not check if column ${columnName} exists in ${tableName}:`, err.message);
+    return false;
+  }
+}
+
 // ============================================================
 // MIDDLEWARE: Kiểm tra quyền admin
 // ============================================================
@@ -807,13 +824,23 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
 
     // Generate booking code for this offline booking
     const bookingCode = generateBookingCode(trip_id);
+    const hasBookingCodeCol = await columnExists('bookings', 'booking_code');
 
     // Create booking record (user_id is NULL for admin-created bookings)
-    const bookingInsert = await client.query(
-      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, status, payment_method, booking_code)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-      [null, trip_id, totalAmount, seat_labels.length, 'confirmed', 'offline', bookingCode]
-    );
+    let bookingInsert;
+    if (hasBookingCodeCol) {
+      bookingInsert = await client.query(
+        `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, status, payment_method, booking_code)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        [null, trip_id, totalAmount, seat_labels.length, 'confirmed', 'offline', bookingCode]
+      );
+    } else {
+      bookingInsert = await client.query(
+        `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, status, payment_method)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        [null, trip_id, totalAmount, seat_labels.length, 'confirmed', 'offline']
+      );
+    }
     const bookingId = bookingInsert.rows[0].id;
 
     // Link seats to this booking
@@ -853,17 +880,23 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
     await client.query('COMMIT');
     client.release();
 
-    console.log(`✅ Admin created booking #${bookingId} for trip ${trip_id} with code ${bookingCode}`);
+    console.log(`✅ Admin created booking #${bookingId} for trip ${trip_id}${hasBookingCodeCol ? ` with code ${bookingCode}` : ''}`);
 
-    res.status(201).json({
+    const responseData = {
       message: `Tạo vé thành công cho ${seat_labels.length} ghế`,
       booking_id: bookingId,
-      booking_code: bookingCode,
       trip_id,
       seats_marked: seat_labels,
       seats_count: seat_labels.length,
       total_amount: totalAmount
-    });
+    };
+
+    // Only include booking_code if column exists
+    if (hasBookingCodeCol) {
+      responseData.booking_code = bookingCode;
+    }
+
+    res.status(201).json(responseData);
   } catch (err) {
     try { await client.query("ROLLBACK"); } catch (e) { /* ignore */ }
     client.release();

@@ -163,14 +163,25 @@ router.post("/bookings", async (req, res) => {
     if (finalPassengerEmail) passengerInfo.email = finalPassengerEmail;
     const passengerInfoJson = Object.keys(passengerInfo).length > 0 ? JSON.stringify(passengerInfo) : null;
 
-    // Generate unique booking code for QR verification
+    // Generate unique booking code for QR verification (if column exists)
     const bookingCode = generateBookingCode(trip_id);
+    const hasBookingCodeCol = await columnExists('bookings', 'booking_code');
 
-    const bookingInsert = await client.query(
-      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_info, booking_code)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
-      [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, 'pending', metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id, finalPaymentMethod, passengerInfoJson, bookingCode]
-    );
+    // Build INSERT based on whether booking_code column exists
+    let bookingInsert;
+    if (hasBookingCodeCol) {
+      bookingInsert = await client.query(
+        `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_info, booking_code)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+        [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, 'pending', metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id, finalPaymentMethod, passengerInfoJson, bookingCode]
+      );
+    } else {
+      bookingInsert = await client.query(
+        `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_info)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+        [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, 'pending', metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id, finalPaymentMethod, passengerInfoJson]
+      );
+    }
     const bookingId = bookingInsert.rows[0].id;
     
     const bookingIds = [bookingId];
@@ -200,6 +211,23 @@ router.post("/bookings", async (req, res) => {
   }
 });
 
+// Helper function to check if a column exists in a table
+async function columnExists(tableName, columnName) {
+  try {
+    const result = await db.query(
+      `SELECT EXISTS(
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = $1 AND column_name = $2
+      )`,
+      [tableName, columnName]
+    );
+    return result.rows[0].exists;
+  } catch (err) {
+    console.warn(`Could not check if column ${columnName} exists in ${tableName}:`, err.message);
+    return false;
+  }
+}
+
 // GET /bookings/my - Get user's bookings
 // Query params:
 //   - user_id (required): user ID
@@ -225,9 +253,13 @@ router.get('/bookings/my', async (req, res) => {
   }
   // If no tab specified, return all bookings (backwards compatibility)
 
+  // Check if booking_code column exists
+  const hasBookingCode = await columnExists('bookings', 'booking_code');
+  const bookingCodeSelect = hasBookingCode ? 'b.booking_code' : "'' as booking_code";
+
   const sql = `
     SELECT b.id, b.status, b.price_paid, b.created_at, b.total_amount, b.payment_method,
-           b.passenger_info, COALESCE(b.booking_code, '') as booking_code,
+           b.passenger_info, ${bookingCodeSelect},
            t.departure_time, t.arrival_time, t.operator, t.bus_type,
            r.origin, r.destination,
            pickup_stop.name AS pickup_location,
@@ -262,11 +294,16 @@ router.get('/bookings/my', async (req, res) => {
 // GET /bookings/:id - Get specific booking details
 router.get('/bookings/:id', async (req, res) => {
   const { id } = req.params;
+
+  // Check if booking_code column exists
+  const hasBookingCode = await columnExists('bookings', 'booking_code');
+  const bookingCodeSelect = hasBookingCode ? 'b.booking_code' : "'' as booking_code";
+
   const sql = `
     SELECT b.id, b.user_id, b.trip_id, b.total_amount, b.seats_count, b.promotion_code,
            b.status, b.metadata, b.pickup_stop_id, b.dropoff_stop_id, b.payment_method,
            b.passenger_info, b.created_at, b.paid_at, b.cancelled_at, b.expired_at,
-           b.price_paid, COALESCE(b.booking_code, '') as booking_code,
+           b.price_paid, ${bookingCodeSelect},
            t.departure_time, t.arrival_time, t.operator, t.bus_type, t.price AS seat_price,
            r.origin, r.destination,
            u.name AS passenger_name, u.phone AS passenger_phone,
