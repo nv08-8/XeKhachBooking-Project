@@ -6,39 +6,20 @@
     android:layout_height="match_parent"
     android:background="@drawable/background"
     android:orientation="vertical"
-    tools:context=".activity.BookingDetailActivity">
+    tools:context=".activity.admin.BookingAdminDetailActivity">
 
-    <com.google.android.material.appbar.AppBarLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:theme="@style/AdminToolbarStyle">
+        android:layout_height="?attr/actionBarSize"
+        android:layout_marginTop="36dp"
+        android:background="@android:color/transparent"
+        app:title="Chi tiết Vé"
+        app:titleTextAppearance="@style/ToolbarTitleStyle"
+        app:titleTextColor="@color/textPrimary"
+        app:titleCentered="true"
+        app:navigationIcon="@drawable/ic_arrow_back" />
 
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:title="Chi tiết Vé" />
-
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <!-- Subtitle Description -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingHorizontal="20dp"
-        android:paddingVertical="12dp">
-
-
-    </LinearLayout>
-
-    <!-- Divider Line -->
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="0.5dp"
-        android:background="#30000000" />
-
-    <!-- Divider Line -->
     <View
         android:layout_width="match_parent"
         android:layout_height="0.5dp"
@@ -458,4 +439,3 @@
     </ScrollView>
 
 </LinearLayout>
-
