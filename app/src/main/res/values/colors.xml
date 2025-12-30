@@ -14,6 +14,7 @@
     <color name="backgroundLight">#F5F5F5</color>
 
     <color name="appBarBackground">#99FFFFFF</color> <!-- 60% Opaque White -->
+    <color name="adminAppBarBackground">#990077FF</color>
 
     <color name="Green">#4CAF50</color>
     <color name="lightGreen">#D4EDDA</color>

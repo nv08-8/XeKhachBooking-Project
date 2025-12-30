@@ -13,6 +13,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -56,6 +57,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
     private LinearLayout dateRangeFilter;
     private BarChart barChart;
     private NestedScrollView scrollView;
+    private Toolbar toolbar;
 
     private RevenueAdapter adapter;
     private List<Map<String, Object>> revenueList = new ArrayList<>();
@@ -72,6 +74,12 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         setContentView(R.layout.activity_revenue_stats);
 
         sessionManager = new SessionManager(this);
+
+        toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setDisplayShowHomeEnabled(true);
+        toolbar.setNavigationOnClickListener(v -> finish());
 
         progressRevenue = findViewById(R.id.progressRevenue);
         rvRevenue = findViewById(R.id.rvRevenue);
