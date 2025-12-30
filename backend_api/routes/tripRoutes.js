@@ -31,7 +31,7 @@ const getTrips = async (req, res) => {
 
   let sql = `
     SELECT
-      t.id::integer, t.route_id, t.operator, t.bus_type, t.departure_time, t.arrival_time,
+      t.id, t.route_id, t.operator, t.bus_type, t.departure_time, t.arrival_time,
       t.price, t.seats_total, t.seats_available, t.status, t.created_at,
       r.origin, r.destination, r.distance_km, r.duration_min,
       b.number_plate, b.image_url AS specific_bus_image,
@@ -127,7 +127,7 @@ router.get("/trips/:id", async (req, res) => {
     try {
         const tripQuery = `
             SELECT
-                t.id::integer, t.route_id, t.operator, t.bus_type, t.departure_time, t.arrival_time,
+                t.id, t.route_id, t.operator, t.bus_type, t.departure_time, t.arrival_time,
                 t.price, t.seats_total, t.seats_available, t.status,
                 r.origin, r.destination, r.distance_km, r.duration_min,
                 b.number_plate, b.image_url AS specific_bus_image, b.seat_layout,
