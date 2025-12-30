@@ -25,6 +25,7 @@ function generateDetailedSeatLayout(busType, seatLayout) {
     for (let fi = 0; fi < seatLayout.floors.length; fi++) {
         const floor = seatLayout.floors[fi];
         let seats = [];
+        let extraEndBed = 0; // Number of extra end bed seats
         const { rows, cols } = floor;
 
         switch (busType) {
@@ -34,6 +35,7 @@ function generateDetailedSeatLayout(busType, seatLayout) {
                 for (let i = 0; i < 5; i++) {
                     seats.push({ row: 5, col: i, label: '', type: 'bed' });
                 }
+                extraEndBed = 5;
                 break;
 
             case 'Giường nằm 41 chỗ':
@@ -42,6 +44,7 @@ function generateDetailedSeatLayout(busType, seatLayout) {
                     for (let i = 0; i < 5; i++) {
                         seats.push({ row: 6, col: i, label: '', type: 'bed' });
                     }
+                    extraEndBed = 5;
                 }
                 break;
 
@@ -49,6 +52,7 @@ function generateDetailedSeatLayout(busType, seatLayout) {
             case 'Giường nằm 32 chỗ có WC':
                 seats = generateGridRaw(5, 3);
                 seats.push({ row: 5, col: 0, label: '', type: 'bed' });
+                extraEndBed = 1;
                 break;
 
             case 'Limousine 34 giường':
@@ -62,14 +66,16 @@ function generateDetailedSeatLayout(busType, seatLayout) {
                 for (let i = 0; i < 3; i++) {
                     seats.push({ row: 5, col: i, label: '', type: 'bed' });
                 }
+                extraEndBed = 3;
                 break;
 
             case 'Giường nằm 38 chỗ có WC':
-                seats = generateGridRaw(5, 3);
-                seats.push({ row: 4, col: 3, label: '', type: 'bed' });
-                for (let i = 0; i < 3; i++) {
+                seats = generateGridRaw(5, 3); // 5 rows x 3 cols = 15 ghế
+                // Thêm 4 ghế băng cuối (extra end bed)
+                for (let i = 0; i < 4; i++) {
                     seats.push({ row: 5, col: i, label: '', type: 'bed' });
                 }
+                extraEndBed = 4;
                 break;
 
             case 'Limousine 24 giường phòng':
@@ -109,6 +115,9 @@ function generateDetailedSeatLayout(busType, seatLayout) {
         });
 
         floor.seats = seats; // set detailed seats on this floor
+        if (extraEndBed > 0) {
+            floor.extra_end_bed = extraEndBed; // add extra_end_bed info
+        }
     }
     return seatLayout;
 }
