@@ -145,13 +145,31 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (routeList.isEmpty() || position < 0 || position >= routeList.size()) return;
                 Map<String, Object> selectedRoute = routeList.get(position);
-                int routeId = ((Number) selectedRoute.get("id")).intValue();
+                int routeId = getIntFromMap(selectedRoute, "id");
                 fetchTripsForRoute(routeId);
             }
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {}
         });
+    }
+
+    private int getIntFromMap(Map<String, Object> map, String key) {
+        Object val = map.get(key);
+        if (val instanceof Number) return ((Number) val).intValue();
+        if (val instanceof String) {
+            try { return (int) Double.parseDouble((String) val); } catch (Exception e) { return 0; }
+        }
+        return 0;
+    }
+
+    private float getFloatFromMap(Map<String, Object> map, String key) {
+        Object val = map.get(key);
+        if (val instanceof Number) return ((Number) val).floatValue();
+        if (val instanceof String) {
+            try { return Float.parseFloat((String) val); } catch (Exception e) { return 0f; }
+        }
+        return 0f;
     }
 
     private void fetchRoutes() {
@@ -246,7 +264,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
 
         int routePos = spinnerRoutes.getSelectedItemPosition();
         if (spinnerRoutes.getVisibility() == View.VISIBLE && routePos >= 0 && routePos < routeList.size()) {
-            routeId = ((Number) routeList.get(routePos).get("id")).intValue();
+            routeId = getIntFromMap(routeList.get(routePos), "id");
         }
 
         int tripPos = spinnerTrips.getSelectedItemPosition();
@@ -313,11 +331,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
 
         for (int i = 0; i < revenueList.size(); i++) {
             Map<String, Object> revenue = revenueList.get(i);
-            float totalRevenue = 0;
-            Object revenueObj = revenue.get("total_revenue");
-            if (revenueObj instanceof Number) {
-                totalRevenue = ((Number) revenueObj).floatValue();
-            }
+            float totalRevenue = getFloatFromMap(revenue, "total_revenue");
             entries.add(new BarEntry(i, totalRevenue));
 
             String groupBy = groupByValues[spinnerGroupBy.getSelectedItemPosition()];
@@ -386,8 +400,8 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
             case "trip":
                 // In the consolidated API, the ID is the group_key for route and trip
                 Object idObj = revenue.get("group_key");
-                if (idObj instanceof Number) {
-                    value = String.valueOf(((Number) idObj).intValue());
+                if (idObj != null) {
+                    value = String.valueOf(idObj);
                 }
                 break;
         }
