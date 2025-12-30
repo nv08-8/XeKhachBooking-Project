@@ -70,23 +70,23 @@
                 android:resource="@xml/file_paths" />
         </provider>
         <activity android:name=".activity.admin.AdminHomeActivity" />
-        <activity android:name=".activity.admin.ManageRoutesActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
-        <activity android:name=".activity.RouteFormActivity" android:parentActivityName=".activity.admin.ManageRoutesActivity" />
-        <activity android:name=".activity.admin.ManageBookingsActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
-        <activity android:name=".activity.admin.BookingAdminDetailActivity" android:parentActivityName=".activity.admin.ManageBookingsActivity" />
-        <activity android:name=".activity.RevenueStatsActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
-        <activity android:name=".activity.RevenueDetailsActivity" android:parentActivityName=".activity.RevenueStatsActivity" />
-        <activity android:name=".activity.admin.ManageUsersActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
-        <activity android:name=".activity.EditUserActivity" android:parentActivityName=".activity.admin.ManageUsersActivity" />
-        <activity android:name=".activity.admin.ManageTripsActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
-        <activity android:name=".activity.TripFormActivity" android:parentActivityName=".activity.admin.ManageTripsActivity" />
-        <activity android:name=".activity.admin.ManageDriversActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
-        <activity android:name=".activity.admin.DriverFormActivity" android:parentActivityName=".activity.admin.ManageDriversActivity" />
-        <activity android:name=".activity.admin.ManageReviewsActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
-        <activity android:name=".activity.admin.ManagePromotionsActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
-        <activity android:name=".activity.admin.PromotionFormActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
-        <activity android:name=".activity.admin.AdminOfflinePaymentActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
-        <activity android:name=".activity.admin.AdminAddBookingActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
+        <activity android:name=".activity.admin.ManageRoutesActivity" />
+        <activity android:name=".activity.RouteFormActivity" />
+        <activity android:name=".activity.admin.ManageBookingsActivity" />
+        <activity android:name=".activity.admin.BookingAdminDetailActivity" />
+        <activity android:name=".activity.RevenueStatsActivity" />
+        <activity android:name=".activity.RevenueDetailsActivity" />
+        <activity android:name=".activity.admin.ManageUsersActivity" />
+        <activity android:name=".activity.EditUserActivity" />
+        <activity android:name=".activity.admin.ManageTripsActivity" />
+        <activity android:name=".activity.TripFormActivity" />
+        <activity android:name=".activity.admin.ManageDriversActivity" />
+        <activity android:name=".activity.admin.DriverFormActivity" />
+        <activity android:name=".activity.admin.ManageReviewsActivity" />
+        <activity android:name=".activity.admin.ManagePromotionsActivity" />
+        <activity android:name=".activity.admin.PromotionFormActivity" />
+        <activity android:name=".activity.admin.AdminOfflinePaymentActivity" />
+        <activity android:name=".activity.admin.AdminAddBookingActivity" />
     </application>
 
 </manifest>

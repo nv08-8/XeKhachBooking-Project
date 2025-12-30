@@ -1,136 +1,156 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@drawable/background"
     tools:context=".activity.admin.PromotionFormActivity">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:layout_marginTop="36dp"
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
         android:background="@android:color/transparent"
-        app:title="Thêm/Sửa Khuyến mãi"
-        app:titleTextAppearance="@style/ToolbarTitleStyle"
-        app:titleTextColor="@color/textPrimary"
-        app:titleCentered="true"
-        app:navigationIcon="@drawable/ic_arrow_back" />
+        app:elevation="0dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <LinearLayout
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="24dp">
+            android:layout_height="?attr/actionBarSize"
+            app:navigationIcon="@drawable/ic_arrow_back"
+            app:navigationIconTint="@color/white"
+            app:title="Thêm/Sửa Khuyến mãi"
+            app:titleTextColor="@android:color/black" />
 
-            <TextView
-                android:layout_width="wrap_content"
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="4dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/appBarLayout">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Thông tin Khuyến mãi"
-                android:textColor="@color/textPrimary"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:orientation="vertical"
+                android:padding="24dp">
 
-            <EditText
-                android:id="@+id/etCode"
-                android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:layout_marginTop="20dp"
-                android:background="@drawable/edittext_bg"
-                android:drawablePadding="12dp"
-                android:hint="Mã khuyến mãi"
-                android:paddingHorizontal="16dp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Thông tin Khuyến mãi"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
 
-            <Spinner
-                android:id="@+id/spinnerDiscountType"
-                android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/edittext_bg"
-                android:entries="@array/discount_types"
-                android:paddingHorizontal="16dp" />
+                <EditText
+                    android:id="@+id/etCode"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="20dp"
+                    android:background="@drawable/edittext_bg"
+                    android:drawablePadding="12dp"
+                    android:hint="Mã khuyến mãi"
+                    android:paddingHorizontal="16dp" />
 
-            <EditText
-                android:id="@+id/etDiscountValue"
-                android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/edittext_bg"
-                android:drawablePadding="12dp"
-                android:hint="Giá trị giảm"
-                android:inputType="numberDecimal"
-                android:paddingHorizontal="16dp" />
+                <Spinner
+                    android:id="@+id/spinnerDiscountType"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/edittext_bg"
+                    android:entries="@array/discount_types"
+                    android:paddingHorizontal="16dp" />
 
-            <EditText
-                android:id="@+id/etMinPrice"
-                android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/edittext_bg"
-                android:drawablePadding="12dp"
-                android:hint="Giá tối thiểu"
-                android:inputType="numberDecimal"
-                android:paddingHorizontal="16dp" />
+                <EditText
+                    android:id="@+id/etDiscountValue"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/edittext_bg"
+                    android:drawablePadding="12dp"
+                    android:hint="Giá trị giảm"
+                    android:inputType="numberDecimal"
+                    android:paddingHorizontal="16dp" />
 
-            <EditText
-                android:id="@+id/etMaxDiscount"
-                android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/edittext_bg"
-                android:drawablePadding="12dp"
-                android:hint="Giảm tối đa"
-                android:inputType="numberDecimal"
-                android:paddingHorizontal="16dp" />
+                <EditText
+                    android:id="@+id/etMinPrice"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/edittext_bg"
+                    android:drawablePadding="12dp"
+                    android:hint="Giá tối thiểu"
+                    android:inputType="numberDecimal"
+                    android:paddingHorizontal="16dp" />
 
-            <EditText
-                android:id="@+id/etStartDate"
-                android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/edittext_bg"
-                android:drawablePadding="12dp"
-                android:hint="Ngày bắt đầu (YYYY-MM-DD)"
-                android:paddingHorizontal="16dp" />
+                <EditText
+                    android:id="@+id/etMaxDiscount"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/edittext_bg"
+                    android:drawablePadding="12dp"
+                    android:hint="Giảm tối đa"
+                    android:inputType="numberDecimal"
+                    android:paddingHorizontal="16dp" />
 
-            <EditText
-                android:id="@+id/etEndDate"
-                android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/edittext_bg"
-                android:drawablePadding="12dp"
-                android:hint="Ngày kết thúc (YYYY-MM-DD)"
-                android:paddingHorizontal="16dp" />
+                <EditText
+                    android:id="@+id/etStartDate"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/edittext_bg"
+                    android:drawablePadding="12dp"
+                    android:hint="Ngày bắt đầu (YYYY-MM-DD)"
+                    android:paddingHorizontal="16dp" />
 
-            <Spinner
-                android:id="@+id/spinnerStatus"
-                android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/edittext_bg"
-                android:entries="@array/promotion_statuses"
-                android:paddingHorizontal="16dp" />
+                <EditText
+                    android:id="@+id/etEndDate"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/edittext_bg"
+                    android:drawablePadding="12dp"
+                    android:hint="Ngày kết thúc (YYYY-MM-DD)"
+                    android:paddingHorizontal="16dp" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnSavePromotion"
-                android:layout_width="match_parent"
-                android:layout_height="55dp"
-                android:layout_marginTop="24dp"
-                android:text="Lưu Khuyến mãi"
-                android:textColor="@color/white"
-                android:textSize="16sp"
-                app:backgroundTint="@color/colorPrimary"
-                app:cornerRadius="28dp" />
+                <Spinner
+                    android:id="@+id/spinnerStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/edittext_bg"
+                    android:entries="@array/promotion_statuses"
+                    android:paddingHorizontal="16dp" />
 
-        </LinearLayout>
-    </ScrollView>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSavePromotion"
+                    android:layout_width="match_parent"
+                    android:layout_height="55dp"
+                    android:layout_marginTop="24dp"
+                    android:text="Lưu Khuyến mãi"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    app:backgroundTint="@color/colorPrimary"
+                    app:cornerRadius="28dp" />
 
-</LinearLayout>
+            </LinearLayout>
+        </ScrollView>
+    </androidx.cardview.widget.CardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

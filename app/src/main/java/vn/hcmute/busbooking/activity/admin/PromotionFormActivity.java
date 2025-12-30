@@ -39,7 +39,6 @@ public class PromotionFormActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        toolbar.setNavigationOnClickListener(v -> onSupportNavigateUp());
 
         sessionManager = new SessionManager(this);
         apiService = ApiClient.getClient().create(ApiService.class);

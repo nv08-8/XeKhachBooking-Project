@@ -8,18 +8,17 @@
     android:orientation="vertical"
     tools:context=".activity.BookingDetailActivity">
 
-    <com.google.android.material.appbar.AppBarLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:theme="@style/AdminToolbarStyle">
-
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:title="Chi tiết Vé" />
-
-    </com.google.android.material.appbar.AppBarLayout>
+        android:layout_height="?attr/actionBarSize"
+        android:layout_marginTop="36dp"
+        android:background="@android:color/transparent"
+        app:title="Chi tiết Vé"
+        app:titleTextAppearance="@style/ToolbarTitleStyle"
+        app:titleTextColor="@color/textPrimary"
+        app:titleCentered="true"
+        app:navigationIcon="@drawable/ic_arrow_back" />
 
     <!-- Subtitle Description -->
     <LinearLayout
