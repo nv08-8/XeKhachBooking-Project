@@ -5,7 +5,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.Toast;
@@ -37,7 +36,7 @@ public class EditProfileActivity extends AppCompatActivity {
 
     private static final String TAG = "EditProfileActivity";
 
-    private TextInputEditText edtName, edtEmail, edtPhone, edtDob, edtRole;
+    private TextInputEditText edtName, edtEmail, edtPhone, edtDob;
     private RadioGroup rgGender;
     private RadioButton rbMale, rbFemale, rbOther;
     private Button btnSaveProfile;
@@ -66,7 +65,6 @@ public class EditProfileActivity extends AppCompatActivity {
         rbMale = findViewById(R.id.rbMale);
         rbFemale = findViewById(R.id.rbFemale);
         rbOther = findViewById(R.id.rbOther);
-        edtRole = findViewById(R.id.edtRole);
         btnSaveProfile = findViewById(R.id.btnSaveProfile);
 
         prefillFromSession();
@@ -150,13 +148,6 @@ public class EditProfileActivity extends AppCompatActivity {
                             selectGender(gender);
                         }
 
-                        String role = asString(userData.get("role"));
-                        if (!TextUtils.isEmpty(role)) {
-                            edtRole.setText(role.toUpperCase(Locale.ROOT));
-                            sessionManager.updateRole(role);
-                        } else if (TextUtils.isEmpty(edtRole.getText())) {
-                            edtRole.setText("USER");
-                        }
 
                         sessionManager.updateUserInfo(
                                 name,
@@ -185,8 +176,6 @@ public class EditProfileActivity extends AppCompatActivity {
         setTextIfNotEmpty(edtPhone, sessionManager.getUserPhone());
         setTextIfNotEmpty(edtDob, sessionManager.getUserDob());
         selectGender(sessionManager.getUserGender());
-        String role = sessionManager.getRole();
-        edtRole.setText(!TextUtils.isEmpty(role) ? role.toUpperCase(Locale.ROOT) : "USER");
     }
 
     private void setTextIfNotEmpty(TextInputEditText view, String value) {

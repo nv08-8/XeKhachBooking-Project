@@ -221,41 +221,6 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Role Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardBackgroundColor="@android:color/white"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Vai trò"
-                        android:textSize="12sp"
-                        android:textColor="@color/textSecondary"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/tvRole"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:textSize="16sp"
-                        android:textColor="@color/textPrimary"
-                        tools:text="USER" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
     </ScrollView>
