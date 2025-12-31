@@ -95,7 +95,8 @@ public class SeatSelectionActivity extends AppCompatActivity {
                     // Iterate through all seats returned by the API and check their `isBooked` status.
                     for (Seat seat : response.body()) {
                         if (seat.isBooked() && seat.getLabel() != null) {
-                            bookedSeats.add(seat.getLabel());
+                            // Normalize label (trim + uppercase) to avoid format mismatches
+                            bookedSeats.add(seat.getLabel().trim().toUpperCase());
                         }
                     }
                     generateSeatMap(bookedSeats);
@@ -224,7 +225,10 @@ public class SeatSelectionActivity extends AppCompatActivity {
                 Seat seat = new Seat(displayLabel);
                 seat.setSeatType(seatInfo.type);
                 // Mark booked if API returned booking using either original label or the display label
-                if ((seatInfo.label != null && bookedSeats.contains(seatInfo.label)) || bookedSeats.contains(displayLabel)) {
+                // Normalize seat labels before checking against booked set
+                String seatInfoLabelNorm = seatInfo.label != null ? seatInfo.label.trim().toUpperCase() : null;
+                String displayLabelNorm = displayLabel != null ? displayLabel.trim().toUpperCase() : null;
+                if ((seatInfoLabelNorm != null && bookedSeats.contains(seatInfoLabelNorm)) || (displayLabelNorm != null && bookedSeats.contains(displayLabelNorm))) {
                     seat.setBooked(true);
                 }
                 seatGrid[index] = seat;

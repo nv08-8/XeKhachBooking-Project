@@ -37,6 +37,9 @@ public interface ApiService {
             @Query("available") String available
     );
 
+    @GET("api/trips/{id}/seats")
+    Call<List<Map<String, Object>>> getTripSeatsAvailable(@Path("id") int tripId, @Query("available") boolean available);
+
     @POST("api/bookings")
     Call<Map<String, Object>> createBooking(@Body Map<String, Object> body);
 

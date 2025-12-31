@@ -2,6 +2,7 @@ package vn.hcmute.busbooking.activity.guest;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -19,6 +20,8 @@ import vn.hcmute.busbooking.activity.RegisterActivity;
 
 public class GuestAccountActivity extends AppCompatActivity {
 
+    private static final String TAG = "GuestAccountActivity";
+
     private BottomNavigationView bottomNav;
     private Button btnLogin, btnRegister;
     private View statusBarScrim;
@@ -35,6 +38,8 @@ public class GuestAccountActivity extends AppCompatActivity {
         btnRegister = findViewById(R.id.btnRegister);
         statusBarScrim = findViewById(R.id.statusBarScrim);
         contentScroll = findViewById(R.id.contentScroll);
+
+        Log.d(TAG, "onCreate - views initialized: btnLogin=" + (btnLogin != null) + ", btnRegister=" + (btnRegister != null));
 
         applyWindowInsets();
 
@@ -68,15 +73,21 @@ public class GuestAccountActivity extends AppCompatActivity {
         });
 
         // Handle button clicks
-        btnLogin.setOnClickListener(v -> {
-            Intent intent = new Intent(GuestAccountActivity.this, LoginActivity.class);
-            startActivity(intent);
-        });
+        if (btnLogin != null) {
+            btnLogin.setOnClickListener(v -> {
+                Log.d(TAG, "btnLogin clicked");
+                Intent intent = new Intent(GuestAccountActivity.this, LoginActivity.class);
+                startActivity(intent);
+            });
+        }
 
-        btnRegister.setOnClickListener(v -> {
-            Intent intent = new Intent(GuestAccountActivity.this, RegisterActivity.class);
-            startActivity(intent);
-        });
+        if (btnRegister != null) {
+            btnRegister.setOnClickListener(v -> {
+                Log.d(TAG, "btnRegister clicked");
+                Intent intent = new Intent(GuestAccountActivity.this, RegisterActivity.class);
+                startActivity(intent);
+            });
+        }
     }
 
     @Override

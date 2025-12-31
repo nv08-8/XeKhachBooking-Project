@@ -64,6 +64,17 @@
             android:textSize="14sp"
             android:textStyle="bold" />
 
+        <!-- New: separate address line for the stop (smaller, secondary color) -->
+        <TextView
+            android:id="@+id/txtStopAddress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="395 Kinh Duong Vuong, Q.Binh Tan"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/txtStopDescription"
             android:layout_width="wrap_content"

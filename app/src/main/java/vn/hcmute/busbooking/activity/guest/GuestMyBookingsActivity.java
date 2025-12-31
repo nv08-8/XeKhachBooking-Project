@@ -2,8 +2,10 @@ package vn.hcmute.busbooking.activity.guest;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.ViewCompat;
@@ -14,12 +16,17 @@ import androidx.core.widget.NestedScrollView;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import vn.hcmute.busbooking.R;
+import vn.hcmute.busbooking.activity.LoginActivity;
+import vn.hcmute.busbooking.activity.RegisterActivity;
 
 public class GuestMyBookingsActivity extends AppCompatActivity {
+
+    private static final String TAG = "GuestMyBookingsActivity";
 
     private NestedScrollView contentScroll;
     private View statusBarScrim;
     private BottomNavigationView bottomNav;
+    private Button btnLogin, btnRegister; // added
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,6 +38,25 @@ public class GuestMyBookingsActivity extends AppCompatActivity {
         statusBarScrim = findViewById(R.id.statusBarScrim);
         bottomNav = findViewById(R.id.bottom_navigation);
         handleWindowInsets();
+
+        // Initialize guest buttons (they exist in the layout but previously had no handlers)
+        btnLogin = findViewById(R.id.btnLogin);
+        btnRegister = findViewById(R.id.btnRegister);
+        Log.d(TAG, "onCreate - btnLogin=" + (btnLogin != null) + ", btnRegister=" + (btnRegister != null));
+
+        if (btnLogin != null) {
+            btnLogin.setOnClickListener(v -> {
+                Log.d(TAG, "btnLogin clicked");
+                startActivity(new Intent(GuestMyBookingsActivity.this, LoginActivity.class));
+            });
+        }
+
+        if (btnRegister != null) {
+            btnRegister.setOnClickListener(v -> {
+                Log.d(TAG, "btnRegister clicked");
+                startActivity(new Intent(GuestMyBookingsActivity.this, RegisterActivity.class));
+            });
+        }
 
         // Handle Bottom Navigation clicks
         bottomNav.setSelectedItemId(R.id.nav_tickets);

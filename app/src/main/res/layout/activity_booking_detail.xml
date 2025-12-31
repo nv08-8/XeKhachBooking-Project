@@ -765,13 +765,6 @@
                     android:fontFamily="monospace"
                     android:letterSpacing="0.1" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="(Lưu mã này nếu quên điện thoại)"
-                    android:textColor="#8E8E93"
-                    android:textSize="11sp"
-                    android:layout_marginTop="4dp" />
             </LinearLayout>
         </LinearLayout>
 

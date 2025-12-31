@@ -159,7 +159,7 @@ public class SelectPickupPointActivity extends AppCompatActivity {
 
         @Override
         public VH onCreateViewHolder(ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext()).inflate(android.R.layout.simple_list_item_activated_1, parent, false);
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_route_stop, parent, false);
             return new VH(v);
         }
 
@@ -170,8 +170,19 @@ public class SelectPickupPointActivity extends AppCompatActivity {
             Location loc = items.get(pos);
             String name = loc.getName();
             String addr = loc.getAddress();
-            holder.text.setText((name != null && !name.isEmpty() ? name : (addr != null ? addr : "Không tên")));
-            holder.itemView.setActivated(pos == selected);
+
+            // Set name (always show, or default text if empty)
+            holder.tvName.setText((name != null && !name.isEmpty() ? name : "Không tên"));
+
+            // Set address (show if available, otherwise hide)
+            if (addr != null && !addr.isEmpty()) {
+                holder.tvAddress.setText(addr);
+                holder.tvAddress.setVisibility(View.VISIBLE);
+            } else {
+                holder.tvAddress.setVisibility(View.GONE);
+            }
+
+            holder.itemView.setSelected(pos == selected);
             holder.itemView.setOnClickListener(v -> {
                 int p = holder.getAdapterPosition();
                 if (p == RecyclerView.NO_POSITION) return;
@@ -187,10 +198,12 @@ public class SelectPickupPointActivity extends AppCompatActivity {
         public int getItemCount() { return items.size(); }
 
         static class VH extends RecyclerView.ViewHolder {
-            TextView text;
+            TextView tvName;
+            TextView tvAddress;
             VH(View itemView) {
                 super(itemView);
-                text = itemView.findViewById(android.R.id.text1);
+                tvName = itemView.findViewById(R.id.tvLocationName);
+                tvAddress = itemView.findViewById(R.id.tvLocationAddress);
             }
         }
     }

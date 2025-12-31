@@ -24,7 +24,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Map;
-import java.util.TimeZone;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -488,17 +487,28 @@ public class BookingDetailActivity extends AppCompatActivity {
         } else if ("pending".equalsIgnoreCase(status)) {
             // Pending payment - show action buttons and payment selection card
             if (isOnlinePayment) {
-                 handlePendingCountdown(data, true);
+                 // If we already have a running client-side countdown (e.g. user just switched to QR/Card),
+                 // preserve it instead of calling handlePendingCountdown again which cancels any existing timer.
+                 boolean countdownShown;
+                 if (countDownTimer != null) {
+                     // Keep existing timer and ensure waiting card is visible
+                     countdownShown = true;
+                     if (cardWaiting != null) cardWaiting.setVisibility(View.VISIBLE);
+                 } else {
+                     countdownShown = handlePendingCountdown(data, true);
+                 }
+
                  if (actionButtonsContainer != null) actionButtonsContainer.setVisibility(View.VISIBLE);
                  if (btnPayTicket != null) btnPayTicket.setVisibility(View.VISIBLE);
                  if (btnCancelTicket != null) btnCancelTicket.setVisibility(View.VISIBLE);
-                 if (cardWaiting != null) cardWaiting.setVisibility(View.VISIBLE);
-            } else {
+                 // cardWaiting visibility is handled by handlePendingCountdown; if it returned false, ensure hidden
+                 if (!countdownShown && cardWaiting != null) cardWaiting.setVisibility(View.GONE);
+              } else {
                  if (cardWaiting != null) cardWaiting.setVisibility(View.GONE);
                  if (actionButtonsContainer != null) actionButtonsContainer.setVisibility(View.VISIBLE);
                  if (btnPayTicket != null) btnPayTicket.setVisibility(View.GONE);
                  if (btnCancelTicket != null) btnCancelTicket.setVisibility(View.VISIBLE);
-            }
+              }
             if (cardPaymentMethod != null) cardPaymentMethod.setVisibility(View.VISIBLE);
             if (tvPaymentMethodHeading != null) tvPaymentMethodHeading.setVisibility(View.VISIBLE);
 
@@ -551,52 +561,138 @@ public class BookingDetailActivity extends AppCompatActivity {
         if (qrCodeSection != null) qrCodeSection.setVisibility(View.GONE);
     }
 
-    private void handlePendingCountdown(Map<String, Object> data, boolean isOnlinePayment) {
-        if (countDownTimer != null) countDownTimer.cancel();
-        
-        String createdAtStr = (String) data.get("created_at");
-        long createdMillis = -1;
-        if (createdAtStr != null) {
-             try {
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                // No timezone conversion - database has local time
-                Date d = sdf.parse(createdAtStr);
-                if (d != null) createdMillis = d.getTime();
-            } catch (ParseException e) {
-                try {
-                     SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
-                     // No timezone conversion - database has local time
-                     Date d2 = sdf2.parse(createdAtStr);
-                     if (d2 != null) createdMillis = d2.getTime();
-                } catch (ParseException ignored) {}
-            }
-        }
+    // Returns true if a countdown is started and cardWaiting is shown
+    private boolean handlePendingCountdown(Map<String, Object> data, boolean isOnlinePayment) {
+         // Cancel any previous timer completely
+         if (countDownTimer != null) {
+             try { countDownTimer.cancel(); } catch (Exception ignored) {}
+             countDownTimer = null;
+         }
 
-        if (createdMillis > 0) {
-            long now = System.currentTimeMillis();
-            long ttl = 10 * 60 * 1000L; 
-            long millisInFuture = (createdMillis + ttl) - now;
+         Object createdAtObj = data.get("created_at");
+         long createdMillis = -1;
+         if (createdAtObj instanceof Number) {
+             // Server may return milliseconds (number)
+             createdMillis = ((Number) createdAtObj).longValue();
+             // If timestamp looks like seconds (10 digits), convert to millis
+             if (createdMillis < 100000000000L) createdMillis = createdMillis * 1000L;
+             Log.d(TAG, "handlePendingCountdown - created_at is numeric (ms): " + createdMillis);
+         } else if (createdAtObj instanceof String) {
+             String createdAtStr = ((String) createdAtObj).trim();
+             // If string is purely numeric, parse as seconds or millis
+             if (createdAtStr.matches("^\\d+$")) {
+                 try {
+                     long v = Long.parseLong(createdAtStr);
+                     if (v < 100000000000L) v = v * 1000L; // seconds -> ms
+                     createdMillis = v;
+                     Log.d(TAG, "handlePendingCountdown - created_at numeric-string parsed (ms): " + createdMillis);
+                 } catch (Exception e) {
+                     Log.w(TAG, "handlePendingCountdown - numeric parse failed for created_at string", e);
+                 }
+             } else {
+                 createdMillis = parseIsoToMillis(createdAtStr);
+                 Log.d(TAG, "handlePendingCountdown - created_at string: " + createdAtStr + " -> " + createdMillis);
+             }
+         } else {
+             Log.d(TAG, "handlePendingCountdown - created_at not present or unsupported type: " + (createdAtObj == null ? "null" : createdAtObj.getClass()));
+         }
 
-            if (millisInFuture > 0) {
-                if (tvCountdownTimer != null) {
-                    countDownTimer = new CountDownTimer(millisInFuture, 1000) {
-                        @Override
-                        public void onTick(long millisUntilFinished) {
-                            long seconds = millisUntilFinished / 1000;
-                            String timeStr = String.format(Locale.getDefault(), "%02d:%02d", seconds / 60, seconds % 60);
-                            tvCountdownTimer.setText(timeStr);
-                        }
-                        @Override
-                        public void onFinish() {
-                            Toast.makeText(BookingDetailActivity.this, "Vé đã hết hạn thanh toán", Toast.LENGTH_LONG).show();
-                            loadBookingDetails();
-                        }
-                    }.start();
-                }
-            } else {
+         if (createdMillis > 0) {
+             long now = System.currentTimeMillis();
+             long ttl = 10 * 60 * 1000L;
+             long millisInFuture = (createdMillis + ttl) - now;
+
+             Log.d(TAG, "handlePendingCountdown - now=" + now + ", createdMillis=" + createdMillis + ", millisInFuture=" + millisInFuture);
+
+             // Only start a countdown if there's at least 1 second remaining
+             if (millisInFuture > 1000) {
+                 if (cardWaiting != null) cardWaiting.setVisibility(View.VISIBLE);
+                 if (tvCountdownTimer != null) {
+                     // Ensure an immediate update so the UI doesn't show the layout default
+                     long initialSeconds = Math.max(0, millisInFuture / 1000);
+                     final long safeMillisInFuture = millisInFuture;
+                     tvCountdownTimer.setText(String.format(Locale.getDefault(), "%02d:%02d", initialSeconds / 60, initialSeconds % 60));
+
+                     countDownTimer = new CountDownTimer(safeMillisInFuture, 1000) {
+                         @Override
+                         public void onTick(long millisUntilFinished) {
+                             long seconds = millisUntilFinished / 1000;
+                             final String timeStr = String.format(Locale.getDefault(), "%02d:%02d", seconds / 60, seconds % 60);
+                             // Update UI on main thread to be safe
+                             runOnUiThread(() -> {
+                                 if (tvCountdownTimer != null) tvCountdownTimer.setText(timeStr);
+                             });
+                         }
+
+                         @Override
+                         public void onFinish() {
+                             runOnUiThread(() -> {
+                                 Toast.makeText(BookingDetailActivity.this, "Vé đã hết hạn thanh toán", Toast.LENGTH_LONG).show();
+                                 if (cardWaiting != null) cardWaiting.setVisibility(View.GONE);
+                                 if (tvCountdownTimer != null) tvCountdownTimer.setText("");
+                                 // Clear reference
+                                 if (countDownTimer != null) {
+                                     try { countDownTimer.cancel(); } catch (Exception ignored) {}
+                                     countDownTimer = null;
+                                 }
+                                 loadBookingDetails();
+                             });
+                         }
+                     };
+
+                     // Start the timer
+                     try {
+                         countDownTimer.start();
+                     } catch (Exception e) {
+                         Log.e(TAG, "Failed to start countdown timer", e);
+                         // Fallback: hide waiting card
+                         if (cardWaiting != null) cardWaiting.setVisibility(View.GONE);
+                         if (tvCountdownTimer != null) tvCountdownTimer.setText("");
+                         countDownTimer = null;
+                     }
+
+                     return true;
+                 }
+             } else {
+                 // expired or too small to bother with a countdown
                  if (cardWaiting != null) cardWaiting.setVisibility(View.GONE);
-            }
+                 if (tvCountdownTimer != null) tvCountdownTimer.setText("");
+             }
+         } else {
+             // created_at couldn't be parsed or missing - hide waiting card to avoid showing stale default text
+             if (cardWaiting != null) cardWaiting.setVisibility(View.GONE);
+             if (tvCountdownTimer != null) tvCountdownTimer.setText("");
+         }
+        return false;
+     }
+
+
+    // Robust ISO timestamp parser: try multiple SimpleDateFormat fallbacks (avoid java.time for minSdk compatibility)
+    private long parseIsoToMillis(String iso) {
+        if (iso == null) return -1;
+
+        String[] patterns = new String[] {
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ssX",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd"
+        };
+
+        for (String p : patterns) {
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat(p, Locale.getDefault());
+                // If pattern contains timezone marker or literal Z, parse as UTC
+                if (p.contains("'Z'") || p.contains("X")) {
+                    sdf.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+                }
+                Date d = sdf.parse(iso);
+                if (d != null) return d.getTime();
+            } catch (Exception ignored) {}
         }
+        return -1;
     }
 
     private void generateQRCode(String data) {
@@ -647,24 +743,51 @@ public class BookingDetailActivity extends AppCompatActivity {
 
     private void cancelBooking() {
         if (apiService == null) return;
+        // Prevent double-clicks / multiple requests
+        if (btnCancelTicket != null) btnCancelTicket.setEnabled(false);
         Toast.makeText(this, "Đang hủy vé...", Toast.LENGTH_SHORT).show();
         apiService.cancelBooking(bookingId).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                // Re-enable button by default (visibility/loadBookingDetails may override)
+                if (btnCancelTicket != null) btnCancelTicket.setEnabled(true);
+
                 if (response.isSuccessful()) {
                     Toast.makeText(BookingDetailActivity.this, "Đã hủy vé", Toast.LENGTH_SHORT).show();
                     loadBookingDetails();
                 } else {
                      try {
-                        String errorBody = response.errorBody().string();
-                        Toast.makeText(BookingDetailActivity.this, "Không thể hủy vé: " + errorBody, Toast.LENGTH_LONG).show();
+                        String errorBody = response.errorBody() != null ? response.errorBody().string() : null;
+
+                        // If server responds with 409 (conflict), provide a clearer message and refresh details
+                        if (response.code() == 409) {
+                            String msg = "Không thể hủy vé";
+                            try {
+                                if (errorBody != null && errorBody.contains("message")) {
+                                    org.json.JSONObject json = new org.json.JSONObject(errorBody);
+                                    msg = json.optString("message", msg);
+                                } else if (errorBody != null) {
+                                    msg = errorBody;
+                                }
+                            } catch (Exception ignored) {}
+
+                            Toast.makeText(BookingDetailActivity.this, msg, Toast.LENGTH_LONG).show();
+
+                            // Refresh booking details so UI (buttons/countdown) matches server state
+                            loadBookingDetails();
+                        } else {
+                            Toast.makeText(BookingDetailActivity.this, "Không thể hủy vé: " + (errorBody != null ? errorBody : response.code()), Toast.LENGTH_LONG).show();
+                        }
                     } catch (Exception e) {
                         Toast.makeText(BookingDetailActivity.this, "Không thể hủy vé", Toast.LENGTH_SHORT).show();
+                        // Make sure UI is refreshed in case server changed state
+                        loadBookingDetails();
                     }
                 }
             }
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                if (btnCancelTicket != null) btnCancelTicket.setEnabled(true);
                 Toast.makeText(BookingDetailActivity.this, "Lỗi kết nối", Toast.LENGTH_SHORT).show();
             }
         });
@@ -723,6 +846,21 @@ public class BookingDetailActivity extends AppCompatActivity {
                     Toast.makeText(BookingDetailActivity.this,
                             "Đã đổi sang phương thức \"" + methodName + "\"",
                             Toast.LENGTH_SHORT).show();
+
+                    // Start countdown immediately on client as a fallback: some servers may not update
+                    // the booking's created_at timestamp right away when payment method changes.
+                    // We set a local created_at = now so the UI shows the 10-minute countdown from the moment
+                    // the user switched to QR/Card. loadBookingDetails() will still be called and may
+                    // override this with the server timestamp when available.
+                    if ("qr".equals(newPaymentMethod) || "card".equals(newPaymentMethod)) {
+                        if (currentBookingData == null) currentBookingData = new java.util.HashMap<>();
+                        currentBookingData.put("created_at", System.currentTimeMillis());
+                        // Show waiting card and start countdown on UI thread
+                        runOnUiThread(() -> {
+                            boolean started = handlePendingCountdown(currentBookingData, true);
+                            if (!started && cardWaiting != null) cardWaiting.setVisibility(View.GONE);
+                        });
+                    }
 
                     // Reload booking details to update UI
                     loadBookingDetails();

@@ -278,6 +278,19 @@ public class PaymentActivity extends AppCompatActivity {
         // Layout uses tvPickupLocation / tvDropoffLocation ids — map them to tvPickup/tvDropoff variables
         tvPickup = findViewById(R.id.tvPickupLocation);
         tvDropoff = findViewById(R.id.tvDropoffLocation);
+        // New: find separate address TextViews in layout
+        TextView tvPickupAddressView = null;
+        TextView tvDropoffAddressView = null;
+        try {
+            tvPickupAddressView = findViewById(R.id.tvPickupAddress);
+        } catch (Exception ignored) {}
+        try {
+            tvDropoffAddressView = findViewById(R.id.tvDropoffAddress);
+        } catch (Exception ignored) {}
+        // store into member vars by reusing tvPickup/tvDropoff references for names and temporary locals for addresses
+        // We'll use tags on tvPickup/tvDropoff to keep address views accessible in other methods
+        if (tvPickup != null && tvPickupAddressView != null) tvPickup.setTag(tvPickupAddressView);
+        if (tvDropoff != null && tvDropoffAddressView != null) tvDropoff.setTag(tvDropoffAddressView);
         // tvDate view doesn't exist in layout, set to null to avoid crash
         tvDate = null; // findViewById(R.id.tvDate);
         // seat textview id in layout is tvSeatNumber
@@ -357,8 +370,56 @@ public class PaymentActivity extends AppCompatActivity {
         }
 
         if (tvAppName != null) tvAppName.setText(R.string.logo_default);
-        tvPickup.setText(pickupStopName != null ? pickupStopName : "");
-        tvDropoff.setText(dropoffStopName != null ? dropoffStopName : "");
+        // Split pickupStopName (may be "Name - Address") into name and address
+        if (tvPickup != null) {
+            String name = pickupStopName != null ? pickupStopName : "";
+            if (name.contains(" - ")) {
+                String[] parts = name.split(" - ", 2);
+                tvPickup.setText(parts[0]);
+                Object tag = tvPickup.getTag();
+                if (tag instanceof TextView) {
+                    TextView addrView = (TextView) tag;
+                    String addr = parts.length > 1 ? parts[1] : "";
+                    if (addr != null && !addr.isEmpty()) {
+                        addrView.setText(addr);
+                        addrView.setVisibility(View.VISIBLE);
+                    } else {
+                        addrView.setVisibility(View.GONE);
+                    }
+                }
+            } else {
+                tvPickup.setText(name);
+                Object tag = tvPickup.getTag();
+                if (tag instanceof TextView) {
+                    ((TextView) tag).setVisibility(View.GONE);
+                }
+            }
+        }
+
+        if (tvDropoff != null) {
+            String name = dropoffStopName != null ? dropoffStopName : "";
+            if (name.contains(" - ")) {
+                String[] parts = name.split(" - ", 2);
+                tvDropoff.setText(parts[0]);
+                Object tag = tvDropoff.getTag();
+                if (tag instanceof TextView) {
+                    TextView addrView = (TextView) tag;
+                    String addr = parts.length > 1 ? parts[1] : "";
+                    if (addr != null && !addr.isEmpty()) {
+                        addrView.setText(addr);
+                        addrView.setVisibility(View.VISIBLE);
+                    } else {
+                        addrView.setVisibility(View.GONE);
+                    }
+                }
+            } else {
+                tvDropoff.setText(name);
+                Object tag = tvDropoff.getTag();
+                if (tag instanceof TextView) {
+                    ((TextView) tag).setVisibility(View.GONE);
+                }
+            }
+        }
 
         String seatText = (seatLabels != null) ? TextUtils.join(", ", seatLabels) : "";
         tvSeat.setText(seatText);

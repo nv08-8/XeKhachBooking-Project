@@ -267,8 +267,28 @@ public class TripDetailActivity extends AppCompatActivity {
 
     private void addTimelineStop(String location, String time, String description, boolean isFirst) {
         View stopView = getLayoutInflater().inflate(R.layout.item_timeline_stop, layoutTimeline, false);
-        ((TextView) stopView.findViewById(R.id.txtStopLocation)).setText(location);
-        ((TextView) stopView.findViewById(R.id.txtStopDescription)).setText(description);
+        TextView tvLocation = (TextView) stopView.findViewById(R.id.txtStopLocation);
+        TextView tvAddress = (TextView) stopView.findViewById(R.id.txtStopAddress);
+        TextView tvDescription = (TextView) stopView.findViewById(R.id.txtStopDescription);
+
+        // If the incoming 'location' string contains a separator like ' - ', split into name and address.
+        if (location != null && location.contains(" - ")) {
+            String[] parts = location.split(" - ", 2);
+            tvLocation.setText(parts[0]);
+            String addr = parts.length > 1 ? parts[1] : null;
+            if (addr != null && !addr.isEmpty()) {
+                tvAddress.setText(addr);
+                tvAddress.setVisibility(View.VISIBLE);
+            } else {
+                tvAddress.setVisibility(View.GONE);
+            }
+        } else {
+            // No separator: treat entire string as name and try to hide address
+            tvLocation.setText(location != null ? location : "");
+            tvAddress.setVisibility(View.GONE);
+        }
+
+        tvDescription.setText(description);
         try {
             ((TextView) stopView.findViewById(R.id.txtStopTime)).setText(formatTime(time));
         } catch (Exception e) {
@@ -392,7 +412,7 @@ public class TripDetailActivity extends AppCompatActivity {
         }
 
         int tripId = trip.getId();
-        
+
         if (isFavorite) {
             apiService.removeFavorite(userId, tripId).enqueue(new Callback<Map<String, Object>>() {
                 @Override

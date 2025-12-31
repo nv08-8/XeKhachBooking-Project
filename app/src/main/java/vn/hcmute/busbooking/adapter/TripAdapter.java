@@ -155,12 +155,84 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
             }
         }
 
-        Integer seats = trip.getSeatsAvailable();
-        if (seats != null) {
-            holder.tvSeatsLeft.setText(String.format(Locale.getDefault(), "Còn %d chỗ", seats));
-        } else {
-            holder.tvSeatsLeft.setText("");
-        }
+        // Try to fetch latest seats available from API for more accurate display.
+        holder.tvSeatsLeft.setText("");
+        holder.itemView.setTag("trip_" + trip.getId());
+        apiService.getTripDetails(trip.getId()).enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                if (!response.isSuccessful() || response.body() == null) return;
+                Object seatsObj = response.body().get("seats_available");
+                Integer seatsNum = null;
+                if (seatsObj instanceof Number) seatsNum = ((Number) seatsObj).intValue();
+                else if (seatsObj instanceof String) {
+                    try { seatsNum = Integer.parseInt((String) seatsObj); } catch (Exception ignored) {}
+                }
+
+                // Ensure this ViewHolder still represents the same trip (avoid recycling issues)
+                Object tag = holder.itemView.getTag();
+                if (tag != null && tag.equals("trip_" + trip.getId())) {
+                    if (seatsNum != null) {
+                        holder.tvSeatsLeft.setText(String.format(Locale.getDefault(), "Còn %d chỗ", seatsNum));
+                    } else if (trip.getSeatsAvailable() != null) {
+                        holder.tvSeatsLeft.setText(String.format(Locale.getDefault(), "Còn %d chỗ", trip.getSeatsAvailable()));
+                    } else if (trip.getSeatsTotal() != null) {
+                        // Fallback to seats_total if available
+                        holder.tvSeatsLeft.setText(String.format(Locale.getDefault(), "Còn %d chỗ", trip.getSeatsTotal()));
+                    } else {
+                        holder.tvSeatsLeft.setText("");
+                    }
+                }
+
+                // If seatsNum is null or inconsistent with seats_total, fetch authoritative available seats list
+                try {
+                    Integer total = trip.getSeatsTotal();
+                    Integer availableReported = seatsNum != null ? seatsNum : trip.getSeatsAvailable();
+                    boolean needsVerify = (availableReported == null && total != null) ||
+                            (availableReported != null && total != null && Math.abs(availableReported - total) > 2);
+
+                    if (needsVerify) {
+                        // Use the seats endpoint which returns a list of Seat objects and count unbooked seats
+                        apiService.getSeats(trip.getId()).enqueue(new Callback<java.util.List<vn.hcmute.busbooking.model.Seat>>() {
+                            @Override
+                            public void onResponse(Call<java.util.List<vn.hcmute.busbooking.model.Seat>> call2, Response<java.util.List<vn.hcmute.busbooking.model.Seat>> resp2) {
+                                if (!resp2.isSuccessful() || resp2.body() == null) return;
+                                int availableCount = 0;
+                                try {
+                                    for (vn.hcmute.busbooking.model.Seat s : resp2.body()) {
+                                        if (s == null) continue;
+                                        // seat.isBooked() indicates booked seats; count those that are NOT booked
+                                        if (!s.isBooked()) availableCount++;
+                                    }
+                                } catch (Exception ignored) {}
+                                Object tag2 = holder.itemView.getTag();
+                                if (tag2 != null && tag2.equals("trip_" + trip.getId())) {
+                                    holder.tvSeatsLeft.setText(String.format(Locale.getDefault(), "Còn %d chỗ", availableCount));
+                                }
+                            }
+
+                            @Override
+                            public void onFailure(Call<java.util.List<vn.hcmute.busbooking.model.Seat>> call2, Throwable t2) {
+                                // ignore - keep previous display
+                            }
+                        });
+                    }
+                } catch (Exception ignored) {}
+
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                // Fallback to local value
+                if (holder.itemView.getTag() != null && holder.itemView.getTag().equals("trip_" + trip.getId())) {
+                    if (trip.getSeatsAvailable() != null) {
+                        holder.tvSeatsLeft.setText(String.format(Locale.getDefault(), "Còn %d chỗ", trip.getSeatsAvailable()));
+                    } else {
+                        holder.tvSeatsLeft.setText("");
+                    }
+                }
+            }
+        });
 
         Integer userId = sessionManager.getUserId();
         int tripId = trip.getId();
