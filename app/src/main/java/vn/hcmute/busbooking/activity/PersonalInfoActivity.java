@@ -38,7 +38,7 @@ public class PersonalInfoActivity extends AppCompatActivity {
     private ApiService apiService;
     private UserProfileDatabase userProfileDb;
     private ImageView ivProfileImage;
-    private TextView tvName, tvEmail, tvPhone, tvDob, tvGender, tvRole;
+    private TextView tvName, tvEmail, tvPhone, tvDob, tvGender;
     private ActivityResultLauncher<Intent> editProfileLauncher;
 
     @Override
@@ -58,7 +58,6 @@ public class PersonalInfoActivity extends AppCompatActivity {
         tvPhone = findViewById(R.id.tvPhone);
         tvDob = findViewById(R.id.tvDob);
         tvGender = findViewById(R.id.tvGender);
-        tvRole = findViewById(R.id.tvRole);
         Button btnEditProfile = findViewById(R.id.btnEditProfile);
 
         // Toolbar back button
@@ -77,7 +76,7 @@ public class PersonalInfoActivity extends AppCompatActivity {
                         String email = sessionManager.getUserEmail();
 
                         sessionManager.updateUserInfo(mergedName, email, mergedPhone, mergedDob, mergedGender);
-                        applyUserData(mergedName, email, mergedPhone, mergedDob, mergedGender, sessionManager.getRole());
+                        applyUserData(mergedName, email, mergedPhone, mergedDob, mergedGender);
                     }
                     loadUserData();
                 });
@@ -106,7 +105,6 @@ public class PersonalInfoActivity extends AppCompatActivity {
         String sessionPhone = sessionManager.getUserPhone();
         String sessionDob = sessionManager.getUserDob();
         String sessionGender = sessionManager.getUserGender();
-        String sessionRole = sessionManager.getRole();
 
         Log.d(TAG, "Session data: name=" + sessionName + ", email=" + sessionEmail +
               ", phone=" + sessionPhone + ", dob=" + sessionDob + ", gender=" + sessionGender);
@@ -125,7 +123,7 @@ public class PersonalInfoActivity extends AppCompatActivity {
         final String finalSessionDob = sessionDob;
         final String finalSessionGender = sessionGender;
 
-        applyUserData(sessionName, sessionEmail, sessionPhone, sessionDob, sessionGender, sessionRole);
+        applyUserData(sessionName, sessionEmail, sessionPhone, sessionDob, sessionGender);
 
         if (userId != null) {
             apiService.getUserInfo(userId).enqueue(new Callback<Map<String, Object>>() {
@@ -146,42 +144,24 @@ public class PersonalInfoActivity extends AppCompatActivity {
                         String apiDob = valueOrNull(userData.get("dob"));
                         String apiGender = valueOrNull(userData.get("gender"));
                         String apiAvatar = valueOrNull(userData.get("avatar"));
-                        String apiRole = valueOrNull(userData.get("role"));
-
-                        Log.d(TAG, "API data: name=" + apiName + ", email=" + apiEmail +
-                              ", phone=" + apiPhone + ", dob=" + apiDob + ", gender=" + apiGender);
-                        Log.d(TAG, "Session phone: " + sessionManager.getUserPhone() + ", API phone: " + apiPhone);
 
                         String mergedName = coalesce(apiName, sessionManager.getUserName());
                         String mergedEmail = coalesce(apiEmail, sessionManager.getUserEmail());
-
-                        // For phone: prefer session if API is empty (API may not have updated yet)
-                        String mergedPhone;
-                        if (!isEmpty(apiPhone)) {
-                            mergedPhone = apiPhone;
-                            Log.d(TAG, "Using API phone: " + mergedPhone);
-                        } else {
-                            mergedPhone = sessionManager.getUserPhone();
-                            Log.d(TAG, "Using session phone (API empty): " + mergedPhone);
-                        }
+                        String mergedPhone = coalesce(apiPhone, sessionManager.getUserPhone());
 
                         // Use DB dob/gender if API doesn't have them
                         String mergedDob = coalesce(apiDob, finalSessionDob);
                         String mergedGender = coalesce(apiGender, finalSessionGender);
-                        String mergedRole = coalesce(apiRole, sessionManager.getRole());
 
                         Log.d(TAG, "Merged data: name=" + mergedName + ", email=" + mergedEmail +
                               ", phone=" + mergedPhone + ", dob=" + mergedDob + ", gender=" + mergedGender);
 
                         sessionManager.updateUserInfo(mergedName, mergedEmail, mergedPhone, mergedDob, mergedGender);
-                        if (!isEmpty(mergedRole)) {
-                            sessionManager.updateRole(mergedRole);
-                        }
                         if (!isEmpty(apiAvatar)) {
                             sessionManager.setUserAvatar(apiAvatar);
                         }
 
-                        applyUserData(mergedName, mergedEmail, mergedPhone, mergedDob, mergedGender, mergedRole);
+                        applyUserData(mergedName, mergedEmail, mergedPhone, mergedDob, mergedGender);
 
                         // Reload avatar image if updated from API
                         if (!isEmpty(apiAvatar)) {
@@ -202,13 +182,12 @@ public class PersonalInfoActivity extends AppCompatActivity {
         }
     }
 
-    private void applyUserData(String name, String email, String phone, String dob, String gender, String role) {
+    private void applyUserData(String name, String email, String phone, String dob, String gender) {
         tvName.setText(!isEmpty(name) ? name : "Chưa cập nhật");
         tvEmail.setText(!isEmpty(email) ? email : "Chưa cập nhật");
         tvPhone.setText(!isEmpty(phone) ? phone : "Chưa cập nhật");
         tvDob.setText(!isEmpty(dob) ? dob : "Chưa cập nhật");
         tvGender.setText(!isEmpty(gender) ? gender : "Chưa cập nhật");
-        tvRole.setText(!isEmpty(role) ? role.toUpperCase() : "USER");
     }
 
     private void loadProfileImage() {
