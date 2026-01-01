@@ -453,10 +453,11 @@ router.post('/bookings/:id/payment', async (req, res) => {
       try {
         console.log(`📧 Sending email for online payment: booking ${id}`);
         const fullBooking = await db.query(
-          `SELECT b.*, u.email, u.name, u.phone, t.origin, t.destination, t.departure_time, t.operator, t.bus_type
+          `SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type
            FROM bookings b
            JOIN users u ON b.user_id = u.id
            JOIN trips t ON b.trip_id = t.id
+           JOIN routes r ON t.route_id = r.id
            WHERE b.id=$1`,
           [id]
         );
@@ -690,10 +691,11 @@ router.post('/bookings/:id/confirm-offline-payment', async (req, res) => {
     try {
       console.log(`📧 Sending email for offline payment confirmation: booking ${id}`);
       const fullBooking = await db.query(
-        `SELECT b.*, u.email, u.name, u.phone, t.origin, t.destination, t.departure_time, t.operator, t.bus_type
+        `SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type
          FROM bookings b
          JOIN users u ON b.user_id = u.id
          JOIN trips t ON b.trip_id = t.id
+         JOIN routes r ON t.route_id = r.id
          WHERE b.id=$1`,
         [id]
       );
@@ -855,8 +857,10 @@ router.post('/bookings/:id/send-confirmation-email', async (req, res) => {
 
     // Get trip details
     const tripRes = await db.query(
-      `SELECT id, origin, destination, departure_time, operator, bus_type
-       FROM trips WHERE id=$1`,
+      `SELECT t.id, t.departure_time, t.operator, t.bus_type, r.origin, r.destination
+       FROM trips t
+       JOIN routes r ON t.route_id = r.id
+       WHERE t.id=$1`,
       [booking.trip_id]
     );
 
