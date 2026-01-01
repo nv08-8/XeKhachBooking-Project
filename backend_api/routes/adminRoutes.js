@@ -772,12 +772,24 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Lấy thông tin trip (để tìm bus_type rồi lấy seat_layout từ buses)
+    // Lock trip record first (without JOIN)
+    const tripLockResult = await client.query(
+      `SELECT id FROM trips WHERE id = $1 FOR UPDATE`,
+      [trip_id]
+    );
+
+    if (!tripLockResult.rowCount) {
+      await client.query("ROLLBACK");
+      client.release();
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    // Then get trip details with bus info
     const tripResult = await client.query(
       `SELECT t.id, t.price, t.seats_available, t.bus_type, b.seat_layout
        FROM trips t
        LEFT JOIN buses b ON t.bus_type = b.bus_type
-       WHERE t.id = $1 FOR UPDATE`,
+       WHERE t.id = $1`,
       [trip_id]
     );
 
@@ -835,24 +847,14 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
 
     // Cập nhật/tạo seat records và đánh dấu là đã đặt
     for (const label of seat_labels) {
-      let seatRes = await client.query(
-        'SELECT id FROM seats WHERE trip_id=$1 AND label=$2 FOR UPDATE',
-        [trip_id, label]
+      // Use UPSERT to handle both insert and update in one query
+      await client.query(
+        `INSERT INTO seats (trip_id, label, type, is_booked, booking_id)
+         VALUES ($1, $2, $3, 1, $4)
+         ON CONFLICT (trip_id, label) DO UPDATE
+         SET is_booked=1, booking_id=$4`,
+        [trip_id, label, 'seat', bookingId]
       );
-
-      if (!seatRes.rowCount) {
-        // Tạo ghế mới
-        await client.query(
-          'INSERT INTO seats (trip_id, label, type, is_booked, booking_id) VALUES ($1, $2, $3, 1, $4)',
-          [trip_id, label, 'seat', bookingId]
-        );
-      } else {
-        // Cập nhật ghế hiện tại (chỉ cập nhật trạng thái, không tạo lại)
-        await client.query(
-          'UPDATE seats SET is_booked=1, booking_id=$1 WHERE trip_id=$2 AND label=$3',
-          [bookingId, trip_id, label]
-        );
-      }
 
       // Tạo booking_items record
       await client.query(
