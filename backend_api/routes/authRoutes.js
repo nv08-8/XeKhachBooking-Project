@@ -349,14 +349,43 @@ router.post("/upload-avatar", upload.single('avatar'), async (req, res) => {
             return res.status(400).json({ success: false, message: "Chưa chọn ảnh!" });
         }
 
-        const userId = req.headers['user-id'] || req.body.user_id;
-        console.log("uploadAvatar: userId =", userId);
+        let userId = req.headers['user-id'] || req.body.user_id;
+        console.log("uploadAvatar: userId (raw) =", userId);
 
-        if (!userId) {
-            console.error("uploadAvatar: No userId provided");
+        // Convert userId to integer
+        userId = parseInt(userId, 10);
+        console.log("uploadAvatar: userId (parsed) =", userId);
+
+        if (!userId || isNaN(userId)) {
+            console.error("uploadAvatar: Invalid userId");
             // Delete uploaded file if user-id not provided
-            require('fs').unlinkSync(req.file.path);
-            return res.status(400).json({ success: false, message: "Thiếu user-id!" });
+            try {
+                require('fs').unlinkSync(req.file.path);
+            } catch (e) {
+                console.error("uploadAvatar: Failed to delete file");
+            }
+            return res.status(400).json({ success: false, message: "Thiếu user-id hoặc user-id không hợp lệ!" });
+        }
+
+        // Check if user exists first
+        console.log("uploadAvatar: Checking if user exists...");
+        const userCheck = await db.query(
+            "SELECT id, status FROM users WHERE id=$1",
+            [userId]
+        );
+        console.log("uploadAvatar: User check result rows count =", userCheck.rows.length);
+
+        if (userCheck.rows.length > 0) {
+            console.log("uploadAvatar: User found - id=" + userCheck.rows[0].id + ", status=" + userCheck.rows[0].status);
+        } else {
+            console.error("uploadAvatar: User NOT found with id=" + userId);
+            // Delete uploaded file if user not found
+            try {
+                require('fs').unlinkSync(req.file.path);
+            } catch (e) {
+                console.error("uploadAvatar: Failed to delete file");
+            }
+            return res.status(404).json({ success: false, message: "Không tìm thấy người dùng với id=" + userId });
         }
 
         // Construct the public URL for the uploaded image (relative path only)
@@ -364,33 +393,49 @@ router.post("/upload-avatar", upload.single('avatar'), async (req, res) => {
         console.log("uploadAvatar: imageUrl =", imageUrl);
 
         // Update user avatar in database
-        const { rowCount } = await db.query(
-            "UPDATE users SET avatar=$1 WHERE id=$2 AND status='active'",
+        console.log("uploadAvatar: Updating database - UPDATE users SET avatar=$1 WHERE id=$2");
+        const updateResult = await db.query(
+            "UPDATE users SET avatar=$1 WHERE id=$2",
             [imageUrl, userId]
         );
 
-        console.log("uploadAvatar: Database update rowCount =", rowCount);
+        console.log("uploadAvatar: Database update rowCount =", updateResult.rowCount);
 
-        if (!rowCount) {
-            console.error("uploadAvatar: User not found with id=" + userId);
-            // Delete uploaded file if user not found
-            require('fs').unlinkSync(req.file.path);
-            return res.status(404).json({ success: false, message: "Không tìm thấy người dùng!" });
+        if (updateResult.rowCount === 0) {
+            console.error("uploadAvatar: Update failed - no rows affected");
+            // Delete uploaded file if update failed
+            try {
+                require('fs').unlinkSync(req.file.path);
+            } catch (e) {
+                console.error("uploadAvatar: Failed to delete file");
+            }
+            return res.status(500).json({ success: false, message: "Cập nhật database thất bại!" });
         }
+
+        // Verify update was successful
+        const verifyResult = await db.query(
+            "SELECT avatar FROM users WHERE id=$1",
+            [userId]
+        );
+        console.log("uploadAvatar: Verification - avatar in DB =", verifyResult.rows[0]?.avatar);
 
         // Return success response with the image URL
         console.log("uploadAvatar: Upload successful, returning response");
-        return res.json({
+        const successResponse = {
             success: true,
             message: "Cập nhật ảnh đại diện thành công!",
             data: {
                 avatar: imageUrl,
                 user_id: userId
             }
-        });
+        };
+        console.log("uploadAvatar: Success response =", JSON.stringify(successResponse));
+        return res.json(successResponse);
     } catch (err) {
         console.error("uploadAvatar: Error caught:", err);
         console.error("uploadAvatar: Error message:", err.message);
+        console.error("uploadAvatar: Error stack:", err.stack);
+
         // Try to delete file if it exists
         if (req.file) {
             try {

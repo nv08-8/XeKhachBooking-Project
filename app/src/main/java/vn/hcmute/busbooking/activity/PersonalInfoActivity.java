@@ -354,38 +354,63 @@ public class PersonalInfoActivity extends AppCompatActivity {
 
                     loadingDialog.dismiss();
 
-                    if (response.isSuccessful() && response.body() != null) {
-                        Map<String, Object> responseData = response.body();
-                        Log.d(TAG, "uploadProfileImage: responseData=" + responseData.toString());
+                    try {
+                        if (response.isSuccessful()) {
+                            Map<String, Object> responseData = response.body();
 
-                        boolean success = (boolean) responseData.getOrDefault("success", false);
-                        Log.d(TAG, "uploadProfileImage: success=" + success);
+                            if (responseData == null) {
+                                Log.e(TAG, "uploadProfileImage: response body is null");
+                                Toast.makeText(PersonalInfoActivity.this,
+                                        "Response từ server là null!",
+                                        Toast.LENGTH_SHORT).show();
+                                return;
+                            }
 
-                        if (success) {
-                            // Extract avatar URL from response
-                            Map<String, Object> data = (Map<String, Object>) responseData.get("data");
-                            if (data != null) {
-                                String avatarUrl = (String) data.get("avatar");
-                                Log.d(TAG, "uploadProfileImage: avatarUrl=" + avatarUrl);
+                            Log.d(TAG, "uploadProfileImage: responseData=" + responseData.toString());
 
-                                if (avatarUrl != null) {
-                                    // Save to session
-                                    sessionManager.setUserAvatar(avatarUrl);
-                                    // Reload image
-                                    loadImageWithGlide(avatarUrl);
-                                    Toast.makeText(PersonalInfoActivity.this,
-                                            "Cập nhật ảnh đại diện thành công!",
-                                            Toast.LENGTH_SHORT).show();
-                                    Log.d(TAG, "Avatar uploaded successfully: " + avatarUrl);
-                                    return;
+                            Object successObj = responseData.get("success");
+                            boolean success = false;
+
+                            if (successObj instanceof Boolean) {
+                                success = (Boolean) successObj;
+                            } else if (successObj instanceof String) {
+                                success = Boolean.parseBoolean((String) successObj);
+                            }
+
+                            Log.d(TAG, "uploadProfileImage: success=" + success);
+
+                            if (success) {
+                                // Extract avatar URL from response
+                                Object dataObj = responseData.get("data");
+                                if (dataObj instanceof Map) {
+                                    Map<String, Object> data = (Map<String, Object>) dataObj;
+                                    String avatarUrl = (String) data.get("avatar");
+                                    Log.d(TAG, "uploadProfileImage: avatarUrl=" + avatarUrl);
+
+                                    if (avatarUrl != null) {
+                                        // Save to session
+                                        sessionManager.setUserAvatar(avatarUrl);
+                                        // Reload image
+                                        loadImageWithGlide(avatarUrl);
+                                        Toast.makeText(PersonalInfoActivity.this,
+                                                "Cập nhật ảnh đại diện thành công!",
+                                                Toast.LENGTH_SHORT).show();
+                                        Log.d(TAG, "Avatar uploaded successfully: " + avatarUrl);
+                                        return;
+                                    }
                                 }
                             }
+                        } else {
+                            Log.e(TAG, "uploadProfileImage: response code=" + response.code());
+                            try {
+                                String errorBody = response.errorBody() != null ? response.errorBody().string() : "unknown";
+                                Log.e(TAG, "uploadProfileImage: error body=" + errorBody);
+                            } catch (Exception e) {
+                                Log.e(TAG, "uploadProfileImage: error reading error body", e);
+                            }
                         }
-                    } else {
-                        Log.e(TAG, "uploadProfileImage: response not successful or null body");
-                        if (response.body() != null) {
-                            Log.e(TAG, "uploadProfileImage: response body=" + response.body().toString());
-                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "uploadProfileImage: Exception in onResponse", e);
                     }
 
                     Toast.makeText(PersonalInfoActivity.this,
