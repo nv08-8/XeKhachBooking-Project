@@ -367,6 +367,7 @@ const COMPLETE_CHECK_INTERVAL_MS = 60 * 1000; // run every minute
 
 async function processArrivalTimeBookings() {
     try {
+        console.log('[CRON] processArrivalTimeBookings running...');
         const sql = `
             SELECT b.id, b.user_id, b.trip_id, b.status, b.metadata, b.payment_method, b.paid_at, b.created_at
             FROM bookings b
@@ -376,6 +377,7 @@ async function processArrivalTimeBookings() {
         `;
 
         const { rows } = await db.query(sql);
+        console.log(`[CRON] processArrivalTimeBookings: found ${rows ? rows.length : 0} candidate bookings`);
         if (!rows || rows.length === 0) return;
 
         for (const r of rows) {
@@ -389,21 +391,46 @@ async function processArrivalTimeBookings() {
                 if (!bRes.rowCount) {
                     await client.query('ROLLBACK');
                     client.release();
+                    console.warn(`[CRON] booking id=${bookingId} disappeared before locking`);
                     continue;
                 }
                 const booking = bRes.rows[0];
 
+                // Parse metadata safely if it's stored as JSON string
+                if (booking.metadata && typeof booking.metadata === 'string') {
+                    try {
+                        booking.metadata = JSON.parse(booking.metadata);
+                    } catch (e) {
+                        // keep original string but log parse failure
+                        console.warn(`[CRON] booking id=${bookingId} metadata JSON parse failed:`, e.message || e);
+                    }
+                }
+
                 // Double-check trip arrival_time (in case it changed)
-                const tRes = await client.query('SELECT arrival_time FROM trips WHERE id=$1', [booking.trip_id]);
+                // Ask DB whether arrival_time has passed (avoid JS parsing/timezone issues)
+                const tRes = await client.query('SELECT arrival_time, NOW() AS now, (arrival_time < NOW()) AS has_passed FROM trips WHERE id=$1', [booking.trip_id]);
                 if (!tRes.rowCount) {
                     await client.query('ROLLBACK');
                     client.release();
+                    console.warn(`[CRON] booking id=${bookingId} trip missing (trip_id=${booking.trip_id})`);
                     continue;
                 }
                 const arrivalTime = tRes.rows[0].arrival_time;
-                if (!arrivalTime || new Date(arrivalTime) > new Date()) {
+                const dbNow = tRes.rows[0].now;
+                const hasPassed = tRes.rows[0].has_passed === true || tRes.rows[0].has_passed === 't';
+                console.log(`[CRON] booking id=${bookingId} status=${booking.status} arrival_time=${arrivalTime} DB_Now=${dbNow} has_passed=${hasPassed} paid_at=${booking.paid_at}`);
+
+                if (!arrivalTime) {
                     await client.query('ROLLBACK');
                     client.release();
+                    console.warn(`[CRON] booking id=${bookingId} skipped: arrival_time is null`);
+                    continue;
+                }
+
+                if (!hasPassed) {
+                    await client.query('ROLLBACK');
+                    client.release();
+                    console.warn(`[CRON] booking id=${bookingId} skipped: DB reports arrival_time not passed (arrival_time=${arrivalTime}, now=${dbNow})`);
                     continue;
                 }
 
@@ -424,6 +451,7 @@ async function processArrivalTimeBookings() {
                 if (booking.status === 'confirmed') isPaid = true;
 
                 if (isPaid) {
+                    console.log(`[CRON] booking id=${bookingId} considered PAID/CONFIRMED -> marking completed`);
                     // Mark as completed
                     try {
                         await client.query("UPDATE bookings SET status='completed' WHERE id=$1", [bookingId]);
@@ -444,6 +472,7 @@ async function processArrivalTimeBookings() {
                 }
 
                 // Not paid -> cancel and release seats
+                console.log(`[CRON] booking id=${bookingId} not paid -> will cancel and release seats`);
                 let seatLabels = [];
                 try {
                     const items = await client.query('SELECT seat_code FROM booking_items WHERE booking_id=$1', [bookingId]);
