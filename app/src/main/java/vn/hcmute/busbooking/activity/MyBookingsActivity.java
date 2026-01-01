@@ -264,17 +264,17 @@ public class MyBookingsActivity extends AppCompatActivity {
             }
          }
 
-        // Sort lists
-        Comparator<Booking> descByDeparture = (a, b) -> Long.compare(parseDateToMillis(b.getDeparture_time()), parseDateToMillis(a.getDeparture_time()));
-        
+        // Sort lists - Ascending: Nearest trips (sắp đi) first
+        Comparator<Booking> ascByDeparture = (a, b) -> Long.compare(parseDateToMillis(a.getDeparture_time()), parseDateToMillis(b.getDeparture_time()));
+
         try {
-            Collections.sort(listCurrent, descByDeparture);
+            Collections.sort(listCurrent, ascByDeparture);
         } catch (Exception ignored) {}
         try {
-            Collections.sort(listPast, descByDeparture);
+            Collections.sort(listPast, ascByDeparture);
         } catch (Exception ignored) {}
         try {
-            Collections.sort(listCancelled, descByDeparture);
+            Collections.sort(listCancelled, ascByDeparture);
         } catch (Exception ignored) {}
 
         // Recompute pending countdowns after building lists

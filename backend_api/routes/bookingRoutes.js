@@ -244,7 +244,7 @@ router.get('/bookings/my', async (req, res) => {
     LEFT JOIN route_stops dropoff_stop ON dropoff_stop.id = b.dropoff_stop_id
     ${whereClause}
     GROUP BY b.id, t.id, r.id, pickup_stop.id, dropoff_stop.id
-    ORDER BY b.created_at DESC
+    ORDER BY t.departure_time ASC
   `;
   try {
     const { rows } = await db.query(sql, [user_id]);
