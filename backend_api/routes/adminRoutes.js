@@ -763,14 +763,9 @@ router.post("/confirm-offline-payment/:id", checkAdminRole, async (req, res) => 
 // ============================================================
 router.post("/bookings", checkAdminRole, async (req, res) => {
   const { trip_id, seat_labels } = req.body;
-  const adminUserId = req.headers["user-id"];
 
   if (!trip_id || !Array.isArray(seat_labels) || seat_labels.length === 0) {
     return res.status(400).json({ message: "Missing required fields: trip_id and seat_labels" });
-  }
-
-  if (!adminUserId) {
-    return res.status(401).json({ message: "Missing user-id header" });
   }
 
   const client = await db.connect();
@@ -789,9 +784,9 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
       return res.status(404).json({ message: "Trip not found" });
     }
 
-    // Then get trip details with bus info
+    // Get trip details with bus info
     const tripResult = await client.query(
-      `SELECT t.id, t.price, t.seats_available, t.bus_type, b.seat_layout
+      `SELECT t.id, t.seats_available, t.bus_type, b.seat_layout
        FROM trips t
        LEFT JOIN buses b ON t.bus_type = b.bus_type
        WHERE t.id = $1`,
@@ -805,8 +800,6 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
     }
 
     const trip = tripResult.rows[0];
-    const tripPrice = parseFloat(trip.price) || 0;
-    const totalAmount = tripPrice * seat_labels.length;
 
     // Validate seats tồn tại trong seat_layout từ buses
     if (trip.seat_layout) {
@@ -839,32 +832,16 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
       }
     }
 
-    // Generate booking code
-    const bookingCode = generateBookingCode(trip_id);
-
-    // Tạo booking record với admin user_id
-    const bookingInsert = await client.query(
-      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, status, payment_method, booking_code)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-      [adminUserId, trip_id, totalAmount, seat_labels.length, 'confirmed', 'offline', bookingCode]
-    );
-    const bookingId = bookingInsert.rows[0].id;
-
-    // Cập nhật/tạo seat records và đánh dấu là đã đặt
+    // Chỉ đánh dấu ghế là không còn trống (is_booked = 1)
+    // Không tạo booking record vì khách mua trực tiếp tại nhà xe
     for (const label of seat_labels) {
-      // Use UPSERT to handle both insert and update in one query
+      // Use UPSERT to mark seat as booked (no booking_id)
       await client.query(
-        `INSERT INTO seats (trip_id, label, type, is_booked, booking_id)
-         VALUES ($1, $2, $3, 1, $4)
+        `INSERT INTO seats (trip_id, label, type, is_booked)
+         VALUES ($1, $2, $3, 1)
          ON CONFLICT (trip_id, label) DO UPDATE
-         SET is_booked=1, booking_id=$4`,
-        [trip_id, label, 'seat', bookingId]
-      );
-
-      // Tạo booking_items record
-      await client.query(
-        'INSERT INTO booking_items (booking_id, seat_code, price) VALUES ($1, $2, $3)',
-        [bookingId, label, tripPrice]
+         SET is_booked=1`,
+        [trip_id, label, 'seat']
       );
     }
 
@@ -877,22 +854,19 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
     await client.query('COMMIT');
     client.release();
 
-    console.log(`✅ Admin created booking #${bookingId} for trip ${trip_id} with code ${bookingCode}`);
+    console.log(`✅ Admin marked ${seat_labels.length} seats as occupied for trip ${trip_id} (in-store purchase)`);
 
     res.status(201).json({
-      message: `Tạo vé thành công cho ${seat_labels.length} ghế`,
-      booking_id: bookingId,
-      booking_code: bookingCode,
+      message: `Đánh dấu ${seat_labels.length} ghế thành công (mua tại nhà xe)`,
       trip_id,
       seats_marked: seat_labels,
-      seats_count: seat_labels.length,
-      total_amount: totalAmount
+      seats_count: seat_labels.length
     });
   } catch (err) {
     try { await client.query("ROLLBACK"); } catch (e) { }
     client.release();
-    console.error("Error creating admin booking:", err);
-    res.status(500).json({ message: "Error creating booking", error: err.message });
+    console.error("Error marking seats as occupied:", err);
+    res.status(500).json({ message: "Error marking seats", error: err.message });
   }
 });
 

@@ -179,7 +179,7 @@
     <string name="passenger_phone">Số điện thoại</string>
     <string name="passenger_email">Email</string>
     <string name="payment_method">Hình thức thanh toán</string>
-    <string name="create_booking">Tạo đặt vé</string>
+    <string name="create_booking">Đánh dấu ghế</string>
 
     <string-array name="payment_methods">
         <item>offline</item>
