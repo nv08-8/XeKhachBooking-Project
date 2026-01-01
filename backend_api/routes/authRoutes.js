@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require("../db");
 const bcrypt = require("bcrypt");
 const sendEmail = require("../utils/sendEmail");
+const upload = require("../utils/uploadConfig");
 const SALT_ROUNDS = 10;
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me';
