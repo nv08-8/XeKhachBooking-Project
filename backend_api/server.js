@@ -373,7 +373,7 @@ async function processArrivalTimeBookings() {
             FROM bookings b
             JOIN trips t ON t.id = b.trip_id
             WHERE t.departure_time < NOW()
-            AND b.status IN ('pending','confirmed')
+            AND b.status IN ('pending','confirmed','expired')
         `;
 
         const { rows } = await db.query(sql);

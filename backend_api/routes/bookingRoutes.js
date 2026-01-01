@@ -859,7 +859,7 @@ cron.schedule("*/5 * * * *", async () => {
       FROM trips t
       WHERE b.trip_id = t.id
         AND t.departure_time < NOW()
-        AND b.status = 'pending'
+        AND b.status IN ('pending','expired')
         AND COALESCE(b.price_paid, 0) = 0
         AND b.paid_at IS NULL
         AND b.cancelled_at IS NULL
