@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 const { generateBookingCode } = require("../utils/bookingHelper");
+const { generateDetailedSeatLayout } = require("../data/seat_layout");
 
 // ============================================================
 // MIDDLEWARE: Kiểm tra quyền admin
@@ -946,6 +947,74 @@ router.get("/trips/:id", checkAdminRole, async (req, res) => {
     } catch (err) {
         console.error("Error fetching trip for admin:", err);
         res.status(500).json({ message: "Lỗi server khi lấy thông tin chuyến đi" });
+    }
+});
+
+/* ============================================================
+    MIGRATION: Mở rộng seat_layout cho tất cả buses
+   ============================================================ */
+router.post("/migration/expand-seat-layouts", checkAdminRole, async (req, res) => {
+    try {
+        console.log('🔄 Bắt đầu mở rộng seat_layout cho tất cả buses...');
+
+        const result = await db.query('SELECT id, bus_type, seat_layout FROM buses ORDER BY id');
+        const buses = result.rows;
+
+        let updated = 0;
+        let skipped = 0;
+        const errors = [];
+
+        for (const bus of buses) {
+            try {
+                let layout = bus.seat_layout;
+
+                // Parse nếu là string
+                if (typeof layout === 'string') {
+                    layout = JSON.parse(layout);
+                }
+
+                // Kiểm tra nếu layout đã có seats detail
+                const hasSeatsDetail = layout?.floors?.some(f =>
+                    Array.isArray(f.seats) && f.seats.length > 0
+                );
+
+                if (hasSeatsDetail) {
+                    skipped++;
+                    continue;
+                }
+
+                // Expand layout
+                const expandedLayout = generateDetailedSeatLayout(bus.bus_type, layout);
+                const expandedLayoutJson = JSON.stringify(expandedLayout);
+
+                // Update database
+                await db.query(
+                    'UPDATE buses SET seat_layout = $1 WHERE id = $2',
+                    [expandedLayoutJson, bus.id]
+                );
+
+                updated++;
+                console.log(`✅ Bus ${bus.id} (${bus.bus_type}) - expanded`);
+
+            } catch (e) {
+                errors.push({ bus_id: bus.id, bus_type: bus.bus_type, error: e.message });
+                console.error(`❌ Error updating bus ${bus.id}:`, e.message);
+            }
+        }
+
+        res.json({
+            message: `Migration hoàn tất!`,
+            summary: {
+                total: buses.length,
+                updated,
+                skipped,
+                errors: errors.length > 0 ? errors : []
+            }
+        });
+
+    } catch (err) {
+        console.error('❌ Migration failed:', err);
+        res.status(500).json({ message: 'Migration failed', error: err.message });
     }
 });
 
