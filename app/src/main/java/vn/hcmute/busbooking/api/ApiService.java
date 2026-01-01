@@ -4,7 +4,8 @@ import java.util.List;
 import java.util.Map;
 import retrofit2.Call;
 import retrofit2.http.*;
-
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
 import vn.hcmute.busbooking.model.Booking;
 import vn.hcmute.busbooking.model.Driver;
 import vn.hcmute.busbooking.model.Location;
@@ -259,5 +260,13 @@ public interface ApiService {
 
     @POST("api/admin/confirm-offline-payment/{id}")
     Call<Map<String, Object>> adminConfirmOfflinePayment(@Header("user-id") int userId, @Path("id") int bookingId);
+
+    // ========== USER AVATAR UPLOAD ==========
+    @POST("api/auth/upload-avatar")
+    @Multipart
+    Call<Map<String, Object>> uploadUserAvatar(
+            @Header("user-id") int userId,
+            @Part MultipartBody.Part avatar
+    );
 
 }

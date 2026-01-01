@@ -335,4 +335,56 @@ router.put("/user/:id", async (req, res) => {
     }
 });
 
+// Upload avatar endpoint
+router.post("/upload-avatar", upload.single('avatar'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: "Chưa chọn ảnh!" });
+        }
+
+        const userId = req.headers['user-id'] || req.body.user_id;
+        if (!userId) {
+            // Delete uploaded file if user-id not provided
+            require('fs').unlinkSync(req.file.path);
+            return res.status(400).json({ success: false, message: "Thiếu user-id!" });
+        }
+
+        // Construct the public URL for the uploaded image
+        const imageUrl = `/uploads/avatars/${req.file.filename}`;
+
+        // Update user avatar in database
+        const { rowCount } = await db.query(
+            "UPDATE users SET avatar=$1 WHERE id=$2 AND status='active'",
+            [imageUrl, userId]
+        );
+
+        if (!rowCount) {
+            // Delete uploaded file if user not found
+            require('fs').unlinkSync(req.file.path);
+            return res.status(404).json({ success: false, message: "Không tìm thấy người dùng!" });
+        }
+
+        // Return success response with the image URL
+        return res.json({
+            success: true,
+            message: "Cập nhật ảnh đại diện thành công!",
+            data: {
+                avatar: imageUrl,
+                user_id: userId
+            }
+        });
+    } catch (err) {
+        console.error("Lỗi upload avatar:", err);
+        // Try to delete file if it exists
+        if (req.file) {
+            try {
+                require('fs').unlinkSync(req.file.path);
+            } catch (e) {
+                console.error("Failed to delete uploaded file:", e);
+            }
+        }
+        return res.status(500).json({ success: false, message: "Lỗi phía server: " + err.message });
+    }
+});
+
 module.exports = router;
