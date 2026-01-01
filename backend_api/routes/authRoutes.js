@@ -350,7 +350,7 @@ router.post("/upload-avatar", upload.single('avatar'), async (req, res) => {
             return res.status(400).json({ success: false, message: "Thiếu user-id!" });
         }
 
-        // Construct the public URL for the uploaded image
+        // Construct the public URL for the uploaded image (relative path only)
         const imageUrl = `/uploads/avatars/${req.file.filename}`;
 
         // Update user avatar in database

@@ -258,8 +258,15 @@ public class PersonalInfoActivity extends AppCompatActivity {
 
     private void loadImageWithGlide(String imageUrl) {
         if (!isEmpty(imageUrl)) {
+            // If URL is relative (starts with /), prepend API base URL
+            String fullUrl = imageUrl;
+            if (imageUrl.startsWith("/")) {
+                String baseUrl = ApiClient.getBaseUrl();
+                fullUrl = baseUrl + imageUrl;
+            }
+
             Glide.with(PersonalInfoActivity.this)
-                    .load(imageUrl)
+                    .load(fullUrl)
                     .circleCrop()
                     .placeholder(R.drawable.ic_default_profile)
                     .error(R.drawable.ic_default_profile)
