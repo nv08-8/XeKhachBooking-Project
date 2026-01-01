@@ -107,7 +107,15 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
                 statusText = "Đã thanh toán";
                 background = ContextCompat.getDrawable(context, R.drawable.bg_status_confirmed);
                 break;
+            case "completed":
+                statusText = "Đã đi";
+                background = ContextCompat.getDrawable(context, R.drawable.bg_status_confirmed);
+                break;
             case "cancelled":
+                statusText = "Đã hủy";
+                background = ContextCompat.getDrawable(context, R.drawable.bg_status_cancelled);
+                break;
+            case "expired":
                 statusText = "Đã hủy";
                 background = ContextCompat.getDrawable(context, R.drawable.bg_status_cancelled);
                 break;

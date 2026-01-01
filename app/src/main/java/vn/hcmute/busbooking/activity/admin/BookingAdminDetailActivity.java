@@ -213,7 +213,7 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
             case "completed":
                 return "Đã đi";
             case "expired":
-                return "Hết hạn";
+                return "Đã hủy";
             default:
                 return status;
         }
