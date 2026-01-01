@@ -3,7 +3,6 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 const { generateBookingCode } = require("../utils/bookingHelper");
-const { generateDetailedSeatLayout } = require('../data/seat_layout.js');
 
 // ============================================================
 // MIDDLEWARE: Kiểm tra quyền admin
@@ -772,15 +771,15 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Ensure seats are generated
-    const { generateAndCacheSeats } = require("../utils/seatGenerator");
-    await generateAndCacheSeats(client, trip_id);
-
-    // Check if trip exists and get price
+    // Lấy thông tin trip (để tìm bus_type rồi lấy seat_layout từ buses)
     const tripResult = await client.query(
-      'SELECT id, price, seats_available FROM trips WHERE id=$1 FOR UPDATE',
+      `SELECT t.id, t.price, t.seats_available, t.bus_type, b.seat_layout
+       FROM trips t
+       LEFT JOIN buses b ON t.bus_type = b.bus_type
+       WHERE t.id = $1 FOR UPDATE`,
       [trip_id]
     );
+
     if (!tripResult.rowCount) {
       await client.query("ROLLBACK");
       client.release();
@@ -791,10 +790,41 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
     const tripPrice = parseFloat(trip.price) || 0;
     const totalAmount = tripPrice * seat_labels.length;
 
-    // Generate booking code for this offline booking
+    // Validate seats tồn tại trong seat_layout từ buses
+    if (trip.seat_layout) {
+      try {
+        const layout = (typeof trip.seat_layout === 'string') ? JSON.parse(trip.seat_layout) : trip.seat_layout;
+        const detailedLayout = generateDetailedSeatLayout(trip.bus_type, layout);
+
+        // Lấy danh sách ghế hợp lệ từ layout
+        const validSeats = new Set();
+        if (detailedLayout.floors) {
+          detailedLayout.floors.forEach(floor => {
+            if (floor.seats) {
+              floor.seats.forEach(s => validSeats.add(s.label));
+            }
+          });
+        }
+
+        // Kiểm tra seat_labels có nằm trong layout không
+        for (const label of seat_labels) {
+          if (!validSeats.has(label)) {
+            await client.query("ROLLBACK");
+            client.release();
+            return res.status(400).json({
+              message: `Ghế ${label} không tồn tại trong cấu trúc xe`
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Lỗi validate seat layout:", e);
+      }
+    }
+
+    // Generate booking code
     const bookingCode = generateBookingCode(trip_id);
 
-    // Create booking record (user_id is NULL for admin-created bookings)
+    // Tạo booking record
     const bookingInsert = await client.query(
       `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, status, payment_method, booking_code)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
@@ -802,7 +832,7 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
     );
     const bookingId = bookingInsert.rows[0].id;
 
-    // Link seats to this booking
+    // Cập nhật/tạo seat records và đánh dấu là đã đặt
     for (const label of seat_labels) {
       let seatRes = await client.query(
         'SELECT id FROM seats WHERE trip_id=$1 AND label=$2 FOR UPDATE',
@@ -810,27 +840,27 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
       );
 
       if (!seatRes.rowCount) {
-        // Seat doesn't exist, create it
+        // Tạo ghế mới
         await client.query(
           'INSERT INTO seats (trip_id, label, type, is_booked, booking_id) VALUES ($1, $2, $3, 1, $4)',
           [trip_id, label, 'seat', bookingId]
         );
       } else {
-        // Seat exists, link it to booking and mark as booked
+        // Cập nhật ghế hiện tại (chỉ cập nhật trạng thái, không tạo lại)
         await client.query(
           'UPDATE seats SET is_booked=1, booking_id=$1 WHERE trip_id=$2 AND label=$3',
           [bookingId, trip_id, label]
         );
       }
 
-      // Also create booking_items record
+      // Tạo booking_items record
       await client.query(
         'INSERT INTO booking_items (booking_id, seat_code, price) VALUES ($1, $2, $3)',
         [bookingId, label, tripPrice]
       );
     }
 
-    // Update trip seats available
+    // Cập nhật seats_available của trip
     await client.query(
       'UPDATE trips SET seats_available = seats_available - $1 WHERE id=$2',
       [seat_labels.length, trip_id]
@@ -851,7 +881,7 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
       total_amount: totalAmount
     });
   } catch (err) {
-    try { await client.query("ROLLBACK"); } catch (e) { /* ignore */ }
+    try { await client.query("ROLLBACK"); } catch (e) { }
     client.release();
     console.error("Error creating admin booking:", err);
     res.status(500).json({ message: "Error creating booking", error: err.message });
@@ -889,15 +919,15 @@ router.get("/trips/:id", checkAdminRole, async (req, res) => {
         );
         const bookedLabels = new Set(bookedSeatsRes.rows.map(r => r.label));
 
-        // 2. Xử lý seat layout và tích hợp trạng thái isBooked
+        // 2. Xử lý seat layout từ bảng buses - chỉ merge trạng thái isBooked từ bảng seats
+        // KHÔNG gọi generateDetailedSeatLayout() để tránh tạo layout khác với buses
         if (trip.seat_layout) {
             try {
                 let layout = (typeof trip.seat_layout === 'string') ? JSON.parse(trip.seat_layout) : trip.seat_layout;
-                let detailedLayout = generateDetailedSeatLayout(trip.bus_type, layout);
-                
-                // Duyệt qua layout để gán isBooked dựa trên bookedLabels
-                if (detailedLayout.floors) {
-                    detailedLayout.floors.forEach(floor => {
+
+                // Duyệt qua layout để gán isBooked dựa trên bookedLabels từ bảng seats
+                if (layout && layout.floors) {
+                    layout.floors.forEach(floor => {
                         if (floor.seats) {
                             floor.seats = floor.seats.map(s => ({
                                 ...s,
@@ -906,7 +936,7 @@ router.get("/trips/:id", checkAdminRole, async (req, res) => {
                         }
                     });
                 }
-                trip.seat_layout = detailedLayout;
+                trip.seat_layout = layout;
             } catch (e) {
                 console.error("Lỗi parse seat_layout cho admin:", e);
             }

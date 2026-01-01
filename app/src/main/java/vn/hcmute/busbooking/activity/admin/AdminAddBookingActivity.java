@@ -145,7 +145,19 @@ public class AdminAddBookingActivity extends AppCompatActivity {
                     tripPrice = parseDouble(trip.get("price"));
                     tripInfo = String.format("%s - %s", trip.get("origin"), trip.get("destination"));
                     tvTripInfo.setText(tripInfo);
-                    fetchSeats();
+
+                    // Lấy seat_layout từ trip details (lấy từ buses table)
+                    Object seatLayoutObj = trip.get("seat_layout");
+                    if (seatLayoutObj != null) {
+                        parseSeatLayout(seatLayoutObj);
+                    } else {
+                        android.util.Log.w("AdminAddBooking", "No seat_layout in trip details");
+                        floor1Seats.clear();
+                        floor2Seats.clear();
+                        floor1Adapter.notifyDataSetChanged();
+                        floor2Adapter.notifyDataSetChanged();
+                        Toast.makeText(AdminAddBookingActivity.this, "Chuyến này chưa được cấu hình ghế", Toast.LENGTH_SHORT).show();
+                    }
                 } else {
                     Toast.makeText(AdminAddBookingActivity.this, "Failed to load trip details", Toast.LENGTH_SHORT).show();
                     finish();
@@ -161,49 +173,43 @@ public class AdminAddBookingActivity extends AppCompatActivity {
         });
     }
 
-    private void fetchSeats() {
-        progressBar.setVisibility(View.VISIBLE);
-        apiService.getSeats(tripId).enqueue(new Callback<List<Seat>>() {
-            @Override
-            public void onResponse(Call<List<Seat>> call, Response<List<Seat>> response) {
-                progressBar.setVisibility(View.GONE);
+    // Xử lý seat_layout từ response
+    private void parseSeatLayout(Object seatLayoutObj) {
+        try {
+            List<Seat> allSeats = new ArrayList<>();
 
-                android.util.Log.d("AdminAddBooking", "fetchSeats response code: " + response.code());
-                android.util.Log.d("AdminAddBooking", "fetchSeats response successful: " + response.isSuccessful());
+            // Parse seat_layout JSON
+            if (seatLayoutObj instanceof Map) {
+                Map<String, Object> layout = (Map<String, Object>) seatLayoutObj;
+                List<Map<String, Object>> floors = (List<Map<String, Object>>) layout.get("floors");
 
-                if (response.isSuccessful() && response.body() != null) {
-                    // Nếu API trả về danh sách ghế (có thể rỗng hoặc có dữ liệu)
-                    android.util.Log.d("AdminAddBooking", "Got " + response.body().size() + " seats from API");
-                    generateSeatMap(response.body());
-
-                    if (response.body().isEmpty()) {
-                        Toast.makeText(AdminAddBookingActivity.this, "Chuyến này chưa có ghế trong hệ thống", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(AdminAddBookingActivity.this, "Danh sách ghế đã tải thành công", Toast.LENGTH_SHORT).show();
+                if (floors != null) {
+                    for (Map<String, Object> floor : floors) {
+                        List<Map<String, Object>> seatsList = (List<Map<String, Object>>) floor.get("seats");
+                        if (seatsList != null) {
+                            for (Map<String, Object> seatMap : seatsList) {
+                                String label = (String) seatMap.get("label");
+                                boolean isBooked = (Boolean) seatMap.getOrDefault("isBooked", false);
+                                Seat seat = new Seat();
+                                seat.setLabel(label);
+                                seat.setBooked(isBooked);
+                                allSeats.add(seat);
+                            }
+                        }
                     }
-                } else {
-                    // Nếu API call fail (error status code)
-                    android.util.Log.d("AdminAddBooking", "API call failed with status: " + response.code());
-                    floor1Seats.clear();
-                    floor2Seats.clear();
-                    floor1Adapter.notifyDataSetChanged();
-                    floor2Adapter.notifyDataSetChanged();
-                    Toast.makeText(AdminAddBookingActivity.this, "Không thể tải danh sách ghế từ server", Toast.LENGTH_SHORT).show();
                 }
             }
 
-            @Override
-            public void onFailure(Call<List<Seat>> call, Throwable t) {
-                progressBar.setVisibility(View.GONE);
-                android.util.Log.e("AdminAddBooking", "fetchSeats failed: " + t.getMessage(), t);
-                // Nếu request fail hoàn toàn
-                floor1Seats.clear();
-                floor2Seats.clear();
-                floor1Adapter.notifyDataSetChanged();
-                floor2Adapter.notifyDataSetChanged();
-                Toast.makeText(AdminAddBookingActivity.this, "Lỗi kết nối: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
+            generateSeatMap(allSeats);
+        } catch (Exception e) {
+            android.util.Log.e("AdminAddBooking", "Error parsing seat layout", e);
+            Toast.makeText(this, "Lỗi xử lý cấu trúc ghế", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // Hàm này không còn gọi API getSeats nữa
+    private void fetchSeats() {
+        // Hàm này bị bỏ - seat_layout giờ lấy từ fetchTripDetails
     }
 
     private void generateSeatMap(List<Seat> allSeats) {
