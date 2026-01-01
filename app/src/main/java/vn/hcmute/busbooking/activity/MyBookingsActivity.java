@@ -206,7 +206,7 @@ public class MyBookingsActivity extends AppCompatActivity {
     }
 
     private void setupTabs() {
-        // Display only 3 tabs: Hiện tại (all bookings from last 3 months), Đã đi (past), Đã hủy
+        // Display only 3 tabs as requested: Hiện tại (3 months), Đã đi (past), Đã hủy
         tabLayout.addTab(tabLayout.newTab().setText("Hiện tại"));
         tabLayout.addTab(tabLayout.newTab().setText("Đã đi"));
         tabLayout.addTab(tabLayout.newTab().setText("Đã hủy"));
@@ -246,17 +246,19 @@ public class MyBookingsActivity extends AppCompatActivity {
             boolean isPast = (arrivalTime > 0 && nowMillis > arrivalTime);
             boolean isConfirmed = !isCancelled && !isPending;
             
-            // ✅ NEW LOGIC:
-            // Tab "Hiện tại": ALL bookings (all statuses) from last 3 months (backend already filtered)
-            // Show everything: pending, confirmed, expired, cancelled
-            listCurrent.add(booking);
+            // --- LOGIC PHÂN LOẠI MỚI ---
 
-            // Tab "Đã hủy": Only cancelled/expired bookings (for backward compatibility)
+            // 1. Tab "Hiện tại": Chỉ hiện Chờ thanh toán và Đã thanh toán (chưa đi)
+            if (isPending || (isConfirmed && !isPast)) {
+                listCurrent.add(booking);
+            }
+
+            // 2. Tab "Đã hủy": Vé status hủy/hết hạn HOẶC pending mà quá giờ đến
             if (isCancelled || (isPending && isPast)) {
                 listCancelled.add(booking);
             }
 
-            // Tab "Đã đi": Only confirmed & past bookings
+            // 3. Tab "Đã đi": Vé Đã thanh toán và ĐÃ qua giờ đến
             if (isConfirmed && isPast) {
                 listPast.add(booking);
             }
@@ -354,8 +356,7 @@ public class MyBookingsActivity extends AppCompatActivity {
             if (b.getStatus() != null && b.getStatus().equals("pending")) prevPendingIds.add(b.getId());
         }
 
-        // Fetch bookings with 'current' tab to get all statuses from last 3 months
-        apiService.getMyBookings(userId, "current").enqueue(new Callback<List<Booking>>() {
+        apiService.getMyBookings(userId).enqueue(new Callback<List<Booking>>() {
             @Override
             public void onResponse(Call<List<Booking>> call, Response<List<Booking>> response) {
                 loadingInProgress = false;
