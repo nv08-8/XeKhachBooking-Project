@@ -47,6 +47,19 @@ const rollbackAndRelease = async (client) => {
   }
 };
 
+// Helper to generate ISO-like timestamp without trailing Z (local time)
+function formatLocalISO(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const yyyy = date.getFullYear();
+  const mm = pad(date.getMonth() + 1);
+  const dd = pad(date.getDate());
+  const hh = pad(date.getHours());
+  const min = pad(date.getMinutes());
+  const ss = pad(date.getSeconds());
+  const ms = String(date.getMilliseconds()).padStart(3, '0');
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}.${ms}`; // no trailing Z
+}
+
 // POST /bookings - Create a new booking with multiple seats
 router.post("/bookings", async (req, res) => {
   const { user_id, trip_id, seat_labels, promotion_code, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_name, passenger_phone, passenger_email } = req.body;
@@ -71,7 +84,8 @@ router.post("/bookings", async (req, res) => {
 
     // Check if trip exists and hasn't departed yet
     const tripResult = await client.query(
-      'SELECT t.price, t.seats_available, t.departure_time, t.arrival_time FROM trips t WHERE t.id=$1 FOR UPDATE',
+      `SELECT t.price, t.seats_available, t.departure_time, t.arrival_time, (t.departure_time <= NOW()) AS has_departed
+       FROM trips t WHERE t.id=$1 FOR UPDATE`,
       [trip_id]
     );
     if (!tripResult.rowCount) {
@@ -84,9 +98,7 @@ router.post("/bookings", async (req, res) => {
     const requiredSeats = seat_labels.length;
 
     // Prevent booking if trip has already departed
-    const now = new Date();
-    const departureTime = new Date(trip.departure_time);
-    if (departureTime <= now) {
+    if (trip.has_departed) {
       await rollbackAndRelease(client);
       return res.status(400).json({
         message: 'Cannot book this trip - it has already departed',
@@ -336,8 +348,10 @@ router.post('/bookings/:id/cancel', async (req, res) => {
       return res.status(409).json({ message: 'Cannot cancel this booking' });
     }
 
-    const hoursUntilDeparture = (new Date(booking.departure_time) - new Date()) / 36e5;
-    if (hoursUntilDeparture <= 2) {
+    // Compute hours until departure using DB to avoid timezone issues
+    const deltaRes = await client.query('SELECT EXTRACT(EPOCH FROM (t.departure_time - NOW()))/3600.0 AS hours_until FROM trips t WHERE t.id=$1', [booking.trip_id]);
+    const hoursUntilDeparture = deltaRes && deltaRes.rows && deltaRes.rows[0] ? Number(deltaRes.rows[0].hours_until) : null;
+    if (hoursUntilDeparture === null || hoursUntilDeparture <= 2) {
         await rollbackAndRelease(client);
         return res.status(409).json({ message: 'Cannot cancel within 2 hours of departure', canCancel: false });
     }
@@ -629,10 +643,10 @@ router.put('/bookings/:id/payment-method', async (req, res) => {
       });
     }
 
-    // Check if trip has not departed yet
-    const now = new Date();
-    const departureTime = new Date(booking.departure_time);
-    if (departureTime <= now) {
+    // Check if trip has not departed yet using DB time
+    const hasDepRes = await client.query('SELECT (departure_time <= NOW()) AS has_departed FROM trips WHERE id=$1', [booking.trip_id]);
+    const hasDeparted = hasDepRes && hasDepRes.rows && hasDepRes.rows[0] ? (hasDepRes.rows[0].has_departed === true || hasDepRes.rows[0].has_departed === 't') : false;
+    if (hasDeparted) {
       await rollbackAndRelease(client);
       return res.status(400).json({
         message: 'Cannot change payment method - trip has already departed',
@@ -654,7 +668,7 @@ router.put('/bookings/:id/payment-method', async (req, res) => {
     // Update payment method and status
     const paymentMeta = {
       method: normalizedMethod,
-      changed_at: new Date().toISOString(),
+      changed_at: formatLocalISO(),
       note: isOfflinePayment ? 'Payment at counter' : 'Online payment'
     };
 
@@ -767,7 +781,7 @@ router.post('/bookings/:id/confirm-offline-payment', async (req, res) => {
     const paymentMeta = {
       method: normalizedMethod,
       confirmed_by: 'admin',
-      confirmed_at: new Date().toISOString(),
+      confirmed_at: formatLocalISO(),
       note: 'Offline payment confirmed by admin'
     };
 
