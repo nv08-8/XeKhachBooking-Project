@@ -242,8 +242,8 @@ async function expirePendingBookings() {
                     // Online payment: expire if TTL passed
                     if (now > ttlLimit) {
                         shouldCancel = true;
-                        newStatus = 'expired'; // More accurate status for timeout
-                        console.log(`❌ [EXPIRE-YES] Booking #${booking.id} will be expired (online payment timeout)`);
+                        newStatus = 'cancelled'; // directly cancel (we no longer use 'expired' status)
+                        console.log(`❌ [EXPIRE-YES] Booking #${booking.id} will be cancelled (online payment timeout)`);
                     }
                 } else {
                     // Offline/Cash: Do NOT expire automatically
@@ -315,16 +315,17 @@ async function expirePendingBookings() {
                 }
 
                 // Mark booking as expired/cancelled (prefer update with expired_at if column exists) instead of deleting
+                // Prefer to set cancelled_at if column exists
                 const colCheck = await client.query(`
                   SELECT column_name
                   FROM information_schema.columns
                   WHERE table_name = 'bookings'
-                  AND column_name IN ('expired_at')
+                  AND column_name IN ('cancelled_at')
                 `);
 
                 if (colCheck.rowCount > 0) {
                   await client.query(
-                    "UPDATE bookings SET status=$1, expired_at=NOW() WHERE id=$2",
+                    "UPDATE bookings SET status=$1, cancelled_at=NOW() WHERE id=$2",
                     [newStatus, bookingId]
                   );
                 } else {
@@ -372,8 +373,9 @@ async function processArrivalTimeBookings() {
             SELECT b.id, b.user_id, b.trip_id, b.status, b.metadata, b.payment_method, b.paid_at, b.created_at
             FROM bookings b
             JOIN trips t ON t.id = b.trip_id
-            WHERE t.departure_time < NOW()
-            AND b.status IN ('pending','confirmed','expired')
+            -- Interpret stored departure_time as Asia/Ho_Chi_Minh (local VN time) when comparing to NOW()
+            WHERE (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()
+            AND b.status IN ('pending','confirmed')
         `;
 
         const { rows } = await db.query(sql);
@@ -408,7 +410,7 @@ async function processArrivalTimeBookings() {
 
                 // Double-check trip arrival_time (in case it changed)
                 // Ask DB whether departure_time has passed (avoid JS parsing/timezone issues)
-                const tRes = await client.query('SELECT departure_time, NOW() AS now, (departure_time < NOW()) AS has_passed FROM trips WHERE id=$1', [booking.trip_id]);
+                const tRes = await client.query("SELECT departure_time, NOW() AS now, ((departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()) AS has_passed FROM trips WHERE id=$1", [booking.trip_id]);
                 if (!tRes.rowCount) {
                     await client.query('ROLLBACK');
                     client.release();

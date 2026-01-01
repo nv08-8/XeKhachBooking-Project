@@ -82,7 +82,7 @@ router.post("/bookings", async (req, res) => {
 
     // Check if trip exists and hasn't departed yet
     const tripResult = await client.query(
-      `SELECT t.price, t.seats_available, t.departure_time, t.arrival_time, (t.departure_time <= NOW()) AS has_departed
+      `SELECT t.price, t.seats_available, t.departure_time, t.arrival_time, ((t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') <= NOW()) AS has_departed
        FROM trips t WHERE t.id=$1 FOR UPDATE`,
       [trip_id]
     );
@@ -231,7 +231,8 @@ router.get('/bookings/my', async (req, res) => {
   } else if (tab === 'completed') {
     // Tab "Đã đi": Only completed trips (departure_time passed and status = 'completed')
     // Excludes cancelled bookings
-    whereClause += ` AND t.departure_time < NOW() AND b.status = 'completed'`;
+    // Interpret stored departure_time as Asia/Ho_Chi_Minh (local VN time)
+    whereClause += ` AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW() AND b.status = 'completed'`;
   }
   // If no tab specified, return all bookings (backwards compatibility)
 
@@ -360,7 +361,7 @@ router.post('/bookings/:id/cancel', async (req, res) => {
     }
 
     // Compute hours until departure using DB to avoid timezone issues
-    const deltaRes = await client.query('SELECT EXTRACT(EPOCH FROM (t.departure_time - NOW()))/3600.0 AS hours_until FROM trips t WHERE t.id=$1', [booking.trip_id]);
+    const deltaRes = await client.query("SELECT EXTRACT(EPOCH FROM ((t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') - NOW()))/3600.0 AS hours_until FROM trips t WHERE t.id=$1", [booking.trip_id]);
     const hoursUntilDeparture = deltaRes && deltaRes.rows && deltaRes.rows[0] ? Number(deltaRes.rows[0].hours_until) : null;
     if (hoursUntilDeparture === null || hoursUntilDeparture <= 2) {
         await rollbackAndRelease(client);
@@ -646,7 +647,7 @@ router.put('/bookings/:id/payment-method', async (req, res) => {
     const booking = bookingRes.rows[0];
 
     // Check if booking is in a state that allows payment method change
-    if (!['pending', 'expired'].includes(booking.status)) {
+    if (!['pending'].includes(booking.status)) {
       await rollbackAndRelease(client);
       return res.status(409).json({
         message: 'Cannot change payment method for this booking status',
@@ -655,7 +656,7 @@ router.put('/bookings/:id/payment-method', async (req, res) => {
     }
 
     // Check if trip has not departed yet using DB time
-    const hasDepRes = await client.query('SELECT (departure_time <= NOW()) AS has_departed FROM trips WHERE id=$1', [booking.trip_id]);
+    const hasDepRes = await client.query("SELECT ((departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') <= NOW()) AS has_departed FROM trips WHERE id=$1", [booking.trip_id]);
     const hasDeparted = hasDepRes && hasDepRes.rows && hasDepRes.rows[0] ? (hasDepRes.rows[0].has_departed === true || hasDepRes.rows[0].has_departed === 't') : false;
     if (hasDeparted) {
       await rollbackAndRelease(client);
@@ -669,12 +670,8 @@ router.put('/bookings/:id/payment-method', async (req, res) => {
     const normalizedMethod = payment_method.toLowerCase();
     const isOfflinePayment = ['cash', 'offline', 'cod', 'counter'].includes(normalizedMethod);
 
-    // If changing to offline payment and booking was expired, restore it to pending
+    // If changing payment method for a pending booking, status may be updated
     let newStatus = booking.status;
-    if (booking.status === 'expired' && isOfflinePayment) {
-      newStatus = 'pending';
-      console.log(`Restoring expired booking ${id} to pending (changed to offline payment)`);
-    }
 
     // Update payment method and status
     const paymentMeta = {
@@ -731,16 +728,17 @@ router.post('/bookings/:id/expire', async (req, res) => {
     const booking = bookingRes.rows[0];
     if (booking.status !== 'pending') {
       await rollbackAndRelease(client);
-      return res.status(400).json({ message: 'Only pending bookings can be expired' });
+      return res.status(400).json({ message: 'Only pending bookings can be cancelled via this endpoint' });
     }
 
-    await client.query("UPDATE bookings SET status='expired', expired_at=NOW() WHERE id=$1", [id]);
+    // Cancel the pending booking immediately (do not use 'expired' status)
+    await client.query("UPDATE bookings SET status='cancelled', cancelled_at=NOW() WHERE id=$1", [id]);
     const { rowCount: releasedCount } = await client.query('UPDATE seats SET is_booked=0, booking_id=NULL WHERE booking_id=$1', [id]);
     if (releasedCount > 0) {
       await client.query('UPDATE trips SET seats_available = seats_available + $1 WHERE id=$2', [releasedCount, booking.trip_id]);
     }
     await commitAndRelease(client);
-    res.json({ message: 'Booking manually expired' });
+    res.json({ message: 'Booking manually cancelled' });
   } catch (err) {
     console.error('Expire booking failed:', err);
     await rollbackAndRelease(client);
@@ -838,15 +836,16 @@ cron.schedule("*/5 * * * *", async () => {
       SET status = 'completed', completed_at = NOW()
       FROM trips t
       WHERE b.trip_id = t.id
-        AND t.departure_time < NOW()
-        AND (
-          b.status = 'confirmed'
-          OR b.paid_at IS NOT NULL
-          OR COALESCE(b.price_paid, 0) > 0
-        )
-         AND b.completed_at IS NULL
-      RETURNING b.id, b.user_id, b.trip_id, t.departure_time
-    `);
+-        AND t.departure_time::timestamp < NOW()::timestamp
++        AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()
+         AND (
+           b.status = 'confirmed'
+           OR b.paid_at IS NOT NULL
+           OR COALESCE(b.price_paid, 0) > 0
+         )
+          AND b.completed_at IS NULL
+       RETURNING b.id, b.user_id, b.trip_id, t.departure_time
+     `);
 
     const completedBookings = completeResult.rows;
 
@@ -854,19 +853,20 @@ cron.schedule("*/5 * * * *", async () => {
     // ✅ Cancel ALL pending bookings with price_paid = 0 after trip ends
     // Note: Offline bookings are NOT expired after 10 minutes, but ARE cancelled after trip ends
     const cancelResult = await db.query(`
-      UPDATE bookings b
-      SET status = 'cancelled', cancelled_at = NOW()
-      FROM trips t
-      WHERE b.trip_id = t.id
-        AND t.departure_time < NOW()
-        AND b.status IN ('pending','expired')
-        AND COALESCE(b.price_paid, 0) = 0
-        AND b.paid_at IS NULL
-        AND b.cancelled_at IS NULL
-      RETURNING b.id, b.user_id, b.trip_id, t.departure_time, b.payment_method
-    `);
+       UPDATE bookings b
+       SET status = 'cancelled', cancelled_at = NOW()
+       FROM trips t
+       WHERE b.trip_id = t.id
+-        AND t.departure_time::timestamp < NOW()::timestamp
++        AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()
+         AND b.status = 'pending'
+         AND COALESCE(b.price_paid, 0) = 0
+         AND b.paid_at IS NULL
+         AND b.cancelled_at IS NULL
+       RETURNING b.id, b.user_id, b.trip_id, t.departure_time, b.payment_method
+     `);
 
-    const cancelledBookings = cancelResult.rows;
+     const cancelledBookings = cancelResult.rows;
 
     // Log results
     if (completedBookings.length === 0 && cancelledBookings.length === 0) {
