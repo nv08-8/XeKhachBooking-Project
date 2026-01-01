@@ -44,7 +44,7 @@ public interface ApiService {
     Call<Map<String, Object>> createBooking(@Body Map<String, Object> body);
 
     @GET("api/bookings/my")
-    Call<List<Booking>> getMyBookings(@Query("user_id") int userId);
+    Call<List<Booking>> getMyBookings(@Query("user_id") int userId, @Query("tab") String tab);
 
     @POST("api/bookings/{id}/cancel")
     Call<Map<String, Object>> cancelBooking(@Path("id") int bookingId);
