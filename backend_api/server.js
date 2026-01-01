@@ -6,6 +6,8 @@ const db = require("./db");
 const http = require('http');
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+const path = require('path');
+const fs = require('fs');
 
 const authRoutes = require("./routes/authRoutes");
 const tripRoutes = require("./routes/tripRoutes");
@@ -22,6 +24,15 @@ const driversRoutes = require("./routes/driversRoutes"); // Import new routes
 
 app.use(express.json());
 app.use(cors());
+
+// Create uploads directory if it doesn't exist
+const uploadDir = path.join(__dirname, 'uploads', 'avatars');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Middleware UTF-8
 app.use((req, res, next) => {

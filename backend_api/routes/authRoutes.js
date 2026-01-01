@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require("../db");
 const bcrypt = require("bcrypt");
 const sendEmail = require("../utils/sendEmail");
+const upload = require("../utils/uploadConfig");
 const SALT_ROUNDS = 10;
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me';
@@ -332,6 +333,118 @@ router.put("/user/:id", async (req, res) => {
         } else {
             return res.status(500).json({ success: false, message: "Lỗi phía server: " + err.message });
         }
+    }
+});
+
+// Upload avatar endpoint
+router.post("/upload-avatar", upload.single('avatar'), async (req, res) => {
+    try {
+        console.log("uploadAvatar: Request received");
+        console.log("uploadAvatar: req.file =", req.file ? "exists" : "null");
+        console.log("uploadAvatar: headers =", req.headers);
+        console.log("uploadAvatar: user-id header =", req.headers['user-id']);
+
+        if (!req.file) {
+            console.error("uploadAvatar: No file received");
+            return res.status(400).json({ success: false, message: "Chưa chọn ảnh!" });
+        }
+
+        let userId = req.headers['user-id'] || req.body.user_id;
+        console.log("uploadAvatar: userId (raw) =", userId);
+
+        // Convert userId to integer
+        userId = parseInt(userId, 10);
+        console.log("uploadAvatar: userId (parsed) =", userId);
+
+        if (!userId || isNaN(userId)) {
+            console.error("uploadAvatar: Invalid userId");
+            // Delete uploaded file if user-id not provided
+            try {
+                require('fs').unlinkSync(req.file.path);
+            } catch (e) {
+                console.error("uploadAvatar: Failed to delete file");
+            }
+            return res.status(400).json({ success: false, message: "Thiếu user-id hoặc user-id không hợp lệ!" });
+        }
+
+        // Check if user exists first
+        console.log("uploadAvatar: Checking if user exists...");
+        const userCheck = await db.query(
+            "SELECT id, status FROM users WHERE id=$1",
+            [userId]
+        );
+        console.log("uploadAvatar: User check result rows count =", userCheck.rows.length);
+
+        if (userCheck.rows.length > 0) {
+            console.log("uploadAvatar: User found - id=" + userCheck.rows[0].id + ", status=" + userCheck.rows[0].status);
+        } else {
+            console.error("uploadAvatar: User NOT found with id=" + userId);
+            // Delete uploaded file if user not found
+            try {
+                require('fs').unlinkSync(req.file.path);
+            } catch (e) {
+                console.error("uploadAvatar: Failed to delete file");
+            }
+            return res.status(404).json({ success: false, message: "Không tìm thấy người dùng với id=" + userId });
+        }
+
+        // Construct the public URL for the uploaded image (relative path only)
+        const imageUrl = `/uploads/avatars/${req.file.filename}`;
+        console.log("uploadAvatar: imageUrl =", imageUrl);
+
+        // Update user avatar in database
+        console.log("uploadAvatar: Updating database - UPDATE users SET avatar=$1 WHERE id=$2");
+        const updateResult = await db.query(
+            "UPDATE users SET avatar=$1 WHERE id=$2",
+            [imageUrl, userId]
+        );
+
+        console.log("uploadAvatar: Database update rowCount =", updateResult.rowCount);
+
+        if (updateResult.rowCount === 0) {
+            console.error("uploadAvatar: Update failed - no rows affected");
+            // Delete uploaded file if update failed
+            try {
+                require('fs').unlinkSync(req.file.path);
+            } catch (e) {
+                console.error("uploadAvatar: Failed to delete file");
+            }
+            return res.status(500).json({ success: false, message: "Cập nhật database thất bại!" });
+        }
+
+        // Verify update was successful
+        const verifyResult = await db.query(
+            "SELECT avatar FROM users WHERE id=$1",
+            [userId]
+        );
+        console.log("uploadAvatar: Verification - avatar in DB =", verifyResult.rows[0]?.avatar);
+
+        // Return success response with the image URL
+        console.log("uploadAvatar: Upload successful, returning response");
+        const successResponse = {
+            success: true,
+            message: "Cập nhật ảnh đại diện thành công!",
+            data: {
+                avatar: imageUrl,
+                user_id: userId
+            }
+        };
+        console.log("uploadAvatar: Success response =", JSON.stringify(successResponse));
+        return res.json(successResponse);
+    } catch (err) {
+        console.error("uploadAvatar: Error caught:", err);
+        console.error("uploadAvatar: Error message:", err.message);
+        console.error("uploadAvatar: Error stack:", err.stack);
+
+        // Try to delete file if it exists
+        if (req.file) {
+            try {
+                require('fs').unlinkSync(req.file.path);
+            } catch (e) {
+                console.error("uploadAvatar: Failed to delete uploaded file:", e);
+            }
+        }
+        return res.status(500).json({ success: false, message: "Lỗi phía server: " + err.message });
     }
 });
 
