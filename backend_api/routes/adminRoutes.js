@@ -882,31 +882,11 @@ router.get("/trips/:id", checkAdminRole, async (req, res) => {
 
         const trip = result.rows[0];
         
-        // 1. Lấy trạng thái ghế đã đặt từ bảng seats
-        const bookedSeatsRes = await db.query(
-            "SELECT label FROM seats WHERE trip_id = $1 AND is_booked = 1",
-            [id]
-        );
-        const bookedLabels = new Set(bookedSeatsRes.rows.map(r => r.label));
-
-        // 2. Xử lý seat layout và tích hợp trạng thái isBooked
+        // Process seat layout using detailed generator if layout exists
         if (trip.seat_layout) {
             try {
                 let layout = (typeof trip.seat_layout === 'string') ? JSON.parse(trip.seat_layout) : trip.seat_layout;
-                let detailedLayout = generateDetailedSeatLayout(trip.bus_type, layout);
-                
-                // Duyệt qua layout để gán isBooked dựa trên bookedLabels
-                if (detailedLayout.floors) {
-                    detailedLayout.floors.forEach(floor => {
-                        if (floor.seats) {
-                            floor.seats = floor.seats.map(s => ({
-                                ...s,
-                                isBooked: bookedLabels.has(s.label)
-                            }));
-                        }
-                    });
-                }
-                trip.seat_layout = detailedLayout;
+                trip.seat_layout = generateDetailedSeatLayout(trip.bus_type, layout);
             } catch (e) {
                 console.error("Lỗi parse seat_layout cho admin:", e);
             }

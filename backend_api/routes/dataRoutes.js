@@ -2,7 +2,6 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
-const { generateDetailedSeatLayout } = require('../data/seat_layout.js');
 
 // GET /api/routes?origin=&destination=&q=
 router.get("/routes", async (req, res) => {
@@ -98,66 +97,35 @@ router.get("/trips/:id/seats", async (req, res) => {
     }
 
     try {
-        console.log(`[Seats] Fetching authoritative seats for trip ${tripId}...`);
+        console.log(`[Seats] Fetching seats for trip ${tripId}...`);
 
-        // 1. Lấy layout từ buses/trips
-        const tripRes = await db.query(
-            `SELECT t.bus_type, COALESCE(b.seat_layout, (SELECT seat_layout FROM buses WHERE bus_type = t.bus_type LIMIT 1)) as seat_layout
-             FROM trips t
-             LEFT JOIN buses b ON t.bus_id = b.id
-             WHERE t.id = $1`,
+        // Query tất cả ghế từ database
+        const seatsRes = await db.query(
+            "SELECT label, is_booked FROM seats WHERE trip_id = $1 ORDER BY LENGTH(label), label",
             [tripId]
         );
 
-        if (tripRes.rowCount === 0) {
-            return res.status(404).json({ message: "Trip not found" });
-        }
+        console.log(`[Seats] Found ${seatsRes.rows.length} seats in database for trip ${tripId}`);
 
-        const { bus_type, seat_layout } = tripRes.rows[0];
-        let layout = (typeof seat_layout === 'string') ? JSON.parse(seat_layout) : seat_layout;
-        
-        // Sinh danh sách ghế đầy đủ từ layout
-        const detailedLayout = generateDetailedSeatLayout(bus_type, layout);
-        const allPossibleSeats = [];
-        
-        if (detailedLayout && detailedLayout.floors) {
-            detailedLayout.floors.forEach(floor => {
-                if (floor.seats) {
-                    floor.seats.forEach(s => {
-                        if (s.label && s.type !== 'aisle') {
-                            allPossibleSeats.push({
-                                label: s.label,
-                                isBooked: false // Mặc định
-                            });
-                        }
-                    });
-                }
-            });
-        }
-
-        // 2. Lấy thông tin đã đặt từ bảng seats
-        const bookedSeatsRes = await db.query(
-            "SELECT label, is_booked FROM seats WHERE trip_id = $1 AND is_booked = 1",
-            [tripId]
-        );
-        const bookedLabels = new Set(bookedSeatsRes.rows.map(r => r.label));
-
-        // 3. Merge dữ liệu
-        let finalSeats = allPossibleSeats.map(seat => ({
-            ...seat,
-            isBooked: bookedLabels.has(seat.label)
+        // Chuyển is_booked (0 hoặc 1) thành boolean
+        let allSeats = seatsRes.rows.map(seat => ({
+            label: seat.label,
+            isBooked: seat.is_booked === 1 || seat.is_booked === true
         }));
 
-        // Lọc theo available parameter nếu cần
+        // Lọc theo available parameter
+        let finalSeats = allSeats;
         if (available === 'true') {
-            finalSeats = finalSeats.filter(seat => !seat.isBooked);
+            finalSeats = allSeats.filter(seat => !seat.isBooked);
+            console.log(`[Seats] Filtered to ${finalSeats.length} available seats`);
         }
 
-        console.log(`✅ [Seats] Trip ${tripId}: returned ${finalSeats.length} seats (Source: Bus Layout + Seats Table)`);
+        console.log(`✅ [Seats] Trip ${tripId}: returned ${finalSeats.length}/${allSeats.length} seats`);
         return res.json(finalSeats);
 
     } catch (err) {
         console.error(`❌ [Seats] Error for trip ${tripId}:`, err.message);
+        console.error(err.stack);
         return res.status(500).json({ message: "Lỗi phía server: " + err.message });
     }
 });
