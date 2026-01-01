@@ -758,5 +758,76 @@ cron.schedule("*/5 * * * *", async () => {
 
 console.log("✅ Cron job initialized: Auto-finalize bookings every 5 minutes (complete paid, cancel unpaid)");
 
+// POST /bookings/:id/send-confirmation-email - Send payment and booking confirmation email
+router.post('/bookings/:id/send-confirmation-email', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Get booking details
+    const bookingRes = await db.query(
+      `SELECT b.id, b.booking_code, b.trip_id, b.seat_labels, b.total_amount,
+              b.price_paid, b.payment_method, b.status, b.created_at, b.paid_at, b.user_id
+       FROM bookings b WHERE b.id=$1`,
+      [id]
+    );
+
+    if (!bookingRes.rowCount) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    const booking = bookingRes.rows[0];
+
+    // Get trip details
+    const tripRes = await db.query(
+      `SELECT id, origin, destination, departure_time, operator, bus_type
+       FROM trips WHERE id=$1`,
+      [booking.trip_id]
+    );
+
+    if (!tripRes.rowCount) {
+      return res.status(404).json({ message: 'Trip not found' });
+    }
+
+    const trip = tripRes.rows[0];
+
+    // Get user details (customer)
+    const userRes = await db.query(
+      `SELECT id, name, email, phone FROM users WHERE id=$1`,
+      [booking.user_id]
+    );
+
+    if (!userRes.rowCount) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const user = userRes.rows[0];
+
+    // Import the send email function
+    const sendPaymentConfirmationEmail = require('../utils/sendPaymentEmail');
+
+    // Send email
+    const emailSent = await sendPaymentConfirmationEmail(user.email, booking, trip, user);
+
+    if (emailSent) {
+      res.json({
+        success: true,
+        message: 'Payment confirmation email sent successfully',
+        email: user.email
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to send email, but booking is confirmed'
+      });
+    }
+  } catch (err) {
+    console.error('Error sending confirmation email:', err.message || err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send confirmation email'
+    });
+  }
+});
+
 module.exports = router;
 module.exports.setSocketIO = setSocketIO;

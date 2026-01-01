@@ -786,10 +786,55 @@ public class PaymentActivity extends AppCompatActivity {
         setLoadingState(false);
         Toast.makeText(PaymentActivity.this, getString(R.string.payment_success), Toast.LENGTH_LONG).show();
 
+        // Send payment confirmation emails
+        sendPaymentConfirmationEmails(bookingIds);
+
         Intent intent = new Intent(PaymentActivity.this, MyBookingsActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(intent);
         finish();
+    }
+
+    /**
+     * Send payment confirmation emails for all bookings
+     * Emails contain booking code, trip details, and payment info
+     */
+    private void sendPaymentConfirmationEmails(List<Integer> bookingIds) {
+        if (bookingIds == null || bookingIds.isEmpty()) {
+            Log.w(TAG, "No booking IDs to send emails for");
+            return;
+        }
+
+        for (int bookingId : bookingIds) {
+            Log.d(TAG, "Sending payment confirmation email for booking #" + bookingId);
+
+            apiService.sendPaymentConfirmationEmail(bookingId).enqueue(new Callback<Map<String, Object>>() {
+                @Override
+                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                    if (response.isSuccessful()) {
+                        Map<String, Object> body = response.body();
+                        if (body != null) {
+                            Object successObj = body.get("success");
+                            boolean success = successObj instanceof Boolean ? (Boolean) successObj : false;
+
+                            if (success) {
+                                Log.d(TAG, "✅ Payment confirmation email sent successfully for booking #" + bookingId);
+                            } else {
+                                Log.w(TAG, "Email sent but response indicates failure: " + body.get("message"));
+                            }
+                        }
+                    } else {
+                        Log.e(TAG, "Failed to send email - HTTP " + response.code());
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                    Log.e(TAG, "Network error sending payment email for booking #" + bookingId, t);
+                    // Don't show error to user as payment is already confirmed
+                }
+            });
+        }
     }
 
     private void setLoadingState(boolean isLoading) {
