@@ -163,6 +163,9 @@ public interface ApiService {
     Call<Map<String, Object>> getRouteById(@Header("user-id") int userId, @Path("id") int routeId);
 
     // ========== TRIPS MANAGEMENT ==========
+    @GET("api/admin/trips/{id}")
+    Call<Map<String, Object>> getAdminTripDetails(@Header("user-id") int userId, @Path("id") int tripId);
+
     @POST("api/admin/trips")
     Call<Map<String, Object>> createTrip(@Header("user-id") int userId, @Body Map<String, Object> body);
 

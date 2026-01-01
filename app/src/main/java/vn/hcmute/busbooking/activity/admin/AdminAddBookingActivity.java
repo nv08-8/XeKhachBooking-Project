@@ -136,7 +136,8 @@ public class AdminAddBookingActivity extends AppCompatActivity {
 
     private void fetchTripDetails() {
         progressBar.setVisibility(View.VISIBLE);
-        apiService.getTripDetails(tripId).enqueue(new Callback<Map<String, Object>>() {
+        int userId = sessionManager.getUserId();
+        apiService.getAdminTripDetails(userId, tripId).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 progressBar.setVisibility(View.GONE);
@@ -178,23 +179,52 @@ public class AdminAddBookingActivity extends AppCompatActivity {
         try {
             List<Seat> allSeats = new ArrayList<>();
 
-            // Parse seat_layout JSON
-            if (seatLayoutObj instanceof Map) {
-                Map<String, Object> layout = (Map<String, Object>) seatLayoutObj;
-                List<Map<String, Object>> floors = (List<Map<String, Object>>) layout.get("floors");
+            // Xử lý Gson JsonObject trả về từ API
+            if (seatLayoutObj == null) {
+                Toast.makeText(this, "Sơ đồ ghế trống", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
-                if (floors != null) {
-                    for (Map<String, Object> floor : floors) {
-                        List<Map<String, Object>> seatsList = (List<Map<String, Object>>) floor.get("seats");
-                        if (seatsList != null) {
-                            for (Map<String, Object> seatMap : seatsList) {
-                                String label = (String) seatMap.get("label");
-                                boolean isBooked = (Boolean) seatMap.getOrDefault("isBooked", false);
-                                Seat seat = new Seat();
-                                seat.setLabel(label);
-                                seat.setBooked(isBooked);
-                                allSeats.add(seat);
+            Map<String, Object> layout = null;
+
+            // Convert Gson JsonElement to Map if needed
+            if (seatLayoutObj instanceof Map) {
+                layout = (Map<String, Object>) seatLayoutObj;
+            } else {
+                // Try to convert JsonObject to Map using Gson
+                com.google.gson.Gson gson = new com.google.gson.Gson();
+                layout = gson.fromJson(gson.toJson(seatLayoutObj), Map.class);
+            }
+
+            if (layout == null || !layout.containsKey("floors")) {
+                Toast.makeText(this, "Cấu trúc sơ đồ ghế không hợp lệ", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            List<Map<String, Object>> floors = (List<Map<String, Object>>) layout.get("floors");
+            if (floors != null) {
+                for (Map<String, Object> floor : floors) {
+                    List<Map<String, Object>> seatsList = (List<Map<String, Object>>) floor.get("seats");
+                    if (seatsList != null) {
+                        for (Map<String, Object> seatMap : seatsList) {
+                            String label = (String) seatMap.get("label");
+                            String seatType = (String) seatMap.get("type");
+                            Object bookedObj = seatMap.get("isBooked");
+                            boolean isBooked = false;
+                            if (bookedObj instanceof Boolean) {
+                                isBooked = (Boolean) bookedObj;
                             }
+
+                            // Skip aisle seats - they shouldn't be displayed
+                            if ("aisle".equals(seatType)) {
+                                continue;
+                            }
+
+                            Seat seat = new Seat();
+                            seat.setLabel(label);
+                            seat.setSeatType(seatType != null ? seatType : "bed");
+                            seat.setBooked(isBooked);
+                            allSeats.add(seat);
                         }
                     }
                 }
@@ -203,7 +233,7 @@ public class AdminAddBookingActivity extends AppCompatActivity {
             generateSeatMap(allSeats);
         } catch (Exception e) {
             android.util.Log.e("AdminAddBooking", "Error parsing seat layout", e);
-            Toast.makeText(this, "Lỗi xử lý cấu trúc ghế", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Lỗi xử lý cấu trúc ghế: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
