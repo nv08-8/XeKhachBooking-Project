@@ -36,6 +36,8 @@ import vn.hcmute.busbooking.activity.SeatSelectionActivity;
 import vn.hcmute.busbooking.adapter.ImageSliderAdapter;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
+import vn.hcmute.busbooking.fragment.TripMapFragment;
+import vn.hcmute.busbooking.model.Location;
 import vn.hcmute.busbooking.model.Trip;
 import vn.hcmute.busbooking.utils.SessionManager;
 
