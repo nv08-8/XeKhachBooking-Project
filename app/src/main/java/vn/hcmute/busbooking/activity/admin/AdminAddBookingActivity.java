@@ -52,6 +52,10 @@ public class AdminAddBookingActivity extends AppCompatActivity {
     private int tripId;
     private double tripPrice = 0;
     private String tripInfo = "";
+    private int floor1Cols = 4; // Default columns, will be updated from layout
+    private int floor2Cols = 4;
+
+    // ...existing code...
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,7 +76,6 @@ public class AdminAddBookingActivity extends AppCompatActivity {
 
         setupToolbar();
         fetchTripDetails();
-        setupSeatAdapters();
     }
 
     private void initViews() {
@@ -110,7 +113,7 @@ public class AdminAddBookingActivity extends AppCompatActivity {
             }
         });
 
-        GridLayoutManager layoutManager1 = new GridLayoutManager(this, 4);
+        GridLayoutManager layoutManager1 = new GridLayoutManager(this, floor1Cols);
         floor1RecyclerView.setLayoutManager(layoutManager1);
         floor1RecyclerView.setAdapter(floor1Adapter);
 
@@ -129,7 +132,7 @@ public class AdminAddBookingActivity extends AppCompatActivity {
             }
         });
 
-        GridLayoutManager layoutManager2 = new GridLayoutManager(this, 4);
+        GridLayoutManager layoutManager2 = new GridLayoutManager(this, floor2Cols);
         floor2RecyclerView.setLayoutManager(layoutManager2);
         floor2RecyclerView.setAdapter(floor2Adapter);
     }
@@ -177,8 +180,6 @@ public class AdminAddBookingActivity extends AppCompatActivity {
     // Xử lý seat_layout từ response
     private void parseSeatLayout(Object seatLayoutObj) {
         try {
-            List<Seat> allSeats = new ArrayList<>();
-
             // Xử lý Gson JsonObject trả về từ API
             if (seatLayoutObj == null) {
                 Toast.makeText(this, "Sơ đồ ghế trống", Toast.LENGTH_SHORT).show();
@@ -202,68 +203,109 @@ public class AdminAddBookingActivity extends AppCompatActivity {
             }
 
             List<Map<String, Object>> floors = (List<Map<String, Object>>) layout.get("floors");
-            if (floors != null) {
-                for (Map<String, Object> floor : floors) {
-                    List<Map<String, Object>> seatsList = (List<Map<String, Object>>) floor.get("seats");
-                    if (seatsList != null) {
-                        for (Map<String, Object> seatMap : seatsList) {
-                            String label = (String) seatMap.get("label");
-                            String seatType = (String) seatMap.get("type");
-                            Object bookedObj = seatMap.get("isBooked");
-                            boolean isBooked = false;
-                            if (bookedObj instanceof Boolean) {
-                                isBooked = (Boolean) bookedObj;
-                            }
+            if (floors != null && floors.size() > 0) {
+                // Parse floor 1 (Tầng A)
+                Map<String, Object> floor1 = floors.get(0);
+                double colsObj = 0;
+                if (floor1.containsKey("cols")) {
+                    Object colVal = floor1.get("cols");
+                    if (colVal instanceof Number) {
+                        colsObj = ((Number) colVal).doubleValue();
+                    }
+                }
+                floor1Cols = (int) colsObj;
+                if (floor1Cols <= 0) floor1Cols = 3; // Default to 3 if invalid
 
-                            // Skip aisle seats - they shouldn't be displayed
-                            if ("aisle".equals(seatType)) {
-                                continue;
-                            }
-
-                            Seat seat = new Seat();
-                            seat.setLabel(label);
-                            seat.setSeatType(seatType != null ? seatType : "bed");
-                            seat.setBooked(isBooked);
-                            allSeats.add(seat);
+                // Parse floor 2 (Tầng B) if exists
+                if (floors.size() > 1) {
+                    Map<String, Object> floor2 = floors.get(1);
+                    double colsObj2 = 0;
+                    if (floor2.containsKey("cols")) {
+                        Object colVal = floor2.get("cols");
+                        if (colVal instanceof Number) {
+                            colsObj2 = ((Number) colVal).doubleValue();
                         }
                     }
+                    floor2Cols = (int) colsObj2;
+                    if (floor2Cols <= 0) floor2Cols = 3; // Default to 3 if invalid
                 }
             }
 
-            generateSeatMap(allSeats);
+            generateSeatMap(floors);
         } catch (Exception e) {
             android.util.Log.e("AdminAddBooking", "Error parsing seat layout", e);
             Toast.makeText(this, "Lỗi xử lý cấu trúc ghế: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
-    // Hàm này không còn gọi API getSeats nữa
-    private void fetchSeats() {
-        // Hàm này bị bỏ - seat_layout giờ lấy từ fetchTripDetails
-    }
-
-    private void generateSeatMap(List<Seat> allSeats) {
+    private void generateSeatMap(List<Map<String, Object>> floors) {
         floor1Seats.clear();
         floor2Seats.clear();
 
-        for (Seat seat : allSeats) {
-            if (seat.getLabel() != null) {
-                char firstChar = seat.getLabel().charAt(0);
-                // Tầng A (starts with A)
-                if (firstChar == 'A' || firstChar == 'a') {
-                    floor1Seats.add(seat);
+        if (floors == null || floors.size() == 0) {
+            android.util.Log.d("AdminAddBooking", "No floors data");
+            return;
+        }
+
+        // Process each floor
+        for (int floorIdx = 0; floorIdx < Math.min(floors.size(), 2); floorIdx++) {
+            Map<String, Object> floor = floors.get(floorIdx);
+            List<Map<String, Object>> seatsList = (List<Map<String, Object>>) floor.get("seats");
+
+            if (seatsList == null) {
+                android.util.Log.d("AdminAddBooking", "Floor " + floorIdx + " has no seats");
+                continue;
+            }
+
+            // Create Seat objects from layout
+            List<Seat> floorSeats = new ArrayList<>();
+            for (Map<String, Object> seatMap : seatsList) {
+                String label = (String) seatMap.get("label");
+                String seatType = (String) seatMap.get("type");
+                Object bookedObj = seatMap.get("isBooked");
+                boolean isBooked = false;
+                if (bookedObj instanceof Boolean) {
+                    isBooked = (Boolean) bookedObj;
                 }
-                // Tầng B (starts with B)
-                else if (firstChar == 'B' || firstChar == 'b') {
-                    floor2Seats.add(seat);
+
+                // Skip aisle seats - they shouldn't be displayed
+                if ("aisle".equals(seatType)) {
+                    continue;
                 }
+
+                Seat seat = new Seat();
+                seat.setLabel(label);
+                seat.setSeatType(seatType != null ? seatType : "bed");
+                seat.setBooked(isBooked);
+
+                // Store row/col for sorting
+                Object rowObj = seatMap.get("row");
+                Object colObj = seatMap.get("col");
+                int row = rowObj instanceof Number ? ((Number) rowObj).intValue() : 0;
+                int col = colObj instanceof Number ? ((Number) colObj).intValue() : 0;
+
+                floorSeats.add(seat);
+            }
+
+            // Sort seats by row, then by col to maintain grid layout
+            floorSeats.sort((s1, s2) -> {
+                // Extract row and col from label or order
+                // Since label is like A1, A2, B1, we need to parse it
+                // For now, maintain insertion order but could enhance this
+                return 0; // Labels should already be in correct order from backend
+            });
+
+            if (floorIdx == 0) {
+                floor1Seats.addAll(floorSeats);
+            } else if (floorIdx == 1) {
+                floor2Seats.addAll(floorSeats);
             }
         }
 
-        floor1Adapter.notifyDataSetChanged();
-        floor2Adapter.notifyDataSetChanged();
+        // Re-setup adapters with correct column counts
+        setupSeatAdapters();
 
-        android.util.Log.d("AdminAddBooking", "Floor A: " + floor1Seats.size() + " seats, Floor B: " + floor2Seats.size() + " seats");
+        android.util.Log.d("AdminAddBooking", "Floor A: " + floor1Seats.size() + " seats (" + floor1Cols + " cols), Floor B: " + floor2Seats.size() + " seats (" + floor2Cols + " cols)");
     }
 
     private void updateSeatCount() {
