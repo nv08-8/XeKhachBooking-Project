@@ -279,7 +279,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
         const msg = {
             to: email,
             from: {
-                email: process.env.SENDGRID_FROM || "noreply@xekhachbooking.com",
+                email: process.env.TICKET_FROM || "dieulien2005@gmail.com",
                 name: "XeKhachBooking"
             },
             subject: `Xác nhận thanh toán vé ${booking.booking_code || '#' + booking.id}`,
