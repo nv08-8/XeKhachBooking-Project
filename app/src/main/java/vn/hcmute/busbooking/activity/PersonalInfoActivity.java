@@ -331,9 +331,12 @@ public class PersonalInfoActivity extends AppCompatActivity {
                 return;
             }
 
-            // Create RequestBody for the file
+            // Create RequestBody for the file with correct MIME type
+            String mimeType = getMimeType(imageFile.getName());
+            Log.d(TAG, "uploadProfileImage: mimeType=" + mimeType);
+
             RequestBody requestFile = RequestBody.create(
-                    MediaType.parse("image/*"),
+                    MediaType.parse(mimeType),
                     imageFile
             );
 
@@ -457,6 +460,24 @@ public class PersonalInfoActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Error converting URI to File", e);
             return null;
+        }
+    }
+
+    private String getMimeType(String filename) {
+        String extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
+
+        switch (extension) {
+            case "jpg":
+            case "jpeg":
+                return "image/jpeg";
+            case "png":
+                return "image/png";
+            case "webp":
+                return "image/webp";
+            case "gif":
+                return "image/gif";
+            default:
+                return "image/jpeg"; // Default to jpeg
         }
     }
 }
