@@ -384,6 +384,57 @@ router.post('/bookings/:id/cancel', async (req, res) => {
 router.post('/bookings/:id/payment', async (req, res) => {
   const { id } = req.params;
   const { payment_method } = req.body || {};
+
+  // Helper: simple Luhn implementation
+  function luhnCheck(number) {
+    if (!number) return false;
+    const s = String(number).replace(/\D/g, '');
+    if (s.length < 12 || s.length > 19) return false;
+    let sum = 0;
+    let alt = false;
+    for (let i = s.length - 1; i >= 0; i--) {
+      let n = parseInt(s.charAt(i), 10);
+      if (alt) {
+        n *= 2;
+        if (n > 9) n = (n % 10) + 1;
+      }
+      sum += n;
+      alt = !alt;
+    }
+    return (sum % 10) === 0;
+  }
+
+  // Helper: expiry validator MM/YY or MM/YYYY
+  function expiryValid(expiry) {
+    if (!expiry) return false;
+    expiry = String(expiry).trim();
+    let parts = null;
+    if (expiry.indexOf('/') !== -1) parts = expiry.split('/');
+    else if (expiry.indexOf('-') !== -1) parts = expiry.split('-');
+    else if (expiry.length === 4) parts = [expiry.substring(0,2), expiry.substring(2)];
+    if (!parts || parts.length < 2) return false;
+    const month = parseInt(parts[0], 10);
+    let year = parseInt(parts[1], 10);
+    if (isNaN(month) || isNaN(year)) return false;
+    if (month < 1 || month > 12) return false;
+    if (year < 100) year += 2000;
+    // end of month
+    const now = new Date();
+    const exp = new Date(year, month, 0, 23, 59, 59, 999); // last ms of month
+    return exp.getTime() > now.getTime();
+  }
+
+  // Simulated card gateway
+  async function simulateCardCharge(amount, cardNumber) {
+    // simple simulation: decline if last4 == '0000'
+    const s = String(cardNumber).replace(/\D/g, '');
+    const last4 = s.slice(-4);
+    if (last4 === '0000') return { success: false, reason: 'card_declined' };
+    // success: return transaction id and brand
+    const brand = s.charAt(0) === '4' ? 'Visa' : (s.charAt(0) === '5' ? 'MasterCard' : 'Card');
+    return { success: true, transaction_id: 'sim_txn_' + Date.now(), brand, last4 };
+  }
+
   const client = await beginTransaction();
   try {
     await client.query('BEGIN');
@@ -403,21 +454,77 @@ router.post('/bookings/:id/payment', async (req, res) => {
       return res.status(409).json({ message: 'Booking cannot be confirmed', status: booking.status });
     }
 
-    // Determine final status based on payment method
-    // For offline/cash payments, keep status as 'pending' to indicate waiting for in-person confirmation
-    // For online payments (card, QR), set status to 'confirmed'
+    // If payment method is card, validate card fields from body
     const normalizedMethod = (payment_method || booking.payment_method || 'card').toLowerCase();
     const isOfflinePayment = ['cash', 'offline', 'cod', 'counter'].includes(normalizedMethod);
-    const finalStatus = isOfflinePayment ? 'pending' : 'confirmed';
 
-    // For offline payments, don't mark as paid yet; for online payments, record full payment
+    if (normalizedMethod === 'card') {
+      const { card_number, expiry, cvv } = req.body || {};
+      // Validate presence
+      if (!card_number || !expiry || !cvv) {
+        await rollbackAndRelease(client);
+        return res.status(400).json({ message: 'Missing card information' });
+      }
+      // Server-side validation
+      if (!luhnCheck(card_number)) {
+        await rollbackAndRelease(client);
+        return res.status(400).json({ message: 'Invalid card number' });
+      }
+      if (!expiryValid(expiry)) {
+        await rollbackAndRelease(client);
+        return res.status(400).json({ message: 'Card expired or invalid expiry' });
+      }
+      if (!/^[0-9]{3,4}$/.test(String(cvv))) {
+        await rollbackAndRelease(client);
+        return res.status(400).json({ message: 'Invalid CVV' });
+      }
+
+      // Simulate charging the card (dev-only). Use booking.total_amount as amount
+      const amount = Number(booking.total_amount) || 0;
+      const chargeResult = await simulateCardCharge(amount, card_number);
+      if (!chargeResult.success) {
+        await rollbackAndRelease(client);
+        return res.status(402).json({ error: 'payment_failed', reason: chargeResult.reason });
+      }
+
+      // On success: update booking as confirmed and set price_paid, paid_at
+      const finalStatus = 'confirmed';
+      const paidAmount = Number(booking.total_amount) || 0;
+
+      try {
+        await client.query(
+          `UPDATE bookings SET status=$1, price_paid=$2, payment_method=$3, paid_at=NOW() WHERE id=$4`,
+          [finalStatus, paidAmount, normalizedMethod, id]
+        );
+      } catch (updateErr) {
+        console.error(`[bookings/${id}/payment] Main update failed:`, updateErr.message);
+        throw updateErr;
+      }
+
+      // Add safe metadata: last4, brand, gateway id (do not store full PAN or CVV)
+      const safeMeta = { card: { brand: chargeResult.brand, last4: chargeResult.last4, gateway_transaction_id: chargeResult.transaction_id } };
+      try {
+        await client.query(
+          `UPDATE bookings SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb WHERE id=$2`,
+          [JSON.stringify({ payment: safeMeta }), id]
+        );
+      } catch (metaErr) {
+        console.warn(`[bookings/${id}/payment] Metadata update warning:`, metaErr.message);
+      }
+
+      await client.query('COMMIT');
+      client.release();
+      console.log(`[bookings/${id}/payment] ✅ Card payment simulated and booking confirmed`);
+      return res.json({ message: 'Payment confirmed', booking_id: Number(id), status: finalStatus, paidAmount });
+    }
+
+    // Non-card flow: existing behavior
+    const finalStatus = isOfflinePayment ? 'pending' : 'confirmed';
     const paidAmount = isOfflinePayment ? 0 : (Number(booking.total_amount) || 0);
     const paymentMeta = { method: normalizedMethod, note: isOfflinePayment ? 'Waiting for counter payment' : 'Online payment confirmed' };
 
     console.log(`[bookings/${id}/payment] Updating: status='${finalStatus}', price_paid=${paidAmount}, payment_method='${normalizedMethod}'`);
 
-    // ✅ Update booking status and payment info
-    // Split into two queries to ensure data integrity
     try {
       await client.query(
         `UPDATE bookings SET status=$1, price_paid=$2, payment_method=$3, paid_at=NOW() WHERE id=$4`,
@@ -429,7 +536,6 @@ router.post('/bookings/:id/payment', async (req, res) => {
       throw updateErr;
     }
 
-    // ✅ Update metadata separately
     try {
       await client.query(
         `UPDATE bookings SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb WHERE id=$2`,
@@ -438,10 +544,8 @@ router.post('/bookings/:id/payment', async (req, res) => {
       console.log(`[bookings/${id}/payment] Metadata update successful`);
     } catch (metaErr) {
       console.warn(`[bookings/${id}/payment] Metadata update warning:`, metaErr.message);
-      // Don't fail on metadata error
     }
 
-    // ✅ Properly handle COMMIT with error catching
     await client.query('COMMIT');
     client.release();
 

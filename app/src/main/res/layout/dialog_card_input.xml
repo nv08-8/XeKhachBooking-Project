@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Số thẻ"
+        android:textSize="14sp"
+        android:layout_marginBottom="4dp" />
+    <EditText
+        android:id="@+id/dialog_etCardNumber"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:inputType="number"
+        android:hint="VD: 4111 1111 1111 1111"
+        android:padding="8dp"
+        android:background="@drawable/bg_edit_text" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tháng/Năm hết hạn"
+        android:textSize="14sp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="4dp" />
+    <EditText
+        android:id="@+id/dialog_etExpiry"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:inputType="text"
+        android:hint="MM/YY"
+        android:padding="8dp"
+        android:background="@drawable/bg_edit_text" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="CVV"
+        android:textSize="14sp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="4dp" />
+    <EditText
+        android:id="@+id/dialog_etCvv"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:inputType="numberPassword"
+        android:hint="3 hoặc 4 chữ số"
+        android:padding="8dp"
+        android:background="@drawable/bg_edit_text" />
+
+</LinearLayout>

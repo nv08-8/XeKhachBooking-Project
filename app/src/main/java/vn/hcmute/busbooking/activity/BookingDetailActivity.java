@@ -7,6 +7,7 @@ import android.os.CountDownTimer;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -1076,42 +1077,137 @@ public class BookingDetailActivity extends AppCompatActivity {
     private void processCardPayment() {
         Log.d(TAG, "Processing Card payment for booking #" + bookingId);
 
-        // Show loading dialog
-        android.app.ProgressDialog progressDialog = new android.app.ProgressDialog(this);
-        progressDialog.setMessage("Đang xác nhận thanh toán...");
-        progressDialog.setCancelable(false);
-        progressDialog.show();
+        if (currentBookingData == null) {
+            Log.e(TAG, "❌ currentBookingData is null, cannot process payment");
+            Toast.makeText(this, "Lỗi: Không tìm thấy thông tin vé. Vui lòng thử lại.", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        // Call confirm payment API with card method
-        java.util.Map<String, String> body = new java.util.HashMap<>();
-        body.put("payment_method", "card");
+        // Prompt user for card details using a dialog (minimal UI change)
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View dialogView = inflater.inflate(R.layout.dialog_card_input, null);
+        final EditText etCardNumber = dialogView.findViewById(R.id.dialog_etCardNumber);
+        final EditText etExpiry = dialogView.findViewById(R.id.dialog_etExpiry);
+        final EditText etCvv = dialogView.findViewById(R.id.dialog_etCvv);
 
-        apiService.confirmPayment(bookingId, body).enqueue(new retrofit2.Callback<java.util.Map<String, Object>>() {
-            @Override
-            public void onResponse(retrofit2.Call<java.util.Map<String, Object>> call,
-                                 retrofit2.Response<java.util.Map<String, Object>> response) {
-                progressDialog.dismiss();
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Nhập thông tin thẻ")
+                .setView(dialogView)
+                .setPositiveButton("Thanh toán", (d, w) -> {
+                    String pan = etCardNumber.getText() == null ? "" : etCardNumber.getText().toString().replaceAll("\\s+", "");
+                    String expiry = etExpiry.getText() == null ? "" : etExpiry.getText().toString().trim();
+                    String cvv = etCvv.getText() == null ? "" : etCvv.getText().toString().trim();
 
-                if (response.isSuccessful()) {
-                    Toast.makeText(BookingDetailActivity.this,
-                            "Thanh toán thành công!",
-                            Toast.LENGTH_SHORT).show();
-                    loadBookingDetails();
-                } else {
-                    Toast.makeText(BookingDetailActivity.this,
-                            "Xác nhận thanh toán thất bại",
-                            Toast.LENGTH_SHORT).show();
-                }
-            }
+                    if (pan.isEmpty() || !luhnCheck(pan)) {
+                        Toast.makeText(BookingDetailActivity.this, "Số thẻ không hợp lệ", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    if (!isExpiryValid(expiry)) {
+                        Toast.makeText(BookingDetailActivity.this, "Ngày hết hạn không hợp lệ hoặc đã hết hạn", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    if (cvv == null || !cvv.matches("\\d{3,4}")) {
+                        Toast.makeText(BookingDetailActivity.this, "CVV không hợp lệ", Toast.LENGTH_LONG).show();
+                        return;
+                    }
 
-            @Override
-            public void onFailure(retrofit2.Call<java.util.Map<String, Object>> call, Throwable t) {
-                progressDialog.dismiss();
-                Log.e(TAG, "Failed to confirm payment", t);
-                Toast.makeText(BookingDetailActivity.this,
-                        "Lỗi kết nối: " + t.getMessage(),
-                        Toast.LENGTH_SHORT).show();
-            }
-        });
+                    // All validations passed - call confirm payment API with card fields
+                    android.app.ProgressDialog progressDialog = new android.app.ProgressDialog(BookingDetailActivity.this);
+                    progressDialog.setMessage("Đang xác nhận thanh toán...");
+                    progressDialog.setCancelable(false);
+                    progressDialog.show();
+
+                    java.util.Map<String, String> body = new java.util.HashMap<>();
+                    body.put("payment_method", "card");
+                    body.put("card_number", pan);
+                    body.put("expiry", expiry);
+                    body.put("cvv", cvv);
+                    Object nameObj = currentBookingData.get("passenger_name");
+                    if (nameObj != null) body.put("card_holder_name", String.valueOf(nameObj));
+
+                    apiService.confirmPayment(bookingId, body).enqueue(new retrofit2.Callback<java.util.Map<String, Object>>() {
+                        @Override
+                        public void onResponse(retrofit2.Call<java.util.Map<String, Object>> call, retrofit2.Response<java.util.Map<String, Object>> response) {
+                            progressDialog.dismiss();
+
+                            if (response.isSuccessful()) {
+                                Toast.makeText(BookingDetailActivity.this,
+                                        "Thanh toán thành công!",
+                                        Toast.LENGTH_SHORT).show();
+                                loadBookingDetails();
+                            } else {
+                                String msg = "Xác nhận thanh toán thất bại";
+                                try {
+                                    if (response.errorBody() != null) msg = response.errorBody().string();
+                                } catch (Exception ignored) {}
+                                Toast.makeText(BookingDetailActivity.this,
+                                        msg,
+                                        Toast.LENGTH_LONG).show();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(retrofit2.Call<java.util.Map<String, Object>> call, Throwable t) {
+                            progressDialog.dismiss();
+                            Log.e(TAG, "Failed to confirm payment", t);
+                            Toast.makeText(BookingDetailActivity.this,
+                                    "Lỗi kết nối: " + t.getMessage(),
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                })
+                .setNegativeButton("Hủy", null)
+                .show();
     }
+
+    // Reuse helper methods from PaymentActivity: Luhn and expiry parser
+    private boolean luhnCheck(String ccNumber) {
+        if (ccNumber == null) return false;
+        String s = ccNumber.replaceAll("\\D", "");
+        if (s.length() < 12 || s.length() > 19) return false;
+        int sum = 0;
+        boolean alternate = false;
+        for (int i = s.length() - 1; i >= 0; i--) {
+            int n = Integer.parseInt(s.substring(i, i + 1));
+            if (alternate) {
+                n *= 2;
+                if (n > 9) n = (n % 10) + 1;
+            }
+            sum += n;
+            alternate = !alternate;
+        }
+        return (sum % 10 == 0);
+    }
+
+    private boolean isExpiryValid(String expiry) {
+        if (expiry == null) return false;
+        expiry = expiry.replaceAll("\\s", "");
+        String[] parts = null;
+        if (expiry.contains("/")) parts = expiry.split("/");
+        else if (expiry.contains("-")) parts = expiry.split("-");
+        else if (expiry.length() == 4) { // MMyy
+            parts = new String[]{expiry.substring(0,2), expiry.substring(2)};
+        }
+        if (parts == null || parts.length < 2) return false;
+        try {
+            int month = Integer.parseInt(parts[0]);
+            int year = Integer.parseInt(parts[1]);
+            if (month < 1 || month > 12) return false;
+            if (year < 100) year += 2000;
+            java.util.Calendar cal = java.util.Calendar.getInstance();
+            cal.setLenient(false);
+            cal.set(java.util.Calendar.DAY_OF_MONTH, 1);
+            cal.set(java.util.Calendar.MONTH, month - 1);
+            cal.set(java.util.Calendar.YEAR, year);
+            // expiry is end of month
+            java.util.Calendar end = (java.util.Calendar) cal.clone();
+            end.add(java.util.Calendar.MONTH, 1);
+            end.add(java.util.Calendar.DAY_OF_MONTH, -1);
+            // compare end of expiry month to now
+            return end.getTimeInMillis() > System.currentTimeMillis();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
 }
