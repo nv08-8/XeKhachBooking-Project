@@ -1,21 +1,30 @@
 package vn.hcmute.busbooking.activity;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.bumptech.glide.Glide;
 import com.google.android.material.appbar.MaterialToolbar;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.util.Map;
 
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -40,6 +49,7 @@ public class PersonalInfoActivity extends AppCompatActivity {
     private ImageView ivProfileImage;
     private TextView tvName, tvEmail, tvPhone, tvDob, tvGender;
     private ActivityResultLauncher<Intent> editProfileLauncher;
+    private ActivityResultLauncher<String> imagePicker;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,6 +93,25 @@ public class PersonalInfoActivity extends AppCompatActivity {
 
         btnEditProfile.setOnClickListener(v ->
                 editProfileLauncher.launch(new Intent(this, EditProfileActivity.class)));
+
+        // Image picker for profile image upload
+        imagePicker = registerForActivityResult(
+                new ActivityResultContracts.GetContent(),
+                uri -> {
+                    if (uri != null) {
+                        uploadProfileImage(uri);
+                    }
+                });
+
+        // Make profile image clickable for upload
+        ivProfileImage.setOnClickListener(v -> {
+            AlertDialog.Builder builder = new AlertDialog.Builder(PersonalInfoActivity.this);
+            builder.setTitle("Cập nhật ảnh đại diện")
+                    .setMessage("Chọn ảnh từ thiết bị")
+                    .setPositiveButton("Chọn ảnh", (dialog, which) -> imagePicker.launch("image/*"))
+                    .setNegativeButton("Hủy", (dialog, which) -> dialog.dismiss())
+                    .show();
+        });
 
         // Load data on create
         loadUserData();
@@ -229,8 +258,15 @@ public class PersonalInfoActivity extends AppCompatActivity {
 
     private void loadImageWithGlide(String imageUrl) {
         if (!isEmpty(imageUrl)) {
+            // If URL is relative (starts with /), prepend API base URL
+            String fullUrl = imageUrl;
+            if (imageUrl.startsWith("/")) {
+                String baseUrl = ApiClient.getBaseUrl();
+                fullUrl = baseUrl + imageUrl;
+            }
+
             Glide.with(PersonalInfoActivity.this)
-                    .load(imageUrl)
+                    .load(fullUrl)
                     .circleCrop()
                     .placeholder(R.drawable.ic_default_profile)
                     .error(R.drawable.ic_default_profile)
@@ -264,5 +300,184 @@ public class PersonalInfoActivity extends AppCompatActivity {
 
     private boolean isEmpty(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private void uploadProfileImage(Uri imageUri) {
+        try {
+            Integer userId = sessionManager.getUserId();
+            Log.d(TAG, "uploadProfileImage: userId=" + userId);
+
+            if (userId == null) {
+                Toast.makeText(this, "Vui lòng đăng nhập trước!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Show loading dialog
+            AlertDialog loadingDialog = new AlertDialog.Builder(PersonalInfoActivity.this)
+                    .setTitle("Đang tải ảnh lên...")
+                    .setMessage("Vui lòng chờ...")
+                    .setCancelable(false)
+                    .create();
+            loadingDialog.show();
+
+            // Convert URI to File
+            File imageFile = uriToFile(imageUri);
+            Log.d(TAG, "uploadProfileImage: imageFile=" + (imageFile != null ? imageFile.getAbsolutePath() : "null"));
+            Log.d(TAG, "uploadProfileImage: imageFile exists=" + (imageFile != null && imageFile.exists()));
+
+            if (imageFile == null || !imageFile.exists()) {
+                loadingDialog.dismiss();
+                Toast.makeText(this, "Không thể đọc file ảnh!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Create RequestBody for the file with correct MIME type
+            String mimeType = getMimeType(imageFile.getName());
+            Log.d(TAG, "uploadProfileImage: mimeType=" + mimeType);
+
+            RequestBody requestFile = RequestBody.create(
+                    MediaType.parse(mimeType),
+                    imageFile
+            );
+
+            // Create MultipartBody.Part for the file
+            MultipartBody.Part body = MultipartBody.Part.createFormData(
+                    "avatar",
+                    imageFile.getName(),
+                    requestFile
+            );
+
+            Log.d(TAG, "uploadProfileImage: calling API with userId=" + userId);
+
+            // Upload via API
+            apiService.uploadUserAvatar(userId, body).enqueue(new Callback<Map<String, Object>>() {
+                @Override
+                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                    Log.d(TAG, "uploadProfileImage onResponse: code=" + response.code() + ", isSuccessful=" + response.isSuccessful());
+
+                    loadingDialog.dismiss();
+
+                    try {
+                        if (response.isSuccessful()) {
+                            Map<String, Object> responseData = response.body();
+
+                            if (responseData == null) {
+                                Log.e(TAG, "uploadProfileImage: response body is null");
+                                Toast.makeText(PersonalInfoActivity.this,
+                                        "Response từ server là null!",
+                                        Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+
+                            Log.d(TAG, "uploadProfileImage: responseData=" + responseData.toString());
+
+                            Object successObj = responseData.get("success");
+                            boolean success = false;
+
+                            if (successObj instanceof Boolean) {
+                                success = (Boolean) successObj;
+                            } else if (successObj instanceof String) {
+                                success = Boolean.parseBoolean((String) successObj);
+                            }
+
+                            Log.d(TAG, "uploadProfileImage: success=" + success);
+
+                            if (success) {
+                                // Extract avatar URL from response
+                                Object dataObj = responseData.get("data");
+                                if (dataObj instanceof Map) {
+                                    Map<String, Object> data = (Map<String, Object>) dataObj;
+                                    String avatarUrl = (String) data.get("avatar");
+                                    Log.d(TAG, "uploadProfileImage: avatarUrl=" + avatarUrl);
+
+                                    if (avatarUrl != null) {
+                                        // Save to session
+                                        sessionManager.setUserAvatar(avatarUrl);
+                                        // Reload image
+                                        loadImageWithGlide(avatarUrl);
+                                        Toast.makeText(PersonalInfoActivity.this,
+                                                "Cập nhật ảnh đại diện thành công!",
+                                                Toast.LENGTH_SHORT).show();
+                                        Log.d(TAG, "Avatar uploaded successfully: " + avatarUrl);
+                                        return;
+                                    }
+                                }
+                            }
+                        } else {
+                            Log.e(TAG, "uploadProfileImage: response code=" + response.code());
+                            try {
+                                String errorBody = response.errorBody() != null ? response.errorBody().string() : "unknown";
+                                Log.e(TAG, "uploadProfileImage: error body=" + errorBody);
+                            } catch (Exception e) {
+                                Log.e(TAG, "uploadProfileImage: error reading error body", e);
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "uploadProfileImage: Exception in onResponse", e);
+                    }
+
+                    Toast.makeText(PersonalInfoActivity.this,
+                            "Cập nhật ảnh không thành công!",
+                            Toast.LENGTH_SHORT).show();
+                }
+
+                @Override
+                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                    loadingDialog.dismiss();
+                    Log.e(TAG, "Upload avatar failed", t);
+                    Log.e(TAG, "Upload error: " + t.toString());
+                    Toast.makeText(PersonalInfoActivity.this,
+                            "Lỗi tải ảnh: " + t.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error uploading profile image", e);
+            Toast.makeText(this, "Lỗi: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private File uriToFile(Uri uri) {
+        try {
+            InputStream inputStream = getContentResolver().openInputStream(uri);
+            if (inputStream == null) return null;
+
+            // Create a temporary file
+            File tempFile = new File(getCacheDir(), "avatar_" + System.currentTimeMillis() + ".jpg");
+            FileOutputStream outputStream = new FileOutputStream(tempFile);
+
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+
+            inputStream.close();
+            outputStream.close();
+
+            return tempFile;
+        } catch (Exception e) {
+            Log.e(TAG, "Error converting URI to File", e);
+            return null;
+        }
+    }
+
+    private String getMimeType(String filename) {
+        String extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
+
+        switch (extension) {
+            case "jpg":
+            case "jpeg":
+                return "image/jpeg";
+            case "png":
+                return "image/png";
+            case "webp":
+                return "image/webp";
+            case "gif":
+                return "image/gif";
+            default:
+                return "image/jpeg"; // Default to jpeg
+        }
     }
 }
