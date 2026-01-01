@@ -272,4 +272,8 @@ public interface ApiService {
             @Part MultipartBody.Part avatar
     );
 
+    // ========== BOOKING CONFIRMATION EMAIL ==========
+    @POST("api/bookings/{id}/send-confirmation-email")
+    Call<Map<String, Object>> sendPaymentConfirmationEmail(@Path("id") int bookingId);
+
 }

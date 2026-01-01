@@ -85,6 +85,18 @@ app.get("/api/config/maps-key", (req, res) => {
         maps_api_key: process.env.GOOGLE_MAPS_API_KEY || null
     });
 });
+
+// Serve logo for email (from assets folder)
+app.get("/api/config/logo", (req, res) => {
+    const logoPath = require('path').join(__dirname, 'assets', 'logo.jpg');
+    res.sendFile(logoPath, (err) => {
+        if (err) {
+            // If logo not found, return a placeholder image or error response
+            res.status(404).json({ error: "Logo not found" });
+        }
+    });
+});
+
 // Initialize socket.io server
 const server = http.createServer(app);
 const io = new Server(server, {

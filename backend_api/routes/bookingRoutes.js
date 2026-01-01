@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require("../db");
 const { generateAndCacheSeats } = require("../utils/seatGenerator");
 const cron = require("node-cron");
+const sendPaymentConfirmationEmail = require("../utils/sendPaymentEmail");
 
 // Will be set by server.js after io is initialized
 let io = null;
@@ -446,6 +447,44 @@ router.post('/bookings/:id/payment', async (req, res) => {
     client.release();
 
     console.log(`[bookings/${id}/payment] ✅ Payment confirmed: status='${finalStatus}'`);
+
+    // Send confirmation email for online payments only
+    if (!isOfflinePayment) {
+      try {
+        console.log(`📧 Sending email for online payment: booking ${id}`);
+        const fullBooking = await db.query(
+          `SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type
+           FROM bookings b
+           JOIN users u ON b.user_id = u.id
+           JOIN trips t ON b.trip_id = t.id
+           JOIN routes r ON t.route_id = r.id
+           WHERE b.id=$1`,
+          [id]
+        );
+
+        if (fullBooking.rowCount > 0) {
+          const booking = fullBooking.rows[0];
+          const userData = {
+            email: booking.email,
+            name: booking.name,
+            phone: booking.phone
+          };
+          const tripData = {
+            origin: booking.origin,
+            destination: booking.destination,
+            departure_time: booking.departure_time,
+            operator: booking.operator,
+            bus_type: booking.bus_type
+          };
+          await sendPaymentConfirmationEmail(booking.email, booking, tripData, userData);
+          console.log(`✅ Email sent for booking ${id}`);
+        }
+      } catch (emailError) {
+        console.error(`❌ Failed to send email for booking ${id}:`, emailError.message || emailError);
+        // Don't fail the payment confirmation if email fails
+      }
+    }
+
     res.json({ message: 'Payment confirmed', booking_id: Number(id), status: finalStatus, paidAmount });
   } catch (err) {
     console.error(`[bookings/${id}/payment] ❌ Error:`, err.message || err);
@@ -648,6 +687,41 @@ router.post('/bookings/:id/confirm-offline-payment', async (req, res) => {
 
     await commitAndRelease(client);
 
+    // Send confirmation email for offline payment after commit
+    try {
+      console.log(`📧 Sending email for offline payment confirmation: booking ${id}`);
+      const fullBooking = await db.query(
+        `SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type
+         FROM bookings b
+         JOIN users u ON b.user_id = u.id
+         JOIN trips t ON b.trip_id = t.id
+         JOIN routes r ON t.route_id = r.id
+         WHERE b.id=$1`,
+        [id]
+      );
+
+      if (fullBooking.rowCount > 0) {
+        const bookingData = fullBooking.rows[0];
+        const userData = {
+          email: bookingData.email,
+          name: bookingData.name,
+          phone: bookingData.phone
+        };
+        const tripData = {
+          origin: bookingData.origin,
+          destination: bookingData.destination,
+          departure_time: bookingData.departure_time,
+          operator: bookingData.operator,
+          bus_type: bookingData.bus_type
+        };
+        await sendPaymentConfirmationEmail(bookingData.email, bookingData, tripData, userData);
+        console.log(`✅ Email sent for offline payment confirmation: booking ${id}`);
+      }
+    } catch (emailError) {
+      console.error(`❌ Failed to send email for booking ${id}:`, emailError.message || emailError);
+      // Don't fail the payment confirmation if email fails
+    }
+
     res.json({
       message: 'Offline payment confirmed successfully',
       booking_id: Number(id),
@@ -757,6 +831,83 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 console.log("✅ Cron job initialized: Auto-finalize bookings every 5 minutes (complete paid, cancel unpaid)");
+
+// POST /bookings/:id/send-confirmation-email - Send payment and booking confirmation email
+router.post('/bookings/:id/send-confirmation-email', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Get booking details
+    const bookingRes = await db.query(
+      `SELECT b.id, b.booking_code, b.trip_id, b.total_amount,
+              b.price_paid, b.payment_method, b.status, b.created_at, b.paid_at, b.user_id,
+              COALESCE(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]) AS seat_labels
+       FROM bookings b
+       LEFT JOIN booking_items bi ON bi.booking_id = b.id
+       WHERE b.id=$1
+       GROUP BY b.id, b.booking_code, b.trip_id, b.total_amount, b.price_paid, b.payment_method, b.status, b.created_at, b.paid_at, b.user_id`,
+      [id]
+    );
+
+    if (!bookingRes.rowCount) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    const booking = bookingRes.rows[0];
+
+    // Get trip details
+    const tripRes = await db.query(
+      `SELECT t.id, t.departure_time, t.operator, t.bus_type, r.origin, r.destination
+       FROM trips t
+       JOIN routes r ON t.route_id = r.id
+       WHERE t.id=$1`,
+      [booking.trip_id]
+    );
+
+    if (!tripRes.rowCount) {
+      return res.status(404).json({ message: 'Trip not found' });
+    }
+
+    const trip = tripRes.rows[0];
+
+    // Get user details (customer)
+    const userRes = await db.query(
+      `SELECT id, name, email, phone FROM users WHERE id=$1`,
+      [booking.user_id]
+    );
+
+    if (!userRes.rowCount) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const user = userRes.rows[0];
+
+    // Import the send email function
+    const sendPaymentConfirmationEmail = require('../utils/sendPaymentEmail');
+
+    // Send email
+    const emailSent = await sendPaymentConfirmationEmail(user.email, booking, trip, user);
+
+    if (emailSent) {
+      res.json({
+        success: true,
+        message: 'Payment confirmation email sent successfully',
+        email: user.email
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to send email, but booking is confirmed'
+      });
+    }
+  } catch (err) {
+    console.error('Error sending confirmation email:', err.message || err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send confirmation email'
+    });
+  }
+});
 
 module.exports = router;
 module.exports.setSocketIO = setSocketIO;

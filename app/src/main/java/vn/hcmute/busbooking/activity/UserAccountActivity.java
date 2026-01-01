@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -14,11 +15,13 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.bumptech.glide.Glide;
 import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import vn.hcmute.busbooking.MainActivity;
 import vn.hcmute.busbooking.R;
+import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class UserAccountActivity extends AppCompatActivity {
@@ -31,6 +34,7 @@ public class UserAccountActivity extends AppCompatActivity {
 
         //--- INITIALIZE VIEWS ---
         SessionManager sessionManager = new SessionManager(this);
+        ImageView ivUserAvatar = findViewById(R.id.ivUserAvatar);
         TextView tvUserName = findViewById(R.id.tvUserName);
         TextView tvUserEmail = findViewById(R.id.tvUserEmail);
         
@@ -49,6 +53,9 @@ public class UserAccountActivity extends AppCompatActivity {
         //--- SET USER DATA ---
         tvUserName.setText(sessionManager.getUserName());
         tvUserEmail.setText(sessionManager.getUserEmail());
+
+        //--- LOAD AVATAR IMAGE ---
+        loadAvatarImage(ivUserAvatar, sessionManager);
 
         //--- CLICK LISTENERS ---
 
@@ -125,14 +132,42 @@ public class UserAccountActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         SessionManager sessionManager = new SessionManager(this);
+        ImageView ivUserAvatar = findViewById(R.id.ivUserAvatar);
         TextView tvUserName = findViewById(R.id.tvUserName);
         TextView tvUserEmail = findViewById(R.id.tvUserEmail);
         tvUserName.setText(sessionManager.getUserName());
         tvUserEmail.setText(sessionManager.getUserEmail());
 
+        // Reload avatar image when returning from other activities
+        loadAvatarImage(ivUserAvatar, sessionManager);
+
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         if (bottomNav != null) {
             bottomNav.setSelectedItemId(R.id.nav_account);
+        }
+    }
+
+    private void loadAvatarImage(ImageView ivUserAvatar, SessionManager sessionManager) {
+        if (ivUserAvatar == null) return;
+
+        String avatarUrl = sessionManager.getUserAvatar();
+
+        if (avatarUrl != null && !avatarUrl.isEmpty()) {
+            // If URL is relative (starts with /), prepend API base URL
+            String fullUrl = avatarUrl;
+            if (avatarUrl.startsWith("/")) {
+                String baseUrl = ApiClient.getBaseUrl();
+                fullUrl = baseUrl + avatarUrl;
+            }
+
+            Glide.with(this)
+                    .load(fullUrl)
+                    .circleCrop()
+                    .placeholder(R.drawable.ic_user_placeholder)
+                    .error(R.drawable.ic_user_placeholder)
+                    .into(ivUserAvatar);
+        } else {
+            ivUserAvatar.setImageResource(R.drawable.ic_user_placeholder);
         }
     }
 
