@@ -339,12 +339,21 @@ router.put("/user/:id", async (req, res) => {
 // Upload avatar endpoint
 router.post("/upload-avatar", upload.single('avatar'), async (req, res) => {
     try {
+        console.log("uploadAvatar: Request received");
+        console.log("uploadAvatar: req.file =", req.file ? "exists" : "null");
+        console.log("uploadAvatar: headers =", req.headers);
+        console.log("uploadAvatar: user-id header =", req.headers['user-id']);
+
         if (!req.file) {
+            console.error("uploadAvatar: No file received");
             return res.status(400).json({ success: false, message: "Chưa chọn ảnh!" });
         }
 
         const userId = req.headers['user-id'] || req.body.user_id;
+        console.log("uploadAvatar: userId =", userId);
+
         if (!userId) {
+            console.error("uploadAvatar: No userId provided");
             // Delete uploaded file if user-id not provided
             require('fs').unlinkSync(req.file.path);
             return res.status(400).json({ success: false, message: "Thiếu user-id!" });
@@ -352,6 +361,7 @@ router.post("/upload-avatar", upload.single('avatar'), async (req, res) => {
 
         // Construct the public URL for the uploaded image (relative path only)
         const imageUrl = `/uploads/avatars/${req.file.filename}`;
+        console.log("uploadAvatar: imageUrl =", imageUrl);
 
         // Update user avatar in database
         const { rowCount } = await db.query(
@@ -359,13 +369,17 @@ router.post("/upload-avatar", upload.single('avatar'), async (req, res) => {
             [imageUrl, userId]
         );
 
+        console.log("uploadAvatar: Database update rowCount =", rowCount);
+
         if (!rowCount) {
+            console.error("uploadAvatar: User not found with id=" + userId);
             // Delete uploaded file if user not found
             require('fs').unlinkSync(req.file.path);
             return res.status(404).json({ success: false, message: "Không tìm thấy người dùng!" });
         }
 
         // Return success response with the image URL
+        console.log("uploadAvatar: Upload successful, returning response");
         return res.json({
             success: true,
             message: "Cập nhật ảnh đại diện thành công!",
@@ -375,13 +389,14 @@ router.post("/upload-avatar", upload.single('avatar'), async (req, res) => {
             }
         });
     } catch (err) {
-        console.error("Lỗi upload avatar:", err);
+        console.error("uploadAvatar: Error caught:", err);
+        console.error("uploadAvatar: Error message:", err.message);
         // Try to delete file if it exists
         if (req.file) {
             try {
                 require('fs').unlinkSync(req.file.path);
             } catch (e) {
-                console.error("Failed to delete uploaded file:", e);
+                console.error("uploadAvatar: Failed to delete uploaded file:", e);
             }
         }
         return res.status(500).json({ success: false, message: "Lỗi phía server: " + err.message });

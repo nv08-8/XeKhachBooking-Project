@@ -305,6 +305,8 @@ public class PersonalInfoActivity extends AppCompatActivity {
     private void uploadProfileImage(Uri imageUri) {
         try {
             Integer userId = sessionManager.getUserId();
+            Log.d(TAG, "uploadProfileImage: userId=" + userId);
+
             if (userId == null) {
                 Toast.makeText(this, "Vui lòng đăng nhập trước!", Toast.LENGTH_SHORT).show();
                 return;
@@ -320,6 +322,9 @@ public class PersonalInfoActivity extends AppCompatActivity {
 
             // Convert URI to File
             File imageFile = uriToFile(imageUri);
+            Log.d(TAG, "uploadProfileImage: imageFile=" + (imageFile != null ? imageFile.getAbsolutePath() : "null"));
+            Log.d(TAG, "uploadProfileImage: imageFile exists=" + (imageFile != null && imageFile.exists()));
+
             if (imageFile == null || !imageFile.exists()) {
                 loadingDialog.dismiss();
                 Toast.makeText(this, "Không thể đọc file ảnh!", Toast.LENGTH_SHORT).show();
@@ -339,21 +344,30 @@ public class PersonalInfoActivity extends AppCompatActivity {
                     requestFile
             );
 
+            Log.d(TAG, "uploadProfileImage: calling API with userId=" + userId);
+
             // Upload via API
             apiService.uploadUserAvatar(userId, body).enqueue(new Callback<Map<String, Object>>() {
                 @Override
                 public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                    Log.d(TAG, "uploadProfileImage onResponse: code=" + response.code() + ", isSuccessful=" + response.isSuccessful());
+
                     loadingDialog.dismiss();
 
                     if (response.isSuccessful() && response.body() != null) {
                         Map<String, Object> responseData = response.body();
+                        Log.d(TAG, "uploadProfileImage: responseData=" + responseData.toString());
+
                         boolean success = (boolean) responseData.getOrDefault("success", false);
+                        Log.d(TAG, "uploadProfileImage: success=" + success);
 
                         if (success) {
                             // Extract avatar URL from response
                             Map<String, Object> data = (Map<String, Object>) responseData.get("data");
                             if (data != null) {
                                 String avatarUrl = (String) data.get("avatar");
+                                Log.d(TAG, "uploadProfileImage: avatarUrl=" + avatarUrl);
+
                                 if (avatarUrl != null) {
                                     // Save to session
                                     sessionManager.setUserAvatar(avatarUrl);
@@ -367,6 +381,11 @@ public class PersonalInfoActivity extends AppCompatActivity {
                                 }
                             }
                         }
+                    } else {
+                        Log.e(TAG, "uploadProfileImage: response not successful or null body");
+                        if (response.body() != null) {
+                            Log.e(TAG, "uploadProfileImage: response body=" + response.body().toString());
+                        }
                     }
 
                     Toast.makeText(PersonalInfoActivity.this,
@@ -378,6 +397,7 @@ public class PersonalInfoActivity extends AppCompatActivity {
                 public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                     loadingDialog.dismiss();
                     Log.e(TAG, "Upload avatar failed", t);
+                    Log.e(TAG, "Upload error: " + t.toString());
                     Toast.makeText(PersonalInfoActivity.this,
                             "Lỗi tải ảnh: " + t.getMessage(),
                             Toast.LENGTH_SHORT).show();
