@@ -564,6 +564,34 @@ router.post('/bookings/:id/payment', async (req, res) => {
   }
 });
 
+// POST /bookings/:id/verify-payment - quick status check for client polling
+router.post('/bookings/:id/verify-payment', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.query(
+      `SELECT id, status, total_amount, price_paid, payment_method, COALESCE(booking_code, '') as booking_code
+       FROM bookings WHERE id = $1 LIMIT 1`,
+      [id]
+    );
+    if (!result.rows || result.rows.length === 0) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+    const b = result.rows[0];
+    // Return minimal, stable payload for client polling
+    return res.json({
+      id: Number(b.id),
+      status: b.status,
+      total_amount: Number(b.total_amount) || 0,
+      price_paid: Number(b.price_paid) || 0,
+      payment_method: b.payment_method || null,
+      booking_code: b.booking_code || ''
+    });
+  } catch (err) {
+    console.error(`[verify-payment] Error checking booking ${id}:`, err);
+    return res.status(500).json({ message: 'Failed to verify payment' });
+  }
+});
+
 // PUT/PATCH /bookings/:id/payment-method - Change payment method for a pending booking
 router.put('/bookings/:id/payment-method', async (req, res) => {
   const { id } = req.params;
