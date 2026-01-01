@@ -92,7 +92,10 @@ const getTrips = async (req, res) => {
             ...row,
             bus_image_url: finalImageUrl,
             specific_bus_image: undefined,
-            generic_bus_images: undefined
+            generic_bus_images: undefined,
+            departure_time: row.departure_time ? formatLocalISO(new Date(row.departure_time)) : row.departure_time,
+            arrival_time: row.arrival_time ? formatLocalISO(new Date(row.arrival_time)) : row.arrival_time,
+            created_at: row.created_at ? formatLocalISO(new Date(row.created_at)) : row.created_at
         };
     });
 
@@ -172,7 +175,7 @@ router.get("/trips/:id", async (req, res) => {
         const timeline = stopsResult.rows.map(stop => ({
             location: stop.name,
             address: stop.address,
-            time: stop.estimated_arrival_time,
+            time: stop.estimated_arrival_time ? formatLocalISO(new Date(stop.estimated_arrival_time)) : stop.estimated_arrival_time,
             type: stop.type,
             stop_id: stop.id,
             order: stop.order_index
@@ -320,6 +323,19 @@ function formatDuration(minutes) {
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
     return `${h} giờ ${m > 0 ? m + " phút" : ""}`.trim();
+}
+
+// Helper to generate ISO-like timestamp without trailing Z (local time)
+function formatLocalISO(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const yyyy = date.getFullYear();
+  const mm = pad(date.getMonth() + 1);
+  const dd = pad(date.getDate());
+  const hh = pad(date.getHours());
+  const min = pad(date.getMinutes());
+  const ss = pad(date.getSeconds());
+  const ms = String(date.getMilliseconds()).padStart(3, '0');
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}.${ms}`; // no trailing Z
 }
 
 module.exports = router;

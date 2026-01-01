@@ -47,17 +47,15 @@ const rollbackAndRelease = async (client) => {
   }
 };
 
-// Helper to generate ISO-like timestamp without trailing Z (local time)
+// Helper to generate ISO-like timestamp without trailing Z (UTC-based, no timezone shift)
 function formatLocalISO(date = new Date()) {
-  const pad = (n) => String(n).padStart(2, '0');
-  const yyyy = date.getFullYear();
-  const mm = pad(date.getMonth() + 1);
-  const dd = pad(date.getDate());
-  const hh = pad(date.getHours());
-  const min = pad(date.getMinutes());
-  const ss = pad(date.getSeconds());
-  const ms = String(date.getMilliseconds()).padStart(3, '0');
-  return `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}.${ms}`; // no trailing Z
+  // Return the UTC ISO string but without the trailing 'Z' so we don't force UTC interpretation on clients.
+  // This preserves the hour as stored (e.g., '2026-01-01T09:00:00.000Z' -> '2026-01-01T09:00:00.000').
+  try {
+    return (date instanceof Date ? date.toISOString() : new Date(date).toISOString()).replace(/Z$/, '');
+  } catch (e) {
+    return String(date);
+  }
 }
 
 // POST /bookings - Create a new booking with multiple seats
@@ -264,7 +262,14 @@ router.get('/bookings/my', async (req, res) => {
     if (rows.length > 0) {
       console.log(`   First booking: #${rows[0].id}, status: ${rows[0].status}, route: ${rows[0].origin} → ${rows[0].destination}`);
     }
-    res.json(rows);
+    // Format departure_time and arrival_time to local ISO without trailing Z
+    const formattedRows = rows.map(r => ({
+      ...r,
+      departure_time: r.departure_time ? formatLocalISO(new Date(r.departure_time)) : r.departure_time,
+      arrival_time: r.arrival_time ? formatLocalISO(new Date(r.arrival_time)) : r.arrival_time,
+      created_at: r.created_at ? formatLocalISO(new Date(r.created_at)) : r.created_at
+    }));
+    res.json(formattedRows);
   } catch (err) {
     console.error('❌ Failed to fetch bookings:', err);
     res.status(500).json({ message: 'Failed to fetch bookings' });
@@ -319,6 +324,12 @@ router.get('/bookings/:id', async (req, res) => {
     booking.base_price = basePrice;
     booking.discount_amount = discountAmount;
     booking.promo_code = booking.promotion_code; // Alias for consistency
+
+    // Format trip times and created_at/published times to local ISO without trailing Z
+    if (booking.departure_time) booking.departure_time = formatLocalISO(new Date(booking.departure_time));
+    if (booking.arrival_time) booking.arrival_time = formatLocalISO(new Date(booking.arrival_time));
+    if (booking.created_at) booking.created_at = formatLocalISO(new Date(booking.created_at));
+    if (booking.paid_at) booking.paid_at = formatLocalISO(new Date(booking.paid_at));
 
     res.json(booking);
   } catch (err) {
