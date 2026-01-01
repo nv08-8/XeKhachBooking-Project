@@ -24,13 +24,19 @@ const storage = multer.diskStorage({
 
 // Filter for image files only
 const fileFilter = (req, file, cb) => {
-    // Allowed MIME types
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    // Allowed MIME types - JPG can be image/jpeg, image/jpg, or image/x-jpg
+    const allowedMimes = [
+        'image/jpeg',
+        'image/jpg',
+        'image/x-jpg',
+        'image/png',
+        'image/webp'
+    ];
 
     if (allowedMimes.includes(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error('Chỉ chấp nhận các định dạng ảnh (JPEG, PNG, WebP)'));
+        cb(new Error('Chỉ chấp nhận các định dạng ảnh (JPG, JPEG, PNG, WebP). Loại nhận được: ' + file.mimetype));
     }
 };
 
