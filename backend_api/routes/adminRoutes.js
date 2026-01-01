@@ -763,9 +763,14 @@ router.post("/confirm-offline-payment/:id", checkAdminRole, async (req, res) => 
 // ============================================================
 router.post("/bookings", checkAdminRole, async (req, res) => {
   const { trip_id, seat_labels } = req.body;
+  const adminUserId = req.headers["user-id"];
 
   if (!trip_id || !Array.isArray(seat_labels) || seat_labels.length === 0) {
     return res.status(400).json({ message: "Missing required fields: trip_id and seat_labels" });
+  }
+
+  if (!adminUserId) {
+    return res.status(401).json({ message: "Missing user-id header" });
   }
 
   const client = await db.connect();
@@ -837,11 +842,11 @@ router.post("/bookings", checkAdminRole, async (req, res) => {
     // Generate booking code
     const bookingCode = generateBookingCode(trip_id);
 
-    // Tạo booking record
+    // Tạo booking record với admin user_id
     const bookingInsert = await client.query(
       `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, status, payment_method, booking_code)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-      [null, trip_id, totalAmount, seat_labels.length, 'confirmed', 'offline', bookingCode]
+      [adminUserId, trip_id, totalAmount, seat_labels.length, 'confirmed', 'offline', bookingCode]
     );
     const bookingId = bookingInsert.rows[0].id;
 

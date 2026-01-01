@@ -89,6 +89,32 @@ public class AdminAddBookingActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progressBar);
 
         btnCreateBooking.setOnClickListener(v -> validateAndCreateBooking());
+
+        // Initialize adapters with empty lists to prevent NullPointerException
+        floor1Adapter = new SeatAdapter(floor1Seats, seat -> onSeatSelected(seat, 1));
+        floor2Adapter = new SeatAdapter(floor2Seats, seat -> onSeatSelected(seat, 2));
+
+        GridLayoutManager layoutManager1 = new GridLayoutManager(this, floor1Cols);
+        floor1RecyclerView.setLayoutManager(layoutManager1);
+        floor1RecyclerView.setAdapter(floor1Adapter);
+
+        GridLayoutManager layoutManager2 = new GridLayoutManager(this, floor2Cols);
+        floor2RecyclerView.setLayoutManager(layoutManager2);
+        floor2RecyclerView.setAdapter(floor2Adapter);
+    }
+
+    private void onSeatSelected(Seat seat, int floorNum) {
+        if (!seat.isBooked()) {
+            seat.setSelected(!seat.isSelected());
+            if (seat.isSelected()) {
+                selectedSeats.add(seat.getLabel());
+            } else {
+                selectedSeats.remove(seat.getLabel());
+            }
+            floor1Adapter.notifyDataSetChanged();
+            floor2Adapter.notifyDataSetChanged();
+            updateSeatCount();
+        }
     }
 
     private void setupToolbar() {
@@ -98,43 +124,16 @@ public class AdminAddBookingActivity extends AppCompatActivity {
     }
 
     private void setupSeatAdapters() {
-        // Floor 1 (Tầng A) Adapter
-        floor1Adapter = new SeatAdapter(floor1Seats, seat -> {
-            if (!seat.isBooked()) {
-                seat.setSelected(!seat.isSelected());
-                if (seat.isSelected()) {
-                    selectedSeats.add(seat.getLabel());
-                } else {
-                    selectedSeats.remove(seat.getLabel());
-                }
-                floor1Adapter.notifyDataSetChanged();
-                floor2Adapter.notifyDataSetChanged();
-                updateSeatCount();
-            }
-        });
-
+        // Update column counts and layout managers based on parsed layout
         GridLayoutManager layoutManager1 = new GridLayoutManager(this, floor1Cols);
         floor1RecyclerView.setLayoutManager(layoutManager1);
-        floor1RecyclerView.setAdapter(floor1Adapter);
-
-        // Floor 2 (Tầng B) Adapter
-        floor2Adapter = new SeatAdapter(floor2Seats, seat -> {
-            if (!seat.isBooked()) {
-                seat.setSelected(!seat.isSelected());
-                if (seat.isSelected()) {
-                    selectedSeats.add(seat.getLabel());
-                } else {
-                    selectedSeats.remove(seat.getLabel());
-                }
-                floor1Adapter.notifyDataSetChanged();
-                floor2Adapter.notifyDataSetChanged();
-                updateSeatCount();
-            }
-        });
 
         GridLayoutManager layoutManager2 = new GridLayoutManager(this, floor2Cols);
         floor2RecyclerView.setLayoutManager(layoutManager2);
-        floor2RecyclerView.setAdapter(floor2Adapter);
+
+        // Notify adapters that data has changed
+        floor1Adapter.notifyDataSetChanged();
+        floor2Adapter.notifyDataSetChanged();
     }
 
     private void fetchTripDetails() {
@@ -158,8 +157,7 @@ public class AdminAddBookingActivity extends AppCompatActivity {
                         android.util.Log.w("AdminAddBooking", "No seat_layout in trip details");
                         floor1Seats.clear();
                         floor2Seats.clear();
-                        floor1Adapter.notifyDataSetChanged();
-                        floor2Adapter.notifyDataSetChanged();
+                        setupSeatAdapters();
                         Toast.makeText(AdminAddBookingActivity.this, "Chuyến này chưa được cấu hình ghế", Toast.LENGTH_SHORT).show();
                     }
                 } else {
