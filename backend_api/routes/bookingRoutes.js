@@ -229,9 +229,9 @@ router.get('/bookings/my', async (req, res) => {
     // Tab "Hiện tại": All bookings in last 3 months (all statuses including cancelled, pending, etc.)
     whereClause += ` AND b.created_at >= NOW() - INTERVAL '3 months'`;
   } else if (tab === 'completed') {
-    // Tab "Đã đi": Only completed trips (arrival_time passed and status = 'completed')
+    // Tab "Đã đi": Only completed trips (departure_time passed and status = 'completed')
     // Excludes cancelled bookings
-    whereClause += ` AND t.arrival_time < NOW() AND b.status = 'completed'`;
+    whereClause += ` AND t.departure_time < NOW() AND b.status = 'completed'`;
   }
   // If no tab specified, return all bookings (backwards compatibility)
 
@@ -838,11 +838,14 @@ cron.schedule("*/5 * * * *", async () => {
       SET status = 'completed', completed_at = NOW()
       FROM trips t
       WHERE b.trip_id = t.id
-        AND t.arrival_time < NOW()
-        AND b.status = 'confirmed'
-        AND COALESCE(b.price_paid, 0) > 0
-        AND b.completed_at IS NULL
-      RETURNING b.id, b.user_id, b.trip_id, t.arrival_time
+        AND t.departure_time < NOW()
+        AND (
+          b.status = 'confirmed'
+          OR b.paid_at IS NOT NULL
+          OR COALESCE(b.price_paid, 0) > 0
+        )
+         AND b.completed_at IS NULL
+      RETURNING b.id, b.user_id, b.trip_id, t.departure_time
     `);
 
     const completedBookings = completeResult.rows;
@@ -855,11 +858,12 @@ cron.schedule("*/5 * * * *", async () => {
       SET status = 'cancelled', cancelled_at = NOW()
       FROM trips t
       WHERE b.trip_id = t.id
-        AND t.arrival_time < NOW()
+        AND t.departure_time < NOW()
         AND b.status = 'pending'
         AND COALESCE(b.price_paid, 0) = 0
+        AND b.paid_at IS NULL
         AND b.cancelled_at IS NULL
-      RETURNING b.id, b.user_id, b.trip_id, t.arrival_time, b.payment_method
+      RETURNING b.id, b.user_id, b.trip_id, t.departure_time, b.payment_method
     `);
 
     const cancelledBookings = cancelResult.rows;
@@ -874,7 +878,7 @@ cron.schedule("*/5 * * * *", async () => {
     if (completedBookings.length > 0) {
       console.log(`   ✅ Completed ${completedBookings.length} paid booking(s):`);
       for (const booking of completedBookings) {
-        console.log(`      • Booking #${booking.id} -> completed (arrival: ${new Date(booking.arrival_time).toLocaleString()})`);
+        console.log(`      • Booking #${booking.id} -> completed (departure: ${new Date(booking.departure_time).toLocaleString()})`);
 
         // Emit socket event to user for real-time update
         if (io) {
@@ -892,8 +896,8 @@ cron.schedule("*/5 * * * *", async () => {
       console.log(`   ❌ Cancelled ${cancelledBookings.length} unpaid booking(s) after trip ended:`);
       for (const booking of cancelledBookings) {
         const method = booking.payment_method || 'unknown';
-        const arrival = new Date(booking.arrival_time).toLocaleString();
-        console.log(`      • Booking #${booking.id} (payment: ${method}) -> cancelled (trip arrival: ${arrival})`);
+        const departure = new Date(booking.departure_time).toLocaleString();
+        console.log(`      • Booking #${booking.id} (payment: ${method}) -> cancelled (trip departure: ${departure})`);
 
         // Emit socket event to user for real-time update
         if (io) {
