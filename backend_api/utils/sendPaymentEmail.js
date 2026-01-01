@@ -1,6 +1,6 @@
 const sgMail = require("@sendgrid/mail");
 const QRCode = require('qrcode');
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+sgMail.setApiKey(process.env.TICKET_API_KEY);
 
 /**
  * Send payment confirmation email with booking and ticket details

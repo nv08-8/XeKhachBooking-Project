@@ -1,6 +1,7 @@
 // backend_api/controllers/paymentController.js
 const payos = require('../services/payos');
 const db = require('../db');
+const sendPaymentConfirmationEmail = require('../utils/sendPaymentEmail');
 
 // Create PayOS checkout link
 exports.createCheckout = async (req, res) => {
@@ -123,7 +124,7 @@ exports.verifyPayment = async (req, res) => {
 
         if (isSuccess) {
             const { rows: bookings } = await db.query(
-                "SELECT id FROM bookings WHERE metadata->'payment'->>'orderCode' = $1 AND status = 'pending'",
+                "SELECT b.*, u.email, u.name, u.phone, t.origin, t.destination, t.departure_time, t.operator, t.bus_type FROM bookings b JOIN users u ON b.user_id = u.id JOIN trips t ON b.trip_id = t.id WHERE b.metadata->'payment'->>'orderCode' = $1 AND b.status = 'pending'",
                 [String(orderId)]
             );
 
@@ -134,6 +135,30 @@ exports.verifyPayment = async (req, res) => {
                     [bookingIds]
                 );
                 console.log(`Verified and updated bookings: ${bookingIds.join(', ')}`);
+
+                // Send confirmation emails for each booking
+                for (const booking of bookings) {
+                    try {
+                        console.log(`📧 Sending email to ${booking.email} for booking ${booking.id}...`);
+                        const userData = {
+                            email: booking.email,
+                            name: booking.name,
+                            phone: booking.phone
+                        };
+                        const tripData = {
+                            origin: booking.origin,
+                            destination: booking.destination,
+                            departure_time: booking.departure_time,
+                            operator: booking.operator,
+                            bus_type: booking.bus_type
+                        };
+                        const emailResult = await sendPaymentConfirmationEmail(booking.email, booking, tripData, userData);
+                        console.log(`✅ Email sent successfully to ${booking.email}:`, emailResult);
+                    } catch (emailError) {
+                        console.error(`❌ Failed to send email for booking ${booking.id}:`, emailError.message || emailError);
+                    }
+                }
+
                 return res.json({ success: true, bookings_updated: bookingIds });
             }
         }
@@ -157,7 +182,7 @@ exports.handleWebhook = async (req, res) => {
         const isSuccess = status && String(status).toUpperCase() === 'PAID';
         if (isSuccess) {
             const { rows: bookings } = await db.query(
-                "SELECT id FROM bookings WHERE metadata->'payment'->>'orderCode' = $1 AND status = 'pending'",
+                "SELECT b.*, u.email, u.name, u.phone, t.origin, t.destination, t.departure_time, t.operator, t.bus_type FROM bookings b JOIN users u ON b.user_id = u.id JOIN trips t ON b.trip_id = t.id WHERE b.metadata->'payment'->>'orderCode' = $1 AND b.status = 'pending'",
                 [String(orderCode)]
             );
 
@@ -168,6 +193,30 @@ exports.handleWebhook = async (req, res) => {
                     [bookingIds]
                 );
                 console.log(`Webhook: Updated bookings ${bookingIds.join(', ')} to confirmed`);
+
+                // Send confirmation emails for each booking
+                for (const booking of bookings) {
+                    try {
+                        console.log(`📧 Webhook: Sending email to ${booking.email} for booking ${booking.id}...`);
+                        const userData = {
+                            email: booking.email,
+                            name: booking.name,
+                            phone: booking.phone
+                        };
+                        const tripData = {
+                            origin: booking.origin,
+                            destination: booking.destination,
+                            departure_time: booking.departure_time,
+                            operator: booking.operator,
+                            bus_type: booking.bus_type
+                        };
+                        const emailResult = await sendPaymentConfirmationEmail(booking.email, booking, tripData, userData);
+                        console.log(`✅ Webhook: Email sent successfully to ${booking.email}:`, emailResult);
+                    } catch (emailError) {
+                        console.error(`❌ Webhook: Failed to send email for booking ${booking.id}:`, emailError.message || emailError);
+                    }
+                }
+
                 return res.json({ success: true, bookings_updated: bookingIds });
             }
         }
