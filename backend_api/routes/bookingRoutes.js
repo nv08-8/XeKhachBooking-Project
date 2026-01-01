@@ -837,9 +837,13 @@ router.post('/bookings/:id/send-confirmation-email', async (req, res) => {
   try {
     // Get booking details
     const bookingRes = await db.query(
-      `SELECT b.id, b.booking_code, b.trip_id, b.seat_labels, b.total_amount,
-              b.price_paid, b.payment_method, b.status, b.created_at, b.paid_at, b.user_id
-       FROM bookings b WHERE b.id=$1`,
+      `SELECT b.id, b.booking_code, b.trip_id, b.total_amount,
+              b.price_paid, b.payment_method, b.status, b.created_at, b.paid_at, b.user_id,
+              COALESCE(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]) AS seat_labels
+       FROM bookings b
+       LEFT JOIN booking_items bi ON bi.booking_id = b.id
+       WHERE b.id=$1
+       GROUP BY b.id, b.booking_code, b.trip_id, b.total_amount, b.price_paid, b.payment_method, b.status, b.created_at, b.paid_at, b.user_id`,
       [id]
     );
 
