@@ -185,10 +185,18 @@ router.delete("/trips/:id", checkAdminRole, async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // Delete seats (references trips) - nhưng giữ bookings để lưu lịch sử
+    // Step 1: Set trip_id to NULL in bookings FIRST (để tránh foreign key violation)
+    await client.query("UPDATE bookings SET trip_id=NULL WHERE trip_id=$1", [id]);
+
+    // Step 2: Delete all booking_items (vì bookings vẫn tồn tại để lưu lịch sử)
+    // Note: Không cần xóa vì booking_items tham chiếu bookings, không tham chiếu trips
+    // Nhưng nếu muốn xóa sạch booking_items, hãy bỏ comment dòng dưới:
+    // await client.query("DELETE FROM booking_items WHERE booking_id IN (SELECT id FROM bookings WHERE trip_id IS NULL)", []);
+
+    // Step 3: Delete seats
     await client.query("DELETE FROM seats WHERE trip_id=$1", [id]);
 
-    // Delete the trip itself
+    // Step 4: Delete the trip itself
     const result = await client.query("DELETE FROM trips WHERE id=$1 RETURNING id", [id]);
 
     if (!result.rows.length) {
@@ -197,8 +205,6 @@ router.delete("/trips/:id", checkAdminRole, async (req, res) => {
       return res.status(404).json({ message: "Chuyến xe không tìm thấy" });
     }
 
-    // Set trip_id to NULL in bookings for this trip (để lưu lịch sử nhưng không còn liên kết)
-    await client.query("UPDATE bookings SET trip_id=NULL WHERE trip_id=$1", [id]);
 
     await client.query("COMMIT");
     client.release();
