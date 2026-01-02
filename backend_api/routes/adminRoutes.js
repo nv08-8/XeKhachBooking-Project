@@ -229,8 +229,8 @@ router.get("/bookings", checkAdminRole, async (req, res) => {
     SELECT b.*, u.name, u.email, t.departure_time, r.origin, r.destination
     FROM bookings b
     LEFT JOIN users u ON u.id = b.user_id
-    JOIN trips t ON t.id = b.trip_id
-    JOIN routes r ON r.id = t.route_id
+    LEFT JOIN trips t ON t.id = b.trip_id
+    LEFT JOIN routes r ON r.id = t.route_id
     WHERE 1=1
   `;
   const params = [];

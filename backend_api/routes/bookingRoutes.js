@@ -249,14 +249,14 @@ router.get('/bookings/my', async (req, res) => {
              ARRAY[]::text[]
            ) AS seat_labels
     FROM bookings b
-    JOIN trips t ON t.id = b.trip_id
-    JOIN routes r ON r.id = t.route_id
+    LEFT JOIN trips t ON t.id = b.trip_id
+    LEFT JOIN routes r ON r.id = t.route_id
     LEFT JOIN booking_items bi ON bi.booking_id = b.id
     LEFT JOIN route_stops pickup_stop ON pickup_stop.id = b.pickup_stop_id
     LEFT JOIN route_stops dropoff_stop ON dropoff_stop.id = b.dropoff_stop_id
     ${whereClause}
     GROUP BY b.id, t.id, r.id, pickup_stop.id, dropoff_stop.id
-    ORDER BY t.departure_time ASC
+    ORDER BY COALESCE(t.departure_time, b.created_at) DESC
   `;
   try {
     const { rows } = await db.query(sql, [user_id]);
@@ -296,9 +296,9 @@ router.get('/bookings/:id', async (req, res) => {
              ARRAY[]::text[]
            ) AS seat_labels
     FROM bookings b
-    JOIN trips t ON t.id = b.trip_id
-    JOIN routes r ON r.id = t.route_id
-    JOIN users u ON u.id = b.user_id
+    LEFT JOIN trips t ON t.id = b.trip_id
+    LEFT JOIN routes r ON r.id = t.route_id
+    LEFT JOIN users u ON u.id = b.user_id
     LEFT JOIN booking_items bi ON bi.booking_id = b.id
     LEFT JOIN route_stops pickup_stop ON pickup_stop.id = b.pickup_stop_id
     LEFT JOIN route_stops dropoff_stop ON dropoff_stop.id = b.dropoff_stop_id
@@ -910,37 +910,33 @@ cron.schedule("*/5 * * * *", async () => {
       SET status = 'completed', completed_at = NOW()
       FROM trips t
       WHERE b.trip_id = t.id
--        AND t.departure_time::timestamp < NOW()::timestamp
-+        AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()
-         AND (
-           b.status = 'confirmed'
-           OR b.paid_at IS NOT NULL
-           OR COALESCE(b.price_paid, 0) > 0
-         )
-          AND b.completed_at IS NULL
-       RETURNING b.id, b.user_id, b.trip_id, t.departure_time
-     `);
+        AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()
+        AND (
+          b.status = 'confirmed'
+          OR b.paid_at IS NOT NULL
+          OR COALESCE(b.price_paid, 0) > 0
+        )
+        AND b.completed_at IS NULL
+      RETURNING b.id, b.user_id, b.trip_id, t.departure_time
+    `);
 
     const completedBookings = completeResult.rows;
 
     // 2️⃣ Cancel unpaid bookings after trip arrival (both online and offline)
-    // ✅ Cancel ALL pending bookings with price_paid = 0 after trip ends
-    // Note: Offline bookings are NOT expired after 10 minutes, but ARE cancelled after trip ends
     const cancelResult = await db.query(`
-       UPDATE bookings b
-       SET status = 'cancelled', cancelled_at = NOW()
-       FROM trips t
-       WHERE b.trip_id = t.id
--        AND t.departure_time::timestamp < NOW()::timestamp
-+        AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()
-         AND b.status = 'pending'
-         AND COALESCE(b.price_paid, 0) = 0
-         AND b.paid_at IS NULL
-         AND b.cancelled_at IS NULL
-       RETURNING b.id, b.user_id, b.trip_id, t.departure_time, b.payment_method
-     `);
+      UPDATE bookings b
+      SET status = 'cancelled', cancelled_at = NOW()
+      FROM trips t
+      WHERE b.trip_id = t.id
+        AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()
+        AND b.status = 'pending'
+        AND COALESCE(b.price_paid, 0) = 0
+        AND b.paid_at IS NULL
+        AND b.cancelled_at IS NULL
+      RETURNING b.id, b.user_id, b.trip_id, t.departure_time, b.payment_method
+    `);
 
-     const cancelledBookings = cancelResult.rows;
+    const cancelledBookings = cancelResult.rows;
 
     // Log results
     if (completedBookings.length === 0 && cancelledBookings.length === 0) {
