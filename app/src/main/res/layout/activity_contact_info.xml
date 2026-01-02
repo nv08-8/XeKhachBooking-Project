@@ -40,21 +40,13 @@
             android:orientation="vertical"
             android:padding="24dp">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Thông tin hành khách"
-                android:textColor="@android:color/black"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="24dp" />
-
             <!-- Full Name -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:boxBackgroundMode="outline"
+                app:boxBackgroundColor="@android:color/white"
                 app:boxCornerRadiusBottomEnd="12dp"
                 app:boxCornerRadiusBottomStart="12dp"
                 app:boxCornerRadiusTopEnd="12dp"
@@ -68,7 +60,7 @@
                     android:layout_height="wrap_content"
                     android:hint="Họ và tên"
                     android:inputType="textPersonName"
-                    android:textSize="16sp" />
+                    android:textSize="17sp" />
 
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -78,6 +70,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:boxBackgroundMode="outline"
+                app:boxBackgroundColor="@android:color/white"
                 app:boxCornerRadiusBottomEnd="12dp"
                 app:boxCornerRadiusBottomStart="12dp"
                 app:boxCornerRadiusTopEnd="12dp"
@@ -91,7 +84,7 @@
                     android:layout_height="wrap_content"
                     android:hint="Số điện thoại"
                     android:inputType="phone"
-                    android:textSize="16sp" />
+                    android:textSize="17sp" />
 
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -101,6 +94,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
                 app:boxBackgroundMode="outline"
+                app:boxBackgroundColor="@android:color/white"
                 app:boxCornerRadiusBottomEnd="12dp"
                 app:boxCornerRadiusBottomStart="12dp"
                 app:boxCornerRadiusTopEnd="12dp"
@@ -114,7 +108,7 @@
                     android:layout_height="wrap_content"
                     android:hint="Email (không bắt buộc)"
                     android:inputType="textEmailAddress"
-                    android:textSize="16sp" />
+                    android:textSize="17sp" />
 
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -179,4 +173,3 @@
     </RelativeLayout>
 
 </LinearLayout>
-

@@ -1,22 +1,26 @@
 package vn.hcmute.busbooking.activity;
 
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.card.MaterialCardView;
 
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -64,7 +68,7 @@ public class SelectPickupPointActivity extends AppCompatActivity {
         tvSubtotal = findViewById(R.id.tvSubtotal);
 
         rvLocations.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new LocationAdapter(new ArrayList<>(), loc -> selectedPickup = loc);
+        adapter = new LocationAdapter(this, new ArrayList<>(), loc -> selectedPickup = loc);
         rvLocations.setAdapter(adapter);
 
         // Display subtotal
@@ -75,8 +79,6 @@ public class SelectPickupPointActivity extends AppCompatActivity {
 
         // Fetch locations
         fetchPickupLocations();
-
-        // RecyclerView adapter handles item clicks and selection
 
         // Handle continue button click
         btnContinue.setOnClickListener(v -> {
@@ -100,7 +102,6 @@ public class SelectPickupPointActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<List<Location>> call, Response<List<Location>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    // Filter for pickup points (avoid using Stream API for minSdk compatibility)
                     pickupLocations = new ArrayList<>();
                     for (Location location : response.body()) {
                         String type = location.getType();
@@ -124,29 +125,15 @@ public class SelectPickupPointActivity extends AppCompatActivity {
         });
     }
 
-    private String formatLocationName(Location location) {
-        String name = location.getName();
-        String address = location.getAddress();
-
-        if (name != null && !name.isEmpty() && address != null && !address.isEmpty()) {
-            return name + " - " + address;
-        } else if (name != null && !name.isEmpty()) {
-            return name;
-        } else if (address != null && !address.isEmpty()) {
-            return address;
-        } else {
-            return "Điểm dừng không tên";
-        }
-    }
-
-    // Simple RecyclerView adapter for Location items with single-selection support
     private static class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.VH> {
         interface OnClick { void onClick(Location loc); }
         private final List<Location> items;
         private final OnClick onClick;
         private int selected = -1;
+        private final Context context;
 
-        LocationAdapter(List<Location> items, OnClick onClick) {
+        LocationAdapter(Context context, List<Location> items, OnClick onClick) {
+            this.context = context;
             this.items = items;
             this.onClick = onClick;
         }
@@ -171,10 +158,7 @@ public class SelectPickupPointActivity extends AppCompatActivity {
             String name = loc.getName();
             String addr = loc.getAddress();
 
-            // Set name (always show, or default text if empty)
             holder.tvName.setText((name != null && !name.isEmpty() ? name : "Không tên"));
-
-            // Set address (show if available, otherwise hide)
             if (addr != null && !addr.isEmpty()) {
                 holder.tvAddress.setText(addr);
                 holder.tvAddress.setVisibility(View.VISIBLE);
@@ -182,7 +166,28 @@ public class SelectPickupPointActivity extends AppCompatActivity {
                 holder.tvAddress.setVisibility(View.GONE);
             }
 
-            holder.itemView.setSelected(pos == selected);
+            // --- UI State Handling ---
+            boolean isSelected = (pos == selected);
+            MaterialCardView card = (MaterialCardView) holder.itemView;
+            
+            holder.rbSelection.setChecked(isSelected);
+            holder.viewIndicator.setVisibility(isSelected ? View.VISIBLE : View.INVISIBLE);
+
+            if (isSelected) {
+                // Selected: Viền xanh, Nền xanh nhạt
+                card.setStrokeColor(ContextCompat.getColor(context, R.color.colorPrimary));
+                card.setStrokeWidth(4);
+                // Use light blue background color (hardcoded or from resources)
+                // Using #DFF2FF similar to the image
+                card.setCardBackgroundColor(Color.parseColor("#DFF2FF"));
+            } else {
+                // Normal: Viền xám nhạt, Nền trắng
+                card.setStrokeColor(Color.parseColor("#E0E0E0"));
+                card.setStrokeWidth(2);
+                card.setCardBackgroundColor(Color.WHITE);
+            }
+
+            // Click listener for the whole card
             holder.itemView.setOnClickListener(v -> {
                 int p = holder.getAdapterPosition();
                 if (p == RecyclerView.NO_POSITION) return;
@@ -192,6 +197,22 @@ public class SelectPickupPointActivity extends AppCompatActivity {
                 notifyItemChanged(selected);
                 if (onClick != null) onClick.onClick(items.get(p));
             });
+
+            // Map button click (Open in Google Maps)
+            holder.llMapAction.setOnClickListener(v -> {
+                if (loc.getAddress() != null && !loc.getAddress().isEmpty()) {
+                    try {
+                        Uri gmmIntentUri = Uri.parse("geo:0,0?q=" + Uri.encode(loc.getAddress()));
+                        Intent mapIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
+                        mapIntent.setPackage("com.google.android.apps.maps");
+                        context.startActivity(mapIntent);
+                    } catch (Exception e) {
+                        Toast.makeText(context, "Không thể mở bản đồ", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                     Toast.makeText(context, "Không có địa chỉ để hiển thị", Toast.LENGTH_SHORT).show();
+                }
+            });
         }
 
         @Override
@@ -200,10 +221,17 @@ public class SelectPickupPointActivity extends AppCompatActivity {
         static class VH extends RecyclerView.ViewHolder {
             TextView tvName;
             TextView tvAddress;
+            RadioButton rbSelection;
+            View viewIndicator;
+            View llMapAction;
+
             VH(View itemView) {
                 super(itemView);
                 tvName = itemView.findViewById(R.id.tvLocationName);
                 tvAddress = itemView.findViewById(R.id.tvLocationAddress);
+                rbSelection = itemView.findViewById(R.id.rbSelection);
+                viewIndicator = itemView.findViewById(R.id.viewSelectionIndicator);
+                llMapAction = itemView.findViewById(R.id.llMapAction);
             }
         }
     }
