@@ -136,7 +136,7 @@ router.post("/trips", checkAdminRole, async (req, res) => {
   try {
     const result = await db.query(
       `INSERT INTO trips (route_id, operator, bus_type, departure_time, arrival_time, price, seats_total, seats_available, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'scheduled', NOW())
        RETURNING *`,
       [route_id, operator, bus_type, departure_time, arrival_time, price, seats_total, seats_total]
     );
