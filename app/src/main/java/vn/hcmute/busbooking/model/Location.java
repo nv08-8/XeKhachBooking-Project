@@ -8,12 +8,21 @@ public class Location implements Parcelable {
     private String name;
     private String address;
     private String type;
+    private double latitude;
+    private double longitude;
 
     public Location(int id, String name, String address, String type) {
         this.id = id;
         this.name = name;
         this.address = address;
         this.type = type;
+        this.latitude = 0;
+        this.longitude = 0;
+    }
+
+    // Default constructor for custom map selections
+    public Location() {
+        this(0, "", "", "");
     }
 
     protected Location(Parcel in) {
@@ -21,6 +30,8 @@ public class Location implements Parcelable {
         name = in.readString();
         address = in.readString();
         type = in.readString();
+        latitude = in.readDouble();
+        longitude = in.readDouble();
     }
 
     public static final Creator<Location> CREATOR = new Creator<Location>() {
@@ -67,6 +78,22 @@ public class Location implements Parcelable {
         this.type = type;
     }
 
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
+    }
+
     @Override
     public int describeContents() {
         return 0;
@@ -78,5 +105,7 @@ public class Location implements Parcelable {
         dest.writeString(name);
         dest.writeString(address);
         dest.writeString(type);
+        dest.writeDouble(latitude);
+        dest.writeDouble(longitude);
     }
 }

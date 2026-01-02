@@ -9,6 +9,8 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -34,10 +36,14 @@ public class SelectPickupPointActivity extends AppCompatActivity {
     private ArrayList<String> seatLabels;
     private RecyclerView rvLocations;
     private Button btnContinue;
+    private Button btnSelectOnMap;
     private TextView tvSubtotal;
     private List<Location> pickupLocations;
     private Location selectedPickup;
     private LocationAdapter adapter;
+
+    // Activity result launcher for map selection
+    private ActivityResultLauncher<Intent> mapSelectionLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +67,7 @@ public class SelectPickupPointActivity extends AppCompatActivity {
         // Initialize views
         rvLocations = findViewById(R.id.rvLocations);
         btnContinue = findViewById(R.id.btnContinue);
+        btnSelectOnMap = findViewById(R.id.btnSelectOnMap);
         tvSubtotal = findViewById(R.id.tvSubtotal);
 
         rvLocations.setLayoutManager(new LinearLayoutManager(this));
@@ -76,7 +83,34 @@ public class SelectPickupPointActivity extends AppCompatActivity {
         // Fetch locations
         fetchPickupLocations();
 
-        // RecyclerView adapter handles item clicks and selection
+        // Setup map selection launcher
+        mapSelectionLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        double lat = result.getData().getDoubleExtra("selected_lat", 0.0);
+                        double lng = result.getData().getDoubleExtra("selected_lng", 0.0);
+                        String address = result.getData().getStringExtra("selected_address");
+
+                        // Create a custom location from map selection
+                        selectedPickup = new Location(0, "Vị trí tùy chỉnh", address, "custom");
+                        selectedPickup.setLatitude(lat);
+                        selectedPickup.setLongitude(lng);
+
+                        // Scroll to top and show selected
+                        rvLocations.scrollToPosition(0);
+                        Toast.makeText(SelectPickupPointActivity.this,
+                            "Đã chọn: " + address,
+                            Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
+
+        // Handle map selection button
+        btnSelectOnMap.setOnClickListener(v -> {
+            Intent mapIntent = new Intent(this, SelectLocationMapActivity.class);
+            mapSelectionLauncher.launch(mapIntent);
+        });
 
         // Handle continue button click
         btnContinue.setOnClickListener(v -> {

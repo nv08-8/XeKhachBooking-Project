@@ -9,6 +9,8 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -36,10 +38,14 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
     private Location selectedPickup;
     private RecyclerView rvLocations;
     private Button btnContinue;
+    private Button btnSelectOnMap;
     private TextView tvSubtotal;
     private List<Location> dropoffLocations;
     private Location selectedDropoff;
     private LocationAdapter adapter;
+
+    // Activity result launcher for map selection
+    private ActivityResultLauncher<Intent> mapSelectionLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,6 +70,7 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
         // Initialize views
         rvLocations = findViewById(R.id.rvLocations);
         btnContinue = findViewById(R.id.btnContinue);
+        btnSelectOnMap = findViewById(R.id.btnSelectOnMap);
         tvSubtotal = findViewById(R.id.tvSubtotal);
 
         rvLocations.setLayoutManager(new LinearLayoutManager(this));
@@ -78,6 +85,35 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
 
         // Fetch locations
         fetchDropoffLocations();
+
+        // Setup map selection launcher
+        mapSelectionLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        double lat = result.getData().getDoubleExtra("selected_lat", 0.0);
+                        double lng = result.getData().getDoubleExtra("selected_lng", 0.0);
+                        String address = result.getData().getStringExtra("selected_address");
+
+                        // Create a custom location from map selection
+                        selectedDropoff = new Location(0, "Vị trí tùy chỉnh", address, "custom");
+                        selectedDropoff.setLatitude(lat);
+                        selectedDropoff.setLongitude(lng);
+
+                        // Scroll to top and show selected
+                        rvLocations.scrollToPosition(0);
+                        Toast.makeText(SelectDropoffPointActivity.this,
+                            "Đã chọn: " + address,
+                            Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
+
+        // Handle map selection button
+        btnSelectOnMap.setOnClickListener(v -> {
+            Intent mapIntent = new Intent(this, SelectLocationMapActivity.class);
+            mapSelectionLauncher.launch(mapIntent);
+        });
 
         // Handle continue button click
         btnContinue.setOnClickListener(v -> {

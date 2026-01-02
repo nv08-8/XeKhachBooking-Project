@@ -28,6 +28,16 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
+    <!-- Map Toggle Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnSelectOnMap"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_margin="12dp"
+        android:text="📍 Chọn trên bản đồ"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
     <!-- Locations List -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvLocations"
