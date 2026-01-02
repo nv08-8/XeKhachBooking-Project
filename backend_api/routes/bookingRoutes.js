@@ -240,7 +240,7 @@ router.get('/bookings/my', async (req, res) => {
   const sql = `
     SELECT b.id, b.status, b.price_paid, b.created_at, b.total_amount, b.payment_method,
            b.passenger_info, COALESCE(b.booking_code, '') as booking_code,
-           t.departure_time, t.arrival_time, t.operator, t.bus_type,
+           t.id AS trip_id, t.departure_time, t.arrival_time, t.operator, t.bus_type, t.status AS trip_status,
            r.origin, r.destination,
            pickup_stop.name AS pickup_location,
            dropoff_stop.name AS dropoff_location,
@@ -286,7 +286,7 @@ router.get('/bookings/:id', async (req, res) => {
            b.status, b.metadata, b.pickup_stop_id, b.dropoff_stop_id, b.payment_method,
            b.passenger_info, b.created_at, b.paid_at, b.cancelled_at, b.expired_at,
            b.price_paid, COALESCE(b.booking_code, '') as booking_code,
-           t.departure_time, t.arrival_time, t.operator, t.bus_type, t.price AS seat_price,
+           t.departure_time, t.arrival_time, t.operator, t.bus_type, t.price AS seat_price, t.status AS trip_status,
            r.origin, r.destination,
            u.name AS passenger_name, u.phone AS passenger_phone,
            pickup_stop.name AS pickup_location, pickup_stop.address AS pickup_address,
@@ -303,7 +303,7 @@ router.get('/bookings/:id', async (req, res) => {
     LEFT JOIN route_stops pickup_stop ON pickup_stop.id = b.pickup_stop_id
     LEFT JOIN route_stops dropoff_stop ON dropoff_stop.id = b.dropoff_stop_id
     WHERE b.id=$1
-    GROUP BY b.id, t.id, t.departure_time, t.arrival_time, t.operator, t.bus_type, t.price,
+    GROUP BY b.id, t.id, t.departure_time, t.arrival_time, t.operator, t.bus_type, t.price, t.status,
              r.id, r.origin, r.destination,
              u.id, u.name, u.phone,
              pickup_stop.id, pickup_stop.name, pickup_stop.address,

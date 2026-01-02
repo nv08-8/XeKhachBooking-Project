@@ -177,44 +177,28 @@ router.put("/trips/:id", checkAdminRole, async (req, res) => {
   }
 });
 
-// 3. Xóa chuyến xe
+// 3. Xóa/Hủy chuyến xe
 router.delete("/trips/:id", checkAdminRole, async (req, res) => {
   const { id } = req.params;
-  const client = await db.connect();
 
   try {
-    await client.query("BEGIN");
-
-    // Step 1: Set trip_id to NULL in bookings FIRST (để tránh foreign key violation)
-    await client.query("UPDATE bookings SET trip_id=NULL WHERE trip_id=$1", [id]);
-
-    // Step 2: Delete all booking_items (vì bookings vẫn tồn tại để lưu lịch sử)
-    // Note: Không cần xóa vì booking_items tham chiếu bookings, không tham chiếu trips
-    // Nhưng nếu muốn xóa sạch booking_items, hãy bỏ comment dòng dưới:
-    // await client.query("DELETE FROM booking_items WHERE booking_id IN (SELECT id FROM bookings WHERE trip_id IS NULL)", []);
-
-    // Step 3: Delete seats
-    await client.query("DELETE FROM seats WHERE trip_id=$1", [id]);
-
-    // Step 4: Delete the trip itself
-    const result = await client.query("DELETE FROM trips WHERE id=$1 RETURNING id", [id]);
+    // Cập nhật status thành 'cancelled' thay vì xóa (để giữ lịch sử)
+    const result = await db.query(
+      "UPDATE trips SET status=$1 WHERE id=$2 RETURNING id",
+      ['cancelled', id]
+    );
 
     if (!result.rows.length) {
-      await client.query("ROLLBACK");
-      client.release();
       return res.status(404).json({ message: "Chuyến xe không tìm thấy" });
     }
 
-
-    await client.query("COMMIT");
-    client.release();
-
-    res.json({ message: "Xóa chuyến xe thành công. Lịch sử đặt vé vẫn được giữ lại." });
+    res.json({
+      message: "Chuyến xe đã được hủy. Khách hàng sẽ nhận được thông báo hoàn tiền.",
+      trip_id: result.rows[0].id
+    });
   } catch (err) {
-    try { await client.query("ROLLBACK"); } catch (e) {}
-    client.release();
-    console.error("Error deleting trip:", err);
-    res.status(500).json({ message: "Lỗi khi xóa chuyến xe" });
+    console.error("Error cancelling trip:", err);
+    res.status(500).json({ message: "Lỗi khi hủy chuyến xe" });
   }
 });
 

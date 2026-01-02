@@ -44,7 +44,8 @@ const getTrips = async (req, res) => {
   const params = [];
 
   // Filter out past trips - only show trips that haven't departed yet
-  sql += " AND t.departure_time > NOW()";
+  // Also exclude cancelled trips from public view
+  sql += " AND t.departure_time > NOW() AND t.status != 'cancelled'";
 
   if (route_id) { sql += " AND t.route_id = $" + (params.length + 1); params.push(route_id); }
   if (origin) { sql += " AND r.origin ILIKE $" + (params.length + 1); params.push(`%${origin}%`); }
