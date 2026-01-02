@@ -910,39 +910,33 @@ cron.schedule("*/5 * * * *", async () => {
       SET status = 'completed', completed_at = NOW()
       FROM trips t
       WHERE b.trip_id = t.id
--        AND t.departure_time::timestamp < NOW()::timestamp
-+        AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()
-         AND (
-           b.status = 'confirmed'
-           OR b.paid_at IS NOT NULL
-           OR COALESCE(b.price_paid, 0) > 0
-         )
-          AND b.completed_at IS NULL
-       RETURNING b.id, b.user_id, b.trip_id, t.departure_time
-     `);
-     `);
+        AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()
+        AND (
+          b.status = 'confirmed'
+          OR b.paid_at IS NOT NULL
+          OR COALESCE(b.price_paid, 0) > 0
+        )
+        AND b.completed_at IS NULL
+      RETURNING b.id, b.user_id, b.trip_id, t.departure_time
+    `);
 
     const completedBookings = completeResult.rows;
 
     // 2️⃣ Cancel unpaid bookings after trip arrival (both online and offline)
-    // ✅ Cancel ALL pending bookings with price_paid = 0 after trip ends
-    // Note: Offline bookings are NOT expired after 10 minutes, but ARE cancelled after trip ends
-       UPDATE bookings b
-       SET status = 'cancelled', cancelled_at = NOW()
-       FROM trips t
-       WHERE b.trip_id = t.id
--        AND t.departure_time::timestamp < NOW()::timestamp
-+        AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()
-         AND b.status = 'pending'
-         AND COALESCE(b.price_paid, 0) = 0
-         AND b.paid_at IS NULL
-         AND b.cancelled_at IS NULL
-       RETURNING b.id, b.user_id, b.trip_id, t.departure_time, b.payment_method
-     `);
-       RETURNING b.id, b.user_id, b.trip_id, t.departure_time, b.payment_method
-     const cancelledBookings = cancelResult.rows;
+    const cancelResult = await db.query(`
+      UPDATE bookings b
+      SET status = 'cancelled', cancelled_at = NOW()
+      FROM trips t
+      WHERE b.trip_id = t.id
+        AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()
+        AND b.status = 'pending'
+        AND COALESCE(b.price_paid, 0) = 0
+        AND b.paid_at IS NULL
+        AND b.cancelled_at IS NULL
+      RETURNING b.id, b.user_id, b.trip_id, t.departure_time, b.payment_method
+    `);
 
-     const cancelledBookings = cancelResult.rows;
+    const cancelledBookings = cancelResult.rows;
 
     // Log results
     if (completedBookings.length === 0 && cancelledBookings.length === 0) {
