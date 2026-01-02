@@ -265,8 +265,8 @@ async function expirePendingBookings() {
                     // Online payment: expire if TTL passed
                     if (now > ttlLimit) {
                         shouldCancel = true;
-                        newStatus = 'expired'; // More accurate status for timeout
-                        console.log(`❌ [EXPIRE-YES] Booking #${booking.id} will be expired (online payment timeout)`);
+                        newStatus = 'cancelled'; // directly cancel (we no longer use 'expired' status)
+                        console.log(`❌ [EXPIRE-YES] Booking #${booking.id} will be cancelled (online payment timeout)`);
                     }
                 } else {
                     // Offline/Cash: Do NOT expire automatically
@@ -338,16 +338,17 @@ async function expirePendingBookings() {
                 }
 
                 // Mark booking as expired/cancelled (prefer update with expired_at if column exists) instead of deleting
+                // Prefer to set cancelled_at if column exists
                 const colCheck = await client.query(`
                   SELECT column_name
                   FROM information_schema.columns
                   WHERE table_name = 'bookings'
-                  AND column_name IN ('expired_at')
+                  AND column_name IN ('cancelled_at')
                 `);
 
                 if (colCheck.rowCount > 0) {
                   await client.query(
-                    "UPDATE bookings SET status=$1, expired_at=NOW() WHERE id=$2",
+                    "UPDATE bookings SET status=$1, cancelled_at=NOW() WHERE id=$2",
                     [newStatus, bookingId]
                   );
                 } else {
@@ -381,57 +382,217 @@ async function expirePendingBookings() {
 }
 
 // ====================================================================
-// OLD BACKGROUND JOB - COMMENTED OUT (Replaced by cron job)
+// BACKGROUND JOB - handle bookings when arrival_time has passed
+// - If booking is pending and NOT paid -> cancel + release seats
+// - If booking is confirmed or is paid -> mark completed
+// This replaces the old commented-out job and runs at startup + interval
 // ====================================================================
-/*
-// Background job: mark confirmed bookings as completed when arrival_time has passed
 const COMPLETE_CHECK_INTERVAL_MS = 60 * 1000; // run every minute
 
-async function completeFinishedBookings() {
+async function processArrivalTimeBookings() {
     try {
-        // Find confirmed bookings where arrival_time < NOW
+        console.log('[CRON] processArrivalTimeBookings running...');
         const sql = `
-            SELECT b.id, b.user_id, b.trip_id, b.status
+            SELECT b.id, b.user_id, b.trip_id, b.status, b.metadata, b.payment_method, b.paid_at, b.created_at
             FROM bookings b
             JOIN trips t ON t.id = b.trip_id
-            WHERE b.status = 'confirmed' AND t.arrival_time < NOW()
+            -- Interpret stored departure_time as Asia/Ho_Chi_Minh (local VN time) when comparing to NOW()
+            WHERE (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()
+            AND b.status IN ('pending','confirmed')
         `;
+
         const { rows } = await db.query(sql);
+        console.log(`[CRON] processArrivalTimeBookings: found ${rows ? rows.length : 0} candidate bookings`);
         if (!rows || rows.length === 0) return;
 
-        for (const booking of rows) {
+        for (const r of rows) {
+            const bookingId = r.id;
+            const client = await db.connect();
             try {
-                // Update booking status to completed
-                await db.query(
-                    "UPDATE bookings SET status='completed' WHERE id=$1",
-                    [booking.id]
-                );
+                await client.query('BEGIN');
 
-                // Emit booking_event to user's room
-                io.to(`user_${booking.user_id}`).emit('booking_event', {
-                    id: booking.id,
-                    trip_id: booking.trip_id,
-                    status: 'completed'
-                });
+                // Lock booking row
+                const bRes = await client.query('SELECT * FROM bookings WHERE id=$1 FOR UPDATE', [bookingId]);
+                if (!bRes.rowCount) {
+                    await client.query('ROLLBACK');
+                    client.release();
+                    console.warn(`[CRON] booking id=${bookingId} disappeared before locking`);
+                    continue;
+                }
+                const booking = bRes.rows[0];
 
-                console.log(`Marked booking id=${booking.id} as completed (arrival_time passed)`);
+                // Parse metadata safely if it's stored as JSON string
+                if (booking.metadata && typeof booking.metadata === 'string') {
+                    try {
+                        booking.metadata = JSON.parse(booking.metadata);
+                    } catch (e) {
+                        // keep original string but log parse failure
+                        console.warn(`[CRON] booking id=${bookingId} metadata JSON parse failed:`, e.message || e);
+                    }
+                }
+
+                // Double-check trip arrival_time (in case it changed)
+                // Ask DB whether departure_time has passed (avoid JS parsing/timezone issues)
+                const tRes = await client.query("SELECT departure_time, NOW() AS now, ((departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()) AS has_passed FROM trips WHERE id=$1", [booking.trip_id]);
+                if (!tRes.rowCount) {
+                    await client.query('ROLLBACK');
+                    client.release();
+                    console.warn(`[CRON] booking id=${bookingId} trip missing (trip_id=${booking.trip_id})`);
+                    continue;
+                }
+                const departureTime = tRes.rows[0].departure_time;
+                const dbNow = tRes.rows[0].now;
+                const hasPassed = tRes.rows[0].has_passed === true || tRes.rows[0].has_passed === 't';
+                console.log(`[CRON] booking id=${bookingId} status=${booking.status} departure_time=${departureTime} DB_Now=${dbNow} has_passed=${hasPassed} paid_at=${booking.paid_at}`);
+
+                if (!departureTime) {
+                    await client.query('ROLLBACK');
+                    client.release();
+                    console.warn(`[CRON] booking id=${bookingId} skipped: departure_time is null`);
+                    continue;
+                }
+
+                if (!hasPassed) {
+                    await client.query('ROLLBACK');
+                    client.release();
+                    console.warn(`[CRON] booking id=${bookingId} skipped: DB reports departure_time not passed (departure_time=${departureTime}, now=${dbNow})`);
+                    continue;
+                }
+
+                // Determine if booking is considered "paid"
+                let isPaid = false;
+                // Prefer explicit paid_at column if present
+                if (booking.paid_at) isPaid = true;
+
+                // metadata.payment.status or other flags
+                if (!isPaid && booking.metadata && booking.metadata.payment) {
+                    const mp = booking.metadata.payment;
+                    if (mp.status && String(mp.status).toLowerCase() === 'paid') isPaid = true;
+                    else if (mp.paid === true) isPaid = true;
+                    else if (mp.orderCode && (mp.state && String(mp.state).toLowerCase() === 'paid')) isPaid = true;
+                }
+
+                // Also treat already-confirmed bookings as effectively paid/attended
+                if (booking.status === 'confirmed') isPaid = true;
+
+                if (isPaid) {
+                    console.log(`[CRON] booking id=${bookingId} considered PAID/CONFIRMED -> marking completed`);
+                    // Mark as completed
+                    try {
+                        await client.query("UPDATE bookings SET status='completed' WHERE id=$1", [bookingId]);
+                        io.to(`user_${booking.user_id}`).emit('booking_event', {
+                            id: bookingId,
+                            trip_id: booking.trip_id,
+                            status: 'completed'
+                        });
+                        await client.query('COMMIT');
+                        client.release();
+                        console.log(`Marked booking id=${bookingId} as completed (departure_time passed)`);
+                     } catch (e) {
+                         await client.query('ROLLBACK');
+                         client.release();
+                         console.error('Failed to mark booking completed id=' + bookingId, e.message || e);
+                     }
+                     continue;
+                 }
+
+                 // Not paid -> cancel and release seats
+                 console.log(`[CRON] booking id=${bookingId} not paid -> will cancel and release seats`);
+                 let seatLabels = [];
+                try {
+                    const items = await client.query('SELECT seat_code FROM booking_items WHERE booking_id=$1', [bookingId]);
+                    if (items && items.rowCount) seatLabels = items.rows.map(r => r.seat_code).filter(Boolean);
+                } catch (e) {
+                    console.warn('Could not read booking_items for booking', bookingId, e.message || e);
+                }
+
+                if ((!seatLabels || seatLabels.length === 0)) {
+                    if (booking.seat_label) seatLabels = [booking.seat_label];
+                    else if (booking.seat) seatLabels = [booking.seat];
+                    else if (booking.seat_labels) {
+                        try {
+                            if (Array.isArray(booking.seat_labels)) seatLabels = booking.seat_labels;
+                            else if (typeof booking.seat_labels === 'string') seatLabels = JSON.parse(booking.seat_labels || '[]');
+                            else seatLabels = String(booking.seat_labels).split(',').map(s => s.trim()).filter(Boolean);
+                        } catch (e) {
+                            console.warn('Could not parse booking.seat_labels for', bookingId, e.message || e);
+                            seatLabels = [];
+                        }
+                    }
+                }
+
+                let releasedCount = 0;
+                for (const label of seatLabels) {
+                    try {
+                        const u = await client.query('UPDATE seats SET is_booked=0, booking_id=NULL WHERE trip_id=$1 AND label=$2 RETURNING id', [booking.trip_id, label]);
+                        if (u.rowCount) releasedCount += u.rowCount;
+                    } catch (e) {
+                        console.warn(`Failed to release seat "${label}" for booking ${bookingId}: ${e.message || e}`);
+                    }
+                }
+
+                if (releasedCount === 0) {
+                    try {
+                        const res2 = await client.query('UPDATE seats SET is_booked=0, booking_id=NULL WHERE booking_id=$1 RETURNING id', [bookingId]);
+                        releasedCount = res2.rowCount || 0;
+                    } catch (e) {
+                        console.warn('Fallback release by booking_id failed for', bookingId, e.message || e);
+                    }
+                }
+
+                if (releasedCount > 0) {
+                    await client.query('UPDATE trips SET seats_available = seats_available + $1 WHERE id = $2', [releasedCount, booking.trip_id]);
+                }
+
+                // Mark booking as cancelled (use cancelled_at if available)
+                try {
+                    const colCheck = await client.query(`
+                      SELECT column_name
+                      FROM information_schema.columns
+                      WHERE table_name = 'bookings'
+                      AND column_name IN ('cancelled_at')
+                    `);
+
+                    if (colCheck.rowCount > 0) {
+                      await client.query("UPDATE bookings SET status=$1, cancelled_at=NOW() WHERE id=$2", ['cancelled', bookingId]);
+                    } else {
+                      await client.query("UPDATE bookings SET status=$1 WHERE id=$2", ['cancelled', bookingId]);
+                    }
+
+                    io.to(`user_${booking.user_id}`).emit('booking_event', {
+                        id: bookingId,
+                        trip_id: booking.trip_id,
+                        seat_labels: seatLabels,
+                        status: 'cancelled'
+                    });
+
+                    await client.query('COMMIT');
+                    client.release();
+                    console.log(`Auto-cancelled pending booking id=${bookingId} (departure_time passed), released=${releasedCount} seats`);
+                } catch (e) {
+                    await client.query('ROLLBACK');
+                    client.release();
+                    console.error('Failed to cancel booking id=' + bookingId, e.message || e);
+                }
             } catch (err) {
-                console.error('Failed to complete booking id=' + booking.id, err.message || err);
+                try { await client.query('ROLLBACK'); } catch (e) { /* ignore */ }
+                client.release();
+                console.error('Processing booking on arrival_time failed for id=' + bookingId, err.message || err);
             }
         }
     } catch (err) {
-        console.error('completeFinishedBookings failed:', err.message || err);
+        console.error('processArrivalTimeBookings failed:', err.message || err);
     }
 }
-*/
-// ====================================================================
 
 // Start intervals
 setInterval(expirePendingBookings, EXPIRE_CHECK_INTERVAL_MS);
+setInterval(processArrivalTimeBookings, COMPLETE_CHECK_INTERVAL_MS);
 // setInterval(completeFinishedBookings, COMPLETE_CHECK_INTERVAL_MS); // Commented out - using cron job instead
 
 // Run once at startup
 expirePendingBookings();
+processArrivalTimeBookings();
 // completeFinishedBookings(); // Commented out - using cron job instead
 
 // Start HTTP server (Express + Socket.IO)

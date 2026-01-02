@@ -564,9 +564,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="12dp"
                         app:cardCornerRadius="12dp"
-                        app:cardElevation="0dp"
-                        app:strokeWidth="2dp"
-                        app:strokeColor="#007AFF">
+                        app:cardElevation="0dp">
 
                         <RelativeLayout
                             android:layout_width="match_parent"
@@ -679,7 +677,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/card_number_hint"
+                        android:text="Số thẻ"
                         android:layout_marginBottom="8dp"/>
                     <EditText
                         android:id="@+id/etCardNumber"
@@ -710,7 +708,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/expiry_hint"
+                                android:text="Tháng/Năm hết hạn"
                                 android:layout_marginBottom="8dp"/>
                             <EditText
                                 android:id="@+id/etExpiryDate"
@@ -732,7 +730,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/cvv_hint"
+                                android:text="CVV"
                                 android:layout_marginBottom="8dp"/>
                             <EditText
                                 android:id="@+id/etCvv"

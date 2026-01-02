@@ -811,5 +811,106 @@
 
         </LinearLayout>
 
+        <!-- Insert an inline card payment form (hidden by default) so users can enter card details directly in BookingDetailActivity -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardInlineCardPayment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="@android:color/white">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Thanh toán bằng thẻ"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Số thẻ"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="4dp" />
+                <EditText
+                    android:id="@+id/edtCardNumberDetail"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:hint="VD: 4111 1111 1111 1111"
+                    android:inputType="number"
+                    android:padding="8dp"
+                    android:background="@drawable/bg_edit_text" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="12dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Tháng/Năm hết hạn"
+                            android:layout_marginBottom="4dp" />
+                        <EditText
+                            android:id="@+id/edtExpiryDetail"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:hint="MM/YY"
+                            android:inputType="text"
+                            android:padding="8dp"
+                            android:background="@drawable/bg_edit_text" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:layout_marginStart="8dp">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="CVV"
+                            android:layout_marginBottom="4dp" />
+                        <EditText
+                            android:id="@+id/edtCvvDetail"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:hint="3 hoặc 4 chữ số"
+                            android:inputType="numberPassword"
+                            android:padding="8dp"
+                            android:background="@drawable/bg_edit_text" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPayWithCardDetail"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="12dp"
+                    android:text="Thanh toán bằng thẻ"
+                    app:cornerRadius="8dp" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
     </LinearLayout>
 </ScrollView>

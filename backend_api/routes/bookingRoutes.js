@@ -48,6 +48,17 @@ const rollbackAndRelease = async (client) => {
   }
 };
 
+// Helper to generate ISO-like timestamp without trailing Z (UTC-based, no timezone shift)
+function formatLocalISO(date = new Date()) {
+  // Return the UTC ISO string but without the trailing 'Z' so we don't force UTC interpretation on clients.
+  // This preserves the hour as stored (e.g., '2026-01-01T09:00:00.000Z' -> '2026-01-01T09:00:00.000').
+  try {
+    return (date instanceof Date ? date.toISOString() : new Date(date).toISOString()).replace(/Z$/, '');
+  } catch (e) {
+    return String(date);
+  }
+}
+
 // POST /bookings - Create a new booking with multiple seats
 router.post("/bookings", async (req, res) => {
   const { user_id, trip_id, seat_labels, promotion_code, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_name, passenger_phone, passenger_email } = req.body;
@@ -72,7 +83,8 @@ router.post("/bookings", async (req, res) => {
 
     // Check if trip exists and hasn't departed yet
     const tripResult = await client.query(
-      'SELECT t.price, t.seats_available, t.departure_time, t.arrival_time FROM trips t WHERE t.id=$1 FOR UPDATE',
+      `SELECT t.price, t.seats_available, t.departure_time, t.arrival_time, ((t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') <= NOW()) AS has_departed
+       FROM trips t WHERE t.id=$1 FOR UPDATE`,
       [trip_id]
     );
     if (!tripResult.rowCount) {
@@ -85,9 +97,7 @@ router.post("/bookings", async (req, res) => {
     const requiredSeats = seat_labels.length;
 
     // Prevent booking if trip has already departed
-    const now = new Date();
-    const departureTime = new Date(trip.departure_time);
-    if (departureTime <= now) {
+    if (trip.has_departed) {
       await rollbackAndRelease(client);
       return res.status(400).json({
         message: 'Cannot book this trip - it has already departed',
@@ -220,9 +230,10 @@ router.get('/bookings/my', async (req, res) => {
     // Tab "Hiện tại": All bookings in last 3 months (all statuses including cancelled, pending, etc.)
     whereClause += ` AND b.created_at >= NOW() - INTERVAL '3 months'`;
   } else if (tab === 'completed') {
-    // Tab "Đã đi": Only completed trips (arrival_time passed and status = 'completed')
+    // Tab "Đã đi": Only completed trips (departure_time passed and status = 'completed')
     // Excludes cancelled bookings
-    whereClause += ` AND t.arrival_time < NOW() AND b.status = 'completed'`;
+    // Interpret stored departure_time as Asia/Ho_Chi_Minh (local VN time)
+    whereClause += ` AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW() AND b.status = 'completed'`;
   }
   // If no tab specified, return all bookings (backwards compatibility)
 
@@ -253,7 +264,14 @@ router.get('/bookings/my', async (req, res) => {
     if (rows.length > 0) {
       console.log(`   First booking: #${rows[0].id}, status: ${rows[0].status}, route: ${rows[0].origin} → ${rows[0].destination}`);
     }
-    res.json(rows);
+    // Format departure_time and arrival_time to local ISO without trailing Z
+    const formattedRows = rows.map(r => ({
+      ...r,
+      departure_time: r.departure_time ? formatLocalISO(new Date(r.departure_time)) : r.departure_time,
+      arrival_time: r.arrival_time ? formatLocalISO(new Date(r.arrival_time)) : r.arrival_time,
+      created_at: r.created_at ? formatLocalISO(new Date(r.created_at)) : r.created_at
+    }));
+    res.json(formattedRows);
   } catch (err) {
     console.error('❌ Failed to fetch bookings:', err);
     res.status(500).json({ message: 'Failed to fetch bookings' });
@@ -309,6 +327,12 @@ router.get('/bookings/:id', async (req, res) => {
     booking.discount_amount = discountAmount;
     booking.promo_code = booking.promotion_code; // Alias for consistency
 
+    // Format trip times and created_at/published times to local ISO without trailing Z
+    if (booking.departure_time) booking.departure_time = formatLocalISO(new Date(booking.departure_time));
+    if (booking.arrival_time) booking.arrival_time = formatLocalISO(new Date(booking.arrival_time));
+    if (booking.created_at) booking.created_at = formatLocalISO(new Date(booking.created_at));
+    if (booking.paid_at) booking.paid_at = formatLocalISO(new Date(booking.paid_at));
+
     res.json(booking);
   } catch (err) {
     console.error('Failed to fetch booking:', err);
@@ -337,8 +361,10 @@ router.post('/bookings/:id/cancel', async (req, res) => {
       return res.status(409).json({ message: 'Cannot cancel this booking' });
     }
 
-    const hoursUntilDeparture = (new Date(booking.departure_time) - new Date()) / 36e5;
-    if (hoursUntilDeparture <= 2) {
+    // Compute hours until departure using DB to avoid timezone issues
+    const deltaRes = await client.query("SELECT EXTRACT(EPOCH FROM ((t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') - NOW()))/3600.0 AS hours_until FROM trips t WHERE t.id=$1", [booking.trip_id]);
+    const hoursUntilDeparture = deltaRes && deltaRes.rows && deltaRes.rows[0] ? Number(deltaRes.rows[0].hours_until) : null;
+    if (hoursUntilDeparture === null || hoursUntilDeparture <= 2) {
         await rollbackAndRelease(client);
         return res.status(409).json({ message: 'Cannot cancel within 2 hours of departure', canCancel: false });
     }
@@ -385,6 +411,57 @@ router.post('/bookings/:id/cancel', async (req, res) => {
 router.post('/bookings/:id/payment', async (req, res) => {
   const { id } = req.params;
   const { payment_method } = req.body || {};
+
+  // Helper: simple Luhn implementation
+  function luhnCheck(number) {
+    if (!number) return false;
+    const s = String(number).replace(/\D/g, '');
+    if (s.length < 12 || s.length > 19) return false;
+    let sum = 0;
+    let alt = false;
+    for (let i = s.length - 1; i >= 0; i--) {
+      let n = parseInt(s.charAt(i), 10);
+      if (alt) {
+        n *= 2;
+        if (n > 9) n = (n % 10) + 1;
+      }
+      sum += n;
+      alt = !alt;
+    }
+    return (sum % 10) === 0;
+  }
+
+  // Helper: expiry validator MM/YY or MM/YYYY
+  function expiryValid(expiry) {
+    if (!expiry) return false;
+    expiry = String(expiry).trim();
+    let parts = null;
+    if (expiry.indexOf('/') !== -1) parts = expiry.split('/');
+    else if (expiry.indexOf('-') !== -1) parts = expiry.split('-');
+    else if (expiry.length === 4) parts = [expiry.substring(0,2), expiry.substring(2)];
+    if (!parts || parts.length < 2) return false;
+    const month = parseInt(parts[0], 10);
+    let year = parseInt(parts[1], 10);
+    if (isNaN(month) || isNaN(year)) return false;
+    if (month < 1 || month > 12) return false;
+    if (year < 100) year += 2000;
+    // end of month
+    const now = new Date();
+    const exp = new Date(year, month, 0, 23, 59, 59, 999); // last ms of month
+    return exp.getTime() > now.getTime();
+  }
+
+  // Simulated card gateway
+  async function simulateCardCharge(amount, cardNumber) {
+    // simple simulation: decline if last4 == '0000'
+    const s = String(cardNumber).replace(/\D/g, '');
+    const last4 = s.slice(-4);
+    if (last4 === '0000') return { success: false, reason: 'card_declined' };
+    // success: return transaction id and brand
+    const brand = s.charAt(0) === '4' ? 'Visa' : (s.charAt(0) === '5' ? 'MasterCard' : 'Card');
+    return { success: true, transaction_id: 'sim_txn_' + Date.now(), brand, last4 };
+  }
+
   const client = await beginTransaction();
   try {
     await client.query('BEGIN');
@@ -404,21 +481,77 @@ router.post('/bookings/:id/payment', async (req, res) => {
       return res.status(409).json({ message: 'Booking cannot be confirmed', status: booking.status });
     }
 
-    // Determine final status based on payment method
-    // For offline/cash payments, keep status as 'pending' to indicate waiting for in-person confirmation
-    // For online payments (card, QR), set status to 'confirmed'
+    // If payment method is card, validate card fields from body
     const normalizedMethod = (payment_method || booking.payment_method || 'card').toLowerCase();
     const isOfflinePayment = ['cash', 'offline', 'cod', 'counter'].includes(normalizedMethod);
-    const finalStatus = isOfflinePayment ? 'pending' : 'confirmed';
 
-    // For offline payments, don't mark as paid yet; for online payments, record full payment
+    if (normalizedMethod === 'card') {
+      const { card_number, expiry, cvv } = req.body || {};
+      // Validate presence
+      if (!card_number || !expiry || !cvv) {
+        await rollbackAndRelease(client);
+        return res.status(400).json({ message: 'Missing card information' });
+      }
+      // Server-side validation
+      if (!luhnCheck(card_number)) {
+        await rollbackAndRelease(client);
+        return res.status(400).json({ message: 'Invalid card number' });
+      }
+      if (!expiryValid(expiry)) {
+        await rollbackAndRelease(client);
+        return res.status(400).json({ message: 'Card expired or invalid expiry' });
+      }
+      if (!/^[0-9]{3,4}$/.test(String(cvv))) {
+        await rollbackAndRelease(client);
+        return res.status(400).json({ message: 'Invalid CVV' });
+      }
+
+      // Simulate charging the card (dev-only). Use booking.total_amount as amount
+      const amount = Number(booking.total_amount) || 0;
+      const chargeResult = await simulateCardCharge(amount, card_number);
+      if (!chargeResult.success) {
+        await rollbackAndRelease(client);
+        return res.status(402).json({ error: 'payment_failed', reason: chargeResult.reason });
+      }
+
+      // On success: update booking as confirmed and set price_paid, paid_at
+      const finalStatus = 'confirmed';
+      const paidAmount = Number(booking.total_amount) || 0;
+
+      try {
+        await client.query(
+          `UPDATE bookings SET status=$1, price_paid=$2, payment_method=$3, paid_at=NOW() WHERE id=$4`,
+          [finalStatus, paidAmount, normalizedMethod, id]
+        );
+      } catch (updateErr) {
+        console.error(`[bookings/${id}/payment] Main update failed:`, updateErr.message);
+        throw updateErr;
+      }
+
+      // Add safe metadata: last4, brand, gateway id (do not store full PAN or CVV)
+      const safeMeta = { card: { brand: chargeResult.brand, last4: chargeResult.last4, gateway_transaction_id: chargeResult.transaction_id } };
+      try {
+        await client.query(
+          `UPDATE bookings SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb WHERE id=$2`,
+          [JSON.stringify({ payment: safeMeta }), id]
+        );
+      } catch (metaErr) {
+        console.warn(`[bookings/${id}/payment] Metadata update warning:`, metaErr.message);
+      }
+
+      await client.query('COMMIT');
+      client.release();
+      console.log(`[bookings/${id}/payment] ✅ Card payment simulated and booking confirmed`);
+      return res.json({ message: 'Payment confirmed', booking_id: Number(id), status: finalStatus, paidAmount });
+    }
+
+    // Non-card flow: existing behavior
+    const finalStatus = isOfflinePayment ? 'pending' : 'confirmed';
     const paidAmount = isOfflinePayment ? 0 : (Number(booking.total_amount) || 0);
     const paymentMeta = { method: normalizedMethod, note: isOfflinePayment ? 'Waiting for counter payment' : 'Online payment confirmed' };
 
     console.log(`[bookings/${id}/payment] Updating: status='${finalStatus}', price_paid=${paidAmount}, payment_method='${normalizedMethod}'`);
 
-    // ✅ Update booking status and payment info
-    // Split into two queries to ensure data integrity
     try {
       await client.query(
         `UPDATE bookings SET status=$1, price_paid=$2, payment_method=$3, paid_at=NOW() WHERE id=$4`,
@@ -430,7 +563,6 @@ router.post('/bookings/:id/payment', async (req, res) => {
       throw updateErr;
     }
 
-    // ✅ Update metadata separately
     try {
       await client.query(
         `UPDATE bookings SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb WHERE id=$2`,
@@ -439,10 +571,8 @@ router.post('/bookings/:id/payment', async (req, res) => {
       console.log(`[bookings/${id}/payment] Metadata update successful`);
     } catch (metaErr) {
       console.warn(`[bookings/${id}/payment] Metadata update warning:`, metaErr.message);
-      // Don't fail on metadata error
     }
 
-    // ✅ Properly handle COMMIT with error catching
     await client.query('COMMIT');
     client.release();
 
@@ -499,6 +629,34 @@ router.post('/bookings/:id/payment', async (req, res) => {
   }
 });
 
+// POST /bookings/:id/verify-payment - quick status check for client polling
+router.post('/bookings/:id/verify-payment', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.query(
+      `SELECT id, status, total_amount, price_paid, payment_method, COALESCE(booking_code, '') as booking_code
+       FROM bookings WHERE id = $1 LIMIT 1`,
+      [id]
+    );
+    if (!result.rows || result.rows.length === 0) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+    const b = result.rows[0];
+    // Return minimal, stable payload for client polling
+    return res.json({
+      id: Number(b.id),
+      status: b.status,
+      total_amount: Number(b.total_amount) || 0,
+      price_paid: Number(b.price_paid) || 0,
+      payment_method: b.payment_method || null,
+      booking_code: b.booking_code || ''
+    });
+  } catch (err) {
+    console.error(`[verify-payment] Error checking booking ${id}:`, err);
+    return res.status(500).json({ message: 'Failed to verify payment' });
+  }
+});
+
 // PUT/PATCH /bookings/:id/payment-method - Change payment method for a pending booking
 router.put('/bookings/:id/payment-method', async (req, res) => {
   const { id } = req.params;
@@ -528,7 +686,7 @@ router.put('/bookings/:id/payment-method', async (req, res) => {
     const booking = bookingRes.rows[0];
 
     // Check if booking is in a state that allows payment method change
-    if (!['pending', 'expired'].includes(booking.status)) {
+    if (!['pending'].includes(booking.status)) {
       await rollbackAndRelease(client);
       return res.status(409).json({
         message: 'Cannot change payment method for this booking status',
@@ -536,10 +694,10 @@ router.put('/bookings/:id/payment-method', async (req, res) => {
       });
     }
 
-    // Check if trip has not departed yet
-    const now = new Date();
-    const departureTime = new Date(booking.departure_time);
-    if (departureTime <= now) {
+    // Check if trip has not departed yet using DB time
+    const hasDepRes = await client.query("SELECT ((departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') <= NOW()) AS has_departed FROM trips WHERE id=$1", [booking.trip_id]);
+    const hasDeparted = hasDepRes && hasDepRes.rows && hasDepRes.rows[0] ? (hasDepRes.rows[0].has_departed === true || hasDepRes.rows[0].has_departed === 't') : false;
+    if (hasDeparted) {
       await rollbackAndRelease(client);
       return res.status(400).json({
         message: 'Cannot change payment method - trip has already departed',
@@ -551,17 +709,13 @@ router.put('/bookings/:id/payment-method', async (req, res) => {
     const normalizedMethod = payment_method.toLowerCase();
     const isOfflinePayment = ['cash', 'offline', 'cod', 'counter'].includes(normalizedMethod);
 
-    // If changing to offline payment and booking was expired, restore it to pending
+    // If changing payment method for a pending booking, status may be updated
     let newStatus = booking.status;
-    if (booking.status === 'expired' && isOfflinePayment) {
-      newStatus = 'pending';
-      console.log(`Restoring expired booking ${id} to pending (changed to offline payment)`);
-    }
 
     // Update payment method and status
     const paymentMeta = {
       method: normalizedMethod,
-      changed_at: new Date().toISOString(),
+      changed_at: formatLocalISO(),
       note: isOfflinePayment ? 'Payment at counter' : 'Online payment'
     };
 
@@ -613,16 +767,17 @@ router.post('/bookings/:id/expire', async (req, res) => {
     const booking = bookingRes.rows[0];
     if (booking.status !== 'pending') {
       await rollbackAndRelease(client);
-      return res.status(400).json({ message: 'Only pending bookings can be expired' });
+      return res.status(400).json({ message: 'Only pending bookings can be cancelled via this endpoint' });
     }
 
-    await client.query("UPDATE bookings SET status='expired', expired_at=NOW() WHERE id=$1", [id]);
+    // Cancel the pending booking immediately (do not use 'expired' status)
+    await client.query("UPDATE bookings SET status='cancelled', cancelled_at=NOW() WHERE id=$1", [id]);
     const { rowCount: releasedCount } = await client.query('UPDATE seats SET is_booked=0, booking_id=NULL WHERE booking_id=$1', [id]);
     if (releasedCount > 0) {
       await client.query('UPDATE trips SET seats_available = seats_available + $1 WHERE id=$2', [releasedCount, booking.trip_id]);
     }
     await commitAndRelease(client);
-    res.json({ message: 'Booking manually expired' });
+    res.json({ message: 'Booking manually cancelled' });
   } catch (err) {
     console.error('Expire booking failed:', err);
     await rollbackAndRelease(client);
@@ -674,7 +829,7 @@ router.post('/bookings/:id/confirm-offline-payment', async (req, res) => {
     const paymentMeta = {
       method: normalizedMethod,
       confirmed_by: 'admin',
-      confirmed_at: new Date().toISOString(),
+      confirmed_at: formatLocalISO(),
       note: 'Offline payment confirmed by admin'
     };
 
@@ -755,12 +910,16 @@ cron.schedule("*/5 * * * *", async () => {
       SET status = 'completed', completed_at = NOW()
       FROM trips t
       WHERE b.trip_id = t.id
-        AND t.arrival_time < NOW()
-        AND b.status = 'confirmed'
-        AND COALESCE(b.price_paid, 0) > 0
-        AND b.completed_at IS NULL
-      RETURNING b.id, b.user_id, b.trip_id, t.arrival_time
-    `);
+-        AND t.departure_time::timestamp < NOW()::timestamp
++        AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()
+         AND (
+           b.status = 'confirmed'
+           OR b.paid_at IS NOT NULL
+           OR COALESCE(b.price_paid, 0) > 0
+         )
+          AND b.completed_at IS NULL
+       RETURNING b.id, b.user_id, b.trip_id, t.departure_time
+     `);
 
     const completedBookings = completeResult.rows;
 
@@ -768,18 +927,20 @@ cron.schedule("*/5 * * * *", async () => {
     // ✅ Cancel ALL pending bookings with price_paid = 0 after trip ends
     // Note: Offline bookings are NOT expired after 10 minutes, but ARE cancelled after trip ends
     const cancelResult = await db.query(`
-      UPDATE bookings b
-      SET status = 'cancelled', cancelled_at = NOW()
-      FROM trips t
-      WHERE b.trip_id = t.id
-        AND t.arrival_time < NOW()
-        AND b.status = 'pending'
-        AND COALESCE(b.price_paid, 0) = 0
-        AND b.cancelled_at IS NULL
-      RETURNING b.id, b.user_id, b.trip_id, t.arrival_time, b.payment_method
-    `);
+       UPDATE bookings b
+       SET status = 'cancelled', cancelled_at = NOW()
+       FROM trips t
+       WHERE b.trip_id = t.id
+-        AND t.departure_time::timestamp < NOW()::timestamp
++        AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()
+         AND b.status = 'pending'
+         AND COALESCE(b.price_paid, 0) = 0
+         AND b.paid_at IS NULL
+         AND b.cancelled_at IS NULL
+       RETURNING b.id, b.user_id, b.trip_id, t.departure_time, b.payment_method
+     `);
 
-    const cancelledBookings = cancelResult.rows;
+     const cancelledBookings = cancelResult.rows;
 
     // Log results
     if (completedBookings.length === 0 && cancelledBookings.length === 0) {
@@ -791,7 +952,7 @@ cron.schedule("*/5 * * * *", async () => {
     if (completedBookings.length > 0) {
       console.log(`   ✅ Completed ${completedBookings.length} paid booking(s):`);
       for (const booking of completedBookings) {
-        console.log(`      • Booking #${booking.id} -> completed (arrival: ${new Date(booking.arrival_time).toLocaleString()})`);
+        console.log(`      • Booking #${booking.id} -> completed (departure: ${new Date(booking.departure_time).toLocaleString()})`);
 
         // Emit socket event to user for real-time update
         if (io) {
@@ -809,8 +970,8 @@ cron.schedule("*/5 * * * *", async () => {
       console.log(`   ❌ Cancelled ${cancelledBookings.length} unpaid booking(s) after trip ended:`);
       for (const booking of cancelledBookings) {
         const method = booking.payment_method || 'unknown';
-        const arrival = new Date(booking.arrival_time).toLocaleString();
-        console.log(`      • Booking #${booking.id} (payment: ${method}) -> cancelled (trip arrival: ${arrival})`);
+        const departure = new Date(booking.departure_time).toLocaleString();
+        console.log(`      • Booking #${booking.id} (payment: ${method}) -> cancelled (trip departure: ${departure})`);
 
         // Emit socket event to user for real-time update
         if (io) {

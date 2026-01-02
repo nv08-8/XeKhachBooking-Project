@@ -7,6 +7,7 @@ import android.os.CountDownTimer;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -98,7 +99,17 @@ public class BookingDetailActivity extends AppCompatActivity {
                     // QR payment - process directly via PayOS
                     processPayOSPayment();
                 } else if ("card".equalsIgnoreCase(paymentMethod)) {
-                    // Card payment
+                    // Card payment - prefer inline form if available
+                    View inline = findViewById(R.id.cardInlineCardPayment);
+                    if (inline != null) {
+                        inline.setVisibility(View.VISIBLE);
+                        // scroll to inline form
+                        try {
+                            final android.widget.ScrollView sv = (android.widget.ScrollView) findViewById(android.R.id.content).getRootView().findViewById(android.R.id.content);
+                        } catch (Exception ignored) {}
+                        return;
+                    }
+                    // fallback to dialog
                     processCardPayment();
                 } else {
                     // Offline or unknown - show dialog to choose payment method
@@ -174,6 +185,8 @@ public class BookingDetailActivity extends AppCompatActivity {
         tvPaymentMethodName = findViewById(R.id.tvPaymentMethodName);
         tvPaymentMethodDesc = findViewById(R.id.tvPaymentMethodDesc);
         btnChangePaymentInfo = findViewById(R.id.btnChangePaymentInfo);
+
+
 
         // Price breakdown card (separate card)
         cardPriceBreakdown = findViewById(R.id.cardPriceBreakdown);
@@ -418,7 +431,7 @@ public class BookingDetailActivity extends AppCompatActivity {
 
         String pm = (String) data.get("payment_method");
         String status = (String) data.get("status");
-        
+
         String displayPmName = "Thanh toán";
         String displayPmSubtext = "";
         String displayPmDesc = "Miễn phí thanh toán";
@@ -520,6 +533,27 @@ public class BookingDetailActivity extends AppCompatActivity {
             // Don't show payment method info card for pending
             if (cardPaymentMethodInfo != null) cardPaymentMethodInfo.setVisibility(View.GONE);
 
+            // Show inline card input when payment method is card
+            try {
+                View inline = findViewById(R.id.cardInlineCardPayment);
+                if (inline != null) {
+                    if (pm != null && pm.toLowerCase().contains("card")) {
+                        inline.setVisibility(View.VISIBLE);
+                        // Prefill passenger name if available
+                        try {
+                            EditText edtPan = findViewById(R.id.edtCardNumberDetail);
+                            EditText edtExp = findViewById(R.id.edtExpiryDetail);
+                            EditText edtCvv = findViewById(R.id.edtCvvDetail);
+                            if (edtPan != null) edtPan.setText("");
+                            if (edtExp != null) edtExp.setText("");
+                            if (edtCvv != null) edtCvv.setText("");
+                        } catch (Exception ignored) {}
+                    } else {
+                        inline.setVisibility(View.GONE);
+                    }
+                }
+            } catch (Exception ignored) {}
+
         } else if ("confirmed".equalsIgnoreCase(status) || "completed".equalsIgnoreCase(status)) {
              // Confirmed or completed booking
              long arrivalTime = -1;
@@ -553,6 +587,8 @@ public class BookingDetailActivity extends AppCompatActivity {
              // Don't show payment method selection card for confirmed/completed
              if (cardPaymentMethod != null) cardPaymentMethod.setVisibility(View.GONE);
              if (tvPaymentMethodHeading != null) tvPaymentMethodHeading.setVisibility(View.GONE);
+             // Hide inline card form for non-pending
+             try { View inline = findViewById(R.id.cardInlineCardPayment); if (inline != null) inline.setVisibility(View.GONE); } catch (Exception ignored) {}
         }
     }
     
@@ -1076,42 +1112,85 @@ public class BookingDetailActivity extends AppCompatActivity {
     private void processCardPayment() {
         Log.d(TAG, "Processing Card payment for booking #" + bookingId);
 
-        // Show loading dialog
-        android.app.ProgressDialog progressDialog = new android.app.ProgressDialog(this);
-        progressDialog.setMessage("Đang xác nhận thanh toán...");
-        progressDialog.setCancelable(false);
-        progressDialog.show();
+        if (currentBookingData == null) {
+            Log.e(TAG, "❌ currentBookingData is null, cannot process payment");
+            Toast.makeText(this, "Lỗi: Không tìm thấy thông tin vé. Vui lòng thử lại.", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        // Call confirm payment API with card method
-        java.util.Map<String, String> body = new java.util.HashMap<>();
-        body.put("payment_method", "card");
-
-        apiService.confirmPayment(bookingId, body).enqueue(new retrofit2.Callback<java.util.Map<String, Object>>() {
-            @Override
-            public void onResponse(retrofit2.Call<java.util.Map<String, Object>> call,
-                                 retrofit2.Response<java.util.Map<String, Object>> response) {
-                progressDialog.dismiss();
-
-                if (response.isSuccessful()) {
-                    Toast.makeText(BookingDetailActivity.this,
-                            "Thanh toán thành công!",
-                            Toast.LENGTH_SHORT).show();
-                    loadBookingDetails();
-                } else {
-                    Toast.makeText(BookingDetailActivity.this,
-                            "Xác nhận thanh toán thất bại",
-                            Toast.LENGTH_SHORT).show();
+        // Instead of showing a dialog, reveal the inline card form already present in the layout.
+        try {
+            View inline = findViewById(R.id.cardInlineCardPayment);
+            if (inline != null) {
+                inline.setVisibility(View.VISIBLE);
+                // focus the card number field if available
+                EditText pan = findViewById(R.id.edtCardNumberDetail);
+                if (pan != null) {
+                    pan.requestFocus();
                 }
+                // scroll to the inline form if there's a scroll view
+                try {
+                    final android.widget.ScrollView sv = findViewById(android.R.id.content) instanceof android.widget.ScrollView ? (android.widget.ScrollView) findViewById(android.R.id.content) : null;
+                    if (sv != null) sv.post(() -> sv.smoothScrollTo(0, inline.getTop()));
+                } catch (Exception ignored) {}
+            } else {
+                // Fallback: if inline form not available, show a simple message
+                Toast.makeText(this, "Vui lòng nhập thông tin thẻ ở phần thanh toán", Toast.LENGTH_LONG).show();
             }
-
-            @Override
-            public void onFailure(retrofit2.Call<java.util.Map<String, Object>> call, Throwable t) {
-                progressDialog.dismiss();
-                Log.e(TAG, "Failed to confirm payment", t);
-                Toast.makeText(BookingDetailActivity.this,
-                        "Lỗi kết nối: " + t.getMessage(),
-                        Toast.LENGTH_SHORT).show();
-            }
-        });
+        } catch (Exception e) {
+            Log.e(TAG, "Error showing inline card form", e);
+            Toast.makeText(this, "Lỗi hiển thị form thẻ", Toast.LENGTH_SHORT).show();
+        }
     }
+
+    // Reuse helper methods from PaymentActivity: Luhn and expiry parser
+    private boolean luhnCheck(String ccNumber) {
+        if (ccNumber == null) return false;
+        String s = ccNumber.replaceAll("\\D", "");
+        if (s.length() < 12 || s.length() > 19) return false;
+        int sum = 0;
+        boolean alternate = false;
+        for (int i = s.length() - 1; i >= 0; i--) {
+            int n = Integer.parseInt(s.substring(i, i + 1));
+            if (alternate) {
+                n *= 2;
+                if (n > 9) n = (n % 10) + 1;
+            }
+            sum += n;
+            alternate = !alternate;
+        }
+        return (sum % 10 == 0);
+    }
+
+    private boolean isExpiryValid(String expiry) {
+        if (expiry == null) return false;
+        expiry = expiry.replaceAll("\\s", "");
+        String[] parts = null;
+        if (expiry.contains("/")) parts = expiry.split("/");
+        else if (expiry.contains("-")) parts = expiry.split("-");
+        else if (expiry.length() == 4) { // MMyy
+            parts = new String[]{expiry.substring(0,2), expiry.substring(2)};
+        }
+        if (parts == null || parts.length < 2) return false;
+        try {
+            int month = Integer.parseInt(parts[0]);
+            int year = Integer.parseInt(parts[1]);
+            if (month < 1 || month > 12) return false;
+            if (year < 100) year += 2000;
+            java.util.Calendar cal = java.util.Calendar.getInstance();
+            cal.setLenient(false);
+            cal.set(java.util.Calendar.DAY_OF_MONTH, 1);
+            cal.set(java.util.Calendar.MONTH, month - 1);
+            cal.set(java.util.Calendar.YEAR, year);
+            // expiry is end of month
+            java.util.Calendar end = (java.util.Calendar) cal.clone();
+            end.add(java.util.Calendar.MONTH, 1);
+            end.add(java.util.Calendar.DAY_OF_MONTH, -1);
+            // compare end of expiry month to now
+            return end.getTimeInMillis() > System.currentTimeMillis();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
 }

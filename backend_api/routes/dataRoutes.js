@@ -3,6 +3,19 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
+// Helper to generate ISO-like timestamp without trailing Z (local time)
+function formatLocalISO(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const yyyy = date.getFullYear();
+  const mm = pad(date.getMonth() + 1);
+  const dd = pad(date.getDate());
+  const hh = pad(date.getHours());
+  const min = pad(date.getMinutes());
+  const ss = pad(date.getSeconds());
+  const ms = String(date.getMilliseconds()).padStart(3, '0');
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}.${ms}`; // no trailing Z
+}
+
 // GET /api/routes?origin=&destination=&q=
 router.get("/routes", async (req, res) => {
   const { origin, destination, q } = req.query;
@@ -45,7 +58,14 @@ router.get("/routes", async (req, res) => {
 
   try {
     const { rows } = await db.query(sql, params);
-    return res.json(rows);
+    // Format timestamps to local ISO without trailing Z
+    const formatted = rows.map(r => ({
+      ...r,
+      departure_time: r.departure_time ? formatLocalISO(new Date(r.departure_time)) : r.departure_time,
+      arrival_time: r.arrival_time ? formatLocalISO(new Date(r.arrival_time)) : r.arrival_time,
+      created_at: r.created_at ? formatLocalISO(new Date(r.created_at)) : r.created_at
+    }));
+    return res.json(formatted);
   } catch (err) {
     console.error("Lỗi lấy route:", err);
     return res.status(500).json({ message: "Lỗi phía server." });
@@ -79,7 +99,13 @@ router.get("/trips", async (req, res) => {
 
   try {
     const { rows } = await db.query(sql, params);
-    return res.json(rows);
+    const formatted = rows.map(r => ({
+      ...r,
+      departure_time: r.departure_time ? formatLocalISO(new Date(r.departure_time)) : r.departure_time,
+      arrival_time: r.arrival_time ? formatLocalISO(new Date(r.arrival_time)) : r.arrival_time,
+      created_at: r.created_at ? formatLocalISO(new Date(r.created_at)) : r.created_at
+    }));
+    return res.json(formatted);
   } catch (err) {
     console.error("Lỗi lấy trip:", err);
     return res.status(500).json({ message: "Lỗi phía server." });
