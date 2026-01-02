@@ -32,7 +32,6 @@ public class TripsAdapter extends RecyclerView.Adapter<TripsAdapter.TripViewHold
         void onManageSeats(Map<String, Object> trip);
     }
 
-    // Correct constructor with 3 parameters
     public TripsAdapter(List<Map<String, Object>> tripList, OnTripClickListener listener, Context context) {
         this.tripList = tripList;
         this.listener = listener;
@@ -50,13 +49,11 @@ public class TripsAdapter extends RecyclerView.Adapter<TripsAdapter.TripViewHold
     public void onBindViewHolder(@NonNull TripViewHolder holder, int position) {
         Map<String, Object> trip = tripList.get(position);
 
-        // Set text for the views
         holder.tvOperator.setText(String.valueOf(trip.get("operator")));
         holder.tvVehicleType.setText(String.valueOf(trip.get("bus_type")));
         holder.tvOrigin.setText(String.valueOf(trip.get("origin")));
         holder.tvDestination.setText(String.valueOf(trip.get("destination")));
 
-        // Format price and time
         try {
              holder.tvPrice.setText(String.format(Locale.GERMANY, "%,.0fđ", Double.parseDouble(String.valueOf(trip.get("price")))));
         } catch(Exception e) {
@@ -66,36 +63,50 @@ public class TripsAdapter extends RecyclerView.Adapter<TripsAdapter.TripViewHold
         String departureTimeStr = String.valueOf(trip.get("departure_time"));
         String arrivalTimeStr = String.valueOf(trip.get("arrival_time"));
 
-        try {
-            SimpleDateFormat sdfIn = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-            SimpleDateFormat sdfOutTime = new SimpleDateFormat("HH:mm", Locale.getDefault());
-            SimpleDateFormat sdfOutDate = new SimpleDateFormat("EEE, dd MMM", Locale.getDefault());
+        // Format dates beautifully
+        Date departureDate = parseDate(departureTimeStr);
+        Date arrivalDate = parseDate(arrivalTimeStr);
 
-            Date departureDate = sdfIn.parse(departureTimeStr);
-            Date arrivalDate = sdfIn.parse(arrivalTimeStr);
+        SimpleDateFormat sdfOutTime = new SimpleDateFormat("HH:mm", Locale.getDefault());
+        SimpleDateFormat sdfOutDate = new SimpleDateFormat("EEE, dd MMM yyyy", new Locale("vi", "VN"));
 
-            if (departureDate != null) {
-                holder.tvDepartureTime.setText(sdfOutTime.format(departureDate));
-                holder.tvDate.setText(sdfOutDate.format(departureDate));
+        if (departureDate != null) {
+            holder.tvDepartureTime.setText(sdfOutTime.format(departureDate));
+            holder.tvDate.setText(sdfOutDate.format(departureDate));
+        } else {
+            // Fallback to substring if parsing fails
+            if (departureTimeStr != null && departureTimeStr.length() >= 16) {
+                holder.tvDepartureTime.setText(departureTimeStr.substring(11, 16));
+            } else {
+                holder.tvDepartureTime.setText(departureTimeStr);
             }
-            if (arrivalDate != null) {
-                holder.tvArrivalTime.setText(sdfOutTime.format(arrivalDate));
-            }
-
-            // Calculate and set duration
-            if (departureDate != null && arrivalDate != null) {
-                long diff = arrivalDate.getTime() - departureDate.getTime();
-                long hours = diff / (1000 * 60 * 60);
-                long minutes = (diff / (1000 * 60)) % 60;
-                holder.tvDuration.setText(String.format(Locale.getDefault(), "%d giờ %02d phút", hours, minutes));
-            }
-
-        } catch (ParseException e) {
-            holder.tvDepartureTime.setText(departureTimeStr);
-            holder.tvArrivalTime.setText(arrivalTimeStr);
+            holder.tvDate.setText("");
         }
 
-        // Set click listeners for the buttons
+        if (arrivalDate != null) {
+            holder.tvArrivalTime.setText(sdfOutTime.format(arrivalDate));
+        } else {
+            if (arrivalTimeStr != null && arrivalTimeStr.length() >= 16) {
+                holder.tvArrivalTime.setText(arrivalTimeStr.substring(11, 16));
+            } else {
+                holder.tvArrivalTime.setText(arrivalTimeStr);
+            }
+        }
+
+        // Calculate and set duration
+        if (departureDate != null && arrivalDate != null) {
+            long diff = arrivalDate.getTime() - departureDate.getTime();
+            long hours = diff / (1000 * 60 * 60);
+            long minutes = (diff / (1000 * 60)) % 60;
+            if (hours > 0) {
+                holder.tvDuration.setText(String.format(Locale.getDefault(), "%d giờ %02d phút", hours, minutes));
+            } else {
+                holder.tvDuration.setText(String.format(Locale.getDefault(), "%d phút", minutes));
+            }
+        } else {
+            holder.tvDuration.setText("");
+        }
+
         holder.btnEdit.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onEditTrip(trip);
@@ -114,12 +125,30 @@ public class TripsAdapter extends RecyclerView.Adapter<TripsAdapter.TripViewHold
             }
         });
 
-        // Only show admin actions if the user is an admin
         if (sessionManager.isAdmin()) {
             holder.adminActionsLayout.setVisibility(View.VISIBLE);
         } else {
             holder.adminActionsLayout.setVisibility(View.GONE);
         }
+    }
+
+    private Date parseDate(String dateStr) {
+        if (dateStr == null || dateStr.isEmpty() || dateStr.equals("null")) return null;
+        
+        String[] formats = {
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss"
+        };
+        
+        for (String format : formats) {
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat(format, Locale.getDefault());
+                return sdf.parse(dateStr);
+            } catch (ParseException ignored) {}
+        }
+        return null;
     }
 
     @Override
