@@ -3,7 +3,7 @@
  * This ensures database schema is always up-to-date
  */
 
-const db = require("./db");
+const db = require("../db");
 const fs = require("fs");
 const path = require("path");
 
@@ -12,7 +12,7 @@ async function runMigrations() {
     console.log("\n🔧 [MIGRATIONS] Checking and running pending migrations...");
 
     // List all migration files
-    const migrationsDir = path.join(__dirname, "migrations");
+    const migrationsDir = path.join(__dirname);
     const files = fs.readdirSync(migrationsDir)
       .filter(f => f.endsWith(".sql"))
       .sort();
