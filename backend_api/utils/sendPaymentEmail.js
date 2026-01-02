@@ -385,7 +385,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                     filename: 'logo.jpg',
                     type: 'image/jpeg',
                     disposition: 'inline',
-                    contentId: 'logo'
+                    content_id: 'logo'
                 });
                 console.log("✅ Logo attachment added");
             } else {
@@ -402,7 +402,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                 filename: 'ticket_qr.png',
                 type: 'image/png',
                 disposition: 'inline',
-                contentId: 'qrcode'
+                content_id: 'qrcode'
             });
             console.log("✅ QR code attachment added");
         }
