@@ -61,6 +61,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
     private BarChart barChart;
     private NestedScrollView scrollView;
     private Toolbar toolbar;
+    private com.google.android.material.tabs.TabLayout tabRevenueType;
 
     private RevenueAdapter adapter;
     private List<Map<String, Object>> revenueList = new ArrayList<>();
@@ -74,6 +75,9 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
 
     private List<Map<String, Object>> routeList = new ArrayList<>();
     private List<Trip> tripList = new ArrayList<>();
+
+    // Biến để track loại báo cáo hiện tại
+    private boolean isRefundMode = false; // false = doanh thu, true = hoàn tiền
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,6 +103,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         spinnerRoutes = findViewById(R.id.spinnerRoutes);
         spinnerTrips = findViewById(R.id.spinnerTrips);
         btnApplyFilter = findViewById(R.id.btnApplyFilter);
+        tabRevenueType = findViewById(R.id.tabRevenueType);
         etStartDate = findViewById(R.id.etStartDate);
         etEndDate = findViewById(R.id.etEndDate);
         dateRangeFilter = findViewById(R.id.dateRangeFilter);
@@ -126,6 +131,24 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
 
         etStartDate.setOnClickListener(v -> showDatePickerDialog(etStartDate, startCalendar));
         etEndDate.setOnClickListener(v -> showDatePickerDialog(etEndDate, endCalendar));
+
+        // TabLayout listener để chuyển đổi giữa Doanh thu và Hoàn tiền
+        tabRevenueType.addOnTabSelectedListener(new com.google.android.material.tabs.TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(com.google.android.material.tabs.TabLayout.Tab tab) {
+                isRefundMode = (tab.getPosition() == 1); // Tab 0 = doanh thu, Tab 1 = hoàn tiền
+                // Tải lại dữ liệu khi chuyển tab
+                if (spinnerGroupBy.getSelectedItemPosition() >= 0) {
+                    fetchRevenueStats();
+                }
+            }
+
+            @Override
+            public void onTabUnselected(com.google.android.material.tabs.TabLayout.Tab tab) {}
+
+            @Override
+            public void onTabReselected(com.google.android.material.tabs.TabLayout.Tab tab) {}
+        });
 
         spinnerGroupBy.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
@@ -272,7 +295,15 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
             tripId = tripList.get(tripPos).getId();
         }
 
-        apiService.getRevenue(sessionManager.getUserId(), groupBy, routeId, tripId, startDate, endDate).enqueue(new Callback<List<Map<String, Object>>>() {
+        // Gọi API khác nhau tùy theo mode
+        Call<List<Map<String, Object>>> call;
+        if (isRefundMode) {
+            call = apiService.getRevenueRefunds(sessionManager.getUserId(), groupBy, routeId, tripId, startDate, endDate);
+        } else {
+            call = apiService.getRevenue(sessionManager.getUserId(), groupBy, routeId, tripId, startDate, endDate);
+        }
+
+        call.enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
             public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
                 progressRevenue.setVisibility(View.GONE);

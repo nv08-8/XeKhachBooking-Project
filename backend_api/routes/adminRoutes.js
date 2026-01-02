@@ -433,7 +433,7 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
         FROM bookings b
         JOIN trips t ON b.trip_id = t.id
         JOIN routes r ON t.route_id = r.id
-        WHERE b.status = 'confirmed'
+        WHERE b.status = 'confirmed' AND t.status != 'cancelled'
     `;
     const params = [];
 
@@ -500,6 +500,85 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
     }
 });
 
+// Báo cáo hoàn tiền (từ những bookings của trip bị hủy)
+router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
+    const { groupBy, route_id, trip_id, from_date, to_date } = req.query;
+
+    let query = `
+        SELECT
+            %s AS group_key,
+            COUNT(b.id) AS total_bookings,
+            SUM(b.total_amount) AS refund_amount
+        FROM bookings b
+        JOIN trips t ON b.trip_id = t.id
+        JOIN routes r ON t.route_id = r.id
+        WHERE b.status = 'confirmed' AND t.status = 'cancelled'
+    `;
+    const params = [];
+
+    let groupByClause;
+    let orderByClause;
+
+    switch (groupBy) {
+        case 'day':
+        case 'date':
+            groupByClause = "DATE(b.created_at)";
+            orderByClause = "group_key DESC";
+            if (from_date) {
+                params.push(from_date);
+                query += ` AND b.created_at >= $${params.length}`;
+            }
+            if (to_date) {
+                params.push(to_date);
+                query += ` AND b.created_at <= $${params.length}`;
+            }
+            break;
+        case 'month':
+            groupByClause = "TO_CHAR(b.created_at, 'YYYY-MM')";
+            orderByClause = "group_key DESC";
+            break;
+        case 'year':
+            groupByClause = "EXTRACT(YEAR FROM b.created_at)";
+            orderByClause = "group_key DESC";
+            break;
+        case 'route':
+            groupByClause = "r.id, r.origin, r.destination";
+            orderByClause = "refund_amount DESC NULLS LAST";
+            query = query.replace("%s", "r.id AS group_key, r.origin, r.destination");
+            break;
+        case 'trip':
+            groupByClause = "t.id, t.departure_time, r.origin, r.destination";
+            orderByClause = "refund_amount DESC NULLS LAST";
+            query = query.replace("%s", "t.id AS group_key, t.departure_time, r.origin, r.destination");
+            if (route_id) {
+                params.push(route_id);
+                query += ` AND t.route_id = $${params.length}`;
+            }
+            break;
+        default:
+            return res.status(400).json({ message: "Invalid groupBy value: " + groupBy });
+    }
+
+    if (groupBy !== 'route' && groupBy !== 'trip') {
+        query = query.replace("%s", groupByClause);
+    }
+
+    if (trip_id) {
+        params.push(trip_id);
+        query += ` AND b.trip_id = $${params.length}`;
+    }
+
+    query += ` GROUP BY ${groupByClause} ORDER BY ${orderByClause}`;
+
+    try {
+        const result = await db.query(query, params);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(`Error fetching refunds by ${groupBy}:`, err);
+        res.status(500).json({ message: `Lỗi khi lấy báo cáo hoàn tiền theo ${groupBy}` });
+    }
+});
+
 
 // 5. Chi tiết doanh thu
 router.get("/revenue/details", checkAdminRole, async (req, res) => {
@@ -516,7 +595,7 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
     JOIN users u ON u.id = b.user_id
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
-    WHERE b.status = 'confirmed'
+    WHERE b.status = 'confirmed' AND t.status != 'cancelled'
   `;
   const params = [];
 

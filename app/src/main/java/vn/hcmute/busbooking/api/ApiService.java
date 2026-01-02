@@ -217,6 +217,17 @@ public interface ApiService {
             @Query("to_date") String toDate
     );
 
+    // Báo cáo hoàn tiền
+    @GET("api/admin/revenue/refunds")
+    Call<List<Map<String, Object>>> getRevenueRefunds(
+            @Header("user-id") int userId,
+            @Query("groupBy") String groupBy,
+            @Query("route_id") Integer routeId,
+            @Query("trip_id") Integer tripId,
+            @Query("from_date") String fromDate,
+            @Query("to_date") String toDate
+    );
+
     @GET("api/admin/revenue/details")
     Call<List<Map<String, Object>>> getRevenueDetails(
         @Header("user-id") int userId,
