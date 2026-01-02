@@ -153,5 +153,24 @@
             app:layout_constraintTop_toTopOf="@id/ivCalendar"
             tools:text="Thứ Hai, 28/07/2024" />
 
+        <!-- Thông báo chuyến bị hủy -->
+        <TextView
+            android:id="@+id/tvTripCancelledMessage"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_warning_message"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp"
+            android:text=""
+            android:textColor="@color/errorRed"
+            android:textSize="12sp"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/ivCalendar"
+            tools:text="⚠️ Chuyến này đã bị hủy. Vui lòng liên hệ hotline 1900-XXXX để được hỗ trợ hoàn tiền."
+            tools:visibility="visible" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>

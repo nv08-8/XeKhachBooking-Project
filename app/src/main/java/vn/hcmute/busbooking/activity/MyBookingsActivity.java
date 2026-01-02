@@ -363,6 +363,11 @@ public class MyBookingsActivity extends AppCompatActivity {
                 progressBar.setVisibility(View.GONE);
                 if (response.isSuccessful() && response.body() != null) {
                     List<Booking> newList = response.body();
+                    android.util.Log.d("MyBookingsActivity", "✅ API Response: " + newList.size() + " bookings received");
+                    if (newList.size() > 0) {
+                        Booking first = newList.get(0);
+                        android.util.Log.d("MyBookingsActivity", "   First booking: id=" + first.getId() + ", status=" + first.getStatus() + ", origin=" + first.getOrigin());
+                    }
 
                     // Build set of current pending ids
                     Set<Integer> currPendingIds = new HashSet<>();

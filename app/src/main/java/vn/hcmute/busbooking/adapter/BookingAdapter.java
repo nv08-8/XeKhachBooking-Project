@@ -77,7 +77,7 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
     }
 
     static class BookingViewHolder extends RecyclerView.ViewHolder {
-        private final TextView tvOperator, tvStatus, tvOrigin, tvDepartureTime, tvDestination, tvArrivalTime, tvDate, tvDuration;
+        private final TextView tvOperator, tvStatus, tvOrigin, tvDepartureTime, tvDestination, tvArrivalTime, tvDate, tvDuration, tvTripCancelledMessage;
 
         public BookingViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -89,12 +89,13 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             tvArrivalTime = itemView.findViewById(R.id.tvArrivalTime);
             tvDate = itemView.findViewById(R.id.tvDate);
             tvDuration = itemView.findViewById(R.id.tvDuration);
+            tvTripCancelledMessage = itemView.findViewById(R.id.tvTripCancelledMessage);
         }
 
         public void bind(Booking booking, Map<Integer, Long> pendingCountdowns) {
-            tvOperator.setText(booking.getOperator());
-            tvOrigin.setText(booking.getOrigin());
-            tvDestination.setText(booking.getDestination());
+            tvOperator.setText(booking.getOperator() != null ? booking.getOperator() : "");
+            tvOrigin.setText(booking.getOrigin() != null ? booking.getOrigin() : "");
+            tvDestination.setText(booking.getDestination() != null ? booking.getDestination() : "");
 
             tvDepartureTime.setText(formatTime(booking.getDeparture_time()));
             tvArrivalTime.setText(formatTime(booking.getArrival_time()));
@@ -103,6 +104,16 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
 
             // setStatus needs booking id to lookup pending countdown and payment method
             setStatus(tvStatus, booking, pendingCountdowns);
+
+            // Thêm thông báo nếu trip bị hủy
+            if (booking.getTrip_cancelled_message() != null && !booking.getTrip_cancelled_message().isEmpty()) {
+                tvTripCancelledMessage.setText(booking.getTrip_cancelled_message());
+                tvTripCancelledMessage.setVisibility(android.view.View.VISIBLE);
+                itemView.setAlpha(0.7f); // Làm nhạt vé bị hủy
+            } else {
+                tvTripCancelledMessage.setVisibility(android.view.View.GONE);
+                itemView.setAlpha(1.0f);
+            }
         }
 
         private Date parseDate(String isoString) {

@@ -22,6 +22,15 @@ public class Booking {
     private double refund_amount;
     private int refund_percentage;
     private String cancelled_at;
+    // Các field mới từ API
+    private String trip_cancelled_message;
+    private String support_hotline;
+    private String pickup_location;
+    private String dropoff_location;
+    private java.util.List<String> seat_labels;
+    private double total_amount;
+    private String booking_code;
+    private String trip_status;
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
@@ -82,4 +91,29 @@ public class Booking {
 
     public String getCancelled_at() { return cancelled_at; }
     public void setCancelled_at(String cancelled_at) { this.cancelled_at = cancelled_at; }
+
+    // Getters và setters cho field mới
+    public String getTrip_cancelled_message() { return trip_cancelled_message; }
+    public void setTrip_cancelled_message(String trip_cancelled_message) { this.trip_cancelled_message = trip_cancelled_message; }
+
+    public String getSupport_hotline() { return support_hotline; }
+    public void setSupport_hotline(String support_hotline) { this.support_hotline = support_hotline; }
+
+    public String getPickup_location() { return pickup_location; }
+    public void setPickup_location(String pickup_location) { this.pickup_location = pickup_location; }
+
+    public String getDropoff_location() { return dropoff_location; }
+    public void setDropoff_location(String dropoff_location) { this.dropoff_location = dropoff_location; }
+
+    public java.util.List<String> getSeat_labels() { return seat_labels; }
+    public void setSeat_labels(java.util.List<String> seat_labels) { this.seat_labels = seat_labels; }
+
+    public double getTotal_amount() { return total_amount; }
+    public void setTotal_amount(double total_amount) { this.total_amount = total_amount; }
+
+    public String getBooking_code() { return booking_code; }
+    public void setBooking_code(String booking_code) { this.booking_code = booking_code; }
+
+    public String getTrip_status() { return trip_status; }
+    public void setTrip_status(String trip_status) { this.trip_status = trip_status; }
 }

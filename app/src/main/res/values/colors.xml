@@ -44,6 +44,7 @@
     <color name="textForgotPassword">#0077FF</color>
     <color name="gradientCenter">#00000000</color>
     <color name="red">#FF0000</color>
+    <color name="errorRed">#DC3545</color>
 
     <!-- Filter toolbar theme colors -->
     <!-- Deep navy similar to the reference pill -->
