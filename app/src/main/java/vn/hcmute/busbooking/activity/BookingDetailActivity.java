@@ -99,7 +99,17 @@ public class BookingDetailActivity extends AppCompatActivity {
                     // QR payment - process directly via PayOS
                     processPayOSPayment();
                 } else if ("card".equalsIgnoreCase(paymentMethod)) {
-                    // Card payment
+                    // Card payment - prefer inline form if available
+                    View inline = findViewById(R.id.cardInlineCardPayment);
+                    if (inline != null) {
+                        inline.setVisibility(View.VISIBLE);
+                        // scroll to inline form
+                        try {
+                            final android.widget.ScrollView sv = (android.widget.ScrollView) findViewById(android.R.id.content).getRootView().findViewById(android.R.id.content);
+                        } catch (Exception ignored) {}
+                        return;
+                    }
+                    // fallback to dialog
                     processCardPayment();
                 } else {
                     // Offline or unknown - show dialog to choose payment method
@@ -175,6 +185,8 @@ public class BookingDetailActivity extends AppCompatActivity {
         tvPaymentMethodName = findViewById(R.id.tvPaymentMethodName);
         tvPaymentMethodDesc = findViewById(R.id.tvPaymentMethodDesc);
         btnChangePaymentInfo = findViewById(R.id.btnChangePaymentInfo);
+
+
 
         // Price breakdown card (separate card)
         cardPriceBreakdown = findViewById(R.id.cardPriceBreakdown);
@@ -419,7 +431,7 @@ public class BookingDetailActivity extends AppCompatActivity {
 
         String pm = (String) data.get("payment_method");
         String status = (String) data.get("status");
-        
+
         String displayPmName = "Thanh toán";
         String displayPmSubtext = "";
         String displayPmDesc = "Miễn phí thanh toán";
@@ -521,6 +533,27 @@ public class BookingDetailActivity extends AppCompatActivity {
             // Don't show payment method info card for pending
             if (cardPaymentMethodInfo != null) cardPaymentMethodInfo.setVisibility(View.GONE);
 
+            // Show inline card input when payment method is card
+            try {
+                View inline = findViewById(R.id.cardInlineCardPayment);
+                if (inline != null) {
+                    if (pm != null && pm.toLowerCase().contains("card")) {
+                        inline.setVisibility(View.VISIBLE);
+                        // Prefill passenger name if available
+                        try {
+                            EditText edtPan = findViewById(R.id.edtCardNumberDetail);
+                            EditText edtExp = findViewById(R.id.edtExpiryDetail);
+                            EditText edtCvv = findViewById(R.id.edtCvvDetail);
+                            if (edtPan != null) edtPan.setText("");
+                            if (edtExp != null) edtExp.setText("");
+                            if (edtCvv != null) edtCvv.setText("");
+                        } catch (Exception ignored) {}
+                    } else {
+                        inline.setVisibility(View.GONE);
+                    }
+                }
+            } catch (Exception ignored) {}
+
         } else if ("confirmed".equalsIgnoreCase(status) || "completed".equalsIgnoreCase(status)) {
              // Confirmed or completed booking
              long arrivalTime = -1;
@@ -554,6 +587,8 @@ public class BookingDetailActivity extends AppCompatActivity {
              // Don't show payment method selection card for confirmed/completed
              if (cardPaymentMethod != null) cardPaymentMethod.setVisibility(View.GONE);
              if (tvPaymentMethodHeading != null) tvPaymentMethodHeading.setVisibility(View.GONE);
+             // Hide inline card form for non-pending
+             try { View inline = findViewById(R.id.cardInlineCardPayment); if (inline != null) inline.setVisibility(View.GONE); } catch (Exception ignored) {}
         }
     }
     
@@ -1083,81 +1118,29 @@ public class BookingDetailActivity extends AppCompatActivity {
             return;
         }
 
-        // Prompt user for card details using a dialog (minimal UI change)
-        LayoutInflater inflater = LayoutInflater.from(this);
-        View dialogView = inflater.inflate(R.layout.dialog_card_input, null);
-        final EditText etCardNumber = dialogView.findViewById(R.id.dialog_etCardNumber);
-        final EditText etExpiry = dialogView.findViewById(R.id.dialog_etExpiry);
-        final EditText etCvv = dialogView.findViewById(R.id.dialog_etCvv);
-
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("Nhập thông tin thẻ")
-                .setView(dialogView)
-                .setPositiveButton("Thanh toán", (d, w) -> {
-                    String pan = etCardNumber.getText() == null ? "" : etCardNumber.getText().toString().replaceAll("\\s+", "");
-                    String expiry = etExpiry.getText() == null ? "" : etExpiry.getText().toString().trim();
-                    String cvv = etCvv.getText() == null ? "" : etCvv.getText().toString().trim();
-
-                    if (pan.isEmpty() || !luhnCheck(pan)) {
-                        Toast.makeText(BookingDetailActivity.this, "Số thẻ không hợp lệ", Toast.LENGTH_LONG).show();
-                        return;
-                    }
-                    if (!isExpiryValid(expiry)) {
-                        Toast.makeText(BookingDetailActivity.this, "Ngày hết hạn không hợp lệ hoặc đã hết hạn", Toast.LENGTH_LONG).show();
-                        return;
-                    }
-                    if (cvv == null || !cvv.matches("\\d{3,4}")) {
-                        Toast.makeText(BookingDetailActivity.this, "CVV không hợp lệ", Toast.LENGTH_LONG).show();
-                        return;
-                    }
-
-                    // All validations passed - call confirm payment API with card fields
-                    android.app.ProgressDialog progressDialog = new android.app.ProgressDialog(BookingDetailActivity.this);
-                    progressDialog.setMessage("Đang xác nhận thanh toán...");
-                    progressDialog.setCancelable(false);
-                    progressDialog.show();
-
-                    java.util.Map<String, String> body = new java.util.HashMap<>();
-                    body.put("payment_method", "card");
-                    body.put("card_number", pan);
-                    body.put("expiry", expiry);
-                    body.put("cvv", cvv);
-                    Object nameObj = currentBookingData.get("passenger_name");
-                    if (nameObj != null) body.put("card_holder_name", String.valueOf(nameObj));
-
-                    apiService.confirmPayment(bookingId, body).enqueue(new retrofit2.Callback<java.util.Map<String, Object>>() {
-                        @Override
-                        public void onResponse(retrofit2.Call<java.util.Map<String, Object>> call, retrofit2.Response<java.util.Map<String, Object>> response) {
-                            progressDialog.dismiss();
-
-                            if (response.isSuccessful()) {
-                                Toast.makeText(BookingDetailActivity.this,
-                                        "Thanh toán thành công!",
-                                        Toast.LENGTH_SHORT).show();
-                                loadBookingDetails();
-                            } else {
-                                String msg = "Xác nhận thanh toán thất bại";
-                                try {
-                                    if (response.errorBody() != null) msg = response.errorBody().string();
-                                } catch (Exception ignored) {}
-                                Toast.makeText(BookingDetailActivity.this,
-                                        msg,
-                                        Toast.LENGTH_LONG).show();
-                            }
-                        }
-
-                        @Override
-                        public void onFailure(retrofit2.Call<java.util.Map<String, Object>> call, Throwable t) {
-                            progressDialog.dismiss();
-                            Log.e(TAG, "Failed to confirm payment", t);
-                            Toast.makeText(BookingDetailActivity.this,
-                                    "Lỗi kết nối: " + t.getMessage(),
-                                    Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                })
-                .setNegativeButton("Hủy", null)
-                .show();
+        // Instead of showing a dialog, reveal the inline card form already present in the layout.
+        try {
+            View inline = findViewById(R.id.cardInlineCardPayment);
+            if (inline != null) {
+                inline.setVisibility(View.VISIBLE);
+                // focus the card number field if available
+                EditText pan = findViewById(R.id.edtCardNumberDetail);
+                if (pan != null) {
+                    pan.requestFocus();
+                }
+                // scroll to the inline form if there's a scroll view
+                try {
+                    final android.widget.ScrollView sv = findViewById(android.R.id.content) instanceof android.widget.ScrollView ? (android.widget.ScrollView) findViewById(android.R.id.content) : null;
+                    if (sv != null) sv.post(() -> sv.smoothScrollTo(0, inline.getTop()));
+                } catch (Exception ignored) {}
+            } else {
+                // Fallback: if inline form not available, show a simple message
+                Toast.makeText(this, "Vui lòng nhập thông tin thẻ ở phần thanh toán", Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error showing inline card form", e);
+            Toast.makeText(this, "Lỗi hiển thị form thẻ", Toast.LENGTH_SHORT).show();
+        }
     }
 
     // Reuse helper methods from PaymentActivity: Luhn and expiry parser

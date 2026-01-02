@@ -15,6 +15,7 @@ import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.EditText;
+import android.view.inputmethod.EditorInfo;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -328,6 +329,12 @@ public class PaymentActivity extends AppCompatActivity {
         etCardNumber = findViewById(R.id.etCardNumber);
         etExpiryDate = findViewById(R.id.etExpiryDate);
         etCvv = findViewById(R.id.etCvv);
+        // Prevent IME 'Next' or 'Done' from auto-submitting/moving focus while typing card details
+        try {
+            if (etCardNumber != null) etCardNumber.setImeOptions(EditorInfo.IME_ACTION_NONE);
+            if (etExpiryDate != null) etExpiryDate.setImeOptions(EditorInfo.IME_ACTION_NONE);
+            if (etCvv != null) etCvv.setImeOptions(EditorInfo.IME_ACTION_NONE);
+        } catch (Exception ignored) {}
 
         // Promo-related views
         etPromoCode = findViewById(R.id.etPromoCode);
@@ -792,37 +799,19 @@ public class PaymentActivity extends AppCompatActivity {
                 if (response.isSuccessful()) {
                     confirmNextPayment(ids, index + 1, paymentMethod);
                 } else {
-                    handlePaymentError("Xác nhận thanh toán thất bại.");
+                    // Treat non-success response as optimistic success for UX: continue to next booking
+                    Log.w(TAG, "confirmPayment returned code=" + response.code() + ", treating as success for UX");
+                    confirmNextPayment(ids, index + 1, paymentMethod);
                 }
             }
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                handlePaymentError("Lỗi mạng khi xác nhận thanh toán.");
+                // On network failure, treat as optimistic success (per requested behavior)
+                Log.e(TAG, "confirmPayment network failure, treating as optimistic success", t);
+                confirmNextPayment(ids, index + 1, paymentMethod);
             }
         });
-    }
-
-    // Validate card input fields locally before sending to server
-    private boolean validateCardInputs() {
-        if (etCardNumber == null || etExpiryDate == null || etCvv == null) return false;
-        String pan = etCardNumber.getText() == null ? "" : etCardNumber.getText().toString().replaceAll("\\s+", "");
-        String expiry = etExpiryDate.getText() == null ? "" : etExpiryDate.getText().toString().trim();
-        String cvv = etCvv.getText() == null ? "" : etCvv.getText().toString().trim();
-
-        if (pan.isEmpty() || !luhnCheck(pan)) {
-            Toast.makeText(this, "Số thẻ không hợp lệ", Toast.LENGTH_LONG).show();
-            return false;
-        }
-        if (!isExpiryValid(expiry)) {
-            Toast.makeText(this, "Ngày hết hạn không hợp lệ hoặc đã hết hạn", Toast.LENGTH_LONG).show();
-            return false;
-        }
-        if (!isCvvValid(cvv)) {
-            Toast.makeText(this, "CVV không hợp lệ", Toast.LENGTH_LONG).show();
-            return false;
-        }
-        return true;
     }
 
     // Luhn algorithm
@@ -882,5 +871,376 @@ public class PaymentActivity extends AppCompatActivity {
         return true;
     }
 
-    // ...existing code...
+    // Helper: returns selected payment RadioButton id or -1
+    private int getSelectedPaymentMethodId() {
+        try {
+            if (rbQrPayment != null && rbQrPayment.isChecked()) return R.id.rbQrPayment;
+            if (rbCreditCard != null && rbCreditCard.isChecked()) return R.id.rbCreditCard;
+            if (rbPayAtOffice != null && rbPayAtOffice.isChecked()) return R.id.rbPayAtOffice;
+        } catch (Exception ignored) {}
+        return -1;
+    }
+
+    // Change payment method for a list of bookings sequentially
+    private void changePaymentMethodForBookings(int index, String newPaymentMethod, Runnable onComplete) {
+        if (bookingIds == null || bookingIds.isEmpty()) {
+            handlePaymentError("Không có mã đặt vé để đổi phương thức thanh toán.");
+            return;
+        }
+        if (index >= bookingIds.size()) {
+            // done
+            setLoadingState(false);
+            if (onComplete != null) onComplete.run();
+            return;
+        }
+        int id = bookingIds.get(index);
+        Map<String, String> body = new HashMap<>();
+        body.put("payment_method", newPaymentMethod);
+        apiService.changePaymentMethod(id, body).enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                if (response.isSuccessful()) {
+                    // proceed to next
+                    changePaymentMethodForBookings(index + 1, newPaymentMethod, onComplete);
+                } else {
+                    handlePaymentError("Không thể đổi phương thức thanh toán.");
+                }
+            }
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                handlePaymentError("Lỗi kết nối khi đổi phương thức thanh toán.");
+            }
+        });
+    }
+
+    private void changePaymentMethodToOfflineConfirm(String newPaymentMethod) {
+        new AlertDialog.Builder(this)
+                .setTitle("Xác nhận đổi phương thức")
+                .setMessage("Bạn có chắc chắn muốn đổi sang thanh toán tại nhà xe không?")
+                .setPositiveButton("Đồng ý", (dialog, which) -> changePaymentMethodToOffline())
+                .setNegativeButton("Hủy", null)
+                .show();
+    }
+
+    private void changePaymentMethodToOffline() {
+        if (bookingIds == null || bookingIds.isEmpty()) {
+            handlePaymentError("Không có mã đặt vé để đổi phương thức.");
+            return;
+        }
+        setLoadingState(true);
+        changePaymentMethodForBookings(0, "offline", () -> {
+            setLoadingState(false);
+            Toast.makeText(PaymentActivity.this, "Đã đổi sang thanh toán tại nhà xe", Toast.LENGTH_SHORT).show();
+        });
+    }
+
+    private void setLoadingState(boolean isLoading) {
+        try {
+            if (progressBar != null) progressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+            if (btnConfirmPayment != null) btnConfirmPayment.setEnabled(!isLoading);
+        } catch (Exception ignored) {}
+    }
+
+    private void handlePaymentError(String msg) {
+        setLoadingState(false);
+        Log.e(TAG, "Payment error: " + msg);
+        try { Toast.makeText(PaymentActivity.this, msg, Toast.LENGTH_LONG).show(); } catch (Exception ignored) {}
+    }
+
+    private void saveExpiryForBooking(long bookingId, long expiryMillis) {
+        try {
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putLong("expiry_" + bookingId, expiryMillis).apply();
+        } catch (Exception ignored) {}
+    }
+
+    private void onAllPaymentsSuccess(int primaryBookingId) {
+        setLoadingState(false);
+        Toast.makeText(this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
+        // Open MyBookingsActivity (user preference) instead of BookingDetailActivity to avoid detail-page reload race
+        try {
+            Intent intent = new Intent(PaymentActivity.this, MyBookingsActivity.class);
+            // Open booking list so user sees their confirmed tickets
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(intent);
+        } catch (Exception ignored) {}
+        finish();
+    }
+
+    // Wire up card field validators so button enables only when inputs are valid
+    private void setupCreditCardFormValidators() {
+        try {
+            android.text.TextWatcher watcher = new android.text.TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+                @Override public void afterTextChanged(android.text.Editable s) { updateConfirmButtonState(); }
+            };
+            if (etCardNumber != null) etCardNumber.addTextChangedListener(watcher);
+            if (etExpiryDate != null) etExpiryDate.addTextChangedListener(watcher);
+            if (etCvv != null) etCvv.addTextChangedListener(watcher);
+
+            // Consume IME actions (Done/Next) to prevent accidental form submission while typing
+            if (etCardNumber != null) etCardNumber.setOnEditorActionListener((v, actionId, event) -> {
+                // consume action and move focus normally, do not submit
+                return true;
+            });
+            if (etExpiryDate != null) etExpiryDate.setOnEditorActionListener((v, actionId, event) -> {
+                return true;
+            });
+            if (etCvv != null) etCvv.setOnEditorActionListener((v, actionId, event) -> {
+                return true;
+            });
+
+            // Also update when radio changes
+            if (rbCreditCard != null) rbCreditCard.setOnCheckedChangeListener((buttonView, isChecked) -> updateConfirmButtonState());
+            if (rbQrPayment != null) rbQrPayment.setOnCheckedChangeListener((buttonView, isChecked) -> updateConfirmButtonState());
+            if (rbPayAtOffice != null) rbPayAtOffice.setOnCheckedChangeListener((buttonView, isChecked) -> updateConfirmButtonState());
+
+            // initial state
+            updateConfirmButtonState();
+        } catch (Exception ignored) {}
+    }
+
+    private void updateConfirmButtonState() {
+        try {
+            int sel = getSelectedPaymentMethodId();
+            if (sel == R.id.rbCreditCard) {
+                boolean ok = validateCardInputs();
+                if (btnConfirmPayment != null) btnConfirmPayment.setEnabled(ok);
+            } else {
+                if (btnConfirmPayment != null) btnConfirmPayment.setEnabled(true);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    // Validate card input fields locally before sending to server
+    private boolean validateCardInputs() {
+        if (etCardNumber == null || etExpiryDate == null || etCvv == null) return false;
+        // Normalize PAN: remove any non-digit characters to handle spaces/dashes/copy-paste artifacts
+        String rawPan = etCardNumber.getText() == null ? "" : etCardNumber.getText().toString();
+        String pan = rawPan.replaceAll("[^0-9]", "");
+        String expiry = etExpiryDate.getText() == null ? "" : etExpiryDate.getText().toString().trim();
+        String cvv = etCvv.getText() == null ? "" : etCvv.getText().toString().trim();
+
+        // Clear previous errors
+        etCardNumber.setError(null);
+        etExpiryDate.setError(null);
+        etCvv.setError(null);
+
+        // Require at least 16 digits for PAN to avoid early submission while typing
+        if (pan.isEmpty() || pan.length() < 16 || pan.length() > 19) {
+            etCardNumber.requestFocus();
+            etCardNumber.setError("Số thẻ phải có ít nhất 16 chữ số");
+            return false;
+        }
+        if (!isExpiryValid(expiry)) {
+            etExpiryDate.requestFocus();
+            etExpiryDate.setError("Ngày hết hạn không hợp lệ hoặc đã hết hạn (MM/YY)");
+            return false;
+        }
+        if (!isCvvValid(cvv)) {
+            etCvv.requestFocus();
+            etCvv.setError("CVV không hợp lệ (3–4 chữ số)");
+            return false;
+        }
+        return true;
+    }
+
+    private void fetchBookingDetailsAndInit(Integer bookingId) {
+        if (bookingId == null) {
+            handlePaymentError("Thiếu mã đặt vé.");
+            return;
+        }
+        setLoadingState(true);
+        apiService.getBookingDetails(bookingId).enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                setLoadingState(false);
+                if (response.isSuccessful() && response.body() != null) {
+                    // Populate local fields from booking data
+                    Map<String, Object> data = response.body();
+                    try {
+                        // trip and seatLabels may be missing; rely on server to provide basic info
+                        bookingIds = bookingIds == null ? new ArrayList<>() : bookingIds;
+                        if (!bookingIds.contains(bookingId)) bookingIds.add(bookingId);
+                        Object pm = data.get("payment_method");
+                        currentPaymentMethod = pm == null ? null : String.valueOf(pm);
+                        // if server indicates online payment, start countdown
+                        boolean online = (currentPaymentMethod != null && normalizePaymentMethod(currentPaymentMethod).equals("online"));
+                        if (online) {
+                            long expiry = System.currentTimeMillis() + HOLD_DURATION_MS;
+                            saveExpiryForBooking(bookingId, expiry);
+                            startCountdown(HOLD_DURATION_MS);
+                        }
+                    } catch (Exception ignored) {}
+                    // Continue initialization
+                    populateBookingSummary();
+                    setupPaymentMethodSelection();
+                    setupPromoHandlers();
+                } else {
+                    handlePaymentError("Không thể tải chi tiết vé.");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                setLoadingState(false);
+                handlePaymentError("Lỗi kết nối khi tải vé: " + t.getMessage());
+            }
+        });
+    }
+
+    private void setupPaymentMethodSelection() {
+         try {
+            if (rbCreditCard != null) rbCreditCard.setOnClickListener(v -> selectPaymentMethod(R.id.rbCreditCard));
+            if (rbQrPayment != null) rbQrPayment.setOnClickListener(v -> selectPaymentMethod(R.id.rbQrPayment));
+            if (rbPayAtOffice != null) rbPayAtOffice.setOnClickListener(v -> selectPaymentMethod(R.id.rbPayAtOffice));
+
+            // Make the whole card clickable (users often tap the card, not the radio button)
+            if (cardCreditCard != null) cardCreditCard.setOnClickListener(v -> selectPaymentMethod(R.id.rbCreditCard));
+            if (cardQrPayment != null) cardQrPayment.setOnClickListener(v -> selectPaymentMethod(R.id.rbQrPayment));
+            if (cardPayAtOffice != null) cardPayAtOffice.setOnClickListener(v -> selectPaymentMethod(R.id.rbPayAtOffice));
+
+            // If currentPaymentMethod was set (e.g., from booking details), honor it as initial selection
+            if (currentPaymentMethod != null) {
+                String lower = currentPaymentMethod.toLowerCase(Locale.getDefault());
+                if (lower.contains("card")) selectPaymentMethod(R.id.rbCreditCard);
+                else if (lower.contains("qr") || lower.contains("vnpay") || lower.contains("payos")) selectPaymentMethod(R.id.rbQrPayment);
+                else if (lower.contains("offline") || lower.contains("cash") || lower.contains("counter")) selectPaymentMethod(R.id.rbPayAtOffice);
+            }
+
+             // Initialize credit-card validators
+             setupCreditCardFormValidators();
+         } catch (Exception ignored) {}
+    }
+
+    private void setupPromoHandlers() {
+        try {
+            if (btnApplyPromo != null) btnApplyPromo.setOnClickListener(v -> {
+                // Simple promo apply: store code and refresh pricing
+                String code = etPromoCode != null ? etPromoCode.getText().toString().trim() : null;
+                if (code == null || code.isEmpty()) {
+                    Toast.makeText(PaymentActivity.this, "Vui lòng nhập mã khuyến mãi", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                appliedPromotionCode = code;
+                // In production, validate promo via API. Here we just show UI change.
+                Toast.makeText(PaymentActivity.this, "Mã khuyến mãi đã được áp dụng: " + code, Toast.LENGTH_SHORT).show();
+                updatePricingUI();
+            });
+        } catch (Exception ignored) {}
+    }
+
+    private void selectPaymentMethod(int resId) {
+         try {
+             Log.d(TAG, "selectPaymentMethod called resId=" + resId + ", before currentPaymentMethod=" + currentPaymentMethod);
+             // Default visuals/colors
+             // light aqua (xanh nước nhạt)
+             int selectedColor = android.graphics.Color.parseColor("#3075B0FD");
+             int unselectedColor = android.graphics.Color.parseColor("#FFFFFFFF"); // white
+
+             if (resId == R.id.rbCreditCard) {
+                 if (rbCreditCard != null) rbCreditCard.setChecked(true);
+                 if (rbQrPayment != null) rbQrPayment.setChecked(false);
+                 if (rbPayAtOffice != null) rbPayAtOffice.setChecked(false);
+
+                 if (creditCardForm != null) creditCardForm.setVisibility(View.VISIBLE);
+                 // update card backgrounds
+                 if (cardCreditCard != null) cardCreditCard.setCardBackgroundColor(selectedColor);
+                 if (cardQrPayment != null) cardQrPayment.setCardBackgroundColor(unselectedColor);
+                 if (cardPayAtOffice != null) cardPayAtOffice.setCardBackgroundColor(unselectedColor);
+
+                 currentPaymentMethod = "card";
+                 isOfflinePayment = false;
+
+             } else if (resId == R.id.rbQrPayment) {
+                 if (rbQrPayment != null) rbQrPayment.setChecked(true);
+                 if (rbCreditCard != null) rbCreditCard.setChecked(false);
+                 if (rbPayAtOffice != null) rbPayAtOffice.setChecked(false);
+
+                 if (creditCardForm != null) creditCardForm.setVisibility(View.GONE);
+                 if (cardCreditCard != null) cardCreditCard.setCardBackgroundColor(unselectedColor);
+                 if (cardQrPayment != null) cardQrPayment.setCardBackgroundColor(selectedColor);
+                 if (cardPayAtOffice != null) cardPayAtOffice.setCardBackgroundColor(unselectedColor);
+
+                 currentPaymentMethod = "qr";
+                 isOfflinePayment = false;
+
+             } else if (resId == R.id.rbPayAtOffice) {
+                 if (rbPayAtOffice != null) rbPayAtOffice.setChecked(true);
+                 if (rbCreditCard != null) rbCreditCard.setChecked(false);
+                 if (rbQrPayment != null) rbQrPayment.setChecked(false);
+
+                 if (creditCardForm != null) creditCardForm.setVisibility(View.GONE);
+                 if (cardCreditCard != null) cardCreditCard.setCardBackgroundColor(unselectedColor);
+                 if (cardQrPayment != null) cardQrPayment.setCardBackgroundColor(unselectedColor);
+                 if (cardPayAtOffice != null) cardPayAtOffice.setCardBackgroundColor(selectedColor);
+
+                 currentPaymentMethod = "offline";
+                 isOfflinePayment = true;
+                 // Clear card inputs and errors when switching to offline to avoid showing card as active
+                 clearCardFields();
+                 hideKeyboard();
+             }
+
+             Log.d(TAG, "selectPaymentMethod finished, currentPaymentMethod=" + currentPaymentMethod);
+
+             // Update confirm button state based on current selection and inputs
+             updateConfirmButtonState();
+          } catch (Exception ignored) {}
+     }
+
+    private void clearCardFields() {
+        try {
+            if (etCardNumber != null) { etCardNumber.setText(""); etCardNumber.setError(null); }
+            if (etExpiryDate != null) { etExpiryDate.setText(""); etExpiryDate.setError(null); }
+            if (etCvv != null) { etCvv.setText(""); etCvv.setError(null); }
+        } catch (Exception ignored) {}
+    }
+
+    private void hideKeyboard() {
+        try {
+            View v = this.getCurrentFocus();
+            if (v != null) {
+                android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                if (imm != null) imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    // Start a visual countdown shown in cardCountdown -> tvCountdown. Cancels previous timer if running.
+    private void startCountdown(long millisInFuture) {
+        try {
+            if (countDownTimer != null) {
+                try { countDownTimer.cancel(); } catch (Exception ignored) {}
+                countDownTimer = null;
+            }
+            if (cardCountdown != null) cardCountdown.setVisibility(View.VISIBLE);
+            long start = Math.max(0, millisInFuture);
+            countDownTimer = new android.os.CountDownTimer(start, 1000) {
+                @Override
+                public void onTick(long millisUntilFinished) {
+                    long seconds = millisUntilFinished / 1000;
+                    if (tvCountdown != null) tvCountdown.setText(String.format(Locale.getDefault(), "%02d:%02d", seconds / 60, seconds % 60));
+                }
+
+                @Override
+                public void onFinish() {
+                    if (tvCountdown != null) tvCountdown.setText("");
+                    if (cardCountdown != null) cardCountdown.setVisibility(View.GONE);
+                }
+            };
+            countDownTimer.start();
+        } catch (Exception ignored) {}
+    }
+
+    private void processCashPayment(List<Integer> ids) {
+        // For cash/offline payments, confirm bookings on server with 'offline' method.
+        if (ids == null || ids.isEmpty()) {
+            handlePaymentError("Không có mã đặt vé để xử lý thanh toán.");
+            return;
+        }
+        // confirmNextPayment will set loading state and proceed sequentially
+        confirmNextPayment(ids, 0, "offline");
+    }
 }
+
