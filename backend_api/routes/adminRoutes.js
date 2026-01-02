@@ -307,6 +307,58 @@ router.put("/bookings/:id/confirm", checkAdminRole, async (req, res) => {
     client.release();
 
     console.log(`[admin.confirm] booking id=${id} confirmed, paidAmount=${paidAmount}`);
+
+    // Send confirmation email
+    try {
+      console.log(`[admin.confirm] Attempting to send email for booking ${id}`);
+      const fullBooking = await db.query(
+        `SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type
+         FROM bookings b
+         JOIN users u ON b.user_id = u.id
+         JOIN trips t ON b.trip_id = t.id
+         JOIN routes r ON t.route_id = r.id
+         WHERE b.id=$1`,
+        [id]
+      );
+
+      if (fullBooking.rowCount > 0) {
+        const bookingData = fullBooking.rows[0];
+        console.log(`[admin.confirm] Found booking for email:`, {
+          id: bookingData.id,
+          email: bookingData.email,
+          booking_code: bookingData.booking_code
+        });
+
+        const userData = {
+          email: bookingData.email,
+          name: bookingData.name,
+          phone: bookingData.phone
+        };
+        const tripData = {
+          origin: bookingData.origin,
+          destination: bookingData.destination,
+          departure_time: bookingData.departure_time,
+          operator: bookingData.operator,
+          bus_type: bookingData.bus_type
+        };
+
+        console.log(`[admin.confirm] Calling sendPaymentConfirmationEmail with email: ${bookingData.email}`);
+        const emailResult = await sendPaymentConfirmationEmail(bookingData.email, bookingData, tripData, userData);
+        console.log(`[admin.confirm] Email result:`, emailResult);
+
+        if (emailResult && emailResult.success) {
+          console.log(`✅ Confirmation email sent for booking ${id}`);
+        } else {
+          console.error(`❌ Email sending failed for booking ${id}:`, emailResult?.error || 'Unknown error');
+        }
+      } else {
+        console.warn(`[admin.confirm] No booking data found for sending email (booking ${id})`);
+      }
+    } catch (emailError) {
+      console.error(`❌ Failed to send email for booking ${id}:`, emailError.message || emailError);
+      // Don't fail the request if email fails
+    }
+
     res.json(updateRes.rows[0]);
   } catch (err) {
     try { await client.query("ROLLBACK"); } catch (e) { console.error('rollback failed', e); }
