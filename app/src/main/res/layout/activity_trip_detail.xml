@@ -124,29 +124,6 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Google Map for Pickup/Dropoff Locations -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="300dp"
-                    android:layout_marginTop="16dp"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="0dp">
-
-                    <FrameLayout
-                        android:id="@+id/mapContainer"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:background="@color/background">
-
-                        <androidx.fragment.app.FragmentContainerView
-                            android:id="@+id/mapFragment"
-                            android:name="vn.hcmute.busbooking.fragment.TripMapFragment"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent" />
-
-                    </FrameLayout>
-                </com.google.android.material.card.MaterialCardView>
-
                 <!-- Timeline -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
