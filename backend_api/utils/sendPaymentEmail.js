@@ -160,37 +160,6 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
         } catch (logoError) {
             console.warn("⚠️ Failed to load logo:", logoError.message);
         }
-        // Get logo as base64 data URI
-        let logoDataUri = null;
-        try {
-            const logoPath = path.join(__dirname, '../assets/logo.jpg');
-            let finalLogoPath = logoPath;
-            if (!fs.existsSync(finalLogoPath)) {
-                // Try public folder
-                const publicLogoPath = path.join(__dirname, '../../public/logo.jpg');
-                if (fs.existsSync(publicLogoPath)) {
-                    finalLogoPath = publicLogoPath;
-                } else {
-                    // Try app src resources
-                    const appLogoPath = path.join(__dirname, '../../app/src/main/res/drawable/ic_goute_logo.jpg');
-                    if (fs.existsSync(appLogoPath)) {
-                        finalLogoPath = appLogoPath;
-                    }
-                }
-            }
-
-            if (fs.existsSync(finalLogoPath)) {
-                const logoBuffer = fs.readFileSync(finalLogoPath);
-                const logoBase64 = logoBuffer.toString('base64');
-                const mimeType = path.extname(finalLogoPath).toLowerCase() === '.png' ? 'image/png' : 'image/jpeg';
-                logoDataUri = `data:${mimeType};base64,${logoBase64}`;
-                console.log("✅ Logo loaded as Data URI");
-            } else {
-                console.warn("⚠️ Logo file not found at paths:", logoPath);
-            }
-        } catch (logoError) {
-            console.warn("⚠️ Failed to load logo:", logoError.message);
-        }
 
         // Generate HTML email template
         const htmlContent = `
