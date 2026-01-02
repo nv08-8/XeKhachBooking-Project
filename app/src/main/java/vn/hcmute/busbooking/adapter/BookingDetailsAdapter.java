@@ -57,12 +57,33 @@ public class BookingDetailsAdapter extends RecyclerView.Adapter<BookingDetailsAd
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Map<String, Object> detail = bookingDetails.get(position);
 
-        holder.tvBookingId.setText("Mã đặt vé: #" + detail.get("booking_id").toString());
-        holder.tvUserName.setText(detail.get("user_name").toString());
-        holder.tvRouteInfo.setText("Tuyến: " + detail.get("route_info").toString());
-        holder.tvDepartureTime.setText("Khởi hành: " + formatDateTime(detail.get("departure_time").toString()));
-        holder.tvTicketCount.setText("Số vé: " + detail.get("ticket_count").toString());
-        holder.tvTotalPrice.setText("Tổng tiền: " + detail.get("total_price").toString() + " VNĐ");
+        // Debug log
+        android.util.Log.d("BookingDetailsAdapter", "Position " + position + " - Detail: " + detail.toString());
+
+        // Null-safe getter helper
+        String bookingId = detail.get("booking_id") != null ? detail.get("booking_id").toString() : "";
+        String userName = detail.get("user_name") != null ? detail.get("user_name").toString() : "";
+        String routeInfo = detail.get("route_info") != null ? detail.get("route_info").toString() : "";
+        String departureTime = detail.get("departure_time") != null ? detail.get("departure_time").toString() : "";
+        String ticketCount = detail.get("ticket_count") != null ? detail.get("ticket_count").toString() : "";
+        String totalPrice = detail.get("total_price") != null ? detail.get("total_price").toString() : "";
+        String refundAmount = detail.get("refund_amount") != null ? detail.get("refund_amount").toString() : "";
+
+        android.util.Log.d("BookingDetailsAdapter", "totalPrice=" + totalPrice + ", refundAmount=" + refundAmount);
+
+        holder.tvBookingId.setText("Mã đặt vé: #" + bookingId);
+        holder.tvUserName.setText(userName);
+        holder.tvRouteInfo.setText("Tuyến: " + routeInfo);
+        holder.tvDepartureTime.setText("Khởi hành: " + formatDateTime(departureTime));
+
+        // Hiển thị số vé - nếu không có ticket_count thì hiển thị 1 (mặc định)
+        String displayTicketCount = !ticketCount.isEmpty() ? ticketCount : "1";
+        holder.tvTicketCount.setText("Số vé: " + displayTicketCount);
+
+        // Dùng total_price nếu có, nếu không dùng refund_amount (cho hoàn tiền)
+        // Nếu cả hai đều trống, hiển thị 0
+        String priceDisplay = !totalPrice.isEmpty() ? totalPrice : (!refundAmount.isEmpty() ? refundAmount : "0");
+        holder.tvTotalPrice.setText("Tổng tiền: " + priceDisplay + " VNĐ");
     }
 
     @Override

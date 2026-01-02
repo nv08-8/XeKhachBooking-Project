@@ -571,7 +571,9 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
     query += ` GROUP BY ${groupByClause} ORDER BY ${orderByClause}`;
 
     try {
+        console.log(`📊 [Refunds Report] Query: ${query.substring(0, 100)}... | Params: ${JSON.stringify(params)}`);
         const result = await db.query(query, params);
+        console.log(`📊 [Refunds Report] Found ${result.rows.length} rows:`, JSON.stringify(result.rows));
         res.json(result.rows);
     } catch (err) {
         console.error(`Error fetching refunds by ${groupBy}:`, err);
@@ -668,7 +670,9 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
   sql += " ORDER BY t.departure_time DESC";
 
   try {
+    console.log(`💸 [Refund Details] Query group_by=${group_by}, value=${value}`);
     const result = await db.query(sql, params);
+    console.log(`💸 [Refund Details] Found ${result.rows.length} bookings:`, JSON.stringify(result.rows));
     res.json(result.rows);
   } catch (err) {
     console.error("Error fetching refund details:", err);
