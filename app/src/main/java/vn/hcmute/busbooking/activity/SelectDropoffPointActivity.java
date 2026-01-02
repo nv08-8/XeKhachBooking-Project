@@ -1,23 +1,26 @@
 package vn.hcmute.busbooking.activity;
 
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.card.MaterialCardView;
 
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import java.util.stream.Collectors;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -67,7 +70,7 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
         tvSubtotal = findViewById(R.id.tvSubtotal);
 
         rvLocations.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new LocationAdapter(new ArrayList<>(), loc -> selectedDropoff = loc);
+        adapter = new LocationAdapter(this, new ArrayList<>(), loc -> selectedDropoff = loc);
         rvLocations.setAdapter(adapter);
 
         // Display subtotal
@@ -81,19 +84,10 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
 
         // Handle continue button click
         btnContinue.setOnClickListener(v -> {
-            android.util.Log.d("SelectDropoff", "Continue button clicked");
-
             if (selectedDropoff == null) {
-                android.util.Log.e("SelectDropoff", "No dropoff location selected");
                 Toast.makeText(this, "Vui lòng chọn điểm trả.", Toast.LENGTH_SHORT).show();
                 return;
             }
-
-            android.util.Log.d("SelectDropoff", "Creating intent to ContactInfoActivity");
-            android.util.Log.d("SelectDropoff", "Trip: " + (trip != null ? trip.getId() : "null"));
-            android.util.Log.d("SelectDropoff", "Seats: " + (seatLabels != null ? seatLabels.size() : "null"));
-            android.util.Log.d("SelectDropoff", "Pickup: " + (selectedPickup != null ? selectedPickup.getName() : "null"));
-            android.util.Log.d("SelectDropoff", "Dropoff: " + (selectedDropoff != null ? selectedDropoff.getName() : "null"));
 
             try {
                 // Go to contact info screen before payment
@@ -103,11 +97,8 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
                 intent.putExtra("pickup_location", selectedPickup);
                 intent.putExtra("dropoff_location", selectedDropoff);
 
-                android.util.Log.d("SelectDropoff", "Starting ContactInfoActivity...");
                 startActivity(intent);
-                android.util.Log.d("SelectDropoff", "ContactInfoActivity started successfully");
             } catch (Exception e) {
-                android.util.Log.e("SelectDropoff", "Error starting ContactInfoActivity", e);
                 Toast.makeText(this, "Lỗi: " + e.getMessage(), Toast.LENGTH_LONG).show();
             }
         });
@@ -120,7 +111,6 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<List<Location>> call, Response<List<Location>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    // Filter for dropoff points
                     dropoffLocations = new ArrayList<>();
                     for (Location location : response.body()) {
                         String type = location.getType();
@@ -144,29 +134,15 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
         });
     }
 
-    private String formatLocationName(Location location) {
-        String name = location.getName();
-        String address = location.getAddress();
-
-        if (name != null && !name.isEmpty() && address != null && !address.isEmpty()) {
-            return name + " - " + address;
-        } else if (name != null && !name.isEmpty()) {
-            return name;
-        } else if (address != null && !address.isEmpty()) {
-            return address;
-        } else {
-            return "Điểm dừng không tên";
-        }
-    }
-
-    // Reuse the same LocationAdapter pattern used in SelectPickupPointActivity
     private static class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.VH> {
         interface OnClick { void onClick(Location loc); }
         private final List<Location> items;
         private final OnClick onClick;
         private int selected = -1;
+        private final Context context;
 
-        LocationAdapter(List<Location> items, OnClick onClick) {
+        LocationAdapter(Context context, List<Location> items, OnClick onClick) {
+            this.context = context;
             this.items = items;
             this.onClick = onClick;
         }
@@ -185,14 +161,13 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(VH holder, int position) {
-            Location loc = items.get(position);
+            int pos = holder.getAdapterPosition();
+            if (pos == RecyclerView.NO_POSITION) return;
+            Location loc = items.get(pos);
             String name = loc.getName();
             String addr = loc.getAddress();
 
-            // Set name (always show, or default text if empty)
             holder.tvName.setText((name != null && !name.isEmpty() ? name : "Không tên"));
-
-            // Set address (show if available, otherwise hide)
             if (addr != null && !addr.isEmpty()) {
                 holder.tvAddress.setText(addr);
                 holder.tvAddress.setVisibility(View.VISIBLE);
@@ -200,15 +175,49 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
                 holder.tvAddress.setVisibility(View.GONE);
             }
 
-            holder.itemView.setSelected(position == selected);
+            // --- UI State Handling ---
+            boolean isSelected = (pos == selected);
+            MaterialCardView card = (MaterialCardView) holder.itemView;
+            
+            holder.rbSelection.setChecked(isSelected);
+            holder.viewIndicator.setVisibility(isSelected ? View.VISIBLE : View.INVISIBLE);
+
+            if (isSelected) {
+                // Selected: Viền xanh, Nền xanh nhạt
+                card.setStrokeColor(ContextCompat.getColor(context, R.color.colorPrimary));
+                card.setStrokeWidth(4);
+                card.setCardBackgroundColor(Color.parseColor("#DFF2FF"));
+            } else {
+                // Normal: Viền xám nhạt, Nền trắng
+                card.setStrokeColor(Color.parseColor("#E0E0E0"));
+                card.setStrokeWidth(2);
+                card.setCardBackgroundColor(Color.WHITE);
+            }
+
             holder.itemView.setOnClickListener(v -> {
-                int pos = holder.getAdapterPosition();
-                if (pos == RecyclerView.NO_POSITION) return;
+                int p = holder.getAdapterPosition();
+                if (p == RecyclerView.NO_POSITION) return;
                 int old = selected;
-                selected = pos;
+                selected = p;
                 notifyItemChanged(old);
                 notifyItemChanged(selected);
-                if (onClick != null) onClick.onClick(items.get(pos));
+                if (onClick != null) onClick.onClick(items.get(p));
+            });
+
+            // Map button click (Open in Google Maps)
+            holder.llMapAction.setOnClickListener(v -> {
+                if (loc.getAddress() != null && !loc.getAddress().isEmpty()) {
+                    try {
+                        Uri gmmIntentUri = Uri.parse("geo:0,0?q=" + Uri.encode(loc.getAddress()));
+                        Intent mapIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
+                        mapIntent.setPackage("com.google.android.apps.maps");
+                        context.startActivity(mapIntent);
+                    } catch (Exception e) {
+                        Toast.makeText(context, "Không thể mở bản đồ", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                     Toast.makeText(context, "Không có địa chỉ để hiển thị", Toast.LENGTH_SHORT).show();
+                }
             });
         }
 
@@ -218,10 +227,17 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
         static class VH extends RecyclerView.ViewHolder {
             TextView tvName;
             TextView tvAddress;
+            RadioButton rbSelection;
+            View viewIndicator;
+            View llMapAction;
+
             VH(View itemView) {
                 super(itemView);
                 tvName = itemView.findViewById(R.id.tvLocationName);
                 tvAddress = itemView.findViewById(R.id.tvLocationAddress);
+                rbSelection = itemView.findViewById(R.id.rbSelection);
+                viewIndicator = itemView.findViewById(R.id.viewSelectionIndicator);
+                llMapAction = itemView.findViewById(R.id.llMapAction);
             }
         }
     }

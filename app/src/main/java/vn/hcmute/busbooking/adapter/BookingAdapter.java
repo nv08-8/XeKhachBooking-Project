@@ -105,32 +105,41 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             setStatus(tvStatus, booking, pendingCountdowns);
         }
 
-        private String formatTime(String isoString) {
-            if (isoString == null) return "";
-            try {
-                SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                //isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-                Date date = isoFormat.parse(isoString);
-                if (date == null) return "";
-                SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
-                return timeFormat.format(date);
-            } catch (ParseException e) {
-                return "";
+        private Date parseDate(String isoString) {
+            if (isoString == null || isoString.isEmpty()) return null;
+            // List of supported patterns
+            String[] patterns = {
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss.SSS",
+                "yyyy-MM-dd'T'HH:mm:ss"
+            };
+
+            for (String pattern : patterns) {
+                try {
+                    SimpleDateFormat sdf = new SimpleDateFormat(pattern, Locale.getDefault());
+                    if (pattern.contains("'Z'")) {
+                        // sdf.setTimeZone(TimeZone.getTimeZone("UTC")); // Optional: if Z implies UTC and we want to convert to local
+                    }
+                    return sdf.parse(isoString);
+                } catch (ParseException e) {
+                    // Continue to next pattern
+                }
             }
+            return null;
+        }
+
+        private String formatTime(String isoString) {
+            Date date = parseDate(isoString);
+            if (date == null) return "";
+            SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+            return timeFormat.format(date);
         }
 
         private String formatDate(String isoString) {
-            if (isoString == null) return "";
-            try {
-                SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                // No timezone conversion - database has local time
-                Date date = isoFormat.parse(isoString);
-                if (date == null) return "";
-                SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd/MM/yyyy", new Locale("vi", "VN"));
-                return dateFormat.format(date);
-            } catch (ParseException e) {
-                return "";
-            }
+            Date date = parseDate(isoString);
+            if (date == null) return "";
+            SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd/MM/yyyy", new Locale("vi", "VN"));
+            return dateFormat.format(date);
         }
 
         private String formatDuration(String minutesString) {
@@ -171,13 +180,11 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             // 1. Nếu status là "confirmed" nhưng đã quá giờ arrival -> "Đã đi"
             long arrivalTime = -1;
             try {
-                SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                // No timezone conversion - database has local time
-                Date d = isoFormat.parse(booking.getArrival_time());
+                Date d = parseDate(booking.getArrival_time());
                 if (d != null) arrivalTime = d.getTime();
                 else {
                     // Fallback departure + 4h
-                    Date d2 = isoFormat.parse(booking.getDeparture_time());
+                    Date d2 = parseDate(booking.getDeparture_time());
                     if (d2 != null) arrivalTime = d2.getTime() + (4 * 60 * 60 * 1000L);
                 }
             } catch (Exception ignored) {}

@@ -557,11 +557,25 @@ public class BookingDetailActivity extends AppCompatActivity {
         } else if ("confirmed".equalsIgnoreCase(status) || "completed".equalsIgnoreCase(status)) {
              // Confirmed or completed booking
              long arrivalTime = -1;
+             // Use robust parsing: accept numeric timestamps (seconds or millis) or ISO strings
              try {
-                SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                // No timezone conversion - database has local time
-                Date d = isoFormat.parse((String) data.get("arrival_time"));
-                if (d != null) arrivalTime = d.getTime();
+                 Object arrivalObj = data.get("arrival_time");
+                 if (arrivalObj instanceof Number) {
+                     long v = ((Number) arrivalObj).longValue();
+                     if (v < 100000000000L) v = v * 1000L; // seconds -> millis
+                     arrivalTime = v;
+                 } else if (arrivalObj instanceof String) {
+                     String arrStr = ((String) arrivalObj).trim();
+                     if (arrStr.matches("^\\d+$")) {
+                         try {
+                             long v = Long.parseLong(arrStr);
+                             if (v < 100000000000L) v = v * 1000L;
+                             arrivalTime = v;
+                         } catch (Exception ignored) {}
+                     } else {
+                         arrivalTime = parseIsoToMillis(arrStr);
+                     }
+                 }
              } catch (Exception ignored) {}
 
              boolean isActuallyCompleted = "completed".equalsIgnoreCase(status) || (arrivalTime != -1 && System.currentTimeMillis() > arrivalTime);
@@ -749,23 +763,43 @@ public class BookingDetailActivity extends AppCompatActivity {
     private String formatTime(String isoString) {
         if (isoString == null) return "";
         try {
-            SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-            // No timezone conversion - database has local time
-            Date date = isoFormat.parse(isoString);
+            long millis = -1;
+            String s = isoString.trim();
+            if (s.matches("^\\d+$")) {
+                long v = Long.parseLong(s);
+                if (v < 100000000000L) v = v * 1000L; // seconds -> millis
+                millis = v;
+            } else {
+                millis = parseIsoToMillis(s);
+            }
+            if (millis <= 0) return "";
+            Date date = new Date(millis);
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
             return timeFormat.format(date);
-        } catch (ParseException e) { return ""; }
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private String formatDate(String isoString) {
         if (isoString == null) return "";
         try {
-            SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-            // No timezone conversion - database has local time
-            Date date = isoFormat.parse(isoString);
+            long millis = -1;
+            String s = isoString.trim();
+            if (s.matches("^\\d+$")) {
+                long v = Long.parseLong(s);
+                if (v < 100000000000L) v = v * 1000L; // seconds -> millis
+                millis = v;
+            } else {
+                millis = parseIsoToMillis(s);
+            }
+            if (millis <= 0) return "";
+            Date date = new Date(millis);
             SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd/MM/yyyy", new Locale("vi", "VN"));
             return dateFormat.format(date);
-        } catch (ParseException e) { return ""; }
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private void showCancelConfirmationDialog() {
