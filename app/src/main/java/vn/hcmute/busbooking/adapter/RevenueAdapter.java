@@ -85,7 +85,11 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
         Map<String, Object> revenue = revenues.get(position);
 
         Object groupKey = revenue.get("group_key");
+        // Hỗ trợ cả total_revenue (doanh thu) và refund_amount (hoàn tiền)
         Object totalRev = revenue.get("total_revenue");
+        if (totalRev == null) {
+            totalRev = revenue.get("refund_amount");
+        }
         Object totalBookings = revenue.get("total_bookings");
         
         String title = "?";

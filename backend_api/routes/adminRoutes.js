@@ -210,7 +210,12 @@ router.get("/bookings", checkAdminRole, async (req, res) => {
   const offset = (page - 1) * page_size;
 
   let sql = `
-    SELECT b.*, u.name, u.email, t.departure_time, r.origin, r.destination
+    SELECT b.*, u.name, u.email, t.departure_time, t.status AS trip_status, r.origin, r.destination,
+           CASE
+             WHEN b.status = 'confirmed' AND t.status = 'cancelled' THEN 'Vé đã thanh toán nhưng chuyến bị hủy'
+             WHEN b.status = 'cancelled' THEN 'Vé đã bị hủy'
+             ELSE NULL
+           END AS cancellation_message
     FROM bookings b
     LEFT JOIN users u ON u.id = b.user_id
     LEFT JOIN trips t ON t.id = b.trip_id

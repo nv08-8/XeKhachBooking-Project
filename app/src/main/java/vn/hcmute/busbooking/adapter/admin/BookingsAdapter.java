@@ -70,6 +70,8 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
         Object departureTimeObj = booking.get("departure_time");
         Object priceObj = booking.get("total_amount");
         Object statusObj = booking.get("status");
+        Object cancellationMessageObj = booking.get("cancellation_message");
+        Object tripStatusObj = booking.get("trip_status");
 
         holder.tvBookingId.setText("Đơn #" + (idObj != null ? idObj.toString() : "?"));
         holder.tvUserName.setText(userNameObj != null ? userNameObj.toString() : "");
@@ -90,6 +92,28 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
         // Set status with styling
         if (statusObj != null) {
             setStatus(holder, statusObj.toString());
+        }
+
+        // Kiểm tra xem vé có bị hủy không (vé đã thanh toán nhưng chuyến bị hủy hoặc vé bị hủy)
+        boolean isCancelled = statusObj != null && statusObj.toString().equals("cancelled");
+        boolean isConfirmedButTripCancelled = statusObj != null && statusObj.toString().equals("confirmed") &&
+                                              tripStatusObj != null && tripStatusObj.toString().equals("cancelled");
+
+        if (isCancelled || isConfirmedButTripCancelled) {
+            // Làm nhạt item
+            holder.itemView.setAlpha(0.6f);
+
+            // Hiển thị thông báo hủy nếu có
+            if (cancellationMessageObj != null && !cancellationMessageObj.toString().isEmpty()) {
+                holder.tvCancellationMessage.setText("⚠️ " + cancellationMessageObj.toString());
+                holder.tvCancellationMessage.setVisibility(View.VISIBLE);
+            } else {
+                holder.tvCancellationMessage.setVisibility(View.GONE);
+            }
+        } else {
+            // Hiển thị bình thường
+            holder.itemView.setAlpha(1.0f);
+            holder.tvCancellationMessage.setVisibility(View.GONE);
         }
     }
 
@@ -136,7 +160,7 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
     }
 
     public static class BookingViewHolder extends RecyclerView.ViewHolder {
-        TextView tvBookingId, tvUserName, tvBookingRoute, tvDepartureTime, tvBookingPrice, tvBookingStatus;
+        TextView tvBookingId, tvUserName, tvBookingRoute, tvDepartureTime, tvBookingPrice, tvBookingStatus, tvCancellationMessage;
         View statusBadge;
         // The views below are kept to avoid crashing the app, but are not used directly.
         TextView tvBookingSeat;
@@ -149,6 +173,7 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
             tvBookingRoute = itemView.findViewById(R.id.tvBookingRoute);
             tvDepartureTime = itemView.findViewById(R.id.tvDepartureTime);
             tvBookingPrice = itemView.findViewById(R.id.tvBookingPrice);
+            tvCancellationMessage = itemView.findViewById(R.id.tvCancellationMessage);
             tvBookingStatus = itemView.findViewById(R.id.tvStatus);
             statusBadge = itemView.findViewById(R.id.statusBadge);
             // The following views are found but are not styled or used directly in the adapter logic

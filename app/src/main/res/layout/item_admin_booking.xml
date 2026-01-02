@@ -144,6 +144,25 @@
             android:background="#30000000"
             app:layout_constraintTop_toBottomOf="@id/tvDepartureTime" />
 
+        <!-- Thông báo vé bị hủy -->
+        <TextView
+            android:id="@+id/tvCancellationMessage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="8dp"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp"
+            android:background="@drawable/bg_warning_message"
+            android:text=""
+            android:textColor="@color/errorRed"
+            android:textSize="12sp"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/divider2"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:text="⚠️ Vé đã thanh toán nhưng chuyến bị hủy"
+            tools:visibility="visible" />
+
         <!-- Price Section - Highlight (Center) -->
         <LinearLayout
             android:id="@+id/priceContainer"
@@ -156,7 +175,7 @@
             android:background="@drawable/bg_price_rounded"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/divider2">
+            app:layout_constraintTop_toBottomOf="@id/tvCancellationMessage">
 
             <ImageView
                 android:layout_width="18dp"
