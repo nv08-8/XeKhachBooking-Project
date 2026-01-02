@@ -124,7 +124,15 @@ exports.verifyPayment = async (req, res) => {
 
         if (isSuccess) {
             const { rows: bookings } = await db.query(
-                "SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type FROM bookings b JOIN users u ON b.user_id = u.id JOIN trips t ON b.trip_id = t.id JOIN routes r ON t.route_id = r.id WHERE b.metadata->'payment'->>'orderCode' = $1 AND b.status = 'pending'",
+                `SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type,
+                        STRING_AGG(bi.seat_code, ', ' ORDER BY bi.seat_code) as seat_codes
+                 FROM bookings b
+                 JOIN users u ON b.user_id = u.id
+                 JOIN trips t ON b.trip_id = t.id
+                 JOIN routes r ON t.route_id = r.id
+                 LEFT JOIN booking_items bi ON b.id = bi.booking_id
+                 WHERE b.metadata->'payment'->>'orderCode' = $1 AND b.status = 'pending'
+                 GROUP BY b.id, u.id, t.id, r.id`,
                 [String(orderId)]
             );
 
@@ -182,7 +190,15 @@ exports.handleWebhook = async (req, res) => {
         const isSuccess = status && String(status).toUpperCase() === 'PAID';
         if (isSuccess) {
             const { rows: bookings } = await db.query(
-                "SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type FROM bookings b JOIN users u ON b.user_id = u.id JOIN trips t ON b.trip_id = t.id JOIN routes r ON t.route_id = r.id WHERE b.metadata->'payment'->>'orderCode' = $1 AND b.status = 'pending'",
+                `SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type,
+                        STRING_AGG(bi.seat_code, ', ' ORDER BY bi.seat_code) as seat_codes
+                 FROM bookings b
+                 JOIN users u ON b.user_id = u.id
+                 JOIN trips t ON b.trip_id = t.id
+                 JOIN routes r ON t.route_id = r.id
+                 LEFT JOIN booking_items bi ON b.id = bi.booking_id
+                 WHERE b.metadata->'payment'->>'orderCode' = $1 AND b.status = 'pending'
+                 GROUP BY b.id, u.id, t.id, r.id`,
                 [String(orderCode)]
             );
 

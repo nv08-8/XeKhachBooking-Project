@@ -110,9 +110,9 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
 
         // Generate QR code from booking code
         const bookingCode = booking.booking_code || '#' + booking.id;
-        let qrCodeBuffer = null;
+        let qrCodeDataUri = null;
         try {
-            qrCodeBuffer = await QRCode.toBuffer(bookingCode, {
+            qrCodeDataUri = await QRCode.toDataURL(bookingCode, {
                 errorCorrectionLevel: 'H',
                 type: 'image/png',
                 quality: 0.92,
@@ -123,10 +123,73 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                     light: '#FFFFFF'
                 }
             });
-            console.log("✅ QR code generated successfully");
+            console.log("✅ QR code generated successfully as data URI");
         } catch (qrError) {
             console.warn("⚠️ Failed to generate QR code:", qrError.message);
-            // Continue without QR code if generation fails
+        }
+        
+        // Get logo as base64 data URI
+        let logoDataUri = null;
+        try {
+            const logoPath = path.join(__dirname, '../assets/logo.jpg');
+            let finalLogoPath = logoPath;
+            if (!fs.existsSync(finalLogoPath)) {
+                // Try public folder
+                const publicLogoPath = path.join(__dirname, '../../public/logo.jpg');
+                if (fs.existsSync(publicLogoPath)) {
+                    finalLogoPath = publicLogoPath;
+                } else {
+                    // Try app src resources
+                    const appLogoPath = path.join(__dirname, '../../app/src/main/res/drawable/ic_goute_logo.jpg');
+                    if (fs.existsSync(appLogoPath)) {
+                        finalLogoPath = appLogoPath;
+                    }
+                }
+            }
+
+            if (fs.existsSync(finalLogoPath)) {
+                const logoBuffer = fs.readFileSync(finalLogoPath);
+                const logoBase64 = logoBuffer.toString('base64');
+                const ext = path.extname(finalLogoPath).toLowerCase();
+                const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
+                logoDataUri = `data:${mimeType};base64,${logoBase64}`;
+                console.log("✅ Logo loaded as Data URI");
+            } else {
+                console.warn("⚠️ Logo file not found");
+            }
+        } catch (logoError) {
+            console.warn("⚠️ Failed to load logo:", logoError.message);
+        }
+        // Get logo as base64 data URI
+        let logoDataUri = null;
+        try {
+            const logoPath = path.join(__dirname, '../assets/logo.jpg');
+            let finalLogoPath = logoPath;
+            if (!fs.existsSync(finalLogoPath)) {
+                // Try public folder
+                const publicLogoPath = path.join(__dirname, '../../public/logo.jpg');
+                if (fs.existsSync(publicLogoPath)) {
+                    finalLogoPath = publicLogoPath;
+                } else {
+                    // Try app src resources
+                    const appLogoPath = path.join(__dirname, '../../app/src/main/res/drawable/ic_goute_logo.jpg');
+                    if (fs.existsSync(appLogoPath)) {
+                        finalLogoPath = appLogoPath;
+                    }
+                }
+            }
+
+            if (fs.existsSync(finalLogoPath)) {
+                const logoBuffer = fs.readFileSync(finalLogoPath);
+                const logoBase64 = logoBuffer.toString('base64');
+                const mimeType = path.extname(finalLogoPath).toLowerCase() === '.png' ? 'image/png' : 'image/jpeg';
+                logoDataUri = `data:${mimeType};base64,${logoBase64}`;
+                console.log("✅ Logo loaded as Data URI");
+            } else {
+                console.warn("⚠️ Logo file not found at paths:", logoPath);
+            }
+        } catch (logoError) {
+            console.warn("⚠️ Failed to load logo:", logoError.message);
         }
 
         // Generate HTML email template
@@ -198,7 +261,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
             <body>
                 <div class="container">
                     <div class="header">
-                        <img src="cid:logo" alt="XeKhachBooking Logo" style="height: 60px; margin-bottom: 10px;" />
+                        ${logoDataUri ? `<img src="${logoDataUri}" alt="XeKhachBooking Logo" style="height: 60px; margin-bottom: 10px;" />` : ''}
                         <h1>Thanh toán vé thành công!</h1>
                         <p style="margin: 0; font-size: 14px; opacity: 0.9;">XeKhachBooking - Đặt vé xe khách online</p>
                     </div>
@@ -215,10 +278,10 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                             🎫 ${bookingCode}
                         </div>
 
-                        ${qrCodeBuffer ? `
+                        ${qrCodeDataUri ? `
                         <div class="qr-section">
                             <p style="margin: 0 0 10px 0; font-weight: bold;">📱 QR Code vé của bạn</p>
-                            <img src="cid:qrcode" alt="QR Code vé" style="max-width: 220px; height: auto;" />
+                            <img src="${qrCodeDataUri}" alt="QR Code vé" style="max-width: 220px; height: auto;" />
                             <div class="qr-label">Quét mã này tại điểm lên xe</div>
                         </div>
                         ` : ''}
@@ -274,7 +337,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                                 </tr>
                                 <tr>
                                     <td>Số ghế</td>
-                                    <td><strong>${Array.isArray(booking.seat_labels) ? booking.seat_labels.join(', ') : (typeof booking.seat_labels === 'string' ? JSON.parse(booking.seat_labels).join(', ') : 'N/A')}</strong></td>
+                                    <td><strong>${booking.seat_codes || 'N/A'}</strong></td>
                                 </tr>
                             </table>
                         </div>
@@ -355,76 +418,17 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                 name: "XeKhachBooking"
             },
             subject: `Xác nhận thanh toán vé ${booking.booking_code || '#' + booking.id}`,
-            html: htmlContent,
-            attachments: []
+            html: htmlContent
         };
-
-        // Add logo attachment
-        try {
-            const logoPath = path.join(__dirname, '../assets/logo.jpg');
-            // Try to find logo in common locations
-            let finalLogoPath = logoPath;
-            if (!fs.existsSync(finalLogoPath)) {
-                // Try public folder
-                const publicLogoPath = path.join(__dirname, '../../public/logo.jpg');
-                if (fs.existsSync(publicLogoPath)) {
-                    finalLogoPath = publicLogoPath;
-                } else {
-                    // Try app src resources
-                    const appLogoPath = path.join(__dirname, '../../app/src/main/res/drawable/ic_goute_logo.jpg');
-                    if (fs.existsSync(appLogoPath)) {
-                        finalLogoPath = appLogoPath;
-                    }
-                }
-            }
-
-            if (fs.existsSync(finalLogoPath)) {
-                const logoBuffer = fs.readFileSync(finalLogoPath);
-                msg.attachments.push({
-                    content: logoBuffer.toString('base64'),
-                    filename: 'logo.jpg',
-                    type: 'image/jpeg',
-                    disposition: 'inline',
-                    content_id: 'logo'
-                });
-                console.log("✅ Logo attachment added");
-            } else {
-                console.warn("⚠️ Logo file not found at paths:", logoPath);
-            }
-        } catch (logoError) {
-            console.warn("⚠️ Failed to add logo attachment:", logoError.message);
-        }
-
-        // Add QR code attachment
-        if (qrCodeBuffer) {
-            msg.attachments.push({
-                content: qrCodeBuffer.toString('base64'),
-                filename: 'ticket_qr.png',
-                type: 'image/png',
-                disposition: 'inline',
-                content_id: 'qrcode'
-            });
-            console.log("✅ QR code attachment added");
-        }
 
         console.log(`[sendPaymentEmail] Preparing to send email to: ${email}`);
         console.log(`[sendPaymentEmail] From: ${msg.from.email}`);
         console.log(`[sendPaymentEmail] Subject: ${msg.subject}`);
-        console.log(`[sendPaymentEmail] Attachments: ${msg.attachments ? msg.attachments.length : 0}`);
+        console.log(`[sendPaymentEmail] Logo embedded: ${logoDataUri ? '✅ YES' : '❌ NO'}`);
+        console.log(`[sendPaymentEmail] QR Code embedded: ${qrCodeDataUri ? '✅ YES' : '❌ NO'}`);
 
-        // Debug attachment format
-        if (msg.attachments && msg.attachments.length > 0) {
-            msg.attachments.forEach((att, idx) => {
-                console.log(`[sendPaymentEmail] Attachment ${idx}: filename=${att.filename}, type=${att.type}, disposition=${att.disposition}, content_id=${att.content_id}`);
-            });
-        }
-
-        // Debug seat labels
-        console.log(`[sendPaymentEmail] Seat labels:`, {
-            type: typeof booking.seat_labels,
-            value: booking.seat_labels,
-            isArray: Array.isArray(booking.seat_labels)
-        });
+        // Debug seat codes
+        console.log(`[sendPaymentEmail] Seat codes: ${booking.seat_codes || 'N/A'}`);
 
         const response = await sgMail.send(msg);
         console.log("📧 Payment confirmation email sent to", email, "- Status:", response[0].statusCode);
@@ -450,4 +454,3 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
 }
 
 module.exports = sendPaymentConfirmationEmail;
-
