@@ -66,15 +66,19 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
     try {
         if (!email) {
             console.error("❌ Email address is required");
-            return;
+            return false;
         }
 
         // Verify API key is available
         const apiKey = process.env.TICKET_API_KEY || process.env.SENDGRID_API_KEY;
         if (!apiKey) {
             console.error("❌ Neither TICKET_API_KEY nor SENDGRID_API_KEY is set");
-            return;
+            console.error("   - TICKET_API_KEY:", process.env.TICKET_API_KEY ? "SET" : "NOT SET");
+            console.error("   - SENDGRID_API_KEY:", process.env.SENDGRID_API_KEY ? "SET" : "NOT SET");
+            return false;
         }
+
+        console.log(`[sendPaymentEmail] Starting email send for booking ${booking.id}, email: ${email}`);
 
         // Format dates and prices
         const departureDate = new Date(trip.departure_time).toLocaleDateString('vi-VN', {
@@ -390,12 +394,31 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
             console.log("✅ QR code attachment added");
         }
 
+        console.log(`[sendPaymentEmail] Preparing to send email to: ${email}`);
+        console.log(`[sendPaymentEmail] From: ${msg.from.email}`);
+        console.log(`[sendPaymentEmail] Subject: ${msg.subject}`);
+        console.log(`[sendPaymentEmail] Attachments: ${msg.attachments ? msg.attachments.length : 0}`);
+
         const response = await sgMail.send(msg);
         console.log("📧 Payment confirmation email sent to", email, "- Status:", response[0].statusCode);
-        return true;
+        console.log(`[sendPaymentEmail] Success! Response status: ${response[0].statusCode}`);
+        return {
+            success: true,
+            email: email,
+            status: response[0].statusCode,
+            message: "Email sent successfully"
+        };
     } catch (error) {
         console.error("❌ Failed to send payment confirmation email:", error.response?.body || error.message || error);
-        return false;
+        if (error.response?.body?.errors) {
+            console.error("   SendGrid Errors:", error.response.body.errors);
+        }
+        return {
+            success: false,
+            email: email,
+            error: error.message || "Unknown error",
+            details: error.response?.body || error
+        };
     }
 }
 

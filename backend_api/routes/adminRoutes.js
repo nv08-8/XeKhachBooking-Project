@@ -903,6 +903,13 @@ router.post("/confirm-offline-payment/:id", checkAdminRole, async (req, res) => 
 
             if (fullBooking.rowCount > 0) {
                 const bookingData = fullBooking.rows[0];
+                console.log(`[admin.confirm-offline] Found booking:`, {
+                    id: bookingData.id,
+                    email: bookingData.email,
+                    booking_code: bookingData.booking_code,
+                    status: bookingData.status
+                });
+
                 const userData = {
                     email: bookingData.email,
                     name: bookingData.name,
@@ -915,8 +922,18 @@ router.post("/confirm-offline-payment/:id", checkAdminRole, async (req, res) => 
                     operator: bookingData.operator,
                     bus_type: bookingData.bus_type
                 };
-                await sendPaymentConfirmationEmail(bookingData.email, bookingData, tripData, userData);
-                console.log(`✅ Confirmation email sent for booking ${id} (offline payment)`);
+
+                console.log(`[admin.confirm-offline] Calling sendPaymentConfirmationEmail with email: ${bookingData.email}`);
+                const emailResult = await sendPaymentConfirmationEmail(bookingData.email, bookingData, tripData, userData);
+                console.log(`[admin.confirm-offline] Email result:`, emailResult);
+
+                if (emailResult.success) {
+                    console.log(`✅ Confirmation email sent for booking ${id} (offline payment)`);
+                } else {
+                    console.error(`❌ Email sending failed for booking ${id}:`, emailResult.error);
+                }
+            } else {
+                console.warn(`[admin.confirm-offline] No booking data found for sending email (booking ${id})`);
             }
         } catch (emailError) {
             console.error(`❌ Failed to send email for booking ${id}:`, emailError.message || emailError);
@@ -1185,6 +1202,75 @@ router.post("/migration/expand-seat-layouts", checkAdminRole, async (req, res) =
     } catch (err) {
         console.error('❌ Migration failed:', err);
         res.status(500).json({ message: 'Migration failed', error: err.message });
+    }
+});
+
+// ============================================================
+// TEST: Send payment confirmation email
+// ============================================================
+router.post("/test-send-email/:bookingId", checkAdminRole, async (req, res) => {
+    const { bookingId } = req.params;
+
+    try {
+        console.log(`\n[TEST] Attempting to send payment email for booking ${bookingId}`);
+
+        const fullBooking = await db.query(
+            `SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type
+             FROM bookings b
+             JOIN users u ON b.user_id = u.id
+             JOIN trips t ON b.trip_id = t.id
+             JOIN routes r ON t.route_id = r.id
+             WHERE b.id=$1`,
+            [bookingId]
+        );
+
+        if (fullBooking.rowCount === 0) {
+            return res.status(404).json({ error: 'Booking not found' });
+        }
+
+        const bookingData = fullBooking.rows[0];
+        console.log(`[TEST] Found booking:`, {
+            id: bookingData.id,
+            email: bookingData.email,
+            name: bookingData.name,
+            booking_code: bookingData.booking_code,
+            status: bookingData.status
+        });
+
+        const userData = {
+            email: bookingData.email,
+            name: bookingData.name,
+            phone: bookingData.phone
+        };
+
+        const tripData = {
+            origin: bookingData.origin,
+            destination: bookingData.destination,
+            departure_time: bookingData.departure_time,
+            operator: bookingData.operator,
+            bus_type: bookingData.bus_type
+        };
+
+        console.log(`[TEST] Calling sendPaymentConfirmationEmail with email: ${bookingData.email}`);
+        const result = await sendPaymentConfirmationEmail(bookingData.email, bookingData, tripData, userData);
+
+        console.log(`[TEST] Email function result:`, result);
+
+        res.json({
+            success: true,
+            message: 'Test email sent',
+            booking_id: bookingId,
+            email_sent_to: bookingData.email,
+            booking_code: bookingData.booking_code
+        });
+
+    } catch (err) {
+        console.error(`[TEST] Error sending test email:`, err);
+        res.status(500).json({
+            error: 'Failed to send test email',
+            message: err.message || err,
+            booking_id: bookingId
+        });
     }
 });
 
