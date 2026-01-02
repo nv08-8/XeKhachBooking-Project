@@ -185,10 +185,10 @@ router.delete("/trips/:id", checkAdminRole, async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // Delete all seats associated with this trip first
+    // Delete seats (references trips) - nhưng giữ bookings để lưu lịch sử
     await client.query("DELETE FROM seats WHERE trip_id=$1", [id]);
 
-    // Then delete the trip itself
+    // Delete the trip itself
     const result = await client.query("DELETE FROM trips WHERE id=$1 RETURNING id", [id]);
 
     if (!result.rows.length) {
@@ -197,10 +197,13 @@ router.delete("/trips/:id", checkAdminRole, async (req, res) => {
       return res.status(404).json({ message: "Chuyến xe không tìm thấy" });
     }
 
+    // Set trip_id to NULL in bookings for this trip (để lưu lịch sử nhưng không còn liên kết)
+    await client.query("UPDATE bookings SET trip_id=NULL WHERE trip_id=$1", [id]);
+
     await client.query("COMMIT");
     client.release();
 
-    res.json({ message: "Xóa chuyến xe thành công" });
+    res.json({ message: "Xóa chuyến xe thành công. Lịch sử đặt vé vẫn được giữ lại." });
   } catch (err) {
     try { await client.query("ROLLBACK"); } catch (e) {}
     client.release();
