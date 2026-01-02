@@ -1,5 +1,7 @@
 const SendGridMail = require("@sendgrid/mail");
 const QRCode = require('qrcode');
+const fs = require('fs');
+const path = require('path');
 
 // Create a COMPLETELY SEPARATE instance for payment emails
 // This prevents any possibility of API key conflict with OTP emails
@@ -18,6 +20,40 @@ class SendGridPayment {
 }
 
 const sgMail = new SendGridPayment();
+
+/**
+ * Format date to Vietnam timezone (UTC+7)
+ * Assumes the input date is stored as UTC in database
+ * @param {Date|string} date - Date to format (UTC from database)
+ * @param {boolean} includeTime - Whether to include time
+ * @returns {string} Formatted date string in Vietnam timezone (UTC+7)
+ */
+function formatDateInVietnamTZ(date, includeTime = false) {
+    try {
+        const d = new Date(date);
+
+        // Convert UTC to UTC+7 by adding 7 hours
+        // The Date object stores time in UTC internally
+        const vietnamTime = new Date(d.getTime() + (7 * 60 * 60 * 1000));
+
+        // Format without timezone offset conversion (use UTC components directly)
+        const year = vietnamTime.getUTCFullYear();
+        const month = String(vietnamTime.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(vietnamTime.getUTCDate()).padStart(2, '0');
+
+        if (includeTime) {
+            const hours = String(vietnamTime.getUTCHours()).padStart(2, '0');
+            const minutes = String(vietnamTime.getUTCMinutes()).padStart(2, '0');
+            const seconds = String(vietnamTime.getUTCSeconds()).padStart(2, '0');
+            return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+        } else {
+            return `${day}/${month}/${year}`;
+        }
+    } catch (err) {
+        console.warn("⚠️ Failed to format date:", err.message);
+        return new Date().toLocaleDateString('vi-VN');
+    }
+}
 
 /**
  * Send payment confirmation email with booking and ticket details
@@ -57,9 +93,9 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
 
         // Generate QR code from booking code
         const bookingCode = booking.booking_code || '#' + booking.id;
-        let qrCodeDataUrl = '';
+        let qrCodeBuffer = null;
         try {
-            qrCodeDataUrl = await QRCode.toDataURL(bookingCode, {
+            qrCodeBuffer = await QRCode.toBuffer(bookingCode, {
                 errorCorrectionLevel: 'H',
                 type: 'image/png',
                 quality: 0.92,
@@ -70,6 +106,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                     light: '#FFFFFF'
                 }
             });
+            console.log("✅ QR code generated successfully");
         } catch (qrError) {
             console.warn("⚠️ Failed to generate QR code:", qrError.message);
             // Continue without QR code if generation fails
@@ -85,16 +122,16 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                 <style>
                     body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; }
                     .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-                    .header { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .header { background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 10px 10px 0 0; }
                     .logo { height: 60px; margin-bottom: 15px; }
                     .header h1 { margin: 10px 0; font-size: 28px; }
                     .content { background-color: #f9f9f9; padding: 20px; margin: 20px 0; border-radius: 5px; }
                     .section { margin: 15px 0; }
-                    .label { font-weight: bold; color: #4CAF50; }
+                    .label { font-weight: bold; color: #3498db; }
                     .divider { border-top: 2px solid #e0e0e0; margin: 20px 0; }
                     .footer { font-size: 12px; color: #999; text-align: center; margin-top: 30px; }
                     .booking-code {
-                        background-color: #4CAF50;
+                        background-color: #3498db;
                         color: white;
                         padding: 15px;
                         border-radius: 5px;
@@ -107,7 +144,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                         text-align: center;
                         padding: 20px;
                         background-color: white;
-                        border: 2px dashed #4CAF50;
+                        border: 2px dashed #3498db;
                         border-radius: 5px;
                         margin: 20px 0;
                     }
@@ -124,10 +161,10 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                     }
                     table { width: 100%; border-collapse: collapse; }
                     th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-                    th { background-color: #f2f2f2; font-weight: bold; color: #4CAF50; }
+                    th { background-color: #f2f2f2; font-weight: bold; color: #3498db; }
                     .note-box {
-                        background-color: #e8f5e9;
-                        border-left: 4px solid #4CAF50;
+                        background-color: #e8f4f8;
+                        border-left: 4px solid #3498db;
                         padding: 15px;
                         border-radius: 5px;
                         margin: 15px 0;
@@ -144,7 +181,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
             <body>
                 <div class="container">
                     <div class="header">
-                        <img src="https://xekhachbooking-project.onrender.com/api/config/logo" alt="XeKhachBooking Logo" style="height: 60px; margin-bottom: 10px;" />
+                        <img src="cid:logo" alt="XeKhachBooking Logo" style="height: 60px; margin-bottom: 10px;" />
                         <h1>Thanh toán vé thành công!</h1>
                         <p style="margin: 0; font-size: 14px; opacity: 0.9;">XeKhachBooking - Đặt vé xe khách online</p>
                     </div>
@@ -161,10 +198,10 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                             🎫 ${bookingCode}
                         </div>
 
-                        ${qrCodeDataUrl ? `
+                        ${qrCodeBuffer ? `
                         <div class="qr-section">
                             <p style="margin: 0 0 10px 0; font-weight: bold;">📱 QR Code vé của bạn</p>
-                            <img src="${qrCodeDataUrl}" alt="QR Code vé" />
+                            <img src="cid:qrcode" alt="QR Code vé" style="max-width: 220px; height: auto;" />
                             <div class="qr-label">Quét mã này tại điểm lên xe</div>
                         </div>
                         ` : ''}
@@ -236,7 +273,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                                 </tr>
                                 <tr>
                                     <td>Tổng tiền</td>
-                                    <td><strong style="color: #4CAF50; font-size: 16px;">${formattedPrice}</strong></td>
+                                    <td><strong style="color: #3498db; font-size: 16px;">${formattedPrice}</strong></td>
                                 </tr>
                                 <tr>
                                     <td>Phương thức thanh toán</td>
@@ -244,13 +281,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                                 </tr>
                                 <tr>
                                     <td>Thời gian thanh toán</td>
-                                    <td>${new Date(booking.paid_at || Date.now()).toLocaleDateString('vi-VN', {
-                                        year: 'numeric',
-                                        month: '2-digit',
-                                        day: '2-digit',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                    })}</td>
+                                    <td>${formatDateInVietnamTZ(booking.paid_at || Date.now(), true)}</td>
                                 </tr>
                             </table>
                         </div>
@@ -307,8 +338,57 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                 name: "XeKhachBooking"
             },
             subject: `Xác nhận thanh toán vé ${booking.booking_code || '#' + booking.id}`,
-            html: htmlContent
+            html: htmlContent,
+            attachments: []
         };
+
+        // Add logo attachment
+        try {
+            const logoPath = path.join(__dirname, '../assets/logo.jpg');
+            // Try to find logo in common locations
+            let finalLogoPath = logoPath;
+            if (!fs.existsSync(finalLogoPath)) {
+                // Try public folder
+                const publicLogoPath = path.join(__dirname, '../../public/logo.jpg');
+                if (fs.existsSync(publicLogoPath)) {
+                    finalLogoPath = publicLogoPath;
+                } else {
+                    // Try app src resources
+                    const appLogoPath = path.join(__dirname, '../../app/src/main/res/drawable/ic_goute_logo.jpg');
+                    if (fs.existsSync(appLogoPath)) {
+                        finalLogoPath = appLogoPath;
+                    }
+                }
+            }
+
+            if (fs.existsSync(finalLogoPath)) {
+                const logoBuffer = fs.readFileSync(finalLogoPath);
+                msg.attachments.push({
+                    content: logoBuffer.toString('base64'),
+                    filename: 'logo.jpg',
+                    type: 'image/jpeg',
+                    disposition: 'inline',
+                    contentId: 'logo'
+                });
+                console.log("✅ Logo attachment added");
+            } else {
+                console.warn("⚠️ Logo file not found at paths:", logoPath);
+            }
+        } catch (logoError) {
+            console.warn("⚠️ Failed to add logo attachment:", logoError.message);
+        }
+
+        // Add QR code attachment
+        if (qrCodeBuffer) {
+            msg.attachments.push({
+                content: qrCodeBuffer.toString('base64'),
+                filename: 'ticket_qr.png',
+                type: 'image/png',
+                disposition: 'inline',
+                contentId: 'qrcode'
+            });
+            console.log("✅ QR code attachment added");
+        }
 
         const response = await sgMail.send(msg);
         console.log("📧 Payment confirmation email sent to", email, "- Status:", response[0].statusCode);

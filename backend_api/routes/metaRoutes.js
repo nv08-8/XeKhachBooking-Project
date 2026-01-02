@@ -171,4 +171,32 @@ router.get("/reviews", async (req, res) => {
   }
 });
 
+// GET /api/config/logo - serve app logo for emails
+router.get("/config/logo", (req, res) => {
+  try {
+    const path = require('path');
+    const fs = require('fs');
+
+    // Try to find logo in multiple locations
+    const logoLocations = [
+      path.join(__dirname, '../assets/logo.jpg'),
+      path.join(__dirname, '../../public/logo.jpg'),
+      path.join(__dirname, '../../app/src/main/res/drawable/ic_goute_logo.jpg')
+    ];
+
+    for (const logoPath of logoLocations) {
+      if (fs.existsSync(logoPath)) {
+        console.log(`✅ Logo found at: ${logoPath}`);
+        return res.sendFile(logoPath);
+      }
+    }
+
+    console.warn("⚠️ Logo file not found in any location");
+    res.status(404).json({ error: "Logo not found" });
+  } catch (err) {
+    console.error("Failed to serve logo:", err.message || err);
+    res.status(500).json({ error: "Failed to serve logo" });
+  }
+});
+
 module.exports = router;
