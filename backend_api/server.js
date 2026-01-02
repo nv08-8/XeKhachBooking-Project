@@ -19,7 +19,8 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const busImageRoutes = require("./routes/busImageRoutes");
 const seatsRoutes = require("./routes/seatsRoutes");
 const adminRoutes = require("./routes/adminRoutes");
-const driversRoutes = require("./routes/driversRoutes"); // Import new routes
+const driversRoutes = require("./routes/driversRoutes");
+const mapsRoutes = require("./routes/mapsRoutes"); // Import Maps routes
 
 
 app.use(express.json());
@@ -51,6 +52,7 @@ app.use("/api", busImageRoutes);
 app.use('/api/seats', seatsRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/drivers", driversRoutes); // Use new routes
+app.use("/api/maps", mapsRoutes); // Add Maps routes
 
 // small helper to list registered routes (useful for debugging 404s/method mismatches)
 function listRoutes(app) {
