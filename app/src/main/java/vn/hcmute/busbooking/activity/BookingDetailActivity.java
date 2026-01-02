@@ -284,7 +284,26 @@ public class BookingDetailActivity extends AppCompatActivity {
 
         if (tvPassengerName != null) tvPassengerName.setText((String) data.get("passenger_name"));
         if (tvPhoneNumber != null) tvPhoneNumber.setText((String) data.get("passenger_phone"));
-        
+        // Prefer passenger_info object (JSONB) if available
+        try {
+            Object pObj = data.get("passenger_info");
+            if (pObj instanceof Map) {
+                Map<?, ?> pm = (Map<?, ?>) pObj;
+                Object n = pm.get("name");
+                Object ph = pm.get("phone");
+                if (n != null && tvPassengerName != null) tvPassengerName.setText(String.valueOf(n));
+                if (ph != null && tvPhoneNumber != null) tvPhoneNumber.setText(String.valueOf(ph));
+            } else if (pObj instanceof String) {
+                try {
+                    org.json.JSONObject jo = new org.json.JSONObject((String) pObj);
+                    String n = jo.optString("name", null);
+                    String ph = jo.optString("phone", null);
+                    if (n != null && tvPassengerName != null) tvPassengerName.setText(n);
+                    if (ph != null && tvPhoneNumber != null) tvPhoneNumber.setText(ph);
+                } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
+
         // Display booking code if available
         if (tvBookingCode != null) {
             String bookingCode = (String) data.get("booking_code");

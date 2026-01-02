@@ -347,39 +347,43 @@ public class PaymentActivity extends AppCompatActivity {
     }
 
     private boolean collectIntentData() {
-        Intent intent = getIntent();
-        isPendingPayment = intent.getBooleanExtra("is_pending_payment", false);
+         Intent intent = getIntent();
+         isPendingPayment = intent.getBooleanExtra("is_pending_payment", false);
 
-        if (isPendingPayment) {
-            bookingIds = intent.getIntegerArrayListExtra("booking_ids");
-        }
+         if (isPendingPayment) {
+             bookingIds = intent.getIntegerArrayListExtra("booking_ids");
+         }
 
-        trip = intent.getParcelableExtra("trip");
-        seatLabels = intent.getStringArrayListExtra("seat_labels");
+         trip = intent.getParcelableExtra("trip");
+         seatLabels = intent.getStringArrayListExtra("seat_labels");
 
-        pickupStopId = intent.getIntExtra("pickup_stop_id", -1);
-        dropoffStopId = intent.getIntExtra("dropoff_stop_id", -1);
-        pickupStopName = intent.getStringExtra("pickup_stop_name");
-        dropoffStopName = intent.getStringExtra("dropoff_stop_name");
+         pickupStopId = intent.getIntExtra("pickup_stop_id", -1);
+         dropoffStopId = intent.getIntExtra("dropoff_stop_id", -1);
+         pickupStopName = intent.getStringExtra("pickup_stop_name");
+         dropoffStopName = intent.getStringExtra("dropoff_stop_name");
 
-        // If this is a pending payment flow we allow missing trip/seatLabels because we'll fetch booking details from server
-        if (!isPendingPayment) {
-            if (trip == null || seatLabels == null || seatLabels.isEmpty() || pickupStopId == -1 || dropoffStopId == -1 || pickupStopName == null || dropoffStopName == null) {
-                Log.e(TAG, "Missing critical booking data from Intent.");
-                return false;
-            }
-        }
+         // If this is a pending payment flow we allow missing trip/seatLabels because we'll fetch booking details from server
+         if (!isPendingPayment) {
+             if (trip == null || seatLabels == null || seatLabels.isEmpty() || pickupStopId == -1 || dropoffStopId == -1 || pickupStopName == null || dropoffStopName == null) {
+                 Log.e(TAG, "Missing critical booking data from Intent.");
+                 return false;
+             }
+         }
 
-        fullName = intent.getStringExtra("fullName");
-        phoneNumber = intent.getStringExtra("phoneNumber");
-        email = intent.getStringExtra("email");
+        // Contact info: accept both legacy keys and ContactInfoActivity keys
+        fullName = intent.getStringExtra("passenger_name");
+        if (fullName == null) fullName = intent.getStringExtra("fullName");
+        phoneNumber = intent.getStringExtra("passenger_phone");
+        if (phoneNumber == null) phoneNumber = intent.getStringExtra("phoneNumber");
+        email = intent.getStringExtra("passenger_email");
+        if (email == null) email = intent.getStringExtra("email");
 
-        if (fullName == null) fullName = sessionManager.getUserName();
-        if (phoneNumber == null) phoneNumber = sessionManager.getUserPhone();
-        if (email == null) email = sessionManager.getUserEmail();
-        
-        return true;
-    }
+         if (fullName == null) fullName = sessionManager.getUserName();
+         if (phoneNumber == null) phoneNumber = sessionManager.getUserPhone();
+         if (email == null) email = sessionManager.getUserEmail();
+
+         return true;
+     }
 
     private void populateBookingSummary() {
         if (trip != null) {
@@ -562,7 +566,13 @@ public class PaymentActivity extends AppCompatActivity {
         body.put("pickup_stop_id", pickupStopId);
         body.put("dropoff_stop_id", dropoffStopId);
 
-        // ✅ Include passenger info
+        // ✅ Include passenger_info object (and keep legacy fields for backward compatibility)
+        Map<String, String> passengerInfo = new HashMap<>();
+        passengerInfo.put("name", fullName != null ? fullName : "");
+        passengerInfo.put("phone", phoneNumber != null ? phoneNumber : "");
+        passengerInfo.put("email", email != null ? email : "");
+        body.put("passenger_info", passengerInfo);
+        // Legacy top-level fields (kept for backward compatibility)
         body.put("passenger_name", fullName != null ? fullName : "");
         body.put("passenger_phone", phoneNumber != null ? phoneNumber : "");
         body.put("passenger_email", email != null ? email : "");
@@ -1133,16 +1143,44 @@ public class PaymentActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     Map<String, Object> data = response.body();
                     try {
-                        bookingIds = bookingIds == null ? new ArrayList<>() : bookingIds;
-                        if (!bookingIds.contains(bookingId)) bookingIds.add(bookingId);
-                        Object pm = data.get("payment_method");
-                        currentPaymentMethod = pm == null ? null : String.valueOf(pm);
-                        boolean online = (currentPaymentMethod != null && normalizePaymentMethod(currentPaymentMethod).equals("online"));
-                        if (online) {
+                        // Populate passenger contact info from booking if available
+                        try {
+                            Object pObj = data.get("passenger_info");
+                            if (pObj instanceof Map) {
+                                Map<?, ?> pm = (Map<?, ?>) pObj;
+                                Object n = pm.get("name");
+                                Object ph = pm.get("phone");
+                                Object em = pm.get("email");
+                                if (n != null) fullName = String.valueOf(n);
+                                if (ph != null) phoneNumber = String.valueOf(ph);
+                                if (em != null) email = String.valueOf(em);
+                            } else if (pObj instanceof String) {
+                                try {
+                                    JSONObject jo = new JSONObject((String) pObj);
+                                    fullName = jo.optString("name", fullName);
+                                    phoneNumber = jo.optString("phone", phoneNumber);
+                                    email = jo.optString("email", email);
+                                } catch (Exception ignored) {}
+                            } else {
+                                // Fallback to legacy fields
+                                Object n = data.get("passenger_name");
+                                Object ph = data.get("passenger_phone");
+                                Object em = data.get("passenger_email");
+                                if (n != null) fullName = String.valueOf(n);
+                                if (ph != null) phoneNumber = String.valueOf(ph);
+                                if (em != null) email = String.valueOf(em);
+                            }
+                        } catch (Exception ignored) {}
+                         bookingIds = bookingIds == null ? new ArrayList<>() : bookingIds;
+                         if (!bookingIds.contains(bookingId)) bookingIds.add(bookingId);
+                         Object pm = data.get("payment_method");
+                         currentPaymentMethod = pm == null ? null : String.valueOf(pm);
+                         boolean online = (currentPaymentMethod != null && normalizePaymentMethod(currentPaymentMethod).equals("online"));
+                         if (online) {
                             long expiry = System.currentTimeMillis() + HOLD_DURATION_MS;
                             saveExpiryForBooking(bookingId, expiry);
                             startCountdown(HOLD_DURATION_MS);
-                        }
+                         }
                     } catch (Exception ignored) {}
                     // Continue initialization
                     populateBookingSummary();
