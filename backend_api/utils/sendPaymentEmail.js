@@ -1,5 +1,7 @@
 const sgMail = require("@sendgrid/mail");
 const QRCode = require('qrcode');
+
+// Set API key initially, but will re-set before sending to prevent overrides
 sgMail.setApiKey(process.env.TICKET_API_KEY);
 
 /**
@@ -14,6 +16,14 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
         if (!email) {
             console.error("❌ Email address is required");
             return;
+        }
+
+        // Ensure correct API key is set before sending (prevents override by other modules)
+        if (!process.env.TICKET_API_KEY) {
+            console.error("❌ TICKET_API_KEY is not set in environment variables. Falling back to SENDGRID_API_KEY.");
+            sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+        } else {
+            sgMail.setApiKey(process.env.TICKET_API_KEY);
         }
 
         // Format dates and prices

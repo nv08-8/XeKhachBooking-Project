@@ -1,8 +1,17 @@
-const sgMail = require("@sendgrid/mail");
+const sgMailLib = require("@sendgrid/mail");
+
+// Create a separate instance for OTP emails with SENDGRID_API_KEY
+const sgMail = sgMailLib;
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 async function sendEmail(to, subject, text) {
     try {
+        // Ensure API key is set before sending (prevents override by other modules)
+        if (!process.env.SENDGRID_API_KEY) {
+            throw new Error("SENDGRID_API_KEY is not set in environment variables");
+        }
+        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
         const msg = {
             to,
             from: {
