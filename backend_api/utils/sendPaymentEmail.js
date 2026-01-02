@@ -274,7 +274,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                                 </tr>
                                 <tr>
                                     <td>Số ghế</td>
-                                    <td><strong>${booking.seat_labels ? booking.seat_labels.join(', ') : 'N/A'}</strong></td>
+                                    <td><strong>${Array.isArray(booking.seat_labels) ? booking.seat_labels.join(', ') : (typeof booking.seat_labels === 'string' ? JSON.parse(booking.seat_labels).join(', ') : 'N/A')}</strong></td>
                                 </tr>
                             </table>
                         </div>
@@ -411,6 +411,20 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
         console.log(`[sendPaymentEmail] From: ${msg.from.email}`);
         console.log(`[sendPaymentEmail] Subject: ${msg.subject}`);
         console.log(`[sendPaymentEmail] Attachments: ${msg.attachments ? msg.attachments.length : 0}`);
+
+        // Debug attachment format
+        if (msg.attachments && msg.attachments.length > 0) {
+            msg.attachments.forEach((att, idx) => {
+                console.log(`[sendPaymentEmail] Attachment ${idx}: filename=${att.filename}, type=${att.type}, disposition=${att.disposition}, content_id=${att.content_id}`);
+            });
+        }
+
+        // Debug seat labels
+        console.log(`[sendPaymentEmail] Seat labels:`, {
+            type: typeof booking.seat_labels,
+            value: booking.seat_labels,
+            isArray: Array.isArray(booking.seat_labels)
+        });
 
         const response = await sgMail.send(msg);
         console.log("📧 Payment confirmation email sent to", email, "- Status:", response[0].statusCode);
