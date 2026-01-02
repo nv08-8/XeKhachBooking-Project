@@ -8,6 +8,7 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const fs = require('fs');
+const { runMigrations } = require("./migrations/run_migrations");
 
 const authRoutes = require("./routes/authRoutes");
 const tripRoutes = require("./routes/tripRoutes");
@@ -597,10 +598,16 @@ processArrivalTimeBookings();
 
 // Start HTTP server (Express + Socket.IO)
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => {
-  console.log("Server + Socket.IO started on port", PORT);
-  listRoutes(app);
-});
+
+// Run migrations before starting server
+(async () => {
+  await runMigrations();
+
+  server.listen(PORT, () => {
+    console.log("Server + Socket.IO started on port", PORT);
+    listRoutes(app);
+  });
+})();
 
 // Export io for other modules if necessary
 module.exports = { io };

@@ -920,13 +920,13 @@ cron.schedule("*/5 * * * *", async () => {
           AND b.completed_at IS NULL
        RETURNING b.id, b.user_id, b.trip_id, t.departure_time
      `);
+     `);
 
     const completedBookings = completeResult.rows;
 
     // 2️⃣ Cancel unpaid bookings after trip arrival (both online and offline)
     // ✅ Cancel ALL pending bookings with price_paid = 0 after trip ends
     // Note: Offline bookings are NOT expired after 10 minutes, but ARE cancelled after trip ends
-    const cancelResult = await db.query(`
        UPDATE bookings b
        SET status = 'cancelled', cancelled_at = NOW()
        FROM trips t
@@ -939,6 +939,8 @@ cron.schedule("*/5 * * * *", async () => {
          AND b.cancelled_at IS NULL
        RETURNING b.id, b.user_id, b.trip_id, t.departure_time, b.payment_method
      `);
+       RETURNING b.id, b.user_id, b.trip_id, t.departure_time, b.payment_method
+     const cancelledBookings = cancelResult.rows;
 
      const cancelledBookings = cancelResult.rows;
 
