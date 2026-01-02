@@ -19,7 +19,14 @@ class SendGridPayment {
     }
 }
 
-const sgMail = new SendGridPayment();
+let sgMail;
+try {
+    sgMail = new SendGridPayment();
+    console.log("[sendPaymentEmail] ✅ SendGrid Mail service initialized");
+} catch (initError) {
+    console.error("[sendPaymentEmail] ❌ Failed to initialize SendGrid:", initError.message);
+    sgMail = null;
+}
 
 /**
  * Format date to Vietnam timezone (UTC+7)
@@ -66,6 +73,12 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
     try {
         if (!email) {
             console.error("❌ Email address is required");
+            return false;
+        }
+
+        // Check if SendGrid service is initialized
+        if (!sgMail) {
+            console.error("❌ SendGrid mail service not initialized");
             return false;
         }
 
