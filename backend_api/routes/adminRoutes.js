@@ -180,14 +180,30 @@ router.put("/trips/:id", checkAdminRole, async (req, res) => {
 // 3. Xóa chuyến xe
 router.delete("/trips/:id", checkAdminRole, async (req, res) => {
   const { id } = req.params;
+  const client = await db.connect();
 
   try {
-    const result = await db.query("DELETE FROM trips WHERE id=$1 RETURNING id", [id]);
+    await client.query("BEGIN");
+
+    // Delete all seats associated with this trip first
+    await client.query("DELETE FROM seats WHERE trip_id=$1", [id]);
+
+    // Then delete the trip itself
+    const result = await client.query("DELETE FROM trips WHERE id=$1 RETURNING id", [id]);
+
     if (!result.rows.length) {
+      await client.query("ROLLBACK");
+      client.release();
       return res.status(404).json({ message: "Chuyến xe không tìm thấy" });
     }
+
+    await client.query("COMMIT");
+    client.release();
+
     res.json({ message: "Xóa chuyến xe thành công" });
   } catch (err) {
+    try { await client.query("ROLLBACK"); } catch (e) {}
+    client.release();
     console.error("Error deleting trip:", err);
     res.status(500).json({ message: "Lỗi khi xóa chuyến xe" });
   }
