@@ -1,8 +1,23 @@
-const sgMail = require("@sendgrid/mail");
+const SendGridMail = require("@sendgrid/mail");
 const QRCode = require('qrcode');
 
-// Set API key initially, but will re-set before sending to prevent overrides
-sgMail.setApiKey(process.env.TICKET_API_KEY);
+// Create a COMPLETELY SEPARATE instance for payment emails
+// This prevents any possibility of API key conflict with OTP emails
+class SendGridPayment {
+    constructor() {
+        this.client = new SendGridMail.MailService();
+        const apiKey = process.env.TICKET_API_KEY || process.env.SENDGRID_API_KEY;
+        if (apiKey) {
+            this.client.setApiKey(apiKey);
+        }
+    }
+
+    async send(msg) {
+        return this.client.send(msg);
+    }
+}
+
+const sgMail = new SendGridPayment();
 
 /**
  * Send payment confirmation email with booking and ticket details
@@ -18,12 +33,11 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
             return;
         }
 
-        // Ensure correct API key is set before sending (prevents override by other modules)
-        if (!process.env.TICKET_API_KEY) {
-            console.error("❌ TICKET_API_KEY is not set in environment variables. Falling back to SENDGRID_API_KEY.");
-            sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-        } else {
-            sgMail.setApiKey(process.env.TICKET_API_KEY);
+        // Verify API key is available
+        const apiKey = process.env.TICKET_API_KEY || process.env.SENDGRID_API_KEY;
+        if (!apiKey) {
+            console.error("❌ Neither TICKET_API_KEY nor SENDGRID_API_KEY is set");
+            return;
         }
 
         // Format dates and prices
