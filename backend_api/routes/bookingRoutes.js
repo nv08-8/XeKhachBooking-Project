@@ -249,14 +249,14 @@ router.get('/bookings/my', async (req, res) => {
              ARRAY[]::text[]
            ) AS seat_labels
     FROM bookings b
-    JOIN trips t ON t.id = b.trip_id
-    JOIN routes r ON r.id = t.route_id
+    LEFT JOIN trips t ON t.id = b.trip_id
+    LEFT JOIN routes r ON r.id = t.route_id
     LEFT JOIN booking_items bi ON bi.booking_id = b.id
     LEFT JOIN route_stops pickup_stop ON pickup_stop.id = b.pickup_stop_id
     LEFT JOIN route_stops dropoff_stop ON dropoff_stop.id = b.dropoff_stop_id
     ${whereClause}
     GROUP BY b.id, t.id, r.id, pickup_stop.id, dropoff_stop.id
-    ORDER BY t.departure_time ASC
+    ORDER BY COALESCE(t.departure_time, b.created_at) DESC
   `;
   try {
     const { rows } = await db.query(sql, [user_id]);
@@ -296,9 +296,9 @@ router.get('/bookings/:id', async (req, res) => {
              ARRAY[]::text[]
            ) AS seat_labels
     FROM bookings b
-    JOIN trips t ON t.id = b.trip_id
-    JOIN routes r ON r.id = t.route_id
-    JOIN users u ON u.id = b.user_id
+    LEFT JOIN trips t ON t.id = b.trip_id
+    LEFT JOIN routes r ON r.id = t.route_id
+    LEFT JOIN users u ON u.id = b.user_id
     LEFT JOIN booking_items bi ON bi.booking_id = b.id
     LEFT JOIN route_stops pickup_stop ON pickup_stop.id = b.pickup_stop_id
     LEFT JOIN route_stops dropoff_stop ON dropoff_stop.id = b.dropoff_stop_id
