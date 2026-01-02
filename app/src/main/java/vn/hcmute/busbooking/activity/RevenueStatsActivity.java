@@ -446,6 +446,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         Intent intent = new Intent(this, RevenueDetailsActivity.class);
         intent.putExtra("groupBy", groupBy);
         intent.putExtra("value", value);
+        intent.putExtra("isRefund", isRefundMode); // Truyền thêm mode để chi tiết biết là hoàn tiền
         startActivity(intent);
     }
 

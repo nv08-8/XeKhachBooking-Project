@@ -235,6 +235,14 @@ public interface ApiService {
         @Query("value") String value
     );
 
+    // Chi tiết hoàn tiền
+    @GET("api/admin/revenue/refund-details")
+    Call<List<Map<String, Object>>> getRevenueRefundDetails(
+        @Header("user-id") int userId,
+        @Query("group_by") String groupBy,
+        @Query("value") String value
+    );
+
 
     // ========== DRIVERS MANAGEMENT ==========
     @GET("api/admin/drivers")

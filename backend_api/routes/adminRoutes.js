@@ -628,6 +628,53 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
   }
 });
 
+// 6. Chi tiết hoàn tiền (từ những bookings của trip bị hủy)
+router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
+  const { group_by, value } = req.query;
+  let sql = `
+    SELECT
+      b.id AS booking_id,
+      u.name AS user_name,
+      r.origin || ' - ' || r.destination AS route_info,
+      t.departure_time,
+      b.seats_count AS ticket_count,
+      b.total_amount AS refund_amount
+    FROM bookings b
+    JOIN users u ON u.id = b.user_id
+    JOIN trips t ON t.id = b.trip_id
+    JOIN routes r ON r.id = t.route_id
+    WHERE b.status = 'confirmed' AND t.status = 'cancelled'
+  `;
+  const params = [];
+
+  if (group_by === "day" || group_by === "date") {
+    sql += ` AND DATE(b.created_at) = $1`;
+    params.push(value);
+  } else if (group_by === "month") {
+    sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $1`;
+    params.push(value);
+  } else if (group_by === "year") {
+    sql += ` AND EXTRACT(YEAR FROM b.created_at) = $1`;
+    params.push(value);
+  } else if (group_by === "route") {
+    // Assuming value is route_id
+    sql += ` AND t.route_id = $1`;
+    params.push(value);
+  } else if (group_by === "trip") {
+    sql += ` AND t.id = $1`;
+    params.push(value);
+  }
+
+  sql += " ORDER BY t.departure_time DESC";
+
+  try {
+    const result = await db.query(sql, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching refund details:", err);
+    res.status(500).json({ message: "Lỗi khi lấy chi tiết hoàn tiền" });
+  }
+});
 
 // ======================// ROUTES: QUẢN LÝ KHUYẾN MÃI// ============================================================
 

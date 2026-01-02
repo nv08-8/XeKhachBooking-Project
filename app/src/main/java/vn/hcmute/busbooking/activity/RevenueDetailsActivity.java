@@ -29,6 +29,7 @@ public class RevenueDetailsActivity extends AppCompatActivity {
     private BookingDetailsAdapter adapter;
     private List<Map<String, Object>> bookingDetailsList = new ArrayList<>();
     private SessionManager sessionManager;
+    private boolean isRefund = false; // Biến để track xem có phải hoàn tiền không
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,8 +48,10 @@ public class RevenueDetailsActivity extends AppCompatActivity {
 
         String groupBy = getIntent().getStringExtra("groupBy");
         String value = getIntent().getStringExtra("value");
+        isRefund = getIntent().getBooleanExtra("isRefund", false); // Lấy mode từ intent
 
-        tvDetailsTitle.setText("Chi tiết cho " + value);
+        String titlePrefix = isRefund ? "Chi tiết hoàn tiền cho " : "Chi tiết doanh thu cho ";
+        tvDetailsTitle.setText(titlePrefix + value);
         fetchBookingDetails(groupBy, value);
     }
 
@@ -56,7 +59,13 @@ public class RevenueDetailsActivity extends AppCompatActivity {
         ApiService api = ApiClient.getClient().create(ApiService.class);
         int userId = sessionManager.getUserId();
 
-        Call<List<Map<String, Object>>> call = api.getRevenueDetails(userId, groupBy, value);
+        // Gọi API khác nhau tùy theo mode
+        Call<List<Map<String, Object>>> call;
+        if (isRefund) {
+            call = api.getRevenueRefundDetails(userId, groupBy, value);
+        } else {
+            call = api.getRevenueDetails(userId, groupBy, value);
+        }
 
         call.enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
