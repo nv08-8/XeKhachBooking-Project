@@ -561,7 +561,7 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
     }
 });
 
-// Báo cáo hoàn tiền (từ những bookings của trip bị hủy)
+// Báo cáo hoàn tiền (từ những bookings của trip bị hủy hoặc admin hủy vé đã thanh toán)
 router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
     const { groupBy, route_id, trip_id, from_date, to_date } = req.query;
 
@@ -569,11 +569,18 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
         SELECT
             %s AS group_key,
             COUNT(b.id) AS total_bookings,
-            SUM(b.total_amount) AS refund_amount
+            SUM(CASE
+                WHEN b.status = 'pending_refund' THEN COALESCE(b.price_paid, 0)
+                WHEN b.status = 'confirmed' AND t.status = 'cancelled' THEN COALESCE(b.total_amount, 0)
+                ELSE 0
+            END) AS refund_amount
         FROM bookings b
         JOIN trips t ON b.trip_id = t.id
         JOIN routes r ON t.route_id = r.id
-        WHERE b.status = 'confirmed' AND t.status = 'cancelled'
+        WHERE (
+            (b.status = 'confirmed' AND t.status = 'cancelled')
+            OR (b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0)
+        )
     `;
     const params = [];
 
@@ -691,7 +698,7 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
   }
 });
 
-// 6. Chi tiết hoàn tiền (từ những bookings của trip bị hủy)
+// 6. Chi tiết hoàn tiền (từ những bookings của trip bị hủy hoặc admin hủy vé đã thanh toán)
 router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
   const { group_by, value } = req.query;
   let sql = `
@@ -701,12 +708,19 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
       r.origin || ' - ' || r.destination AS route_info,
       t.departure_time,
       b.seats_count AS ticket_count,
-      b.total_amount AS refund_amount
+      CASE
+        WHEN b.status = 'pending_refund' THEN COALESCE(b.price_paid, 0)
+        WHEN b.status = 'confirmed' AND t.status = 'cancelled' THEN COALESCE(b.total_amount, 0)
+        ELSE 0
+      END AS refund_amount
     FROM bookings b
     JOIN users u ON u.id = b.user_id
     JOIN trips t ON t.id = b.trip_id
     JOIN routes r ON r.id = t.route_id
-    WHERE b.status = 'confirmed' AND t.status = 'cancelled'
+    WHERE (
+      (b.status = 'confirmed' AND t.status = 'cancelled')
+      OR (b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0)
+    )
   `;
   const params = [];
 
