@@ -20,6 +20,7 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
 
     private List<Map<String, Object>> revenues;
     private OnItemClickListener listener;
+    private boolean isRefund = false; // true = hoàn tiền, false = doanh thu
 
     public interface OnItemClickListener {
         void onItemClick(Map<String, Object> revenue);
@@ -28,6 +29,12 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
     public RevenueAdapter(List<Map<String, Object>> revenues, OnItemClickListener listener) {
         this.revenues = revenues;
         this.listener = listener;
+    }
+
+    public RevenueAdapter(List<Map<String, Object>> revenues, OnItemClickListener listener, boolean isRefund) {
+        this.revenues = revenues;
+        this.listener = listener;
+        this.isRefund = isRefund;
     }
 
     @Override
@@ -102,13 +109,35 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
             }
         } else {
             // For date/month/year, show a cleaner title
-            title = "Báo cáo doanh thu";
+            title = isRefund ? "Báo cáo hoàn tiền" : "Báo cáo doanh thu";
         }
 
         holder.tvRevenueTitle.setText(title);
         holder.tvRevenueDate.setText(date);
         holder.tvRevenueAmount.setText(formatCurrency(totalRev));
         holder.tvRevenueTickets.setText((totalBookings != null ? totalBookings.toString() : "0") + " vé");
+
+        // Update label to show "Hoàn tiền" or "Doanh thu"
+        holder.tvRevenueLabel.setText(isRefund ? "Hoàn tiền" : "Doanh thu");
+
+        // Update refund type label if available (for refund reports)
+        if (isRefund && revenue.containsKey("admin_cancelled_count") && revenue.containsKey("trip_cancelled_count")) {
+            long adminCount = getLongFromObject(revenue.get("admin_cancelled_count"));
+            long tripCount = getLongFromObject(revenue.get("trip_cancelled_count"));
+            long userCount = getLongFromObject(revenue.get("user_cancelled_count"));
+
+            String refundTypeText = "Tất cả";
+            if (adminCount > 0 && tripCount == 0 && userCount == 0) {
+                refundTypeText = "Admin hủy";
+            } else if (tripCount > 0 && adminCount == 0 && userCount == 0) {
+                refundTypeText = "Chuyến hủy";
+            } else if (userCount > 0 && adminCount == 0 && tripCount == 0) {
+                refundTypeText = "User hủy";
+            }
+            holder.tvRefundType.setText(refundTypeText);
+        } else {
+            holder.tvRefundType.setText("");
+        }
 
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {
@@ -117,13 +146,24 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
         });
     }
 
+    private long getLongFromObject(Object obj) {
+        if (obj == null) return 0;
+        try {
+            if (obj instanceof Long) return (Long) obj;
+            if (obj instanceof Integer) return ((Integer) obj).longValue();
+            return Long.parseLong(obj.toString());
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     @Override
     public int getItemCount() {
         return revenues != null ? revenues.size() : 0;
     }
 
     public static class RevenueViewHolder extends RecyclerView.ViewHolder {
-        TextView tvRevenueTitle, tvRevenueDate, tvRevenueAmount, tvRevenueTickets;
+        TextView tvRevenueTitle, tvRevenueDate, tvRevenueAmount, tvRevenueTickets, tvRevenueLabel, tvRefundType;
 
         public RevenueViewHolder(View itemView) {
             super(itemView);
@@ -131,6 +171,8 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
             tvRevenueDate = itemView.findViewById(R.id.tvRevenueDate);
             tvRevenueAmount = itemView.findViewById(R.id.tvRevenueAmount);
             tvRevenueTickets = itemView.findViewById(R.id.tvRevenueTickets);
+            tvRevenueLabel = itemView.findViewById(R.id.tvRevenueLabel);
+            tvRefundType = itemView.findViewById(R.id.tvRefundType);
         }
     }
 }

@@ -225,7 +225,8 @@ public interface ApiService {
             @Query("route_id") Integer routeId,
             @Query("trip_id") Integer tripId,
             @Query("from_date") String fromDate,
-            @Query("to_date") String toDate
+            @Query("to_date") String toDate,
+            @Query("refundType") String refundType
     );
 
     @GET("api/admin/revenue/details")
@@ -240,7 +241,8 @@ public interface ApiService {
     Call<List<Map<String, Object>>> getRevenueRefundDetails(
         @Header("user-id") int userId,
         @Query("group_by") String groupBy,
-        @Query("value") String value
+        @Query("value") String value,
+        @Query("refundType") String refundType
     );
 
 
