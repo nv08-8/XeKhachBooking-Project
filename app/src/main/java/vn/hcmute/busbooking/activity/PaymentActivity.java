@@ -527,18 +527,6 @@ public class PaymentActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
     }
 
-    private void onAllPaymentsSuccess(int primaryBookingId) {
-        setLoadingState(false);
-        Toast.makeText(this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
-        // Open MyBookingsActivity (user preference) instead of BookingDetailActivity to avoid detail-page reload race
-        try {
-            Intent intent = new Intent(PaymentActivity.this, MyBookingsActivity.class);
-            // Open booking list so user sees their confirmed tickets
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            startActivity(intent);
-        } catch (Exception ignored) {}
-        finish();
-    }
 
     // Restore payment selection & helper methods (were accidentally removed)
     private void selectPaymentMethod(int resId) {
@@ -784,6 +772,15 @@ public class PaymentActivity extends AppCompatActivity {
                 if (btnConfirmPayment != null) btnConfirmPayment.setEnabled(true);
             }
         } catch (Exception ignored) {}
+    }
+
+    private int getSelectedPaymentMethodId() {
+        try {
+            if (rbQrPayment != null && rbQrPayment.isChecked()) return R.id.rbQrPayment;
+            if (rbCreditCard != null && rbCreditCard.isChecked()) return R.id.rbCreditCard;
+            if (rbPayAtOffice != null && rbPayAtOffice.isChecked()) return R.id.rbPayAtOffice;
+        } catch (Exception ignored) {}
+        return R.id.rbQrPayment; // default
     }
 
     private boolean validateCardInputs() {
@@ -1043,13 +1040,6 @@ public class PaymentActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
     }
 
-    private void setLoadingState(boolean isLoading) {
-        try { if (progressBar != null) progressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE); } catch (Exception ignored) {}
-    }
-
-    private void handlePaymentError(String msg) {
-        try { Toast.makeText(PaymentActivity.this, msg, Toast.LENGTH_LONG).show(); } catch (Exception ignored) {}
-    }
 
     private String normalizePaymentMethod(String raw) {
         if (raw == null) return "";
@@ -1069,36 +1059,171 @@ public class PaymentActivity extends AppCompatActivity {
     // Minimal stubs for payment flows so file compiles. These should be replaced with full implementations.
     private void processPayosPayment(java.util.List<Integer> ids) {
         try {
-            if (ids == null || ids.isEmpty()) { Toast.makeText(this, "Không có vé để thanh toán", Toast.LENGTH_SHORT).show(); return; }
-            Toast.makeText(this, "Chuyển sang trang thanh toán (PayOS) - placeholder", Toast.LENGTH_SHORT).show();
-        } catch (Exception ignored) {}
+            if (ids == null || ids.isEmpty()) {
+                Toast.makeText(this, "Không có vé để thanh toán", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (bookingTotalAmount == null) {
+                Toast.makeText(this, "Không xác định được số tiền thanh toán", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // If amount is 0 (fully discounted), confirm payment to prevent auto-cancel by cron
+            if (bookingTotalAmount <= 0) {
+                Log.d(TAG, "Amount is 0 (fully discounted), confirming payment for booking");
+                setLoadingState(true);
+
+                // Confirm payment with 0 amount to mark booking as paid
+                confirmNextPayment(ids, 0, "free");
+                return;
+            }
+
+            setLoadingState(true);
+
+            long timestamp = System.currentTimeMillis();
+            int random = new java.util.Random().nextInt(10000);
+            long orderId = timestamp + random;
+
+            Map<String, Object> paymentRequest = new HashMap<>();
+            paymentRequest.put("orderId", orderId);
+            paymentRequest.put("amount", bookingTotalAmount.intValue());
+            paymentRequest.put("booking_ids", ids);
+            paymentRequest.put("buyerName", fullName != null ? fullName : "Customer");
+            paymentRequest.put("buyerEmail", email != null ? email : "customer@xekhachbooking.com");
+            paymentRequest.put("buyerPhone", phoneNumber != null ? phoneNumber : "0123456789");
+            paymentRequest.put("buyerAddress", "Vietnam");
+
+            Log.d(TAG, "Creating PayOS checkout with amount: " + bookingTotalAmount + ", booking_ids: " + ids);
+
+            Call<PaymentResponse> call = apiService.createPayosPayment(new vn.hcmute.busbooking.model.PaymentRequest(
+                String.valueOf(orderId),
+                bookingTotalAmount.intValue(),
+                ids,
+                fullName,
+                email,
+                phoneNumber
+            ));
+
+            call.enqueue(new Callback<PaymentResponse>() {
+                @Override
+                public void onResponse(Call<PaymentResponse> call, Response<PaymentResponse> response) {
+                    setLoadingState(false);
+
+                    if (response.isSuccessful() && response.body() != null) {
+                        String checkoutUrl = response.body().getCheckoutUrl();
+
+                        if (checkoutUrl != null && !checkoutUrl.isEmpty()) {
+                            Log.d(TAG, "Got PayOS checkout URL, opening browser");
+                            Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(checkoutUrl));
+                            startActivity(browserIntent);
+                        } else {
+                            handlePaymentError("Không nhận được link thanh toán từ server");
+                        }
+                    } else {
+                        handlePaymentError("Lỗi khi tạo link thanh toán: " + response.code());
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<PaymentResponse> call, Throwable t) {
+                    setLoadingState(false);
+                    handlePaymentError("Lỗi kết nối thanh toán: " + t.getMessage());
+                    Log.e(TAG, "PayOS request failed", t);
+                }
+            });
+        } catch (Exception e) {
+            setLoadingState(false);
+            handlePaymentError("Lỗi: " + e.getMessage());
+            Log.e(TAG, "Error in processPayosPayment", e);
+        }
     }
 
     private void confirmNextPayment(java.util.List<Integer> ids, int index, String method) {
-        Toast.makeText(this, "Xác nhận thanh toán (placeholder)", Toast.LENGTH_SHORT).show();
+        if (ids == null || ids.isEmpty() || index >= ids.size()) {
+            if (ids != null && !ids.isEmpty()) {
+                onAllPaymentsSuccess(ids.get(0));
+            }
+            return;
+        }
+
+        if ("card".equalsIgnoreCase(method) && !validateCardInputs()) {
+            handlePaymentError("Vui lòng nhập đầy đủ thông tin thẻ");
+            return;
+        }
+
+        setLoadingState(true);
+        Integer bookingId = ids.get(index);
+
+        Map<String, String> body = new HashMap<>();
+        body.put("payment_method", method);
+
+        Log.d(TAG, "Processing payment for booking: " + bookingId + " with method: " + method);
+
+        apiService.confirmPayment(bookingId, body).enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                if (response.isSuccessful()) {
+                    Log.d(TAG, "Payment successful for booking " + bookingId);
+
+                    if (index + 1 < ids.size()) {
+                        confirmNextPayment(ids, index + 1, method);
+                    } else {
+                        setLoadingState(false);
+                        onAllPaymentsSuccess(bookingId);
+                    }
+                } else {
+                    setLoadingState(false);
+                    handlePaymentError("Thanh toán thất bại: " + response.code());
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                setLoadingState(false);
+                handlePaymentError("Lỗi kết nối thanh toán: " + t.getMessage());
+                Log.e(TAG, "Payment request failed", t);
+            }
+        });
     }
 
-    private void changePaymentMethodForBookings(int idx, String newMethod, Runnable onSuccess) {
-        // Attempt to call API to change payment method for all bookingIds; for now, call onSuccess immediately
-        try { if (onSuccess != null) onSuccess.run(); } catch (Exception ignored) {}
-    }
-
-    private void changePaymentMethodToOfflineConfirm(String newMethod) {
-        Toast.makeText(this, "Đổi phương thức sang thanh toán tại nhà xe (placeholder)", Toast.LENGTH_SHORT).show();
-    }
-
-    private void createBookingAndProcessPayment() {
-        Toast.makeText(this, "Tạo đặt vé và thanh toán (placeholder)", Toast.LENGTH_SHORT).show();
-    }
-
-    private int getSelectedPaymentMethodId() {
+    // Helper methods
+    private void handlePaymentError(String errorMessage) {
+        Log.e(TAG, "Payment error: " + errorMessage);
         try {
-            if (rbQrPayment != null && rbQrPayment.isChecked()) return R.id.rbQrPayment;
-            if (rbCreditCard != null && rbCreditCard.isChecked()) return R.id.rbCreditCard;
-            if (rbPayAtOffice != null && rbPayAtOffice.isChecked()) return R.id.rbPayAtOffice;
+            Toast.makeText(PaymentActivity.this, errorMessage, Toast.LENGTH_LONG).show();
         } catch (Exception ignored) {}
-        return R.id.rbQrPayment; // default
     }
+
+    private void setLoadingState(boolean loading) {
+        try {
+            if (progressBar != null) {
+                progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
+            }
+            if (btnConfirmPayment != null) {
+                btnConfirmPayment.setEnabled(!loading);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void onAllPaymentsSuccess(int primaryBookingId) {
+        Log.d(TAG, "All payments completed successfully");
+
+        Toast.makeText(this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
+
+        // Delay 2 seconds then navigate to MyBookingsActivity to show the new booking
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            try {
+                Intent intent = new Intent(PaymentActivity.this, MyBookingsActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(intent);
+            } catch (Exception e) {
+                Log.e(TAG, "Error navigating to MyBookingsActivity", e);
+            }
+            finish();
+        }, 2000);
+    }
+
 
     private boolean isExpiryValid(String expiry) {
         if (expiry == null) return false;
@@ -1106,21 +1231,282 @@ public class PaymentActivity extends AppCompatActivity {
         String[] parts = expiry.contains("/") ? expiry.split("/") : (expiry.length() == 4 ? new String[] {expiry.substring(0,2), expiry.substring(2)} : null);
         if (parts == null || parts.length < 2) return false;
         try {
-            int m = Integer.parseInt(parts[0]); int y = Integer.parseInt(parts[1]); if (y < 100) y += 2000;
-            java.util.Calendar cal = java.util.Calendar.getInstance(); cal.set(java.util.Calendar.DAY_OF_MONTH, 1); cal.set(java.util.Calendar.MONTH, m-1); cal.set(java.util.Calendar.YEAR, y);
-            java.util.Calendar end = (java.util.Calendar) cal.clone(); end.add(java.util.Calendar.MONTH, 1); end.add(java.util.Calendar.DAY_OF_MONTH, -1);
+            int m = Integer.parseInt(parts[0]);
+            int y = Integer.parseInt(parts[1]);
+            if (y < 100) y += 2000;
+            java.util.Calendar cal = java.util.Calendar.getInstance();
+            cal.set(java.util.Calendar.DAY_OF_MONTH, 1);
+            cal.set(java.util.Calendar.MONTH, m-1);
+            cal.set(java.util.Calendar.YEAR, y);
+            java.util.Calendar end = (java.util.Calendar) cal.clone();
+            end.add(java.util.Calendar.MONTH, 1);
+            end.add(java.util.Calendar.DAY_OF_MONTH, -1);
             return end.getTimeInMillis() > System.currentTimeMillis();
-        } catch (Exception e) { return false; }
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private boolean isCvvValid(String cvv) {
-        if (cvv == null) return false; String s = cvv.replaceAll("\\D", ""); return s.length() >=3 && s.length() <=4;
+        if (cvv == null) return false;
+        String s = cvv.replaceAll("\\D", "");
+        return s.length() >= 3 && s.length() <= 4;
     }
 
     private void changePaymentMethodToOffline() {
         try {
-            // Delegate to confirmation flow that handles user confirmation and server call
             changePaymentMethodToOfflineConfirm("offline");
         } catch (Exception ignored) {}
+    }
+
+    private void changePaymentMethodToOfflineConfirm(String newMethod) {
+        if (bookingIds == null || bookingIds.isEmpty()) {
+            handlePaymentError("Không có mã đặt vé để đổi phương thức thanh toán.");
+            return;
+        }
+
+        setLoadingState(true);
+        Map<String, String> body = new HashMap<>();
+        body.put("payment_method", "offline");
+
+        Integer bookingId = bookingIds.get(0);
+        Log.d(TAG, "Changing payment method to offline for booking: " + bookingId);
+
+        apiService.changePaymentMethod(bookingId, body).enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                setLoadingState(false);
+
+                if (response.isSuccessful()) {
+                    Log.d(TAG, "Payment method changed to offline successfully");
+                    isOfflinePayment = true;
+
+                    Toast.makeText(PaymentActivity.this,
+                            "Vé đã được đặt với thanh toán tại nhà xe. Vui lòng thanh toán trước khi lên xe.",
+                            Toast.LENGTH_LONG).show();
+
+                    Intent resultIntent = new Intent();
+                    resultIntent.putIntegerArrayListExtra("booking_ids", bookingIds);
+                    setResult(RESULT_OK, resultIntent);
+                    finish();
+                } else {
+                    handlePaymentError("Không thể thay đổi phương thức thanh toán: " + response.code());
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                setLoadingState(false);
+                handlePaymentError("Lỗi kết nối khi thay đổi phương thức: " + t.getMessage());
+            }
+        });
+    }
+
+    private void createBookingAndProcessPayment() {
+        if (trip == null || seatLabels == null || seatLabels.isEmpty()) {
+            handlePaymentError("Dữ liệu đặt vé không đầy đủ");
+            return;
+        }
+
+        if (fullName == null || fullName.isEmpty()) {
+            handlePaymentError("Vui lòng nhập tên hành khách");
+            return;
+        }
+
+        if (phoneNumber == null || phoneNumber.isEmpty()) {
+            handlePaymentError("Vui lòng nhập số điện thoại");
+            return;
+        }
+
+        setLoadingState(true);
+
+        Integer userId = sessionManager.getUserId();
+
+        Map<String, Object> bookingRequest = new HashMap<>();
+        if (userId != null) {
+            bookingRequest.put("user_id", userId);
+        }
+        bookingRequest.put("trip_id", trip.getId());
+        bookingRequest.put("seat_labels", seatLabels);
+        bookingRequest.put("passenger_name", fullName);
+        bookingRequest.put("passenger_phone", phoneNumber);
+        bookingRequest.put("passenger_email", email != null ? email : "");
+        bookingRequest.put("pickup_stop_id", pickupStopId);
+        bookingRequest.put("dropoff_stop_id", dropoffStopId);
+
+        if (appliedPromotionCode != null && !appliedPromotionCode.isEmpty()) {
+            bookingRequest.put("promotion_code", appliedPromotionCode);
+        }
+
+        String selectedPaymentMethod = "offline";
+        try {
+            if (rbQrPayment != null && rbQrPayment.isChecked()) selectedPaymentMethod = "qr";
+            else if (rbCreditCard != null && rbCreditCard.isChecked()) selectedPaymentMethod = "card";
+        } catch (Exception ignored) {}
+
+        bookingRequest.put("payment_method", selectedPaymentMethod);
+
+        Log.d(TAG, "Creating booking with payment_method: " + selectedPaymentMethod);
+
+        apiService.createBooking(bookingRequest).enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                setLoadingState(false);
+
+                if (response.isSuccessful() && response.body() != null) {
+                    Object bookingIdsObj = response.body().get("booking_ids");
+                    ArrayList<Integer> newBookingIds = new ArrayList<>();
+
+                    if (bookingIdsObj instanceof List) {
+                        for (Object id : (List<?>) bookingIdsObj) {
+                            if (id instanceof Number) {
+                                newBookingIds.add(((Number) id).intValue());
+                            } else if (id instanceof String) {
+                                try {
+                                    newBookingIds.add(Integer.parseInt((String) id));
+                                } catch (NumberFormatException ignored) {}
+                            }
+                        }
+                    }
+
+                    if (!newBookingIds.isEmpty()) {
+                        bookingIds = newBookingIds;
+                        Log.d(TAG, "Created bookings: " + bookingIds);
+
+                        // Extract total_amount from response and save it
+                        try {
+                            Object totalAmountObj = response.body().get("total_amount");
+                            if (totalAmountObj instanceof Number) {
+                                bookingTotalAmount = ((Number) totalAmountObj).doubleValue();
+                            } else if (totalAmountObj instanceof String) {
+                                bookingTotalAmount = Double.parseDouble((String) totalAmountObj);
+                            }
+                            Log.d(TAG, "Total amount from booking: " + bookingTotalAmount);
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error parsing total_amount", e);
+                            bookingTotalAmount = 0.0;
+                        }
+
+                        // Mark as pending payment to prevent duplicate booking if user clicks confirm again
+                        isPendingPayment = true;
+
+                        String paymentMethod = (String) bookingRequest.get("payment_method");
+
+                        // Disable button to prevent duplicate booking clicks
+                        if (btnConfirmPayment != null) {
+                            btnConfirmPayment.setEnabled(false);
+                        }
+
+                        if ("qr".equals(paymentMethod)) {
+                            processPayosPayment(bookingIds);
+                        } else if ("card".equals(paymentMethod)) {
+                            confirmNextPayment(bookingIds, 0, "card");
+                        } else {
+                            // Offline payment - navigate to MyBookingsActivity
+                            Toast.makeText(PaymentActivity.this,
+                                    "Vé đã được đặt với thanh toán tại nhà xe. Vui lòng thanh toán trước khi lên xe.",
+                                    Toast.LENGTH_LONG).show();
+
+                            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                                try {
+                                    Intent intent = new Intent(PaymentActivity.this, MyBookingsActivity.class);
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                                    startActivity(intent);
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Error navigating to MyBookingsActivity", e);
+                                }
+                                finish();
+                            }, 2000);
+                        }
+                    } else {
+                        handlePaymentError("Không thể tạo đặt vé. Vui lòng thử lại.");
+                    }
+                } else {
+                    setLoadingState(false);
+
+                    // Handle specific error cases
+                    String errorMessage = "Lỗi khi tạo đặt vé: " + response.code();
+                    try {
+                        if (response.errorBody() != null) {
+                            String errorBody = response.errorBody().string();
+                            if (errorBody.contains("not available")) {
+                                showSeatNotAvailableDialog();
+                                return;
+                            }
+                            try {
+                                JSONObject errorJson = new JSONObject(errorBody);
+                                String message = errorJson.optString("message", errorMessage);
+                                if (message.contains("not available")) {
+                                    showSeatNotAvailableDialog();
+                                    return;
+                                }
+                                errorMessage = message;
+                            } catch (Exception ignored) {}
+                        }
+                    } catch (Exception ignored) {}
+
+                    handlePaymentError(errorMessage);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                setLoadingState(false);
+                handlePaymentError("Lỗi kết nối khi tạo đặt vé: " + t.getMessage());
+                Log.e(TAG, "Error creating booking", t);
+            }
+        });
+    }
+
+    private void changePaymentMethodForBookings(int index, String newMethod, Runnable onSuccess) {
+        if (bookingIds == null || bookingIds.isEmpty()) {
+            setLoadingState(false);
+            if (onSuccess != null) onSuccess.run();
+            return;
+        }
+        if (index >= bookingIds.size()) {
+            setLoadingState(false);
+            if (onSuccess != null) onSuccess.run();
+            return;
+        }
+
+        int id = bookingIds.get(index);
+        Map<String, String> body = new HashMap<>();
+        body.put("payment_method", newMethod);
+
+        apiService.changePaymentMethod(id, body).enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                if (response.isSuccessful()) {
+                    changePaymentMethodForBookings(index + 1, newMethod, onSuccess);
+                } else {
+                    setLoadingState(false);
+                    handlePaymentError("Không thể đổi phương thức thanh toán.");
+                }
+            }
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                setLoadingState(false);
+                handlePaymentError("Lỗi kết nối khi đổi phương thức thanh toán.");
+            }
+        });
+    }
+
+    private void showSeatNotAvailableDialog() {
+        setLoadingState(false);
+        new AlertDialog.Builder(this)
+                .setTitle("Ghế không còn trống")
+                .setMessage("Ghế bạn chọn đã được book bởi người khác. Vui lòng chọn ghế khác và thử lại.")
+                .setPositiveButton("Chọn ghế khác", (dialog, which) -> {
+                    // Go back to SeatSelectionActivity
+                    Intent intent = new Intent(PaymentActivity.this, SeatSelectionActivity.class);
+                    intent.putExtra("trip", trip);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    startActivity(intent);
+                    finish();
+                })
+                .setNegativeButton("Hủy", (dialog, which) -> dialog.dismiss())
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
     }
 }
