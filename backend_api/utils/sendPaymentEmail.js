@@ -270,7 +270,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                                 </tr>
                                 <tr>
                                     <td>Số ghế</td>
-                                    <td><strong>${booking.seat_codes || 'N/A'}</strong></td>
+                                    <td><strong>${Array.isArray(booking.seat_labels) ? booking.seat_labels.join(', ') : (booking.seat_codes || 'N/A')}</strong></td>
                                 </tr>
                             </table>
                         </div>
