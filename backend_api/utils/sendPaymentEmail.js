@@ -1,5 +1,4 @@
 const SendGridMail = require("@sendgrid/mail");
-const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 
@@ -108,36 +107,19 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
             currency: 'VND'
         }).format(pricePaid);
 
-        // Generate QR code from booking code
+        // Generate QR code from booking code using API (reliable across all email clients)
         const bookingCode = booking.booking_code || '#' + booking.id;
-        let qrCodeDataUri = null;
-        try {
-            qrCodeDataUri = await QRCode.toDataURL(bookingCode, {
-                errorCorrectionLevel: 'H',
-                type: 'image/png',
-                quality: 0.92,
-                margin: 1,
-                width: 200,
-                color: {
-                    dark: '#000000',
-                    light: '#FFFFFF'
-                }
-            });
-            console.log("✅ QR code generated successfully");
-        } catch (qrError) {
-            console.warn("⚠️ Failed to generate QR code:", qrError.message);
-        }
-        
-        // Use server URLs instead of data URI for better email client compatibility
-        // Logo URL - served from /api/config/logo endpoint
-        const logoUrl = `${process.env.APP_SERVER_URL || 'https://xekhachbooking-project.onrender.com'}/api/config/logo`;
+        // Use QR code API - returns direct image URL
+        // Example: https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=YOUR_DATA
+        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(bookingCode)}`;
 
-        // QR code URL - generate temporary URL or use data URI as fallback
-        let qrCodeUrl = qrCodeDataUri;  // Use data URI as primary
-        const getServerUrl = () => `${process.env.APP_SERVER_URL || 'https://xekhachbooking-project.onrender.com'}`;
+        // Logo URL - use Imgur or external hosted image (avoids Render free tier sleep issues)
+        // Replace with your actual Imgur link or any image hosting service
+        const logoUrl = process.env.LOGO_URL || 'https://i.imgur.com/YOUR_IMGUR_ID.jpg';
 
+        console.log("✅ QR code URL generated from API");
         console.log(`[sendPaymentEmail] Logo URL: ${logoUrl}`);
-        console.log(`[sendPaymentEmail] QR Code: Using data URI (${qrCodeDataUri ? 'success' : 'failed'})`);
+        console.log(`[sendPaymentEmail] QR Code URL: ${qrCodeUrl}`);
 
         // Generate HTML email template
         const htmlContent = `
@@ -225,13 +207,11 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                             🎫 ${bookingCode}
                         </div>
 
-                        ${qrCodeUrl ? `
                         <div class="qr-section">
                             <p style="margin: 0 0 10px 0; font-weight: bold;">📱 QR Code vé của bạn</p>
                             <img src="${qrCodeUrl}" alt="QR Code vé" style="max-width: 220px; height: auto;" />
                             <div class="qr-label">Quét mã này tại điểm lên xe</div>
                         </div>
-                        ` : ''}
 
                         <div class="divider"></div>
 
@@ -371,8 +351,8 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
         console.log(`[sendPaymentEmail] Preparing to send email to: ${email}`);
         console.log(`[sendPaymentEmail] From: ${msg.from.email}`);
         console.log(`[sendPaymentEmail] Subject: ${msg.subject}`);
-        console.log(`[sendPaymentEmail] Logo URL: ${logoUrl}`);
-        console.log(`[sendPaymentEmail] QR Code: ${qrCodeUrl ? '✅ Using data URI' : '❌ Failed to generate'}`);
+        console.log(`[sendPaymentEmail] Logo: ${logoUrl}`);
+        console.log(`[sendPaymentEmail] QR Code API: ${qrCodeUrl}`);
 
         // Debug seat codes
         console.log(`[sendPaymentEmail] Seat codes: ${booking.seat_codes || 'N/A'}`);
