@@ -77,11 +77,17 @@ router.post("/routes", checkAdminRole, async (req, res) => {
     } else {
       // Route doesn't exist - INSERT new one
       console.log("[admin.routes.POST] Route doesn't exist, inserting new...");
+
+      // Get next available ID (since sequence might not exist)
+      const maxIdRes = await db.query(`SELECT COALESCE(MAX(id), 0) as max_id FROM routes`);
+      const nextId = maxIdRes.rows[0].max_id + 1;
+      console.log(`[admin.routes.POST] Next available ID: ${nextId}`);
+
       const result = await db.query(
-        `INSERT INTO routes (origin, destination, distance_km, duration_min, created_at)
-         VALUES ($1, $2, $3, $4, NOW())
+        `INSERT INTO routes (id, origin, destination, distance_km, duration_min, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())
          RETURNING *`,
-        [origin, destination, distance_km, duration_min]
+        [nextId, origin, destination, distance_km, duration_min]
       );
       console.log("[admin.routes.POST] Route inserted:", result.rows[0]);
       res.status(201).json(result.rows[0]);
