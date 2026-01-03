@@ -530,25 +530,44 @@ router.delete("/users/:id", checkAdminRole, async (req, res) => {
   const { id } = req.params;
 
   try {
+    console.log(`[DELETE USER] Attempting to soft delete user ID: ${id}`);
+
+    // Validate ID is numeric
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
     // Use soft delete: Set status to 'deleted' instead of permanent deletion
     // This preserves booking history while preventing login
+    console.log(`[DELETE USER] Running UPDATE query for user ID: ${id}`);
+
     const result = await db.query(
       `UPDATE users
        SET status = 'deleted'
        WHERE id = $1
        RETURNING id, name, email, phone, role, status`,
-      [id]
+      [parseInt(id)]
     );
+
+    console.log(`[DELETE USER] Query result: ${result.rowCount} row(s) updated`);
+
     if (!result.rows.length) {
+      console.log(`[DELETE USER] User not found with ID: ${id}`);
       return res.status(404).json({ message: "Người dùng không tìm thấy" });
     }
+
+    console.log(`[DELETE USER] User ${id} successfully soft deleted`, result.rows[0]);
     res.json({
       message: "Xóa người dùng thành công (lịch sử vé vẫn được giữ lại)",
       user: result.rows[0]
     });
   } catch (err) {
-    console.error("Error deleting user:", err);
-    res.status(500).json({ message: "Lỗi khi xóa người dùng" });
+    console.error(`[DELETE USER] Error deleting user ${id}:`, err.message);
+    console.error(`[DELETE USER] Full error:`, err);
+    res.status(500).json({
+      message: "Lỗi khi xóa người dùng",
+      error: err.message
+    });
   }
 });
 
