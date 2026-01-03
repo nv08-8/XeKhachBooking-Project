@@ -59,6 +59,17 @@ router.post("/routes", checkAdminRole, async (req, res) => {
   try {
     console.log("[admin.routes.POST] Attempting to insert/update route:", { origin, destination, distance_km, duration_min });
 
+    // Step 0: Reset SERIAL sequence to avoid duplicate key errors
+    try {
+      const maxIdResult = await client.query(`SELECT MAX(id) as max_id FROM routes`);
+      const maxId = maxIdResult.rows[0]?.max_id || 0;
+      const nextId = (maxId || 0) + 1;
+      console.log(`[admin.routes.POST] Max ID in routes: ${maxId}, setting sequence to: ${nextId}`);
+      await client.query(`SELECT setval('routes_id_seq', $1, false)`, [nextId]);
+    } catch (seqErr) {
+      console.log("[admin.routes.POST] Could not reset sequence (might not exist):", seqErr.message);
+    }
+
     // Step 1: Check if route exists by (origin, destination)
     const existingRoute = await client.query(
       `SELECT id FROM routes WHERE LOWER(origin) = LOWER($1) AND LOWER(destination) = LOWER($2)`,
