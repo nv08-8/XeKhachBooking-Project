@@ -142,16 +142,9 @@ router.get("/trips/:id", async (req, res) => {
         `;
 
         const stopsQuery = `
-            WITH first_stop_time AS (
-                SELECT estimate_time
-                FROM route_stops
-                WHERE route_id = (SELECT route_id FROM trips WHERE id = $1)
-                ORDER BY order_index ASC
-                LIMIT 1
-            )
             SELECT
                 rs.id, rs.name, rs.address, rs.type, rs.order_index,
-                (t.departure_time + (rs.estimate_time - (SELECT estimate_time FROM first_stop_time)))::timestamp AS estimated_arrival_time
+                (t.departure_time + (rs.travel_minutes_from_start * interval '1 minute')) AS estimated_arrival_time
             FROM route_stops rs
             JOIN trips t ON t.route_id = rs.route_id
             WHERE t.id = $1
