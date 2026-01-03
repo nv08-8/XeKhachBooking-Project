@@ -1,4 +1,5 @@
 const SendGridMail = require("@sendgrid/mail");
+const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 
@@ -107,19 +108,25 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
             currency: 'VND'
         }).format(pricePaid);
 
-        // Generate QR code from booking code using API (reliable across all email clients)
+        // Generate QR code as buffer for attachment
         const bookingCode = booking.booking_code || '#' + booking.id;
-        // Use QR code API - returns direct image URL
-        // Example: https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=YOUR_DATA
-        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(bookingCode)}`;
-
-        // Logo URL - use Imgur or external hosted image (avoids Render free tier sleep issues)
-        // Replace with your actual Imgur link or any image hosting service
-        const logoUrl = process.env.LOGO_URL || 'https://i.imgur.com/YOUR_IMGUR_ID.jpg';
-
-        console.log("✅ QR code URL generated from API");
-        console.log(`[sendPaymentEmail] Logo URL: ${logoUrl}`);
-        console.log(`[sendPaymentEmail] QR Code URL: ${qrCodeUrl}`);
+        let qrCodeBuffer = null;
+        try {
+            qrCodeBuffer = await QRCode.toBuffer(bookingCode, {
+                errorCorrectionLevel: 'H',
+                type: 'image/png',
+                quality: 0.92,
+                margin: 1,
+                width: 200,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            });
+            console.log("✅ QR code generated as attachment");
+        } catch (qrError) {
+            console.warn("⚠️ Failed to generate QR code:", qrError.message);
+        }
 
         // Generate HTML email template
         const htmlContent = `
@@ -190,7 +197,6 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
             <body>
                 <div class="container">
                     <div class="header">
-                        <img src="${logoUrl}" alt="XeKhachBooking Logo" style="height: 60px; margin-bottom: 10px;" onerror="this.style.display='none'" />
                         <h1>Thanh toán vé thành công!</h1>
                         <p style="margin: 0; font-size: 14px; opacity: 0.9;">XeKhachBooking - Đặt vé xe khách online</p>
                     </div>
@@ -209,8 +215,8 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
 
                         <div class="qr-section">
                             <p style="margin: 0 0 10px 0; font-weight: bold;">📱 QR Code vé của bạn</p>
-                            <img src="${qrCodeUrl}" alt="QR Code vé" style="max-width: 220px; height: auto;" />
-                            <div class="qr-label">Quét mã này tại điểm lên xe</div>
+                            <p style="color: #666; font-size: 13px; margin: 10px 0;">QR code vé được gửi kèm trong tệp đính kèm</p>
+                            <div class="qr-label">Quét mã QR để xác nhận vé tại điểm lên xe</div>
                         </div>
 
                         <div class="divider"></div>
@@ -345,14 +351,25 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                 name: "XeKhachBooking"
             },
             subject: `Xác nhận thanh toán vé ${booking.booking_code || '#' + booking.id}`,
-            html: htmlContent
+            html: htmlContent,
+            attachments: []
         };
+
+        // Add QR code as attachment
+        if (qrCodeBuffer) {
+            msg.attachments.push({
+                content: qrCodeBuffer.toString('base64'),
+                filename: `qr-code-${bookingCode}.png`,
+                type: 'image/png',
+                disposition: 'attachment'
+            });
+            console.log("✅ QR code added as attachment");
+        }
 
         console.log(`[sendPaymentEmail] Preparing to send email to: ${email}`);
         console.log(`[sendPaymentEmail] From: ${msg.from.email}`);
         console.log(`[sendPaymentEmail] Subject: ${msg.subject}`);
-        console.log(`[sendPaymentEmail] Logo: ${logoUrl}`);
-        console.log(`[sendPaymentEmail] QR Code API: ${qrCodeUrl}`);
+        console.log(`[sendPaymentEmail] Attachments: ${msg.attachments ? msg.attachments.length : 0}`);
 
         // Debug seat codes
         console.log(`[sendPaymentEmail] Seat codes: ${booking.seat_codes || 'N/A'}`);
