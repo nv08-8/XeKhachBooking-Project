@@ -153,5 +153,22 @@
             app:layout_constraintTop_toTopOf="@id/ivCalendar"
             tools:text="Thứ Hai, 28/07/2024" />
 
+        <!-- Feedback status / button for past bookings -->
+        <TextView
+            android:id="@+id/tvFeedbackStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="4dp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="6dp"
+            android:textSize="13sp"
+            android:textColor="@color/darkBlue"
+            android:background="@drawable/bg_status_default"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvDate"
+            tools:text="Đang chờ nhận xét" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>

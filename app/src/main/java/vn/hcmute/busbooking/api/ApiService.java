@@ -121,6 +121,14 @@ public interface ApiService {
     @GET("api/reviews")
     Call<List<Map<String, Object>>> getReviews(@Query("limit") Integer limit);
 
+    // Get reviews filtered by booking_id to check whether user already reviewed a booking
+    @GET("api/reviews")
+    Call<List<Map<String, Object>>> getReviewsForBooking(@Query("booking_id") Integer bookingId);
+
+    // Submit a review (booking_id, trip_id, rating, comment)
+    @POST("api/reviews")
+    Call<Map<String, Object>> submitReview(@Body Map<String, Object> body);
+
     @POST("api/payment/payos/create")
     Call<vn.hcmute.busbooking.model.PaymentResponse> createPayosPayment(@Body vn.hcmute.busbooking.model.PaymentRequest request);
 

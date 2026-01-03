@@ -1,6 +1,7 @@
 package vn.hcmute.busbooking.adapter;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -22,6 +23,7 @@ import java.util.TimeZone;
 
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.model.Booking;
+import vn.hcmute.busbooking.api.ApiClient;
 
 public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingViewHolder> {
 
@@ -78,6 +80,7 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
 
     static class BookingViewHolder extends RecyclerView.ViewHolder {
         private final TextView tvOperator, tvStatus, tvOrigin, tvDepartureTime, tvDestination, tvArrivalTime, tvDate, tvDuration;
+        private final TextView tvFeedbackStatus;
 
         public BookingViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -89,6 +92,7 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             tvArrivalTime = itemView.findViewById(R.id.tvArrivalTime);
             tvDate = itemView.findViewById(R.id.tvDate);
             tvDuration = itemView.findViewById(R.id.tvDuration);
+            tvFeedbackStatus = itemView.findViewById(R.id.tvFeedbackStatus);
         }
 
         public void bind(Booking booking, Map<Integer, Long> pendingCountdowns) {
@@ -103,7 +107,79 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
 
             // setStatus needs booking id to lookup pending countdown and payment method
             setStatus(tvStatus, booking, pendingCountdowns);
+
+            // Feedback status for completed trips
+            tvFeedbackStatus.setVisibility(View.GONE);
+            try {
+                String status = booking.getStatus() == null ? "" : booking.getStatus();
+                long arrivalTime = -1;
+                try {
+                    java.text.SimpleDateFormat isoFormat = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.getDefault());
+                    isoFormat.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+                    java.util.Date d = isoFormat.parse(booking.getArrival_time());
+                    if (d != null) arrivalTime = d.getTime();
+                    else {
+                        java.util.Date d2 = isoFormat.parse(booking.getDeparture_time());
+                        if (d2 != null) arrivalTime = d2.getTime() + (4 * 60 * 60 * 1000L);
+                    }
+                } catch (Exception ignored) {}
+
+                boolean isCompleted = false;
+                if (status.equalsIgnoreCase("completed")) isCompleted = true;
+                else if (status.equalsIgnoreCase("confirmed") && arrivalTime != -1 && System.currentTimeMillis() > arrivalTime) isCompleted = true;
+
+                if (isCompleted) {
+                    // Show feedback status and query backend whether user already reviewed this booking
+                    tvFeedbackStatus.setVisibility(View.VISIBLE);
+                    tvFeedbackStatus.setText("Đang kiểm tra...");
+                    Context ctx = tvFeedbackStatus.getContext();
+                    // Async call to check reviews for this booking
+                    ApiClient.getClient().create(vn.hcmute.busbooking.api.ApiService.class)
+                        .getReviewsForBooking(booking.getId())
+                        .enqueue(new retrofit2.Callback<java.util.List<java.util.Map<String, Object>>>() {
+                            @Override
+                            public void onResponse(retrofit2.Call<java.util.List<java.util.Map<String, Object>>> call, retrofit2.Response<java.util.List<java.util.Map<String, Object>>> response) {
+                                if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
+                                    tvFeedbackStatus.setText("Đã nhận xét");
+                                    tvFeedbackStatus.setBackground(ContextCompat.getDrawable(ctx, R.drawable.bg_status_confirmed));
+                                    tvFeedbackStatus.setTextColor(ContextCompat.getColor(ctx, R.color.darkBlue));
+                                    tvFeedbackStatus.setOnClickListener(v -> {
+                                        // Open feedback details - maybe view their review
+                                        Intent intent = new Intent(ctx, vn.hcmute.busbooking.activity.FeedbackActivity.class);
+                                        intent.putExtra("booking_id", booking.getId());
+                                        intent.putExtra("trip_id", booking.getTrip_id());
+                                        ctx.startActivity(intent);
+                                    });
+                                } else {
+                                    tvFeedbackStatus.setText("Đang chờ nhận xét");
+                                    tvFeedbackStatus.setBackground(ContextCompat.getDrawable(ctx, R.drawable.bg_status_pending));
+                                    tvFeedbackStatus.setTextColor(ContextCompat.getColor(ctx, R.color.darkYellow));
+                                    tvFeedbackStatus.setOnClickListener(v -> {
+                                        Intent intent = new Intent(ctx, vn.hcmute.busbooking.activity.FeedbackActivity.class);
+                                        intent.putExtra("booking_id", booking.getId());
+                                        intent.putExtra("trip_id", booking.getTrip_id());
+                                        ctx.startActivity(intent);
+                                    });
+                                }
+                            }
+
+                            @Override
+                            public void onFailure(retrofit2.Call<java.util.List<java.util.Map<String, Object>>> call, Throwable t) {
+                                tvFeedbackStatus.setText("Đang chờ nhận xét");
+                                tvFeedbackStatus.setBackground(ContextCompat.getDrawable(ctx, R.drawable.bg_status_pending));
+                                tvFeedbackStatus.setTextColor(ContextCompat.getColor(ctx, R.color.darkYellow));
+                                tvFeedbackStatus.setOnClickListener(v -> {
+                                    Intent intent = new Intent(ctx, vn.hcmute.busbooking.activity.FeedbackActivity.class);
+                                    intent.putExtra("booking_id", booking.getId());
+                                    intent.putExtra("trip_id", booking.getTrip_id());
+                                    ctx.startActivity(intent);
+                                });
+                            }
+                        });
+                }
+            } catch (Exception ignored) {}
         }
+
 
         private String formatTime(String isoString) {
             if (isoString == null) return "";
