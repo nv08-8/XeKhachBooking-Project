@@ -68,11 +68,11 @@ public class RouteFormActivity extends AppCompatActivity {
                     Map<String, Object> data = response.body();
                     Object origin = data.get("origin");
                     Object destination = data.get("destination");
-                    Object price = data.get("base_price");
+                    Object distance = data.get("distance_km");
                     Object duration = data.get("duration_min");
                     if (origin != null) edtOrigin.setText(String.valueOf(origin));
                     if (destination != null) edtDestination.setText(String.valueOf(destination));
-                    if (price != null) edtPrice.setText(String.valueOf(price));
+                    if (distance != null) edtPrice.setText(String.valueOf(distance));
                     if (duration != null) edtDuration.setText(String.valueOf(duration));
                 } else {
                     Toast.makeText(RouteFormActivity.this, "Không tải được thông tin tuyến", Toast.LENGTH_SHORT).show();
@@ -89,11 +89,11 @@ public class RouteFormActivity extends AppCompatActivity {
     private void saveRoute() {
         String origin = edtOrigin.getText().toString().trim();
         String destination = edtDestination.getText().toString().trim();
-        String priceStr = edtPrice.getText().toString().trim();
+        String distanceStr = edtPrice.getText().toString().trim();
         String durationStr = edtDuration.getText().toString().trim();
 
-        if (TextUtils.isEmpty(origin) || TextUtils.isEmpty(destination) || TextUtils.isEmpty(priceStr)) {
-            Toast.makeText(this, "Vui lòng điền đầy đủ thông tin (tối thiểu: nơi đi, nơi đến, giá)", Toast.LENGTH_SHORT).show();
+        if (TextUtils.isEmpty(origin) || TextUtils.isEmpty(destination) || TextUtils.isEmpty(distanceStr)) {
+            Toast.makeText(this, "Vui lòng điền đầy đủ thông tin (tối thiểu: nơi đi, nơi đến, khoảng cách)", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -101,9 +101,11 @@ public class RouteFormActivity extends AppCompatActivity {
         body.put("origin", origin);
         body.put("destination", destination);
         try {
-            body.put("base_price", Integer.parseInt(priceStr));
+            // Parse as integer (backend expects INTEGER type)
+            int distanceInt = (int) Double.parseDouble(distanceStr);
+            body.put("distance_km", distanceInt);
         } catch (NumberFormatException ex) {
-            Toast.makeText(this, "Giá phải là số", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Khoảng cách phải là số", Toast.LENGTH_SHORT).show();
             return;
         }
         if (!TextUtils.isEmpty(durationStr)) {

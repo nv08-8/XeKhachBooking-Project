@@ -56,16 +56,74 @@ router.post("/routes", checkAdminRole, async (req, res) => {
   }
 
   try {
-    const result = await db.query(
-      `INSERT INTO routes (origin, destination, distance_km, duration_min, created_at)
-       VALUES ($1, $2, $3, $4, NOW())
-       RETURNING *`,
-      [origin, destination, distance_km, duration_min]
+    console.log("[admin.routes.POST] Attempting to insert/update route:", { origin, destination, distance_km, duration_min });
+
+    // Step 1: Check if route exists by (origin, destination) using EXACT match
+    const checkResult = await db.query(
+      `SELECT id FROM routes WHERE origin = $1 AND destination = $2 LIMIT 1`,
+      [origin, destination]
     );
-    res.status(201).json(result.rows[0]);
+
+    if (checkResult.rowCount > 0) {
+      // Route exists - UPDATE it
+      const routeId = checkResult.rows[0].id;
+      console.log(`[admin.routes.POST] Route exists (id=${routeId}), updating...`);
+      const result = await db.query(
+        `UPDATE routes SET distance_km = $1, duration_min = $2 WHERE id = $3 RETURNING *`,
+        [distance_km, duration_min, routeId]
+      );
+      console.log("[admin.routes.POST] Route updated:", result.rows[0]);
+      res.status(200).json(result.rows[0]);
+    } else {
+      // Route doesn't exist - INSERT new one
+      console.log("[admin.routes.POST] Route doesn't exist, inserting new...");
+
+      // Get next available ID (since sequence might not exist)
+      const maxIdRes = await db.query(`SELECT COALESCE(MAX(id), 0)::INTEGER as max_id FROM routes`);
+      const maxId = parseInt(maxIdRes.rows[0].max_id, 10); // Ensure it's a number
+      const nextId = maxId + 1;
+      console.log(`[admin.routes.POST] Max ID: ${maxId}, Next available ID: ${nextId}`);
+
+      const result = await db.query(
+        `INSERT INTO routes (id, origin, destination, distance_km, duration_min, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())
+         RETURNING *`,
+        [nextId, origin, destination, distance_km, duration_min]
+      );
+      console.log("[admin.routes.POST] Route inserted:", result.rows[0]);
+      res.status(201).json(result.rows[0]);
+    }
   } catch (err) {
-    console.error("Error adding route:", err);
-    res.status(500).json({ message: "Lỗi khi thêm tuyến xe" });
+    console.error("[admin.routes.POST] Error:", err.message || err);
+    console.error("[admin.routes.POST] Error code:", err.code);
+    console.error("[admin.routes.POST] Constraint:", err.constraint);
+
+    // If it's a unique constraint violation, route exists
+    if (err.code === '23505' || err.code === '23514') {
+      try {
+        console.log("[admin.routes.POST] Unique constraint violation - route already exists, trying UPDATE...");
+        const checkResult = await db.query(
+          `SELECT id FROM routes WHERE origin = $1 AND destination = $2 LIMIT 1`,
+          [origin, destination]
+        );
+        if (checkResult.rowCount > 0) {
+          const routeId = checkResult.rows[0].id;
+          const result = await db.query(
+            `UPDATE routes SET distance_km = $1, duration_min = $2 WHERE id = $3 RETURNING *`,
+            [distance_km, duration_min, routeId]
+          );
+          console.log("[admin.routes.POST] Fallback UPDATE successful:", result.rows[0]);
+          res.status(200).json(result.rows[0]);
+        } else {
+          res.status(500).json({ message: "Lỗi khi thêm tuyến xe", error: err.message });
+        }
+      } catch (fallbackErr) {
+        console.error("[admin.routes.POST] Fallback failed:", fallbackErr.message);
+        res.status(500).json({ message: "Lỗi khi thêm tuyến xe", error: fallbackErr.message });
+      }
+    } else {
+      res.status(500).json({ message: "Lỗi khi thêm tuyến xe", error: err.message });
+    }
   }
 });
 
