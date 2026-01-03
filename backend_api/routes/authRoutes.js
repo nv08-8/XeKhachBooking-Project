@@ -107,6 +107,12 @@ router.post("/login", async (req, res) => {
             return res.status(401).json({ message: "Sai email hoặc mật khẩu!" });
 
         const user = rows[0];
+
+        // Check if account is deleted
+        if (user.status === "deleted") {
+            return res.status(403).json({ message: "Tài khoản đã bị xóa!" });
+        }
+
         if (user.status !== "active") {
             return res.status(403).json({ message: "Tài khoản chưa xác thực email!" });
         }

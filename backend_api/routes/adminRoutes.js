@@ -494,7 +494,9 @@ router.put("/bookings/:id/cancel", checkAdminRole, async (req, res) => {
 
 router.get("/users", checkAdminRole, async (req, res) => {
   try {
-    const result = await db.query("SELECT id, name, email, phone, role, status FROM users ORDER BY id ASC");
+    const result = await db.query(
+      "SELECT id, name, email, phone, role, status FROM users WHERE status != 'deleted' ORDER BY id ASC"
+    );
     res.json(result.rows);
   } catch (err) {
     console.error("Error fetching users:", err);
@@ -528,11 +530,22 @@ router.delete("/users/:id", checkAdminRole, async (req, res) => {
   const { id } = req.params;
 
   try {
-    const result = await db.query("DELETE FROM users WHERE id=$1 RETURNING id", [id]);
+    // Use soft delete: Set status to 'deleted' instead of permanent deletion
+    // This preserves booking history while preventing login
+    const result = await db.query(
+      `UPDATE users
+       SET status = 'deleted'
+       WHERE id = $1
+       RETURNING id, name, email, phone, role, status`,
+      [id]
+    );
     if (!result.rows.length) {
       return res.status(404).json({ message: "Người dùng không tìm thấy" });
     }
-    res.json({ message: "Xóa người dùng thành công" });
+    res.json({
+      message: "Xóa người dùng thành công (lịch sử vé vẫn được giữ lại)",
+      user: result.rows[0]
+    });
   } catch (err) {
     console.error("Error deleting user:", err);
     res.status(500).json({ message: "Lỗi khi xóa người dùng" });
@@ -1434,4 +1447,98 @@ router.post("/test-send-email/:bookingId", checkAdminRole, async (req, res) => {
     }
 });
 
+// ============================================================
+// ROUTES: QUẢN LÝ DELETED USERS & BOOKING HISTORY
+// ============================================================
+
+// Get deleted users with their booking history
+router.get("/deleted-users", checkAdminRole, async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.phone,
+        u.role,
+        u.status,
+        COUNT(b.id) as total_bookings,
+        SUM(CASE WHEN b.status = 'confirmed' THEN 1 ELSE 0 END) as confirmed_bookings,
+        MAX(b.created_at) as last_booking_date
+       FROM users u
+       LEFT JOIN bookings b ON u.id = b.user_id
+       WHERE u.status = 'deleted'
+       GROUP BY u.id, u.name, u.email, u.phone, u.role, u.status
+       ORDER BY u.id DESC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching deleted users:", err);
+    res.status(500).json({ message: "Lỗi khi lấy danh sách người dùng đã xóa" });
+  }
+});
+
+// Get booking history of a deleted user
+router.get("/deleted-users/:id/bookings", checkAdminRole, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.query(
+      `SELECT
+        b.id,
+        b.booking_code,
+        b.user_id,
+        u.name as user_name,
+        u.email as user_email,
+        t.id as trip_id,
+        r.origin,
+        r.destination,
+        t.departure_date,
+        t.departure_time,
+        b.status,
+        b.total_amount,
+        b.created_at,
+        b.updated_at
+       FROM bookings b
+       LEFT JOIN users u ON b.user_id = u.id
+       JOIN trips t ON b.trip_id = t.id
+       JOIN routes r ON t.route_id = r.id
+       WHERE b.user_id = $1
+       ORDER BY b.created_at DESC`,
+      [id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching deleted user's bookings:", err);
+    res.status(500).json({ message: "Lỗi khi lấy lịch sử vé" });
+  }
+});
+
+// Restore a deleted user (change status back to active/inactive)
+router.put("/deleted-users/:id/restore", checkAdminRole, async (req, res) => {
+  const { id } = req.params;
+  const { newStatus = 'active' } = req.body;
+
+  try {
+    const result = await db.query(
+      `UPDATE users
+       SET status = $1
+       WHERE id = $2 AND status = 'deleted'
+       RETURNING id, name, email, phone, role, status`,
+      [newStatus, id]
+    );
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Người dùng không tìm thấy hoặc không ở trạng thái deleted" });
+    }
+    res.json({
+      message: "Khôi phục người dùng thành công",
+      user: result.rows[0]
+    });
+  } catch (err) {
+    console.error("Error restoring deleted user:", err);
+    res.status(500).json({ message: "Lỗi khi khôi phục người dùng" });
+  }
+});
+
 module.exports = router;
+
+
