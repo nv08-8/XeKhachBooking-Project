@@ -55,55 +55,68 @@ router.post("/routes", checkAdminRole, async (req, res) => {
     return res.status(400).json({ message: "Thiếu thông tin bắt buộc" });
   }
 
-  const client = await db.connect();
   try {
     console.log("[admin.routes.POST] Attempting to insert/update route:", { origin, destination, distance_km, duration_min });
 
-    // Step 0: Reset SERIAL sequence to avoid duplicate key errors
-    try {
-      const maxIdResult = await client.query(`SELECT MAX(id) as max_id FROM routes`);
-      const maxId = maxIdResult.rows[0]?.max_id || 0;
-      const nextId = (maxId || 0) + 1;
-      console.log(`[admin.routes.POST] Max ID in routes: ${maxId}, setting sequence to: ${nextId}`);
-      await client.query(`SELECT setval('routes_id_seq', $1, false)`, [nextId]);
-    } catch (seqErr) {
-      console.log("[admin.routes.POST] Could not reset sequence (might not exist):", seqErr.message);
-    }
-
-    // Step 1: Check if route exists by (origin, destination)
-    const existingRoute = await client.query(
-      `SELECT id FROM routes WHERE LOWER(origin) = LOWER($1) AND LOWER(destination) = LOWER($2)`,
+    // Step 1: Check if route exists by (origin, destination) using EXACT match
+    const checkResult = await db.query(
+      `SELECT id FROM routes WHERE origin = $1 AND destination = $2 LIMIT 1`,
       [origin, destination]
     );
 
-    let result;
-    if (existingRoute.rowCount > 0) {
+    if (checkResult.rowCount > 0) {
       // Route exists - UPDATE it
-      const routeId = existingRoute.rows[0].id;
-      console.log(`[admin.routes.POST] Route exists with id=${routeId}, updating...`);
-      result = await client.query(
+      const routeId = checkResult.rows[0].id;
+      console.log(`[admin.routes.POST] Route exists (id=${routeId}), updating...`);
+      const result = await db.query(
         `UPDATE routes SET distance_km = $1, duration_min = $2 WHERE id = $3 RETURNING *`,
         [distance_km, duration_min, routeId]
       );
+      console.log("[admin.routes.POST] Route updated:", result.rows[0]);
+      res.status(200).json(result.rows[0]);
     } else {
       // Route doesn't exist - INSERT new one
       console.log("[admin.routes.POST] Route doesn't exist, inserting new...");
-      result = await client.query(
+      const result = await db.query(
         `INSERT INTO routes (origin, destination, distance_km, duration_min, created_at)
          VALUES ($1, $2, $3, $4, NOW())
          RETURNING *`,
         [origin, destination, distance_km, duration_min]
       );
+      console.log("[admin.routes.POST] Route inserted:", result.rows[0]);
+      res.status(201).json(result.rows[0]);
     }
-
-    console.log("[admin.routes.POST] Success:", result.rows[0]);
-    client.release();
-    res.status(201).json(result.rows[0]);
   } catch (err) {
-    client.release();
-    console.error("[admin.routes.POST] Database error:", err.message || err);
+    console.error("[admin.routes.POST] Error:", err.message || err);
     console.error("[admin.routes.POST] Full error:", err);
-    res.status(500).json({ message: "Lỗi khi thêm tuyến xe", error: err.message });
+
+    // If it's a constraint violation, it means route might exist
+    // Try UPDATE as fallback
+    if (err.code === '23505') {
+      try {
+        console.log("[admin.routes.POST] Constraint violation, trying UPDATE instead...");
+        const checkResult = await db.query(
+          `SELECT id FROM routes WHERE origin = $1 AND destination = $2 LIMIT 1`,
+          [origin, destination]
+        );
+        if (checkResult.rowCount > 0) {
+          const routeId = checkResult.rows[0].id;
+          const result = await db.query(
+            `UPDATE routes SET distance_km = $1, duration_min = $2 WHERE id = $3 RETURNING *`,
+            [distance_km, duration_min, routeId]
+          );
+          console.log("[admin.routes.POST] Fallback UPDATE successful:", result.rows[0]);
+          res.status(200).json(result.rows[0]);
+        } else {
+          res.status(500).json({ message: "Lỗi khi thêm tuyến xe", error: err.message });
+        }
+      } catch (fallbackErr) {
+        console.error("[admin.routes.POST] Fallback failed:", fallbackErr.message);
+        res.status(500).json({ message: "Lỗi khi thêm tuyến xe", error: fallbackErr.message });
+      }
+    } else {
+      res.status(500).json({ message: "Lỗi khi thêm tuyến xe", error: err.message });
+    }
   }
 });
 
