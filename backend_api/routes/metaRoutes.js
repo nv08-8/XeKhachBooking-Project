@@ -29,6 +29,18 @@ router.get('/meta/operators', async (req, res) => {
   }
 });
 
+// GET /api/meta/bus-types - distinct bus types from buses table
+router.get('/meta/bus-types', async (req, res) => {
+  try {
+    const { rows } = await db.query("SELECT DISTINCT bus_type FROM buses WHERE bus_type IS NOT NULL ORDER BY bus_type");
+    const busTypes = (rows || []).map(r => r.bus_type).filter(Boolean);
+    res.json(busTypes);
+  } catch (err) {
+    console.error('Failed to fetch bus types:', err.message || err);
+    res.status(500).json({ message: 'Failed to fetch bus types' });
+  }
+});
+
 // GET /api/popular - compute popular routes by seats booked
 router.get("/popular", async (req, res) => {
   const aggQuery = `

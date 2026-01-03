@@ -42,4 +42,14 @@
         <item>0</item>
         <item>24</item>
     </string-array>
+
+    <string-array name="bus_types">
+        <item>Giường nằm 40 chỗ</item>
+        <item>Ghế ngồi 16 chỗ</item>
+        <item>Ghế ngồi 29 chỗ</item>
+        <item>Ghế ngồi 36 chỗ</item>
+        <item>Limousine 9 chỗ</item>
+        <item>Open Bus</item>
+        <item>Ghế semi 27 chỗ</item>
+    </string-array>
 </resources>

@@ -141,8 +141,10 @@
                             android:layout_marginTop="16dp">
 
                             <com.google.android.material.textfield.TextInputLayout
+                                android:id="@+id/tilBusType"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                                 app:startIconDrawable="@drawable/ic_bus_type"
                                 app:startIconTint="@color/colorPrimary"
                                 app:boxBackgroundMode="outline"
@@ -153,12 +155,14 @@
                                 app:boxStrokeColor="@color/colorPrimary"
                                 android:hint="Loại xe">
 
-                                <com.google.android.material.textfield.TextInputEditText
+                                <com.google.android.material.textfield.MaterialAutoCompleteTextView
                                     android:id="@+id/etBusType"
                                     android:layout_width="match_parent"
                                     android:layout_height="52dp"
                                     android:textSize="14sp"
-                                    android:inputType="text" />
+                                    android:inputType="text"
+                                    android:completionThreshold="1"
+                                    android:imeOptions="actionDone" />
 
                             </com.google.android.material.textfield.TextInputLayout>
 

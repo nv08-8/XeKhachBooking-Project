@@ -86,6 +86,9 @@ public interface ApiService {
     @GET("api/meta/operators")
     Call<List<String>> getOperators();
 
+    @GET("api/meta/bus-types")
+    Call<List<String>> getBusTypes();
+
     @GET("api/trips/{id}")
     Call<Map<String, Object>> getTripDetails(@Path("id") int tripId);
 
