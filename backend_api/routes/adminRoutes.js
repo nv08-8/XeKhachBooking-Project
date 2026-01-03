@@ -58,6 +58,21 @@ router.post("/routes", checkAdminRole, async (req, res) => {
   try {
     console.log("[admin.routes.POST] Attempting to insert/update route:", { origin, destination, distance_km, duration_min });
 
+    // Diagnostic: Check sequence current value
+    const seqCheckResult = await db.query(`SELECT last_value FROM routes_id_seq`);
+    const seqValue = seqCheckResult.rows[0].last_value;
+
+    const maxIdResult = await db.query(`SELECT MAX(id) as max_id FROM routes`);
+    const maxId = maxIdResult.rows[0].max_id;
+
+    console.log(`[admin.routes.POST] DIAGNOSTIC: Sequence value=${seqValue}, Max ID in table=${maxId}`);
+
+    if (seqValue !== null && seqValue <= maxId) {
+      console.log(`[admin.routes.POST] ⚠️ WARNING: Sequence (${seqValue}) <= Max ID (${maxId})`);
+      console.log(`[admin.routes.POST] Fixing sequence to ${maxId + 1}...`);
+      await db.query(`SELECT setval('routes_id_seq', $1)`, [maxId + 1]);
+    }
+
     // Step 1: Check if route exists by (origin, destination) using EXACT match
     const checkResult = await db.query(
       `SELECT id FROM routes WHERE origin = $1 AND destination = $2 LIMIT 1`,
@@ -88,13 +103,14 @@ router.post("/routes", checkAdminRole, async (req, res) => {
     }
   } catch (err) {
     console.error("[admin.routes.POST] Error:", err.message || err);
-    console.error("[admin.routes.POST] Full error:", err);
+    console.error("[admin.routes.POST] Error code:", err.code);
+    console.error("[admin.routes.POST] Constraint:", err.constraint);
 
     // If it's a constraint violation, it means route might exist
     // Try UPDATE as fallback
     if (err.code === '23505') {
       try {
-        console.log("[admin.routes.POST] Constraint violation, trying UPDATE instead...");
+        console.log("[admin.routes.POST] Constraint violation (code 23505), trying UPDATE...");
         const checkResult = await db.query(
           `SELECT id FROM routes WHERE origin = $1 AND destination = $2 LIMIT 1`,
           [origin, destination]
