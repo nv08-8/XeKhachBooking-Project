@@ -55,17 +55,38 @@ router.post("/routes", checkAdminRole, async (req, res) => {
     return res.status(400).json({ message: "Thiếu thông tin bắt buộc" });
   }
 
+  const client = await db.connect();
   try {
-    const result = await db.query(
+    // Ensure table exists with correct schema (both distance_km and duration_min as INTEGER)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS routes (
+        id SERIAL PRIMARY KEY,
+        origin VARCHAR(100) NOT NULL,
+        destination VARCHAR(100) NOT NULL,
+        distance_km INTEGER,
+        duration_min INTEGER,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(origin, destination)
+      );
+    `);
+
+    console.log("[admin.routes.POST] Attempting to insert route:", { origin, destination, distance_km, duration_min });
+    const result = await client.query(
       `INSERT INTO routes (origin, destination, distance_km, duration_min, created_at)
        VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (origin, destination) DO UPDATE
+       SET distance_km = EXCLUDED.distance_km, duration_min = EXCLUDED.duration_min, created_at = NOW()
        RETURNING *`,
       [origin, destination, distance_km, duration_min]
     );
+    console.log("[admin.routes.POST] Route inserted/updated successfully:", result.rows[0]);
+    client.release();
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error("Error adding route:", err);
-    res.status(500).json({ message: "Lỗi khi thêm tuyến xe" });
+    client.release();
+    console.error("[admin.routes.POST] Database error:", err.message || err);
+    console.error("[admin.routes.POST] Full error:", err);
+    res.status(500).json({ message: "Lỗi khi thêm tuyến xe", error: err.message });
   }
 });
 
