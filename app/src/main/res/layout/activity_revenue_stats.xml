@@ -109,6 +109,15 @@
         </LinearLayout>
 
         <Spinner
+            android:id="@+id/spinnerRefundType"
+            style="@style/Widget.AppCompat.Spinner.Underlined"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_margin="4dp"
+            android:visibility="gone"
+            android:entries="@array/refund_type_options" />
+
+        <Spinner
             android:id="@+id/spinnerRoutes"
             style="@style/Widget.AppCompat.Spinner.Underlined"
             android:layout_width="match_parent"

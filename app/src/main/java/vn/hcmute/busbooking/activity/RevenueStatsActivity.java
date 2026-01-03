@@ -54,7 +54,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
     private ProgressBar progressRevenue;
     private RecyclerView rvRevenue;
     private TextView tvEmptyRevenue;
-    private Spinner spinnerGroupBy, spinnerRoutes, spinnerTrips;
+    private Spinner spinnerGroupBy, spinnerRoutes, spinnerTrips, spinnerRefundType;
     private Button btnApplyFilter;
     private EditText etStartDate, etEndDate;
     private LinearLayout dateRangeFilter;
@@ -72,12 +72,14 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
     private Calendar endCalendar = Calendar.getInstance();
 
     private String[] groupByValues = {"day", "month", "year", "route", "trip"};
+    private String[] refundTypeValues = {"", "admin_cancelled", "trip_cancelled", "user_cancelled"};
 
     private List<Map<String, Object>> routeList = new ArrayList<>();
     private List<Trip> tripList = new ArrayList<>();
 
     // Biến để track loại báo cáo hiện tại
     private boolean isRefundMode = false; // false = doanh thu, true = hoàn tiền
+    private String selectedRefundType = ""; // "", "admin_cancelled", "trip_cancelled"
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -102,6 +104,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         spinnerGroupBy = findViewById(R.id.spinnerGroupBy);
         spinnerRoutes = findViewById(R.id.spinnerRoutes);
         spinnerTrips = findViewById(R.id.spinnerTrips);
+        spinnerRefundType = findViewById(R.id.spinnerRefundType);
         btnApplyFilter = findViewById(R.id.btnApplyFilter);
         tabRevenueType = findViewById(R.id.tabRevenueType);
         etStartDate = findViewById(R.id.etStartDate);
@@ -137,6 +140,12 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
             @Override
             public void onTabSelected(com.google.android.material.tabs.TabLayout.Tab tab) {
                 isRefundMode = (tab.getPosition() == 1); // Tab 0 = doanh thu, Tab 1 = hoàn tiền
+
+                // Show/hide refund type filter
+                spinnerRefundType.setVisibility(isRefundMode ? View.VISIBLE : View.GONE);
+                selectedRefundType = ""; // Reset refund type khi chuyển tab
+                spinnerRefundType.setSelection(0);
+
                 // Tải lại dữ liệu khi chuyển tab
                 if (spinnerGroupBy.getSelectedItemPosition() >= 0) {
                     fetchRevenueStats();
@@ -148,6 +157,19 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
 
             @Override
             public void onTabReselected(com.google.android.material.tabs.TabLayout.Tab tab) {}
+        });
+
+        // Refund type spinner listener
+        spinnerRefundType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                selectedRefundType = refundTypeValues[position];
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                selectedRefundType = "";
+            }
         });
 
         spinnerGroupBy.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -298,7 +320,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         // Gọi API khác nhau tùy theo mode
         Call<List<Map<String, Object>>> call;
         if (isRefundMode) {
-            call = apiService.getRevenueRefunds(sessionManager.getUserId(), groupBy, routeId, tripId, startDate, endDate);
+            call = apiService.getRevenueRefunds(sessionManager.getUserId(), groupBy, routeId, tripId, startDate, endDate, selectedRefundType);
         } else {
             call = apiService.getRevenue(sessionManager.getUserId(), groupBy, routeId, tripId, startDate, endDate);
         }
@@ -323,7 +345,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
                 } else {
                     revenueList.clear();
                     revenueList.addAll(revenues);
-                    adapter = new RevenueAdapter(revenueList, RevenueStatsActivity.this);
+                    adapter = new RevenueAdapter(revenueList, RevenueStatsActivity.this, isRefundMode);
                     rvRevenue.setAdapter(adapter);
                     scrollView.setVisibility(View.VISIBLE);
                     rvRevenue.setVisibility(View.VISIBLE);
@@ -447,6 +469,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         intent.putExtra("groupBy", groupBy);
         intent.putExtra("value", value);
         intent.putExtra("isRefund", isRefundMode); // Truyền thêm mode để chi tiết biết là hoàn tiền
+        intent.putExtra("refundType", selectedRefundType); // Truyền loại hoàn tiền
         startActivity(intent);
     }
 

@@ -271,11 +271,12 @@ router.get('/bookings/my', async (req, res) => {
       departure_time: r.departure_time ? formatLocalISO(new Date(r.departure_time)) : r.departure_time,
       arrival_time: r.arrival_time ? formatLocalISO(new Date(r.arrival_time)) : r.arrival_time,
       created_at: r.created_at ? formatLocalISO(new Date(r.created_at)) : r.created_at,
-      // Thêm thông báo nếu trip bị hủy
-      trip_cancelled_message: r.trip_status === 'cancelled'
-        ? SUPPORT_CONFIG.TRIP_CANCELLED_MESSAGE(SUPPORT_CONFIG.REFUND_HOTLINE)
-        : null,
-      support_hotline: r.trip_status === 'cancelled' ? SUPPORT_CONFIG.REFUND_HOTLINE : null
+      // Thêm thông báo nếu trip bị hủy hoặc admin hủy vé
+      trip_cancelled_message:
+        (r.trip_status === 'cancelled' || r.status === 'pending_refund')
+          ? SUPPORT_CONFIG.TRIP_CANCELLED_MESSAGE(SUPPORT_CONFIG.REFUND_HOTLINE)
+          : null,
+      support_hotline: (r.trip_status === 'cancelled' || r.status === 'pending_refund') ? SUPPORT_CONFIG.REFUND_HOTLINE : null
     }));
     res.json(formattedRows);
   } catch (err) {
@@ -339,8 +340,8 @@ router.get('/bookings/:id', async (req, res) => {
     if (booking.created_at) booking.created_at = formatLocalISO(new Date(booking.created_at));
     if (booking.paid_at) booking.paid_at = formatLocalISO(new Date(booking.paid_at));
 
-    // Thêm thông báo nếu trip bị hủy
-    if (booking.trip_status === 'cancelled') {
+    // Thêm thông báo nếu trip bị hủy hoặc admin hủy vé
+    if (booking.trip_status === 'cancelled' || booking.status === 'pending_refund') {
       booking.trip_cancelled_message = SUPPORT_CONFIG.TRIP_CANCELLED_MESSAGE(SUPPORT_CONFIG.REFUND_HOTLINE);
       booking.support_hotline = SUPPORT_CONFIG.REFUND_HOTLINE;
     }

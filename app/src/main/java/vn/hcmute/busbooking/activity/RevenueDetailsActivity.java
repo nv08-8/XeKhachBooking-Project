@@ -58,11 +58,13 @@ public class RevenueDetailsActivity extends AppCompatActivity {
     private void fetchBookingDetails(String groupBy, String value) {
         ApiService api = ApiClient.getClient().create(ApiService.class);
         int userId = sessionManager.getUserId();
+        String refundType = getIntent().getStringExtra("refundType");
+        if (refundType == null) refundType = "";
 
         // Gọi API khác nhau tùy theo mode
         Call<List<Map<String, Object>>> call;
         if (isRefund) {
-            call = api.getRevenueRefundDetails(userId, groupBy, value);
+            call = api.getRevenueRefundDetails(userId, groupBy, value, refundType);
         } else {
             call = api.getRevenueDetails(userId, groupBy, value);
         }
