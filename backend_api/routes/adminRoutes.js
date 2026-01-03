@@ -561,7 +561,7 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
     }
 });
 
-// Báo cáo hoàn tiền (từ những bookings của trip bị hủy hoặc admin hủy vé đã thanh toán)
+// Báo cáo hoàn tiền (từ những bookings của trip bị hủy hoặc admin hủy vé đã thanh toán hoặc user hủy vé đã thanh toán)
 router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
     const { groupBy, route_id, trip_id, from_date, to_date, refundType } = req.query;
 
@@ -572,16 +572,19 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
             SUM(CASE
                 WHEN b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0)
                 WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN COALESCE(b.total_amount, 0)
+                WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0)
                 ELSE 0
             END) AS refund_amount,
             SUM(CASE WHEN b.status = 'pending_refund' THEN 1 ELSE 0 END) AS admin_cancelled_count,
-            SUM(CASE WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN 1 ELSE 0 END) AS trip_cancelled_count
+            SUM(CASE WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN 1 ELSE 0 END) AS trip_cancelled_count,
+            SUM(CASE WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN 1 ELSE 0 END) AS user_cancelled_count
         FROM bookings b
         LEFT JOIN trips t ON b.trip_id = t.id
         LEFT JOIN routes r ON t.route_id = r.id
         WHERE (
             (b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0)
             OR (b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled')
+            OR (b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0)
         )
     `;
     const params = [];
@@ -591,6 +594,8 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
         query += ` AND b.status = 'pending_refund'`;
     } else if (refundType === 'trip_cancelled') {
         query += ` AND b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled'`;
+    } else if (refundType === 'user_cancelled') {
+        query += ` AND b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0`;
     }
 
     let groupByClause;
@@ -707,7 +712,7 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
   }
 });
 
-// 6. Chi tiết hoàn tiền (từ những bookings của trip bị hủy hoặc admin hủy vé đã thanh toán)
+// 6. Chi tiết hoàn tiền (từ những bookings của trip bị hủy hoặc admin hủy vé đã thanh toán hoặc user hủy vé đã thanh toán)
 router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
   const { group_by, value, refundType } = req.query;
   let sql = `
@@ -720,11 +725,13 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
       CASE
         WHEN b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0)
         WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN COALESCE(b.total_amount, 0)
+        WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0)
         ELSE 0
       END AS refund_amount,
       CASE
         WHEN b.status = 'pending_refund' THEN 'admin_cancelled'
         WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN 'trip_cancelled'
+        WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN 'user_cancelled'
         ELSE 'unknown'
       END AS refund_type
     FROM bookings b
@@ -734,6 +741,7 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
     WHERE (
       (b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0)
       OR (b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled')
+      OR (b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0)
     )
   `;
   const params = [];
@@ -743,6 +751,8 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
     sql += ` AND b.status = 'pending_refund'`;
   } else if (refundType === 'trip_cancelled') {
     sql += ` AND b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled'`;
+  } else if (refundType === 'user_cancelled') {
+    sql += ` AND b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0`;
   }
 
   if (group_by === "day" || group_by === "date") {
