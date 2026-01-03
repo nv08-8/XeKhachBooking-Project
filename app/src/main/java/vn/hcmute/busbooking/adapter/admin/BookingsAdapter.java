@@ -94,13 +94,25 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
             setStatus(holder, statusObj.toString());
         }
 
-        // Kiểm tra xem vé có bị hủy không (vé đã thanh toán nhưng chuyến bị hủy hoặc vé bị hủy)
-        boolean isCancelled = statusObj != null && statusObj.toString().equals("cancelled");
+        // Lấy giá trị price_paid để kiểm tra vé đã thanh toán hay chưa
+        Object pricePaidObj = booking.get("price_paid");
+        double pricePaid = 0;
+        try {
+            if (pricePaidObj != null) {
+                pricePaid = Double.parseDouble(pricePaidObj.toString());
+            }
+        } catch (NumberFormatException e) {
+            pricePaid = 0;
+        }
+
+        // Kiểm tra: chỉ làm nhạt vé đã thanh toán nhưng bị hủy
+        // Vé chưa thanh toán bị hủy thì hiển thị bình thường
+        boolean isCancelledButPaid = statusObj != null && statusObj.toString().equals("cancelled") && pricePaid > 0;
         boolean isConfirmedButTripCancelled = statusObj != null && statusObj.toString().equals("confirmed") &&
                                               tripStatusObj != null && tripStatusObj.toString().equals("cancelled");
 
-        if (isCancelled || isConfirmedButTripCancelled) {
-            // Làm nhạt item
+        if (isCancelledButPaid || isConfirmedButTripCancelled) {
+            // Làm nhạt item (vé đã thanh toán nhưng bị hủy)
             holder.itemView.setAlpha(0.6f);
 
             // Hiển thị thông báo hủy nếu có
@@ -111,7 +123,7 @@ public class BookingsAdapter extends RecyclerView.Adapter<BookingsAdapter.Bookin
                 holder.tvCancellationMessage.setVisibility(View.GONE);
             }
         } else {
-            // Hiển thị bình thường
+            // Hiển thị bình thường (vé chưa thanh toán hoặc không hủy)
             holder.itemView.setAlpha(1.0f);
             holder.tvCancellationMessage.setVisibility(View.GONE);
         }

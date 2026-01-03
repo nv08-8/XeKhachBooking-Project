@@ -33,6 +33,9 @@
     <string name="new_password_hint">Mật khẩu mới</string>
     <string name="confirm_new_password_hint">Xác nhận mật khẩu mới</string>
 
+    <!-- Booking messages -->
+    <string name="ticket_cancelled_message">⚠️ Vé đã bị hủy - Xin liên hệ hotline để hoàn tiền</string>
+
     <!-- Trip List -->
     <string name="btn_thay_doi"><u><b>Thay đổi</b></u></string>
     <string name="btn_dong"><u><b>Đóng</b></u></string>

@@ -271,12 +271,12 @@ router.get('/bookings/my', async (req, res) => {
       departure_time: r.departure_time ? formatLocalISO(new Date(r.departure_time)) : r.departure_time,
       arrival_time: r.arrival_time ? formatLocalISO(new Date(r.arrival_time)) : r.arrival_time,
       created_at: r.created_at ? formatLocalISO(new Date(r.created_at)) : r.created_at,
-      // Thêm thông báo nếu trip bị hủy hoặc admin hủy vé
+      // Thêm thông báo nếu trip bị hủy hoặc admin hủy vé hoặc user hủy vé đã thanh toán
       trip_cancelled_message:
-        (r.trip_status === 'cancelled' || r.status === 'pending_refund')
+        (r.trip_status === 'cancelled' || r.status === 'pending_refund' || (r.status === 'cancelled' && r.price_paid > 0))
           ? SUPPORT_CONFIG.TRIP_CANCELLED_MESSAGE(SUPPORT_CONFIG.REFUND_HOTLINE)
           : null,
-      support_hotline: (r.trip_status === 'cancelled' || r.status === 'pending_refund') ? SUPPORT_CONFIG.REFUND_HOTLINE : null
+      support_hotline: (r.trip_status === 'cancelled' || r.status === 'pending_refund' || (r.status === 'cancelled' && r.price_paid > 0)) ? SUPPORT_CONFIG.REFUND_HOTLINE : null
     }));
     res.json(formattedRows);
   } catch (err) {

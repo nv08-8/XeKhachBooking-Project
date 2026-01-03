@@ -105,8 +105,19 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             // setStatus needs booking id to lookup pending countdown and payment method
             setStatus(tvStatus, booking, pendingCountdowns);
 
-            // Thêm thông báo nếu trip bị hủy
-            if (booking.getTrip_cancelled_message() != null && !booking.getTrip_cancelled_message().isEmpty()) {
+            // Kiểm tra xem vé có bị hủy không
+            double pricePaid = booking.getPrice_paid();
+
+            String status = booking.getStatus();
+            boolean isBookingCancelled = status != null && status.equalsIgnoreCase("cancelled") && pricePaid > 0;
+            boolean isTripCancelled = booking.getTrip_cancelled_message() != null && !booking.getTrip_cancelled_message().isEmpty();
+
+            // Thêm thông báo nếu vé bị hủy (đã thanh toán) hoặc trip bị hủy
+            if (isBookingCancelled) {
+                tvTripCancelledMessage.setText(R.string.ticket_cancelled_message);
+                tvTripCancelledMessage.setVisibility(android.view.View.VISIBLE);
+                itemView.setAlpha(0.7f); // Làm nhạt vé bị hủy
+            } else if (isTripCancelled) {
                 tvTripCancelledMessage.setText(booking.getTrip_cancelled_message());
                 tvTripCancelledMessage.setVisibility(android.view.View.VISIBLE);
                 itemView.setAlpha(0.7f); // Làm nhạt vé bị hủy
@@ -170,11 +181,12 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
             
             // 🔍 DEBUG: Log booking status details
             android.util.Log.d("BookingAdapter", String.format(
-                "Booking #%d: status='%s', payment_method='%s', arrival='%s'",
+                "Booking #%d: status='%s', payment_method='%s', arrival='%s', price_paid='%s'",
                 booking.getId(),
                 status,
                 booking.getPayment_method(),
-                booking.getArrival_time()
+                booking.getArrival_time(),
+                booking.getPrice_paid()
             ));
 
             if (status == null) {
@@ -202,6 +214,16 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
 
             long now = System.currentTimeMillis();
             
+            // Kiểm tra price_paid để biết vé có thanh toán hay không (đã là int)
+            double pricePaid = booking.getPrice_paid();
+
+            android.util.Log.d("BookingAdapter", String.format(
+                "Booking #%d: Checking cancelled - pricePaid=%f (> 0? %b)",
+                booking.getId(),
+                pricePaid,
+                pricePaid > 0
+            ));
+
             if (status.equalsIgnoreCase("completed")) {
                  statusText = "Đã đi";
                  backgroundColor = ContextCompat.getColor(context, R.color.lightBlue); 
@@ -217,9 +239,17 @@ public class BookingAdapter extends RecyclerView.Adapter<BookingAdapter.BookingV
                      textColor = ContextCompat.getColor(context, R.color.darkGreen);
                  }
             } else if (status.equalsIgnoreCase("cancelled")) {
-                 statusText = "Đã hủy";
-                 backgroundColor = ContextCompat.getColor(context, R.color.lightRed);
-                 textColor = ContextCompat.getColor(context, R.color.darkRed);
+                 // Nếu vé đã thanh toán nhưng bị hủy -> hiển thị "Đã thanh toán" (sẽ có thông báo hủy ở dưới)
+                 if (pricePaid > 0) {
+                     statusText = "Đã thanh toán";
+                     backgroundColor = ContextCompat.getColor(context, R.color.lightGreen);
+                     textColor = ContextCompat.getColor(context, R.color.darkGreen);
+                 } else {
+                     // Vé chưa thanh toán mà bị hủy -> hiển thị "Đã hủy"
+                     statusText = "Đã hủy";
+                     backgroundColor = ContextCompat.getColor(context, R.color.lightRed);
+                     textColor = ContextCompat.getColor(context, R.color.darkRed);
+                 }
             } else if (status.equalsIgnoreCase("expired")) {
                  // Expired is also considered cancelled/invalid
                  statusText = "Đã hủy";
