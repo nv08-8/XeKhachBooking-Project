@@ -42,34 +42,41 @@
             app:layout_constraintStart_toEndOf="@+id/viewSelectionIndicator"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Thông tin điểm đón/trả -->
+        <!-- Thông tin -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingTop="16dp"
             android:paddingBottom="16dp"
-            android:paddingStart="4dp"
+            android:paddingStart="8dp"
             android:paddingEnd="8dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/llMapAction"
             app:layout_constraintStart_toEndOf="@+id/rbSelection"
             app:layout_constraintTop_toTopOf="parent">
 
-            <!-- Thời gian (Nếu có, hiện tại chưa có data nên ẩn hoặc để placeholder nếu cần) -->
-            <!-- <TextView
-                android:id="@+id/tvTime"
+            <!-- Thời gian route stop-->
+            <TextView
+                android:id="@+id/tvStopTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="09:30"
+                android:text="9:00"
                 android:textStyle="bold"
-                android:visibility="gone"/> -->
+                android:textColor="@android:color/black"
+                android:textSize="20sp"
+                android:paddingBottom="16dp"
+                android:layout_marginStart="0dp"
+                app:layout_constraintStart_toEndOf="@id/rbSelection"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
 
             <TextView
                 android:id="@+id/tvLocationName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textColor="@android:color/black"
+                android:paddingBottom="4dp"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -78,7 +85,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:textColor="@color/textSecondary"
+                android:textColor="@color/black"
                 android:textSize="13sp" />
         </LinearLayout>
 
@@ -99,7 +106,7 @@
                 android:layout_height="20dp"
                 android:src="@drawable/ic_location_pin"
                 app:tint="@color/colorPrimary"
-                android:contentDescription="Map" />
+                android:contentDescription="Bản đồ" />
 
             <TextView
                 android:layout_width="wrap_content"
