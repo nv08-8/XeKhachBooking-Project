@@ -563,26 +563,35 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
 
 // Báo cáo hoàn tiền (từ những bookings của trip bị hủy hoặc admin hủy vé đã thanh toán)
 router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
-    const { groupBy, route_id, trip_id, from_date, to_date } = req.query;
+    const { groupBy, route_id, trip_id, from_date, to_date, refundType } = req.query;
 
     let query = `
         SELECT
             %s AS group_key,
             COUNT(b.id) AS total_bookings,
             SUM(CASE
-                WHEN b.status = 'pending_refund' THEN COALESCE(b.price_paid, 0)
-                WHEN b.status = 'confirmed' AND t.status = 'cancelled' THEN COALESCE(b.total_amount, 0)
+                WHEN b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0)
+                WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN COALESCE(b.total_amount, 0)
                 ELSE 0
-            END) AS refund_amount
+            END) AS refund_amount,
+            SUM(CASE WHEN b.status = 'pending_refund' THEN 1 ELSE 0 END) AS admin_cancelled_count,
+            SUM(CASE WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN 1 ELSE 0 END) AS trip_cancelled_count
         FROM bookings b
-        JOIN trips t ON b.trip_id = t.id
-        JOIN routes r ON t.route_id = r.id
+        LEFT JOIN trips t ON b.trip_id = t.id
+        LEFT JOIN routes r ON t.route_id = r.id
         WHERE (
-            (b.status = 'confirmed' AND t.status = 'cancelled')
-            OR (b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0)
+            (b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0)
+            OR (b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled')
         )
     `;
     const params = [];
+
+    // Filter by refund type
+    if (refundType === 'admin_cancelled') {
+        query += ` AND b.status = 'pending_refund'`;
+    } else if (refundType === 'trip_cancelled') {
+        query += ` AND b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled'`;
+    }
 
     let groupByClause;
     let orderByClause;
@@ -612,12 +621,12 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
         case 'route':
             groupByClause = "r.id, r.origin, r.destination";
             orderByClause = "refund_amount DESC NULLS LAST";
-            query = query.replace("%s", "r.id AS group_key, r.origin, r.destination");
+            query = query.replace("%s", "COALESCE(r.id, 0) AS group_key, COALESCE(r.origin, 'N/A') AS origin, COALESCE(r.destination, 'N/A') AS destination");
             break;
         case 'trip':
-            groupByClause = "t.id, t.departure_time, r.origin, r.destination";
+            groupByClause = "COALESCE(t.id, 0), COALESCE(t.departure_time, NOW()), COALESCE(r.origin, 'N/A'), COALESCE(r.destination, 'N/A')";
             orderByClause = "refund_amount DESC NULLS LAST";
-            query = query.replace("%s", "t.id AS group_key, t.departure_time, r.origin, r.destination");
+            query = query.replace("%s", "COALESCE(t.id, 0) AS group_key, COALESCE(t.departure_time, NOW()), COALESCE(r.origin, 'N/A'), COALESCE(r.destination, 'N/A')");
             if (route_id) {
                 params.push(route_id);
                 query += ` AND t.route_id = $${params.length}`;
@@ -639,7 +648,7 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
     query += ` GROUP BY ${groupByClause} ORDER BY ${orderByClause}`;
 
     try {
-        console.log(`📊 [Refunds Report] Query: ${query.substring(0, 100)}... | Params: ${JSON.stringify(params)}`);
+        console.log(`📊 [Refunds Report] refundType=${refundType}, Query: ${query.substring(0, 150)}... | Params: ${JSON.stringify(params)}`);
         const result = await db.query(query, params);
         console.log(`📊 [Refunds Report] Found ${result.rows.length} rows:`, JSON.stringify(result.rows));
         res.json(result.rows);
@@ -700,29 +709,41 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
 
 // 6. Chi tiết hoàn tiền (từ những bookings của trip bị hủy hoặc admin hủy vé đã thanh toán)
 router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
-  const { group_by, value } = req.query;
+  const { group_by, value, refundType } = req.query;
   let sql = `
     SELECT
       b.id AS booking_id,
       u.name AS user_name,
-      r.origin || ' - ' || r.destination AS route_info,
+      COALESCE(r.origin || ' - ' || r.destination, 'Chuyến bị hủy') AS route_info,
       t.departure_time,
       b.seats_count AS ticket_count,
       CASE
-        WHEN b.status = 'pending_refund' THEN COALESCE(b.price_paid, 0)
-        WHEN b.status = 'confirmed' AND t.status = 'cancelled' THEN COALESCE(b.total_amount, 0)
+        WHEN b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0)
+        WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN COALESCE(b.total_amount, 0)
         ELSE 0
-      END AS refund_amount
+      END AS refund_amount,
+      CASE
+        WHEN b.status = 'pending_refund' THEN 'admin_cancelled'
+        WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN 'trip_cancelled'
+        ELSE 'unknown'
+      END AS refund_type
     FROM bookings b
-    JOIN users u ON u.id = b.user_id
-    JOIN trips t ON t.id = b.trip_id
-    JOIN routes r ON r.id = t.route_id
+    LEFT JOIN users u ON u.id = b.user_id
+    LEFT JOIN trips t ON t.id = b.trip_id
+    LEFT JOIN routes r ON r.id = t.route_id
     WHERE (
-      (b.status = 'confirmed' AND t.status = 'cancelled')
-      OR (b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0)
+      (b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0)
+      OR (b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled')
     )
   `;
   const params = [];
+
+  // Filter by refund type
+  if (refundType === 'admin_cancelled') {
+    sql += ` AND b.status = 'pending_refund'`;
+  } else if (refundType === 'trip_cancelled') {
+    sql += ` AND b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled'`;
+  }
 
   if (group_by === "day" || group_by === "date") {
     sql += ` AND DATE(b.created_at) = $1`;
@@ -734,7 +755,6 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
     sql += ` AND EXTRACT(YEAR FROM b.created_at) = $1`;
     params.push(value);
   } else if (group_by === "route") {
-    // Assuming value is route_id
     sql += ` AND t.route_id = $1`;
     params.push(value);
   } else if (group_by === "trip") {
@@ -742,12 +762,12 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
     params.push(value);
   }
 
-  sql += " ORDER BY t.departure_time DESC";
+  sql += " ORDER BY COALESCE(t.departure_time, b.created_at) DESC";
 
   try {
-    console.log(`💸 [Refund Details] Query group_by=${group_by}, value=${value}`);
+    console.log(`💸 [Refund Details] refundType=${refundType}, group_by=${group_by}, value=${value}`);
     const result = await db.query(sql, params);
-    console.log(`💸 [Refund Details] Found ${result.rows.length} bookings:`, JSON.stringify(result.rows));
+    console.log(`💸 [Refund Details] Found ${result.rows.length} bookings`);
     res.json(result.rows);
   } catch (err) {
     console.error("Error fetching refund details:", err);
