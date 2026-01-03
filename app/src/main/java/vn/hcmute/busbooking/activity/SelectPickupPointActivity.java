@@ -19,8 +19,11 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.card.MaterialCardView;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -157,6 +160,7 @@ public class SelectPickupPointActivity extends AppCompatActivity {
             Location loc = items.get(pos);
             String name = loc.getName();
             String addr = loc.getAddress();
+            String time = loc.getEstimatedTime();
 
             holder.tvName.setText((name != null && !name.isEmpty() ? name : "Không tên"));
             if (addr != null && !addr.isEmpty()) {
@@ -164,6 +168,13 @@ public class SelectPickupPointActivity extends AppCompatActivity {
                 holder.tvAddress.setVisibility(View.VISIBLE);
             } else {
                 holder.tvAddress.setVisibility(View.GONE);
+            }
+
+            if (time != null && !time.isEmpty()) {
+                holder.tvStopTime.setText(formatTime(time));
+                holder.tvStopTime.setVisibility(View.VISIBLE);
+            } else {
+                holder.tvStopTime.setVisibility(View.GONE);
             }
 
             // --- UI State Handling ---
@@ -215,12 +226,34 @@ public class SelectPickupPointActivity extends AppCompatActivity {
             });
         }
 
+        private String formatTime(String isoString) {
+            if (isoString == null) return "";
+            try {
+                // Parse ISO string (e.g. 2023-10-27T09:00:00.000)
+                // Handle optional Z or offset if present, though formatLocalISO usually strips them
+                String s = isoString.replace("Z", "");
+                SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
+                // Try to parse partial seconds if present
+                if (s.length() > 19) {
+                     // 2023-10-27T09:00:00.000
+                     isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.getDefault());
+                }
+                
+                Date date = isoFormat.parse(s);
+                SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+                return timeFormat.format(date);
+            } catch (Exception e) {
+                return "";
+            }
+        }
+
         @Override
         public int getItemCount() { return items.size(); }
 
         static class VH extends RecyclerView.ViewHolder {
             TextView tvName;
             TextView tvAddress;
+            TextView tvStopTime;
             RadioButton rbSelection;
             View viewIndicator;
             View llMapAction;
@@ -229,6 +262,7 @@ public class SelectPickupPointActivity extends AppCompatActivity {
                 super(itemView);
                 tvName = itemView.findViewById(R.id.tvLocationName);
                 tvAddress = itemView.findViewById(R.id.tvLocationAddress);
+                tvStopTime = itemView.findViewById(R.id.tvStopTime);
                 rbSelection = itemView.findViewById(R.id.rbSelection);
                 viewIndicator = itemView.findViewById(R.id.viewSelectionIndicator);
                 llMapAction = itemView.findViewById(R.id.llMapAction);

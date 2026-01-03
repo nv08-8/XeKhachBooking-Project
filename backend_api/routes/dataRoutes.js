@@ -162,7 +162,8 @@ router.get("/trips/:id/pickup-locations", async (req, res) => {
     const { id } = req.params;
     try {
         const result = await db.query(
-            `SELECT rs.id, rs.name, rs.address, rs.type, rs.order_index, r.origin
+            `SELECT rs.id, rs.name, rs.address, rs.type, rs.order_index, r.origin,
+             (t.departure_time + (rs.travel_minutes_from_start * interval '1 minute')) AS estimated_time
              FROM route_stops rs
              JOIN trips t ON t.route_id = rs.route_id
              JOIN routes r ON r.id = t.route_id
@@ -211,7 +212,10 @@ router.get("/trips/:id/pickup-locations", async (req, res) => {
             return keywords.some(keyword =>
                 addressLower.includes(keyword) || nameLower.includes(keyword)
             );
-        });
+        }).map(stop => ({
+            ...stop,
+            estimated_time: stop.estimated_time ? formatLocalISO(new Date(stop.estimated_time)) : null
+        }));
 
         console.log(`✅ [Pickup Locations] Trip ${id} (${origin}): Found ${filtered.length}/${result.rows.length} pickup points`);
         res.json(filtered);
@@ -226,7 +230,8 @@ router.get("/trips/:id/dropoff-locations", async (req, res) => {
     const { id } = req.params;
     try {
         const result = await db.query(
-            `SELECT rs.id, rs.name, rs.address, rs.type, rs.order_index, r.destination
+            `SELECT rs.id, rs.name, rs.address, rs.type, rs.order_index, r.destination,
+             (t.departure_time + (rs.travel_minutes_from_start * interval '1 minute')) AS estimated_time
              FROM route_stops rs
              JOIN trips t ON t.route_id = rs.route_id
              JOIN routes r ON r.id = t.route_id
@@ -273,7 +278,10 @@ router.get("/trips/:id/dropoff-locations", async (req, res) => {
             return keywords.some(keyword =>
                 addressLower.includes(keyword) || nameLower.includes(keyword)
             );
-        });
+        }).map(stop => ({
+            ...stop,
+            estimated_time: stop.estimated_time ? formatLocalISO(new Date(stop.estimated_time)) : null
+        }));
 
         console.log(`✅ [Dropoff Locations] Trip ${id} (${destination}): Found ${filtered.length}/${result.rows.length} dropoff points`);
         res.json(filtered);
