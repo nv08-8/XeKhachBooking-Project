@@ -123,43 +123,21 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                     light: '#FFFFFF'
                 }
             });
-            console.log("✅ QR code generated successfully as data URI");
+            console.log("✅ QR code generated successfully");
         } catch (qrError) {
             console.warn("⚠️ Failed to generate QR code:", qrError.message);
         }
         
-        // Get logo as base64 data URI
-        let logoDataUri = null;
-        try {
-            const logoPath = path.join(__dirname, '../assets/logo.jpg');
-            let finalLogoPath = logoPath;
-            if (!fs.existsSync(finalLogoPath)) {
-                // Try public folder
-                const publicLogoPath = path.join(__dirname, '../../public/logo.jpg');
-                if (fs.existsSync(publicLogoPath)) {
-                    finalLogoPath = publicLogoPath;
-                } else {
-                    // Try app src resources
-                    const appLogoPath = path.join(__dirname, '../../app/src/main/res/drawable/ic_goute_logo.jpg');
-                    if (fs.existsSync(appLogoPath)) {
-                        finalLogoPath = appLogoPath;
-                    }
-                }
-            }
+        // Use server URLs instead of data URI for better email client compatibility
+        // Logo URL - served from /api/config/logo endpoint
+        const logoUrl = `${process.env.APP_SERVER_URL || 'https://xekhachbooking-project.onrender.com'}/api/config/logo`;
 
-            if (fs.existsSync(finalLogoPath)) {
-                const logoBuffer = fs.readFileSync(finalLogoPath);
-                const logoBase64 = logoBuffer.toString('base64');
-                const ext = path.extname(finalLogoPath).toLowerCase();
-                const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
-                logoDataUri = `data:${mimeType};base64,${logoBase64}`;
-                console.log("✅ Logo loaded as Data URI");
-            } else {
-                console.warn("⚠️ Logo file not found");
-            }
-        } catch (logoError) {
-            console.warn("⚠️ Failed to load logo:", logoError.message);
-        }
+        // QR code URL - generate temporary URL or use data URI as fallback
+        let qrCodeUrl = qrCodeDataUri;  // Use data URI as primary
+        const getServerUrl = () => `${process.env.APP_SERVER_URL || 'https://xekhachbooking-project.onrender.com'}`;
+
+        console.log(`[sendPaymentEmail] Logo URL: ${logoUrl}`);
+        console.log(`[sendPaymentEmail] QR Code: Using data URI (${qrCodeDataUri ? 'success' : 'failed'})`);
 
         // Generate HTML email template
         const htmlContent = `
@@ -230,7 +208,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
             <body>
                 <div class="container">
                     <div class="header">
-                        ${logoDataUri ? `<img src="${logoDataUri}" alt="XeKhachBooking Logo" style="height: 60px; margin-bottom: 10px;" />` : ''}
+                        <img src="${logoUrl}" alt="XeKhachBooking Logo" style="height: 60px; margin-bottom: 10px;" onerror="this.style.display='none'" />
                         <h1>Thanh toán vé thành công!</h1>
                         <p style="margin: 0; font-size: 14px; opacity: 0.9;">XeKhachBooking - Đặt vé xe khách online</p>
                     </div>
@@ -247,10 +225,10 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                             🎫 ${bookingCode}
                         </div>
 
-                        ${qrCodeDataUri ? `
+                        ${qrCodeUrl ? `
                         <div class="qr-section">
                             <p style="margin: 0 0 10px 0; font-weight: bold;">📱 QR Code vé của bạn</p>
-                            <img src="${qrCodeDataUri}" alt="QR Code vé" style="max-width: 220px; height: auto;" />
+                            <img src="${qrCodeUrl}" alt="QR Code vé" style="max-width: 220px; height: auto;" />
                             <div class="qr-label">Quét mã này tại điểm lên xe</div>
                         </div>
                         ` : ''}
@@ -393,8 +371,8 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
         console.log(`[sendPaymentEmail] Preparing to send email to: ${email}`);
         console.log(`[sendPaymentEmail] From: ${msg.from.email}`);
         console.log(`[sendPaymentEmail] Subject: ${msg.subject}`);
-        console.log(`[sendPaymentEmail] Logo embedded: ${logoDataUri ? '✅ YES' : '❌ NO'}`);
-        console.log(`[sendPaymentEmail] QR Code embedded: ${qrCodeDataUri ? '✅ YES' : '❌ NO'}`);
+        console.log(`[sendPaymentEmail] Logo URL: ${logoUrl}`);
+        console.log(`[sendPaymentEmail] QR Code: ${qrCodeUrl ? '✅ Using data URI' : '❌ Failed to generate'}`);
 
         // Debug seat codes
         console.log(`[sendPaymentEmail] Seat codes: ${booking.seat_codes || 'N/A'}`);
