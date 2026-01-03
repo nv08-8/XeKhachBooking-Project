@@ -2,18 +2,23 @@ package vn.hcmute.busbooking.model;
 
 import android.os.Parcel;
 import android.os.Parcelable;
+import com.google.gson.annotations.SerializedName;
 
 public class Location implements Parcelable {
     private int id;
     private String name;
     private String address;
     private String type;
+    
+    @SerializedName("estimated_time")
+    private String estimatedTime;
 
-    public Location(int id, String name, String address, String type) {
+    public Location(int id, String name, String address, String type, String estimatedTime) {
         this.id = id;
         this.name = name;
         this.address = address;
         this.type = type;
+        this.estimatedTime = estimatedTime;
     }
 
     protected Location(Parcel in) {
@@ -21,6 +26,7 @@ public class Location implements Parcelable {
         name = in.readString();
         address = in.readString();
         type = in.readString();
+        estimatedTime = in.readString();
     }
 
     public static final Creator<Location> CREATOR = new Creator<Location>() {
@@ -67,6 +73,14 @@ public class Location implements Parcelable {
         this.type = type;
     }
 
+    public String getEstimatedTime() {
+        return estimatedTime;
+    }
+
+    public void setEstimatedTime(String estimatedTime) {
+        this.estimatedTime = estimatedTime;
+    }
+
     @Override
     public int describeContents() {
         return 0;
@@ -78,5 +92,6 @@ public class Location implements Parcelable {
         dest.writeString(name);
         dest.writeString(address);
         dest.writeString(type);
+        dest.writeString(estimatedTime);
     }
 }

@@ -29,6 +29,9 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <!-- Radio Button -->
+
+        <!-- Thông tin -->
+
         <RadioButton
             android:id="@+id/rbSelection"
             android:layout_width="wrap_content"
@@ -40,9 +43,9 @@
             android:minHeight="0dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@+id/viewSelectionIndicator"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.2" />
 
-        <!-- Thông tin -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -64,8 +67,9 @@
                 android:text="9:00"
                 android:textStyle="bold"
                 android:textColor="@android:color/black"
-                android:textSize="20sp"
-                android:paddingBottom="16dp"
+                android:textSize="18sp"
+                android:paddingTop="3dp"
+                android:paddingBottom="8dp"
                 android:layout_marginStart="0dp"
                 app:layout_constraintStart_toEndOf="@id/rbSelection"
                 app:layout_constraintTop_toTopOf="parent"
@@ -76,7 +80,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textColor="@android:color/black"
-                android:paddingBottom="4dp"
+                android:paddingBottom="3dp"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 

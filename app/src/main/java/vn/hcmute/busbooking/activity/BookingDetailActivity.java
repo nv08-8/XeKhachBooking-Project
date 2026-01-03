@@ -42,6 +42,7 @@ public class BookingDetailActivity extends AppCompatActivity {
                      tvDestination, tvPassengerName, tvPhoneNumber,
                      tvSeatNumber;
     private TextView tvPickupLocation, tvPickupAddress, tvDropoffLocation, tvDropoffAddress;
+    private TextView tvPickupTime, tvDropoffTime;
     private TextView tvCountdownTimer, tvBusType, tvAppName;
     private TextView tvPaymentMethodHeading;
     private TextView tvPaymentName, tvPaymentSubtext;
@@ -165,8 +166,11 @@ public class BookingDetailActivity extends AppCompatActivity {
 
         tvPickupLocation = findViewById(R.id.tvPickupLocation);
         tvPickupAddress = findViewById(R.id.tvPickupAddress);
+        // time TextView for pickup/dropoff (in layout)
+        try { tvPickupTime = findViewById(R.id.tvPickupTime); } catch (Exception ignored) {}
         tvDropoffLocation = findViewById(R.id.tvDropoffLocation);
         tvDropoffAddress = findViewById(R.id.tvDropoffAddress);
+        try { tvDropoffTime = findViewById(R.id.tvDropoffTime); } catch (Exception ignored) {}
 
         tvPassengerName = findViewById(R.id.tvPassengerName);
         tvPhoneNumber = findViewById(R.id.tvPhoneNumber);
@@ -281,6 +285,24 @@ public class BookingDetailActivity extends AppCompatActivity {
         if (tvPickupAddress != null) tvPickupAddress.setText((String) data.get("pickup_address"));
         if (tvDropoffLocation != null) tvDropoffLocation.setText((String) data.get("dropoff_location"));
         if (tvDropoffAddress != null) tvDropoffAddress.setText((String) data.get("dropoff_address"));
+
+        // Try to fetch and show estimated times for selected pickup/dropoff using trip_id
+        try {
+            Object tripIdObj = data.get("trip_id");
+            int tripId = -1;
+            if (tripIdObj instanceof Number) tripId = ((Number) tripIdObj).intValue();
+            else if (tripIdObj instanceof String) try { tripId = Integer.parseInt((String) tripIdObj); } catch (Exception ignored) {}
+
+            int pId = -1; int dId = -1;
+            Object pObj = data.get("pickup_stop_id");
+            if (pObj instanceof Number) pId = ((Number)pObj).intValue(); else if (pObj instanceof String) try { pId = Integer.parseInt((String)pObj); } catch (Exception ignored) {}
+            Object dObj = data.get("dropoff_stop_id");
+            if (dObj instanceof Number) dId = ((Number)dObj).intValue(); else if (dObj instanceof String) try { dId = Integer.parseInt((String)dObj); } catch (Exception ignored) {}
+
+            if (tripId > 0 && (pId > 0 || dId > 0)) {
+                fetchAndShowStopTimes(tripId, pId, dId);
+            }
+        } catch (Exception ignored) {}
 
         if (tvPassengerName != null) tvPassengerName.setText((String) data.get("passenger_name"));
         if (tvPhoneNumber != null) tvPhoneNumber.setText((String) data.get("passenger_phone"));
@@ -1244,6 +1266,51 @@ public class BookingDetailActivity extends AppCompatActivity {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    // Fetch pickup/dropoff locations for the trip and set tvPickupTime/tvDropoffTime if matching ids found
+    private void fetchAndShowStopTimes(int tripId, int pickupId, int dropoffId) {
+        try {
+            ApiService service = apiService != null ? apiService : ApiClient.getClient().create(ApiService.class);
+
+            if (pickupId > 0 && tvPickupTime != null) {
+                service.getPickupLocations(tripId).enqueue(new Callback<java.util.List<vn.hcmute.busbooking.model.Location>>() {
+                    @Override public void onResponse(Call<java.util.List<vn.hcmute.busbooking.model.Location>> call, Response<java.util.List<vn.hcmute.busbooking.model.Location>> response) {
+                        try {
+                            if (response.isSuccessful() && response.body() != null) {
+                                for (vn.hcmute.busbooking.model.Location loc : response.body()) {
+                                    if (loc != null && loc.getId() == pickupId) {
+                                        String iso = loc.getEstimatedTime();
+                                        if (iso != null && !iso.isEmpty()) tvPickupTime.setText(formatTime(iso));
+                                        break;
+                                    }
+                                }
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                    @Override public void onFailure(Call<java.util.List<vn.hcmute.busbooking.model.Location>> call, Throwable t) {}
+                });
+            }
+
+            if (dropoffId > 0 && tvDropoffTime != null) {
+                service.getDropoffLocations(tripId).enqueue(new Callback<java.util.List<vn.hcmute.busbooking.model.Location>>() {
+                    @Override public void onResponse(Call<java.util.List<vn.hcmute.busbooking.model.Location>> call, Response<java.util.List<vn.hcmute.busbooking.model.Location>> response) {
+                        try {
+                            if (response.isSuccessful() && response.body() != null) {
+                                for (vn.hcmute.busbooking.model.Location loc : response.body()) {
+                                    if (loc != null && loc.getId() == dropoffId) {
+                                        String iso = loc.getEstimatedTime();
+                                        if (iso != null && !iso.isEmpty()) tvDropoffTime.setText(formatTime(iso));
+                                        break;
+                                    }
+                                }
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                    @Override public void onFailure(Call<java.util.List<vn.hcmute.busbooking.model.Location>> call, Throwable t) {}
+                });
+            }
+        } catch (Exception ignored) {}
     }
 
 }
