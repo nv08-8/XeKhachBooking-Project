@@ -46,6 +46,7 @@ import vn.hcmute.busbooking.adapter.BookingAdapter;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.Booking;
+import vn.hcmute.busbooking.utils.ReviewStore;
 import vn.hcmute.busbooking.utils.SessionManager;
 import vn.hcmute.busbooking.ws.SocketManager;
 
@@ -57,6 +58,7 @@ public class MyBookingsActivity extends AppCompatActivity {
     private BookingAdapter bookingAdapter;
     private ApiService apiService;
     private SessionManager sessionManager;
+    private ReviewStore reviewStore;
     private AppBarLayout appBarLayout;
     private TabLayout tabLayout;
     private View statusBarScrim;
@@ -65,8 +67,10 @@ public class MyBookingsActivity extends AppCompatActivity {
     private List<Booking> allBookings = new ArrayList<>();
     // Cached lists to display per tab
     private List<Booking> listCurrent = new ArrayList<>();
-    private List<Booking> listPast = new ArrayList<>();
     private List<Booking> listCancelled = new ArrayList<>();
+    private List<Booking> listPendingReview = new ArrayList<>();
+    private List<Booking> listReviewed = new ArrayList<>();
+
     // Pending countdowns (bookingId -> remainingMillis)
     private final java.util.Map<Integer, Long> pendingCountdowns = new java.util.HashMap<>();
     private final Handler countdownHandler = new Handler(Looper.getMainLooper());
@@ -121,6 +125,7 @@ public class MyBookingsActivity extends AppCompatActivity {
         tabLayout = findViewById(R.id.tabLayout);
 
         sessionManager = new SessionManager(this);
+        reviewStore = new ReviewStore(this);
         apiService = ApiClient.getClient().create(ApiService.class);
 
         setupRecyclerView();
@@ -138,7 +143,6 @@ public class MyBookingsActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         // ✅ Always refresh bookings when returning to this activity
-        // This ensures newly created offline bookings are displayed immediately
         Log.d("MyBookings", "onResume: Refreshing bookings list");
         loadMyBookings();
 
@@ -152,7 +156,6 @@ public class MyBookingsActivity extends AppCompatActivity {
 
         // Register a global socket listener to show banner when booking expired
         socketListener = payload -> {
-            // payload contains booking info; show banner and refresh
             try {
                 Snackbar.make(findViewById(android.R.id.content), "Một vé chờ thanh toán đã hết hạn", Snackbar.LENGTH_LONG).show();
             } catch (Exception ignored) {}
@@ -165,10 +168,7 @@ public class MyBookingsActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        // Stop polling to avoid unnecessary work when activity not visible
         pollingHandler.removeCallbacks(pollingRunnable);
-
-        // Unregister socket listener
         if (socketListener != null) {
             SocketManager.getInstance(this).removeBookingListener(socketListener);
             socketListener = null;
@@ -194,10 +194,9 @@ public class MyBookingsActivity extends AppCompatActivity {
 
     private void setupRecyclerView() {
         rvBookings.setLayoutManager(new LinearLayoutManager(this));
-        bookingAdapter = new BookingAdapter(new ArrayList<>());
+        bookingAdapter = new BookingAdapter(new ArrayList<>(), this);
         rvBookings.setAdapter(bookingAdapter);
 
-        // ✅ Add click listener to open BookingDetailActivity
         bookingAdapter.setOnBookingClickListener(booking -> {
             Intent intent = new Intent(MyBookingsActivity.this, BookingDetailActivity.class);
             intent.putExtra("booking_id", booking.getId());
@@ -206,9 +205,10 @@ public class MyBookingsActivity extends AppCompatActivity {
     }
 
     private void setupTabs() {
-        // Display only 3 tabs as requested: Hiện tại (3 months), Đã đi (past), Đã hủy
+        // Updated tabs to include "Chờ nhận xét" and "Đã nhận xét"
         tabLayout.addTab(tabLayout.newTab().setText("Hiện tại"));
-        tabLayout.addTab(tabLayout.newTab().setText("Đã đi"));
+        tabLayout.addTab(tabLayout.newTab().setText("Chờ nhận xét"));
+        tabLayout.addTab(tabLayout.newTab().setText("Đã nhận xét"));
         tabLayout.addTab(tabLayout.newTab().setText("Đã hủy"));
 
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
@@ -216,17 +216,16 @@ public class MyBookingsActivity extends AppCompatActivity {
              public void onTabSelected(TabLayout.Tab tab) {
                 showListForTab(tab.getPosition());
              }
-
              @Override
              public void onTabUnselected(TabLayout.Tab tab) { }
-
              @Override
              public void onTabReselected(TabLayout.Tab tab) { }
          });
      }
 
      private void computeLists(List<Booking> bookings) {
-         listCurrent.clear(); listPast.clear(); listCancelled.clear();
+        listCurrent.clear(); listCancelled.clear();
+        listPendingReview.clear(); listReviewed.clear();
 
         long nowMillis = System.currentTimeMillis();
 
@@ -234,7 +233,6 @@ public class MyBookingsActivity extends AppCompatActivity {
             if (booking == null) continue;
             String status = booking.getStatus() == null ? "" : booking.getStatus().toLowerCase().trim();
             
-            // Xác định thời điểm arrival_time
             long arrivalTime = parseDateToMillis(booking.getArrival_time());
             if (arrivalTime <= 0) {
                 long departureTime = parseDateToMillis(booking.getDeparture_time());
@@ -246,38 +244,35 @@ public class MyBookingsActivity extends AppCompatActivity {
             boolean isPast = (arrivalTime > 0 && nowMillis > arrivalTime);
             boolean isConfirmed = !isCancelled && !isPending;
             
-            // --- LOGIC PHÂN LOẠI MỚI ---
-
-            // 1. Tab "Hiện tại": Chỉ hiện Chờ thanh toán và Đã thanh toán (chưa đi)
+            // 1. Tab "Hiện tại"
             if (isPending || (isConfirmed && !isPast)) {
                 listCurrent.add(booking);
             }
 
-            // 2. Tab "Đã hủy": Vé status hủy/hết hạn HOẶC pending mà quá giờ đến
+            // 2. Tab "Đã hủy"
             if (isCancelled || (isPending && isPast)) {
                 listCancelled.add(booking);
             }
 
-            // 3. Tab "Đã đi": Vé Đã thanh toán và ĐÃ qua giờ đến
+            // 3. Feedback categories (Part of "Đã đi")
             if (isConfirmed && isPast) {
-                listPast.add(booking);
+                if (reviewStore.hasLocalReview(booking.getId())) {
+                    listReviewed.add(booking);
+                } else {
+                    listPendingReview.add(booking);
+                }
             }
          }
 
-        // Sort lists
         Comparator<Booking> descByDeparture = (a, b) -> Long.compare(parseDateToMillis(b.getDeparture_time()), parseDateToMillis(a.getDeparture_time()));
         
         try {
             Collections.sort(listCurrent, descByDeparture);
-        } catch (Exception ignored) {}
-        try {
-            Collections.sort(listPast, descByDeparture);
-        } catch (Exception ignored) {}
-        try {
+            Collections.sort(listPendingReview, descByDeparture);
+            Collections.sort(listReviewed, descByDeparture);
             Collections.sort(listCancelled, descByDeparture);
         } catch (Exception ignored) {}
 
-        // Recompute pending countdowns after building lists
         computePendingCountdowns();
         try { bookingAdapter.updatePendingCountdowns(pendingCountdowns); } catch (Exception ignored) {}
      }
@@ -287,8 +282,9 @@ public class MyBookingsActivity extends AppCompatActivity {
         List<Booking> toShow;
         switch (tabPosition) {
             case 0: toShow = listCurrent; break;
-            case 1: toShow = listPast; break;
-            case 2: toShow = listCancelled; break;
+            case 1: toShow = listPendingReview; break;
+            case 2: toShow = listReviewed; break;
+            case 3: toShow = listCancelled; break;
             default: toShow = listCurrent; break;
         }
         bookingAdapter.updateBookings(new ArrayList<>(toShow));
@@ -342,7 +338,6 @@ public class MyBookingsActivity extends AppCompatActivity {
             return;
         }
 
-        // Prevent overlapping requests
         if (loadingInProgress) return;
         loadingInProgress = true;
 
@@ -350,7 +345,6 @@ public class MyBookingsActivity extends AppCompatActivity {
         rvBookings.setVisibility(View.GONE);
         tvEmptyState.setVisibility(View.GONE);
 
-        // Capture previous pending booking ids so we can detect expired ones after refresh
         Set<Integer> prevPendingIds = new HashSet<>();
         for (Booking b : allBookings) {
             if (b.getStatus() != null && b.getStatus().equals("pending")) prevPendingIds.add(b.getId());
@@ -364,17 +358,14 @@ public class MyBookingsActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     List<Booking> newList = response.body();
 
-                    // Build set of current pending ids
                     Set<Integer> currPendingIds = new HashSet<>();
                     for (Booking b : newList) {
                         if (b.getStatus() != null && b.getStatus().equals("pending")) currPendingIds.add(b.getId());
                     }
 
-                    // Determine which pending bookings expired (present before, missing now)
                     Set<Integer> expiredDetected = new HashSet<>(prevPendingIds);
-                    expiredDetected.removeAll(currPendingIds); // expiredDetected now contains expired ids
+                    expiredDetected.removeAll(currPendingIds);
                     if (!expiredDetected.isEmpty()) {
-                        // Show a Snackbar informing user
                         String msg = expiredDetected.size() == 1
                                 ? "Một vé chờ thanh toán đã hết hạn và bị chuyển sang Hết hạn"
                                 : expiredDetected.size() + " vé chờ thanh toán đã hết hạn và bị chuyển sang Hết hạn";
@@ -382,7 +373,6 @@ public class MyBookingsActivity extends AppCompatActivity {
                     }
 
                     allBookings = newList;
-                    // Compute and cache lists, then show the current tab
                     computeLists(allBookings);
                     int sel = tabLayout.getSelectedTabPosition();
                     if (sel < 0) sel = 0;
@@ -403,7 +393,6 @@ public class MyBookingsActivity extends AppCompatActivity {
         });
     }
 
-    // Parse multiple possible date formats and return milliseconds since epoch, or -1 if invalid
     private long parseDateToMillis(String dateStr) {
         if (dateStr == null) return -1;
         String[] formats = new String[] {
@@ -423,7 +412,6 @@ public class MyBookingsActivity extends AppCompatActivity {
         return -1;
     }
 
-    // Allow external callers (e.g., WebSocket client) to trigger a refresh
     public void refreshBookings() {
         runOnUiThread(this::loadMyBookings);
     }
@@ -437,22 +425,15 @@ public class MyBookingsActivity extends AppCompatActivity {
         countdownHandler.removeCallbacks(countdownRunnable);
     }
 
-    // Returns true if pendingCountdowns changed (for UI update)
     private boolean computePendingCountdowns() {
         boolean changed = false;
         long now = System.currentTimeMillis();
-
-        // TTL = 10 minutes (in ms)
         long ttl = 10 * 60 * 1000L;
-
         java.util.Set<Integer> toCancel = new java.util.HashSet<>();
 
         for (Booking b : allBookings) {
-            if (b == null) continue;
-            if (b.getStatus() == null) continue;
-            if (!b.getStatus().equalsIgnoreCase("pending")) continue;
+            if (b == null || b.getStatus() == null || !b.getStatus().equalsIgnoreCase("pending")) continue;
 
-            // ✅ Skip offline payment bookings - they should NOT be auto-cancelled after 10 minutes
             String paymentMethod = b.getPayment_method();
             boolean isOfflinePayment = paymentMethod != null &&
                 (paymentMethod.toLowerCase().contains("cash") ||
@@ -460,21 +441,14 @@ public class MyBookingsActivity extends AppCompatActivity {
                  paymentMethod.toLowerCase().contains("cod") ||
                  paymentMethod.toLowerCase().contains("counter"));
 
-            if (isOfflinePayment) {
-                // Offline payment booking - skip countdown and auto-cancel
-                continue;
-            }
+            if (isOfflinePayment) continue;
 
             int id = b.getId();
             long created = parseDateToMillis(b.getCreated_at());
-            if (created <= 0) {
-                // If created_at missing, skip countdown
-                continue;
-            }
+            if (created <= 0) continue;
             long rem = (created + ttl) - now;
             Long prev = pendingCountdowns.get(id);
             if (rem <= 0) {
-                // expired -> cancel booking via API (ONLY for online payment)
                 toCancel.add(id);
                 if (prev != null) {
                     pendingCountdowns.remove(id);
@@ -489,12 +463,10 @@ public class MyBookingsActivity extends AppCompatActivity {
         }
 
         if (!toCancel.isEmpty()) {
-            // Call cancel API for each expired pending booking
             for (Integer bid : toCancel) {
                 cancelBookingOnServer(bid);
             }
         }
-
         return changed;
     }
 
@@ -503,29 +475,17 @@ public class MyBookingsActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<java.util.Map<String, Object>> call, Response<java.util.Map<String, Object>> response) {
                 if (response.isSuccessful()) {
-                    // On success, refresh the entire list to show the change
                     runOnUiThread(() -> loadMyBookings());
                 } else {
-                    // On failure (e.g., server rejects cancellation), log it.
-                    Log.e("MyBookings", "Failed to auto-cancel booking " + bookingId + ". Server response: " + response.code());
-
-                    // To prevent trying to cancel again every second, remove it from the countdown map.
-                    // This stops the countdown ticker from re-triggering cancellation for this booking.
+                    Log.e("MyBookings", "Failed to auto-cancel booking " + bookingId);
                     pendingCountdowns.remove(bookingId);
-
-                    // We should also trigger a refresh of the adapter to update the UI for this specific item,
-                    // so the countdown disappears.
                     runOnUiThread(() -> {
-                        try {
-                            bookingAdapter.updatePendingCountdowns(pendingCountdowns);
-                        } catch (Exception ignored) {}
+                        try { bookingAdapter.updatePendingCountdowns(pendingCountdowns); } catch (Exception ignored) {}
                     });
                 }
             }
-
             @Override
             public void onFailure(Call<java.util.Map<String, Object>> call, Throwable t) {
-                // On network failure, just log the error. Don't refresh.
                 Log.e("MyBookings", "Network error while auto-cancelling booking " + bookingId, t);
             }
         });

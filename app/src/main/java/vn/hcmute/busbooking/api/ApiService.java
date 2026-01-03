@@ -129,6 +129,9 @@ public interface ApiService {
     @POST("api/reviews")
     Call<Map<String, Object>> submitReview(@Body Map<String, Object> body);
 
+    @POST("api/reviews")
+    Call<Map<String, Object>> submitReviewWithUser(@Header("user-id") int userId, @Body Map<String, Object> body);
+
     @POST("api/payment/payos/create")
     Call<vn.hcmute.busbooking.model.PaymentResponse> createPayosPayment(@Body vn.hcmute.busbooking.model.PaymentRequest request);
 
