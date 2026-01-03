@@ -291,7 +291,7 @@ router.put("/bookings/:id/confirm", checkAdminRole, async (req, res) => {
     if (Number.isNaN(paidAmount)) paidAmount = 0;
 
     const updateRes = await client.query(
-      `UPDATE bookings SET status='confirmed', price_paid=$1 WHERE id=$2 RETURNING *`,
+      `UPDATE bookings SET status='confirmed', price_paid=$1, paid_at=NOW() WHERE id=$2 RETURNING *`,
       [paidAmount, id]
     );
 
@@ -991,12 +991,15 @@ router.post("/confirm-offline-payment/:id", checkAdminRole, async (req, res) => 
         try {
             console.log(`[admin.confirm-offline] Attempting to send email for booking ${id}`);
             const fullBooking = await db.query(
-                `SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type
+                `SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type,
+                        STRING_AGG(bi.seat_code, ', ' ORDER BY bi.seat_code) as seat_codes
                  FROM bookings b
                  JOIN users u ON b.user_id = u.id
                  JOIN trips t ON b.trip_id = t.id
                  JOIN routes r ON t.route_id = r.id
-                 WHERE b.id=$1`,
+                 LEFT JOIN booking_items bi ON b.id = bi.booking_id
+                 WHERE b.id=$1
+                 GROUP BY b.id, u.id, t.id, r.id`,
                 [id]
             );
 
