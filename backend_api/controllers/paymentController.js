@@ -144,8 +144,22 @@ exports.verifyPayment = async (req, res) => {
                 );
                 console.log(`Verified and updated bookings: ${bookingIds.join(', ')}`);
 
+                // ⭐ IMPORTANT: Query again to get UPDATED price_paid and paid_at values
+                const { rows: updatedBookings } = await db.query(
+                    `SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type,
+                            STRING_AGG(bi.seat_code, ', ' ORDER BY bi.seat_code) as seat_codes
+                     FROM bookings b
+                     JOIN users u ON b.user_id = u.id
+                     JOIN trips t ON b.trip_id = t.id
+                     JOIN routes r ON t.route_id = r.id
+                     LEFT JOIN booking_items bi ON b.id = bi.booking_id
+                     WHERE b.id = ANY($1::bigint[])
+                     GROUP BY b.id, u.id, t.id, r.id`,
+                    [bookingIds]
+                );
+
                 // Send confirmation emails for each booking
-                for (const booking of bookings) {
+                for (const booking of updatedBookings) {
                     try {
                         console.log(`📧 Sending email to ${booking.email} for booking ${booking.id}...`);
                         const userData = {
@@ -210,8 +224,22 @@ exports.handleWebhook = async (req, res) => {
                 );
                 console.log(`Webhook: Updated bookings ${bookingIds.join(', ')} to confirmed`);
 
+                // ⭐ IMPORTANT: Query again to get UPDATED price_paid and paid_at values
+                const { rows: updatedBookings } = await db.query(
+                    `SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type,
+                            STRING_AGG(bi.seat_code, ', ' ORDER BY bi.seat_code) as seat_codes
+                     FROM bookings b
+                     JOIN users u ON b.user_id = u.id
+                     JOIN trips t ON b.trip_id = t.id
+                     JOIN routes r ON t.route_id = r.id
+                     LEFT JOIN booking_items bi ON b.id = bi.booking_id
+                     WHERE b.id = ANY($1::bigint[])
+                     GROUP BY b.id, u.id, t.id, r.id`,
+                    [bookingIds]
+                );
+
                 // Send confirmation emails for each booking
-                for (const booking of bookings) {
+                for (const booking of updatedBookings) {
                     try {
                         console.log(`📧 Webhook: Sending email to ${booking.email} for booking ${booking.id}...`);
                         const userData = {
