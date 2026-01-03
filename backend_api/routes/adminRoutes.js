@@ -59,31 +59,25 @@ router.post("/routes", checkAdminRole, async (req, res) => {
   try {
     console.log("[admin.routes.POST] Attempting to insert/update route:", { origin, destination, distance_km, duration_min });
 
-    // Check if route already exists
-    const checkResult = await client.query(
-      `SELECT id FROM routes WHERE origin = $1 AND destination = $2`,
-      [origin, destination]
-    );
+    // Add UNIQUE constraint on (origin, destination) if not exists
+    await client.query(`
+      ALTER TABLE routes ADD CONSTRAINT routes_origin_destination_unique UNIQUE (origin, destination)
+      ON CONFLICT DO NOTHING
+    `).catch(() => {
+      // Constraint already exists, ignore error
+    });
 
-    let result;
-    if (checkResult.rowCount > 0) {
-      // Route exists - UPDATE it
-      const routeId = checkResult.rows[0].id;
-      result = await client.query(
-        `UPDATE routes SET distance_km = $1, duration_min = $2 WHERE id = $3 RETURNING *`,
-        [distance_km, duration_min, routeId]
-      );
-      console.log("[admin.routes.POST] Route updated:", result.rows[0]);
-    } else {
-      // Route doesn't exist - INSERT it
-      result = await client.query(
-        `INSERT INTO routes (origin, destination, distance_km, duration_min, created_at)
-         VALUES ($1, $2, $3, $4, NOW())
-         RETURNING *`,
-        [origin, destination, distance_km, duration_min]
-      );
-      console.log("[admin.routes.POST] Route inserted:", result.rows[0]);
-    }
+    // Use UPSERT (INSERT with ON CONFLICT)
+    const result = await client.query(
+      `INSERT INTO routes (origin, destination, distance_km, duration_min, created_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (origin, destination) DO UPDATE SET
+         distance_km = EXCLUDED.distance_km,
+         duration_min = EXCLUDED.duration_min
+       RETURNING *`,
+      [origin, destination, distance_km, duration_min]
+    );
+    console.log("[admin.routes.POST] Route inserted/updated:", result.rows[0]);
 
     client.release();
     res.status(201).json(result.rows[0]);
