@@ -57,29 +57,34 @@ router.post("/routes", checkAdminRole, async (req, res) => {
 
   const client = await db.connect();
   try {
-    // Ensure table exists with correct schema (both distance_km and duration_min as INTEGER)
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS routes (
-        id SERIAL PRIMARY KEY,
-        origin VARCHAR(100) NOT NULL,
-        destination VARCHAR(100) NOT NULL,
-        distance_km INTEGER,
-        duration_min INTEGER,
-        created_at TIMESTAMP DEFAULT NOW(),
-        UNIQUE(origin, destination)
-      );
-    `);
+    console.log("[admin.routes.POST] Attempting to insert/update route:", { origin, destination, distance_km, duration_min });
 
-    console.log("[admin.routes.POST] Attempting to insert route:", { origin, destination, distance_km, duration_min });
-    const result = await client.query(
-      `INSERT INTO routes (origin, destination, distance_km, duration_min, created_at)
-       VALUES ($1, $2, $3, $4, NOW())
-       ON CONFLICT (origin, destination) DO UPDATE
-       SET distance_km = EXCLUDED.distance_km, duration_min = EXCLUDED.duration_min, created_at = NOW()
-       RETURNING *`,
-      [origin, destination, distance_km, duration_min]
+    // Check if route already exists
+    const checkResult = await client.query(
+      `SELECT id FROM routes WHERE origin = $1 AND destination = $2`,
+      [origin, destination]
     );
-    console.log("[admin.routes.POST] Route inserted/updated successfully:", result.rows[0]);
+
+    let result;
+    if (checkResult.rowCount > 0) {
+      // Route exists - UPDATE it
+      const routeId = checkResult.rows[0].id;
+      result = await client.query(
+        `UPDATE routes SET distance_km = $1, duration_min = $2 WHERE id = $3 RETURNING *`,
+        [distance_km, duration_min, routeId]
+      );
+      console.log("[admin.routes.POST] Route updated:", result.rows[0]);
+    } else {
+      // Route doesn't exist - INSERT it
+      result = await client.query(
+        `INSERT INTO routes (origin, destination, distance_km, duration_min, created_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         RETURNING *`,
+        [origin, destination, distance_km, duration_min]
+      );
+      console.log("[admin.routes.POST] Route inserted:", result.rows[0]);
+    }
+
     client.release();
     res.status(201).json(result.rows[0]);
   } catch (err) {
