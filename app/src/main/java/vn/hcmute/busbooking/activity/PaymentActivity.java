@@ -1113,7 +1113,6 @@ public class PaymentActivity extends AppCompatActivity {
                     if (response.isSuccessful() && response.body() != null) {
                         Integer balance = response.body().get("balance");
                         userCoinBalance = balance != null ? balance : 0;
-                        usedCoinAmount = 0; // Reset used coins
 
                         if (tvUserCoinBalance != null) {
                             tvUserCoinBalance.setText("Bạn có " + String.format("%,d", userCoinBalance) + " xu");
@@ -1317,10 +1316,14 @@ public class PaymentActivity extends AppCompatActivity {
 
     private void onAllPaymentsSuccess(int primaryBookingId) {
         Log.d(TAG, "All payments completed successfully");
+        Log.d(TAG, "usedCoinAmount = " + usedCoinAmount + ", bookingId = " + primaryBookingId);
 
         // If coins were used, deduct them from user account
         if (usedCoinAmount > 0) {
+            Log.d(TAG, "Deducting coins - usedCoinAmount: " + usedCoinAmount);
             deductUserCoins(primaryBookingId);
+        } else {
+            Log.d(TAG, "No coins to deduct - usedCoinAmount: " + usedCoinAmount);
         }
 
         Toast.makeText(this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
@@ -1342,7 +1345,10 @@ public class PaymentActivity extends AppCompatActivity {
     private void deductUserCoins(int bookingId) {
         try {
             Integer userId = sessionManager.getUserId();
+            Log.d(TAG, "deductUserCoins called: userId=" + userId + ", usedCoinAmount=" + usedCoinAmount + ", bookingId=" + bookingId);
+
             if (userId == null || usedCoinAmount <= 0) {
+                Log.d(TAG, "Skipping coin deduction: userId null=" + (userId == null) + ", usedCoinAmount=" + usedCoinAmount);
                 return;
             }
 
@@ -1351,25 +1357,25 @@ public class PaymentActivity extends AppCompatActivity {
             body.put("amount", usedCoinAmount);
             body.put("booking_id", bookingId);
 
-            Log.d(TAG, "Deducting " + usedCoinAmount + " coins for booking " + bookingId);
+            Log.d(TAG, "Calling API to deduct " + usedCoinAmount + " coins for booking " + bookingId + " from user " + userId);
 
             apiService.useCoins(body).enqueue(new Callback<Map<String, Object>>() {
                 @Override
                 public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                     if (response.isSuccessful()) {
-                        Log.d(TAG, "Coins deducted successfully");
+                        Log.d(TAG, "✅ Coins deducted successfully: " + usedCoinAmount + " coins");
                     } else {
-                        Log.e(TAG, "Failed to deduct coins: " + response.code());
+                        Log.e(TAG, "❌ Failed to deduct coins: " + response.code() + ", message: " + response.message());
                     }
                 }
 
                 @Override
                 public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                    Log.e(TAG, "Error deducting coins", t);
+                    Log.e(TAG, "❌ Error deducting coins: " + t.getMessage(), t);
                 }
             });
         } catch (Exception e) {
-            Log.e(TAG, "Error in deductUserCoins", e);
+            Log.e(TAG, "❌ Error in deductUserCoins: " + e.getMessage(), e);
         }
     }
 
