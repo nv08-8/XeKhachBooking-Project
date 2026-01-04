@@ -236,6 +236,7 @@ public class PaymentActivity extends AppCompatActivity {
                     Log.d(TAG, "User wants QR payment. paymentMethodChanged=" + paymentMethodChanged);
                     // Calculate used coins before processing
                     usedCoinAmount = calculateUsedCoins();
+                    Log.d(TAG, "🪙 After calculateUsedCoins for QR: usedCoinAmount=" + usedCoinAmount);
                     if (paymentMethodChanged && bookingIds != null && !bookingIds.isEmpty()) {
                         // Need to change payment method first
                         Log.d(TAG, "Calling changePaymentMethodForBookings to QR");
@@ -254,6 +255,7 @@ public class PaymentActivity extends AppCompatActivity {
                     Log.d(TAG, "User wants Card payment. paymentMethodChanged=" + paymentMethodChanged);
                     // Calculate used coins before processing
                     usedCoinAmount = calculateUsedCoins();
+                    Log.d(TAG, "🪙 After calculateUsedCoins for Card: usedCoinAmount=" + usedCoinAmount);
                     // Validate card inputs before proceeding
                     if (!validateCardInputs()) {
                         // validateCardInputs shows appropriate messages
@@ -277,6 +279,7 @@ public class PaymentActivity extends AppCompatActivity {
                     Log.d(TAG, "User wants Cash payment. paymentMethodChanged=" + paymentMethodChanged);
                     // Calculate used coins before processing
                     usedCoinAmount = calculateUsedCoins();
+                    Log.d(TAG, "🪙 After calculateUsedCoins for Cash: usedCoinAmount=" + usedCoinAmount);
                     if (paymentMethodChanged) {
                         // Change to offline payment
                         changePaymentMethodToOfflineConfirm(newPaymentMethod);
@@ -291,6 +294,7 @@ public class PaymentActivity extends AppCompatActivity {
             } else {
                 // Calculate used coins before processing payment
                 usedCoinAmount = calculateUsedCoins();
+                Log.d(TAG, "🪙 After calculateUsedCoins for new booking: usedCoinAmount=" + usedCoinAmount);
                 createBookingAndProcessPayment();
             }
         });
@@ -1350,12 +1354,21 @@ public class PaymentActivity extends AppCompatActivity {
 
     // Deduct coins from user and record in coin_history
     private void deductUserCoins(int bookingId) {
+        deductUserCoins(bookingId, null);
+    }
+
+    // Deduct coins from user and record in coin_history with optional callback
+    private void deductUserCoins(int bookingId, Runnable onComplete) {
         try {
             Integer userId = sessionManager.getUserId();
-            Log.d(TAG, "deductUserCoins called: userId=" + userId + ", usedCoinAmount=" + usedCoinAmount + ", bookingId=" + bookingId);
+            Log.d(TAG, "📥 deductUserCoins called: userId=" + userId + ", usedCoinAmount=" + usedCoinAmount + ", bookingId=" + bookingId);
 
             if (userId == null || usedCoinAmount <= 0) {
-                Log.d(TAG, "Skipping coin deduction: userId null=" + (userId == null) + ", usedCoinAmount=" + usedCoinAmount);
+                Log.d(TAG, "⚠️  Skipping coin deduction: userId null=" + (userId == null) + ", usedCoinAmount=" + usedCoinAmount);
+                // Still call the callback even if no coins to deduct
+                if (onComplete != null) {
+                    onComplete.run();
+                }
                 return;
             }
 
@@ -1364,25 +1377,48 @@ public class PaymentActivity extends AppCompatActivity {
             body.put("amount", usedCoinAmount);
             body.put("booking_id", bookingId);
 
-            Log.d(TAG, "Calling API to deduct " + usedCoinAmount + " coins for booking " + bookingId + " from user " + userId);
+            Log.d(TAG, "🪙 Calling API /coins/use to deduct " + usedCoinAmount + " coins for booking " + bookingId + " from user " + userId);
+            Log.d(TAG, "🪙 Request body: " + body.toString());
 
             apiService.useCoins(body).enqueue(new Callback<Map<String, Object>>() {
                 @Override
                 public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                    Log.d(TAG, "🪙 API Response received - code: " + response.code() + ", successful: " + response.isSuccessful());
                     if (response.isSuccessful()) {
-                        Log.d(TAG, "✅ Coins deducted successfully: " + usedCoinAmount + " coins");
+                        Log.d(TAG, "✅ Coins deducted successfully: " + usedCoinAmount + " coins for booking " + bookingId);
+                        Log.d(TAG, "✅ Response body: " + response.body());
                     } else {
-                        Log.e(TAG, "❌ Failed to deduct coins: " + response.code() + ", message: " + response.message());
+                        try {
+                            String errorBody = response.errorBody() != null ? response.errorBody().string() : "no body";
+                            Log.e(TAG, "❌ Failed to deduct coins: code=" + response.code() + ", message=" + response.message() + ", errorBody=" + errorBody);
+                        } catch (Exception e) {
+                            Log.e(TAG, "❌ Failed to deduct coins: " + response.code() + ", message: " + response.message());
+                        }
+                    }
+                    // Call callback regardless of success/failure to continue flow
+                    if (onComplete != null) {
+                        Log.d(TAG, "🪙 Coin deduction complete, calling callback");
+                        onComplete.run();
                     }
                 }
 
                 @Override
                 public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                    Log.e(TAG, "❌ Error deducting coins: " + t.getMessage(), t);
+                    Log.e(TAG, "❌ Error deducting coins (API call failed): " + t.getMessage(), t);
+                    // Call callback to continue flow even on failure
+                    if (onComplete != null) {
+                        Log.d(TAG, "🪙 Coin deduction failed, calling callback to continue");
+                        onComplete.run();
+                    }
                 }
             });
         } catch (Exception e) {
-            Log.e(TAG, "❌ Error in deductUserCoins: " + e.getMessage(), e);
+            Log.e(TAG, "❌ Exception in deductUserCoins: " + e.getMessage(), e);
+            e.printStackTrace();
+            // Call callback to continue flow even on exception
+            if (onComplete != null) {
+                onComplete.run();
+            }
         }
     }
 
@@ -1447,6 +1483,11 @@ public class PaymentActivity extends AppCompatActivity {
                             "Vé đã được đặt với thanh toán tại nhà xe. Vui lòng thanh toán trước khi lên xe.",
                             Toast.LENGTH_LONG).show();
 
+                    // DO NOT deduct coins for offline payment here. Coins will be deducted when payment is confirmed.
+                    Log.d(TAG, "Offline payment: coins will NOT be deducted yet (usedCoinAmount=" + usedCoinAmount + ")");
+                    Log.d(TAG, "Offline payment: Coins will be deducted only when payment is confirmed by user");
+
+                    // Finish immediately without deducting coins
                     Intent resultIntent = new Intent();
                     resultIntent.putIntegerArrayListExtra("booking_ids", bookingIds);
                     setResult(RESULT_OK, resultIntent);
@@ -1498,6 +1539,12 @@ public class PaymentActivity extends AppCompatActivity {
 
         if (appliedPromotionCode != null && !appliedPromotionCode.isEmpty()) {
             bookingRequest.put("promotion_code", appliedPromotionCode);
+        }
+
+        // Add coins usage information to booking request
+        if (usedCoinAmount > 0) {
+            bookingRequest.put("used_coins_amount", usedCoinAmount);
+            Log.d(TAG, "🪙 Adding coins to booking request: used_coins_amount=" + usedCoinAmount);
         }
 
         String selectedPaymentMethod = "offline";
@@ -1564,21 +1611,18 @@ public class PaymentActivity extends AppCompatActivity {
                         } else if ("card".equals(paymentMethod)) {
                             confirmNextPayment(bookingIds, 0, "card");
                         } else {
-                            // Offline payment - navigate to MyBookingsActivity
+                            // Offline payment - DO NOT deduct coins yet. Only deduct when payment is confirmed.
+                            Log.d(TAG, "Offline payment - coins will NOT be deducted yet (usedCoinAmount=" + usedCoinAmount + ")");
+                            Log.d(TAG, "Offline payment: Coins will be deducted only when payment is confirmed by user");
+
                             Toast.makeText(PaymentActivity.this,
                                     "Vé đã được đặt với thanh toán tại nhà xe. Vui lòng thanh toán trước khi lên xe.",
                                     Toast.LENGTH_LONG).show();
 
-                            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                                try {
-                                    Intent intent = new Intent(PaymentActivity.this, MyBookingsActivity.class);
-                                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                                    startActivity(intent);
-                                } catch (Exception e) {
-                                    Log.e(TAG, "Error navigating to MyBookingsActivity", e);
-                                }
-                                finish();
-                            }, 2000);
+                            // Navigate immediately without deducting coins
+                            // Coins will be deducted when user confirms payment in MyBookingsActivity
+                            Log.d(TAG, "Offline payment: navigating to MyBookingsActivity without coin deduction");
+                            navigateToMyBookings();
                         }
                     } else {
                         handlePaymentError("Không thể tạo đặt vé. Vui lòng thử lại.");
@@ -1652,6 +1696,19 @@ public class PaymentActivity extends AppCompatActivity {
                 handlePaymentError("Lỗi kết nối khi đổi phương thức thanh toán.");
             }
         });
+    }
+
+    private void navigateToMyBookings() {
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            try {
+                Intent intent = new Intent(PaymentActivity.this, MyBookingsActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(intent);
+            } catch (Exception e) {
+                Log.e(TAG, "Error navigating to MyBookingsActivity", e);
+            }
+            finish();
+        }, 2000);
     }
 
     private void showSeatNotAvailableDialog() {

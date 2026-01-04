@@ -62,7 +62,7 @@ function formatLocalISO(date = new Date()) {
 
 // POST /bookings - Create a new booking with multiple seats
 router.post("/bookings", async (req, res) => {
-  const { user_id, trip_id, seat_labels, promotion_code, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_name, passenger_phone, passenger_email } = req.body;
+  const { user_id, trip_id, seat_labels, promotion_code, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_name, passenger_phone, passenger_email, used_coins_amount } = req.body;
 
   if (!user_id || !trip_id || !Array.isArray(seat_labels) || seat_labels.length === 0 || !pickup_stop_id || !dropoff_stop_id) {
     return res.status(400).json({ message: "Missing required fields" });
@@ -73,7 +73,8 @@ router.post("/bookings", async (req, res) => {
   const finalPassengerName = passenger_name || '';
   const finalPassengerPhone = passenger_phone || '';
   const finalPassengerEmail = passenger_email || '';
-  console.log(`Creating booking with payment_method: ${finalPaymentMethod}, passenger: ${finalPassengerName}`);
+  const coinsUsed = Math.max(0, Number(used_coins_amount) || 0);
+  console.log(`Creating booking with payment_method: ${finalPaymentMethod}, passenger: ${finalPassengerName}, coins_used: ${coinsUsed}`);
 
   const client = await beginTransaction();
   try {
@@ -168,6 +169,14 @@ router.post("/bookings", async (req, res) => {
       }
     }
 
+    // Apply coin discount on remaining amount (after promo discount)
+    // 1 coin = 1 VND, coins can only be used up to the remaining amount after promo discount
+    if (coinsUsed > 0) {
+      const coinDiscount = Math.min(coinsUsed, finalAmount);
+      finalAmount = Number((finalAmount - coinDiscount).toFixed(2));
+      console.log(`💰 Applied coin discount: ${coinDiscount} VND (coins_used: ${coinsUsed}), finalAmount: ${finalAmount}`);
+    }
+
     // Build passenger_info JSONB object
     const passengerInfo = {};
     if (finalPassengerName) passengerInfo.name = finalPassengerName;
@@ -179,9 +188,9 @@ router.post("/bookings", async (req, res) => {
     const bookingCode = generateBookingCode(trip_id);
 
     const bookingInsert = await client.query(
-      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_info, booking_code)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
-      [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, 'pending', metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id, finalPaymentMethod, passengerInfoJson, bookingCode]
+      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_info, booking_code, coins_used)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+      [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, 'pending', metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id, finalPaymentMethod, passengerInfoJson, bookingCode, coinsUsed]
     );
     const bookingId = bookingInsert.rows[0].id;
     
@@ -201,7 +210,7 @@ router.post("/bookings", async (req, res) => {
 
     await commitAndRelease(client);
 
-    console.log(`✅ [BOOKING-CREATED] Booking #${bookingId} created: user=${user_id}, trip=${trip_id}, payment_method="${finalPaymentMethod}", status="pending", seats=[${seat_labels.join(',')}]`);
+    console.log(`✅ [BOOKING-CREATED] Booking #${bookingId} created: user=${user_id}, trip=${trip_id}, payment_method="${finalPaymentMethod}", status="pending", coins_used=${coinsUsed}, seats=[${seat_labels.join(',')}]`);
 
     res.json({ message: 'Booking created successfully', booking_ids: bookingIds, total_amount: finalAmount });
 
@@ -240,7 +249,7 @@ router.get('/bookings/my', async (req, res) => {
 
   const sql = `
     SELECT b.id, b.status, b.price_paid, b.created_at, b.total_amount, b.payment_method,
-           b.passenger_info, COALESCE(b.booking_code, '') as booking_code,
+           b.passenger_info, COALESCE(b.booking_code, '') as booking_code, b.coins_used,
            t.id AS trip_id, t.departure_time, t.arrival_time, t.operator, t.bus_type, t.status AS trip_status,
            r.origin, r.destination,
            pickup_stop.name AS pickup_location,
@@ -292,7 +301,7 @@ router.get('/bookings/:id', async (req, res) => {
     SELECT b.id, b.user_id, b.trip_id, b.total_amount, b.seats_count, b.promotion_code,
            b.status, b.metadata, b.pickup_stop_id, b.dropoff_stop_id, b.payment_method,
            b.passenger_info, b.created_at, b.paid_at, b.cancelled_at, b.expired_at,
-           b.price_paid, COALESCE(b.booking_code, '') as booking_code,
+           b.price_paid, COALESCE(b.booking_code, '') as booking_code, b.coins_used,
            t.departure_time, t.arrival_time, t.operator, t.bus_type, t.price AS seat_price, t.status AS trip_status,
            r.origin, r.destination,
            u.name AS passenger_name, u.phone AS passenger_phone,
