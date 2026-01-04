@@ -8,7 +8,7 @@ router.get("/feedbacks/pending", async (req, res) => {
     if (!user_id) return res.status(400).json({ message: "Missing user_id" });
 
     const sql = `
-        SELECT b.id, b.trip_id, b.total_amount, b.created_at as booking_date,
+        SELECT b.id as booking_id, b.trip_id, b.total_amount, b.created_at as booking_date,
                t.departure_time, t.operator, t.bus_type,
                r.origin, r.destination,
                COALESCE(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]) as seat_labels
