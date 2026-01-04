@@ -21,7 +21,8 @@ const busImageRoutes = require("./routes/busImageRoutes");
 const seatsRoutes = require("./routes/seatsRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const driversRoutes = require("./routes/driversRoutes"); 
-const feedbackRoutes = require("./routes/feedbackRoutes"); // Import feedback routes
+const feedbackRoutes = require("./routes/feedbackRoutes");
+const coinRoutes = require("./routes/coinRoutes"); // Import coin routes
 
 
 app.use(express.json());
@@ -53,7 +54,8 @@ app.use("/api", busImageRoutes);
 app.use('/api/seats', seatsRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/drivers", driversRoutes);
-app.use("/api", feedbackRoutes); // Use feedback routes
+app.use("/api", feedbackRoutes);
+app.use("/api", coinRoutes); // Use coin routes
 
 // small helper to list registered routes (useful for debugging 404s/method mismatches)
 function listRoutes(app) {

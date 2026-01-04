@@ -202,6 +202,26 @@
                         android:gravity="center_vertical"
                         android:padding="16dp"
                         android:text="Nhận xét của tôi" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginStart="56dp"
+                        android:background="#F0F0F0" />
+
+                    <TextView
+                        android:id="@+id/tvMyCoins"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:drawableStart="@drawable/ic_coin_gold"
+                        android:drawableEnd="@drawable/ic_chevron_right"
+                        android:drawablePadding="16dp"
+                        android:foreground="?attr/selectableItemBackground"
+                        android:gravity="center_vertical"
+                        android:padding="16dp"
+                        android:text="Xu của tôi" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

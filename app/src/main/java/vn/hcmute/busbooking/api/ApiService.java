@@ -308,4 +308,14 @@ public interface ApiService {
     @POST("api/feedbacks")
     Call<Feedback> submitFeedback(@Body Map<String, Object> body);
 
+    // ========== COIN MANAGEMENT ==========
+    @GET("api/coins/balance")
+    Call<Map<String, Integer>> getCoinBalance(@Query("user_id") int userId);
+
+    @GET("api/coins/history")
+    Call<List<Map<String, Object>>> getCoinHistory(@Query("user_id") int userId);
+
+    @POST("api/coins/use")
+    Call<Map<String, Object>> useCoins(@Body Map<String, Object> body);
+
 }
