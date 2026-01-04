@@ -1086,6 +1086,9 @@ public class PaymentActivity extends AppCompatActivity {
     // Calculate how many coins will be used based on current settings
     private int calculateUsedCoins() {
         if (switchUseCoins == null || !switchUseCoins.isChecked() || userCoinBalance == 0) {
+            Log.d(TAG, "❌ calculateUsedCoins: switchUseCoins=null?" + (switchUseCoins == null) +
+                   ", isChecked?" + (switchUseCoins != null ? switchUseCoins.isChecked() : "null") +
+                   ", userCoinBalance=" + userCoinBalance);
             return 0;
         }
 
@@ -1093,8 +1096,12 @@ public class PaymentActivity extends AppCompatActivity {
         double afterPromoDiscount = subtotal - appliedDiscount;
         afterPromoDiscount = Math.max(0, afterPromoDiscount);
 
+        int coinToUse = (int) Math.min(userCoinBalance, afterPromoDiscount);
+        Log.d(TAG, "✅ calculateUsedCoins: subtotal=" + subtotal + ", appliedDiscount=" + appliedDiscount +
+               ", afterPromo=" + afterPromoDiscount + ", userBalance=" + userCoinBalance + ", coinToUse=" + coinToUse);
+
         // Use coins up to the remaining amount (1 coin = 1 VND)
-        return (int) Math.min(userCoinBalance, afterPromoDiscount);
+        return coinToUse;
     }
 
     private void loadUserCoinBalance() {
