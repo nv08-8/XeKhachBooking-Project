@@ -41,6 +41,7 @@ public class UserAccountActivity extends AppCompatActivity {
         TextView tvBookingHistory = findViewById(R.id.tvBookingHistory);
         TextView tvMyOffers = findViewById(R.id.tvMyOffers);
         TextView tvPaymentMethods = findViewById(R.id.tvPaymentMethods);
+        TextView tvMyFeedbacks = findViewById(R.id.tvMyFeedbacks);
         
         TextView tvPersonalInfo = findViewById(R.id.tvPersonalInfo);
         TextView tvChangePassword = findViewById(R.id.tvChangePassword);
@@ -69,6 +70,10 @@ public class UserAccountActivity extends AppCompatActivity {
 
         tvPaymentMethods.setOnClickListener(v -> {
             showPaymentMethodsDialog();
+        });
+
+        tvMyFeedbacks.setOnClickListener(v -> {
+            startActivity(new Intent(UserAccountActivity.this, FeedbackManagementActivity.class));
         });
 
         tvPersonalInfo.setOnClickListener(v -> {

@@ -8,6 +8,7 @@ import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 import vn.hcmute.busbooking.model.Booking;
 import vn.hcmute.busbooking.model.Driver;
+import vn.hcmute.busbooking.model.Feedback;
 import vn.hcmute.busbooking.model.Location;
 import vn.hcmute.busbooking.model.Promotion;
 import vn.hcmute.busbooking.model.Seat;
@@ -299,5 +300,15 @@ public interface ApiService {
     // ========== BOOKING CONFIRMATION EMAIL ==========
     @POST("api/bookings/{id}/send-confirmation-email")
     Call<Map<String, Object>> sendPaymentConfirmationEmail(@Path("id") int bookingId);
+
+    // ========== FEEDBACK MANAGEMENT ==========
+    @GET("api/feedbacks/pending")
+    Call<List<Feedback>> getPendingFeedbacks(@Query("user_id") int userId);
+
+    @GET("api/feedbacks/reviewed")
+    Call<List<Feedback>> getReviewedFeedbacks(@Query("user_id") int userId);
+
+    @POST("api/feedbacks")
+    Call<Feedback> submitFeedback(@Body Map<String, Object> body);
 
 }
