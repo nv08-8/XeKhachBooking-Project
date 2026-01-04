@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
-// GET /feedbacks/pending - Get bookings that are completed but not yet reviewed
+// GET /feedbacks/pending - Get bookings that are completed (or confirmed and past departure) but not yet reviewed
 router.get("/feedbacks/pending", async (req, res) => {
     const { user_id } = req.query;
     if (!user_id) return res.status(400).json({ message: "Missing user_id" });
@@ -11,14 +11,16 @@ router.get("/feedbacks/pending", async (req, res) => {
         SELECT b.id, b.trip_id, b.total_amount, b.created_at as booking_date,
                t.departure_time, t.operator, t.bus_type,
                r.origin, r.destination,
-               COALESCE(array_agg(bi.seat_code), ARRAY[]::text[]) as seat_labels
+               COALESCE(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]) as seat_labels
         FROM bookings b
         JOIN trips t ON b.trip_id = t.id
         JOIN routes r ON t.route_id = r.id
         LEFT JOIN booking_items bi ON bi.booking_id = b.id
         LEFT JOIN feedbacks f ON f.booking_id = b.id
-        WHERE b.user_id = $1 AND b.status = 'completed' AND f.id IS NULL
-        GROUP BY b.id, t.id, r.id
+        WHERE b.user_id = $1 
+          AND (b.status = 'completed' OR (b.status = 'confirmed' AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()))
+          AND f.id IS NULL
+        GROUP BY b.id, t.id, r.id, t.departure_time, t.operator, t.bus_type, r.origin, r.destination
         ORDER BY t.departure_time DESC
     `;
 
@@ -67,14 +69,17 @@ router.post("/feedbacks", async (req, res) => {
     }
 
     try {
-        // Verify booking belongs to user and is completed
+        // Verify booking belongs to user and is completed or confirmed (past departure)
         const bookingCheck = await db.query(
-            "SELECT id FROM bookings WHERE id = $1 AND user_id = $2 AND status = 'completed'",
+            `SELECT b.id FROM bookings b 
+             JOIN trips t ON b.trip_id = t.id
+             WHERE b.id = $1 AND b.user_id = $2 
+             AND (b.status = 'completed' OR (b.status = 'confirmed' AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()))`,
             [booking_id, user_id]
         );
 
         if (bookingCheck.rowCount === 0) {
-            return res.status(403).json({ message: "Invalid booking or booking not completed" });
+            return res.status(403).json({ message: "Invalid booking or trip has not departed yet" });
         }
 
         // Insert feedback
