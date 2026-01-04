@@ -42,6 +42,15 @@ public class Feedback {
     private String duration;
     private String date;
 
+    // ✅ Thêm các fields mới
+    @SerializedName("user_name")
+    private String userName;
+
+    private String reply;
+
+    @SerializedName("reply_date")
+    private String replyDate;
+
     // Getters and Setters
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
@@ -93,4 +102,23 @@ public class Feedback {
 
     public String getDate() { return date; }
     public void setDate(String date) { this.date = date; }
+
+    // ✅ Thêm getters và setters cho các fields mới
+    public String getUserName() { return userName; }
+    public void setUserName(String userName) { this.userName = userName; }
+
+    public String getRouteInfo() {
+        if (origin != null && destination != null) {
+            return origin + " - " + destination;
+        }
+        return "";
+    }
+
+    public String getTripDate() { return date; }
+
+    public String getReply() { return reply; }
+    public void setReply(String reply) { this.reply = reply; }
+
+    public String getReplyDate() { return replyDate; }
+    public void setReplyDate(String replyDate) { this.replyDate = replyDate; }
 }

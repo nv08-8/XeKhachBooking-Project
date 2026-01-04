@@ -318,4 +318,27 @@ public interface ApiService {
     @POST("api/feedbacks")
     Call<Feedback> submitFeedback(@Body Map<String, Object> body);
 
+    // ✅ Thêm các methods quản lý feedback
+    @PUT("api/feedbacks/{id}")
+    Call<Feedback> updateFeedback(@Path("id") int feedbackId, @Body Map<String, Object> body);
+
+    @DELETE("api/feedbacks/{id}")
+    Call<Void> deleteFeedback(@Path("id") int feedbackId);
+
+    @POST("api/feedbacks/{id}/reply")
+    Call<Void> replyFeedback(@Path("id") int feedbackId, @Body Map<String, Object> body);
+
+    // ✅ Thêm method lấy tất cả feedback (cho admin)
+    @GET("api/admin/feedbacks")
+    Call<List<Feedback>> getAllFeedbacks();
+
+    // ✅ Thêm method lấy feedback theo trip_id
+    @GET("api/trips/{id}/feedbacks")
+    Call<List<Feedback>> getTripFeedbacks(@Path("id") int tripId);
+
+    // ✅ Thêm method lấy các trips có feedback của user
+    @GET("api/feedbacks/trips-with-feedback/{user_id}")
+    Call<List<Map<String, Object>>> getTripsWithFeedback(@Path("user_id") int userId);
+
+
 }
