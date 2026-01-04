@@ -23,6 +23,7 @@ import vn.hcmute.busbooking.activity.EditProfileActivity;
 import vn.hcmute.busbooking.activity.FeedbackManagementActivity;
 import vn.hcmute.busbooking.activity.LoginActivity;
 import vn.hcmute.busbooking.activity.MyBookingsActivity;
+import vn.hcmute.busbooking.activity.MyCoinsActivity;
 import vn.hcmute.busbooking.activity.PersonalInfoActivity;
 import vn.hcmute.busbooking.activity.RegisterActivity;
 import vn.hcmute.busbooking.activity.UserPromotionsActivity;
@@ -55,6 +56,7 @@ public class AccountFragment extends Fragment {
             TextView tvBookingHistory = view.findViewById(R.id.tvBookingHistory);
             TextView tvMyOffers = view.findViewById(R.id.tvMyOffers);
             TextView tvMyFeedbacks = view.findViewById(R.id.tvMyFeedbacks);
+            TextView tvMyCoins = view.findViewById(R.id.tvMyCoins);
             TextView tvPersonalInfo = view.findViewById(R.id.tvPersonalInfo);
             TextView tvChangePassword = view.findViewById(R.id.tvChangePassword);
             TextView tvLogout = view.findViewById(R.id.tvLogout);
@@ -75,6 +77,10 @@ public class AccountFragment extends Fragment {
 
             if (tvMyFeedbacks != null) {
                 tvMyFeedbacks.setOnClickListener(v -> startActivity(new Intent(getActivity(), FeedbackManagementActivity.class)));
+            }
+
+            if (tvMyCoins != null) {
+                tvMyCoins.setOnClickListener(v -> startActivity(new Intent(getActivity(), MyCoinsActivity.class)));
             }
 
             if (tvPersonalInfo != null) {
