@@ -482,12 +482,8 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         Intent intent = new Intent(this, RevenueDetailsActivity.class);
         intent.putExtra("groupBy", groupBy);
         intent.putExtra("value", value);
-        // ✅ Truyền from_date, to_date, và payment_method cho tất cả loại lọc
-        intent.putExtra("from_date", etStartDate.getText().toString());
-        intent.putExtra("to_date", etEndDate.getText().toString());
-        intent.putExtra("payment_method", selectedPaymentMethod);
-        intent.putExtra("isRefund", isRefundMode);
-        intent.putExtra("refundType", selectedRefundType);
+        intent.putExtra("isRefund", isRefundMode); // Truyền thêm mode để chi tiết biết là hoàn tiền
+        intent.putExtra("refundType", selectedRefundType); // Truyền loại hoàn tiền
         startActivity(intent);
     }
 

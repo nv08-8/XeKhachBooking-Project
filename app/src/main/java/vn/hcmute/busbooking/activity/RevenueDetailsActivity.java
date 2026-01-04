@@ -61,19 +61,12 @@ public class RevenueDetailsActivity extends AppCompatActivity {
         String refundType = getIntent().getStringExtra("refundType");
         if (refundType == null) refundType = "";
 
-        // ✅ Nhận from_date, to_date, và payment_method từ intent
-        String fromDate = getIntent().getStringExtra("from_date");
-        String toDate = getIntent().getStringExtra("to_date");
-        String paymentMethod = getIntent().getStringExtra("payment_method");
-        if (paymentMethod == null) paymentMethod = "all";
-
         // Gọi API khác nhau tùy theo mode
         Call<List<Map<String, Object>>> call;
         if (isRefund) {
             call = api.getRevenueRefundDetails(userId, groupBy, value, refundType);
         } else {
-            // ✅ Truyền from_date, to_date, và payment_method
-            call = api.getRevenueDetails(userId, groupBy, value, fromDate, toDate, paymentMethod);
+            call = api.getRevenueDetails(userId, groupBy, value);
         }
 
         call.enqueue(new Callback<List<Map<String, Object>>>() {
