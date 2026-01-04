@@ -484,6 +484,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         intent.putExtra("value", value);
         intent.putExtra("isRefund", isRefundMode); // Truyền thêm mode để chi tiết biết là hoàn tiền
         intent.putExtra("refundType", selectedRefundType); // Truyền loại hoàn tiền
+        intent.putExtra("paymentMethod", selectedPaymentMethod); // ✅ Truyền payment method
         startActivity(intent);
     }
 

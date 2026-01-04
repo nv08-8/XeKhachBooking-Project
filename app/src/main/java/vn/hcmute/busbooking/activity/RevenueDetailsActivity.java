@@ -60,13 +60,17 @@ public class RevenueDetailsActivity extends AppCompatActivity {
         int userId = sessionManager.getUserId();
         String refundType = getIntent().getStringExtra("refundType");
         if (refundType == null) refundType = "";
+        // ✅ Lấy payment_method từ intent
+        String paymentMethod = getIntent().getStringExtra("paymentMethod");
+        if (paymentMethod == null) paymentMethod = "all";
 
         // Gọi API khác nhau tùy theo mode
         Call<List<Map<String, Object>>> call;
         if (isRefund) {
             call = api.getRevenueRefundDetails(userId, groupBy, value, refundType);
         } else {
-            call = api.getRevenueDetails(userId, groupBy, value);
+            // ✅ Truyền payment_method parameter
+            call = api.getRevenueDetails(userId, groupBy, value, paymentMethod);
         }
 
         call.enqueue(new Callback<List<Map<String, Object>>>() {
