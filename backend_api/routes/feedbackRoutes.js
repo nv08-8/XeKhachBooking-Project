@@ -230,40 +230,64 @@ router.get("/trips/:id/feedbacks", async (req, res) => {
     }
 });
 
-// ✅ GET /api/feedbacks/trips-with-feedback/{user_id} - Lấy các chuyến đã đi của user và đã có feedback từ user đó
+// ✅ GET /api/feedbacks/trips-with-feedback/{user_id} - Lấy feedback + thông tin chuyến của từng feedback
 router.get("/feedbacks/trips-with-feedback/:user_id", async (req, res) => {
     const { user_id } = req.params;
 
-    console.log("🔍 DEBUG: Fetching trips with feedback for user_id:", user_id);
+    console.log("🔍 DEBUG: Fetching feedbacks with trip info");
 
-    // Lấy trips của user hiện tại mà user đã viết feedback
+    // Lấy feedback + thông tin chuyến từ booking_id
     const sql = `
         SELECT DISTINCT
-               t.id,
+               f.id as feedback_id,
+               f.rating,
+               f.comment,
+               f.created_at as feedback_date,
+               u_feedback.name as feedback_user_name,
+               t.id as trip_id,
                t.departure_time,
                t.arrival_time,
                t.operator,
                t.bus_type,
                r.origin,
                r.destination,
-               COUNT(f.id) as feedback_count
-        FROM bookings b
-        INNER JOIN trips t ON b.trip_id = t.id
-        INNER JOIN routes r ON t.route_id = r.id
-        INNER JOIN feedbacks f ON f.booking_id = b.id
-        WHERE b.user_id = $1 AND f.user_id = $1
-        GROUP BY t.id, t.departure_time, t.arrival_time, t.operator, t.bus_type, r.origin, r.destination
-        ORDER BY t.departure_time DESC
+               COUNT(f.id) OVER (PARTITION BY t.id) as trip_feedback_count
+        FROM feedbacks f
+        JOIN bookings b ON f.booking_id = b.id
+        JOIN trips t ON b.trip_id = t.id
+        JOIN routes r ON t.route_id = r.id
+        JOIN users u_feedback ON f.user_id = u_feedback.id
+        ORDER BY t.id DESC, f.created_at DESC
     `;
 
     try {
-        const { rows } = await db.query(sql, [user_id]);
+        const { rows } = await db.query(sql);
         console.log("✅ DEBUG: Query result rows count:", rows.length);
-        console.log("✅ DEBUG: Query result:", JSON.stringify(rows));
+        console.log("✅ DEBUG: Query result:", JSON.stringify(rows.slice(0, 3)));
         res.json(rows);
     } catch (err) {
         console.error("❌ Error fetching trips with feedback:", err);
         res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// ✅ TEST ENDPOINT - Tạo feedback test cho user (chỉ dùng để test)
+router.post("/test/create-feedback/:user_id/:booking_id/:rating", async (req, res) => {
+    const { user_id, booking_id, rating } = req.params;
+
+    console.log("🧪 TEST: Creating feedback for user_id:", user_id, "booking_id:", booking_id);
+
+    try {
+        const result = await db.query(
+            "INSERT INTO feedbacks (user_id, booking_id, rating, comment) VALUES ($1, $2, $3, $4) RETURNING *",
+            [user_id, booking_id, rating, "Test feedback - " + new Date().toISOString()]
+        );
+
+        console.log("✅ TEST: Feedback created:", JSON.stringify(result.rows[0]));
+        res.json({ success: true, feedback: result.rows[0] });
+    } catch (err) {
+        console.error("❌ TEST Error:", err);
+        res.status(500).json({ error: err.message });
     }
 });
 
