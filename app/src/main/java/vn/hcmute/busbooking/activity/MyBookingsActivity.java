@@ -233,7 +233,8 @@ public class MyBookingsActivity extends AppCompatActivity {
         for (Booking booking : bookings) {
             if (booking == null) continue;
             String status = booking.getStatus() == null ? "" : booking.getStatus().toLowerCase().trim();
-            
+            String tripStatus = booking.getTrip_status() == null ? "" : booking.getTrip_status().toLowerCase().trim();
+
             // Xác định thời điểm arrival_time
             long arrivalTime = parseDateToMillis(booking.getArrival_time());
             if (arrivalTime <= 0) {
@@ -242,24 +243,25 @@ public class MyBookingsActivity extends AppCompatActivity {
             }
 
             boolean isCancelled = status.equals("cancelled") || status.equals("canceled") || status.equals("expired") || status.contains("hủy") || status.contains("huy");
+            boolean isTripCancelled = tripStatus.equals("cancelled") || tripStatus.equals("canceled") || tripStatus.contains("hủy") || tripStatus.contains("huy");
             boolean isPending = status.equals("pending");
             boolean isPast = (arrivalTime > 0 && nowMillis > arrivalTime);
             boolean isConfirmed = !isCancelled && !isPending;
             
             // --- LOGIC PHÂN LOẠI MỚI ---
 
-            // 1. Tab "Hiện tại": Chỉ hiện Chờ thanh toán và Đã thanh toán (chưa đi)
-            if (isPending || (isConfirmed && !isPast)) {
+            // 1. Tab "Hiện tại": Chỉ hiện Chờ thanh toán và Đã thanh toán (chưa đi) - và trip chưa bị hủy
+            if ((isPending || (isConfirmed && !isPast)) && !isTripCancelled) {
                 listCurrent.add(booking);
             }
 
-            // 2. Tab "Đã hủy": Vé status hủy/hết hạn HOẶC pending mà quá giờ đến
-            if (isCancelled || (isPending && isPast)) {
+            // 2. Tab "Đã hủy": Vé status hủy/hết hạn HOẶC pending mà quá giờ đến HOẶC trip bị hủy
+            if (isCancelled || (isPending && isPast) || isTripCancelled) {
                 listCancelled.add(booking);
             }
 
-            // 3. Tab "Đã đi": Vé Đã thanh toán và ĐÃ qua giờ đến
-            if (isConfirmed && isPast) {
+            // 3. Tab "Đã đi": Vé Đã thanh toán và ĐÃ qua giờ đến (và trip không bị hủy)
+            if (isConfirmed && isPast && !isTripCancelled) {
                 listPast.add(booking);
             }
          }
