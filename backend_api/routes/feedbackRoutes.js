@@ -231,7 +231,7 @@ router.get("/trips/:id/feedbacks", async (req, res) => {
 });
 
 // ✅ GET /api/feedbacks/trips-with-feedback/{user_id} - Lấy các chuyến có feedback của user
-router.get("/trips-with-feedback/:user_id", async (req, res) => {
+router.get("/feedbacks/trips-with-feedback/:user_id", async (req, res) => {
     const { user_id } = req.params;
 
     const sql = `
