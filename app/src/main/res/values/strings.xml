@@ -214,5 +214,6 @@
     <string name="sample_dropoff_name">Bến xe Liên Tỉnh Đà Lạt</string>
     <string name="sample_dropoff_address">01 Tô Hiến Thành, Phường 3, TP. Đà Lạt</string>
     <string name="countdown_zero">00:00</string>
+    <string name="payment_method_prompt">Phương thức thanh toán</string>
 
 </resources>

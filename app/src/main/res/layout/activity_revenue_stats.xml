@@ -124,7 +124,7 @@
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:layout_margin="4dp"
-            android:prompt="Phương thức thanh toán" />
+            android:prompt="@string/payment_method_prompt" />
 
         <Spinner
             android:id="@+id/spinnerRoutes"
