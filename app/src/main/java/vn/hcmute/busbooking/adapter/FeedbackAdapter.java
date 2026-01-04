@@ -49,21 +49,51 @@ public class FeedbackAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         Feedback feedback = feedbackList.get(position);
-        String route = feedback.getOrigin() + " -> " + feedback.getDestination();
-        
+
         if (holder instanceof PendingViewHolder) {
             PendingViewHolder vh = (PendingViewHolder) holder;
-            vh.tvRoute.setText(route);
-            vh.tvOperator.setText(feedback.getOperator());
-            vh.tvDepartureTime.setText("Khởi hành: " + feedback.getDepartureTime());
+            vh.tvOperator.setText(feedback.getOperator() != null ? feedback.getOperator() : "");
+            vh.tvVehicleType.setText(feedback.getVehicleType() != null ? feedback.getVehicleType() : "");
+            vh.tvPrice.setText(feedback.getPrice() != null ? feedback.getPrice() : "");
+            vh.tvDepartureTime.setText(formatTime(feedback.getDepartureTime()));
+            vh.tvOrigin.setText(feedback.getOrigin() != null ? feedback.getOrigin() : "");
+            vh.tvArrivalTime.setText(formatTime(feedback.getArrivalTime()));
+            vh.tvDestination.setText(feedback.getDestination() != null ? feedback.getDestination() : "");
+            vh.tvDuration.setText(feedback.getDuration() != null ? feedback.getDuration() : "");
+            vh.tvDate.setText(feedback.getDate() != null ? feedback.getDate() : "");
             vh.btnFeedback.setOnClickListener(v -> listener.onFeedbackClick(feedback));
         } else if (holder instanceof ReviewedViewHolder) {
             ReviewedViewHolder vh = (ReviewedViewHolder) holder;
-            vh.tvRoute.setText(route);
+            vh.tvOperator.setText(feedback.getOperator() != null ? feedback.getOperator() : "");
+            vh.tvVehicleType.setText(feedback.getVehicleType() != null ? feedback.getVehicleType() : "");
+            vh.tvPrice.setText(feedback.getPrice() != null ? feedback.getPrice() : "");
+            vh.tvDepartureTime.setText(formatTime(feedback.getDepartureTime()));
+            vh.tvOrigin.setText(feedback.getOrigin() != null ? feedback.getOrigin() : "");
+            vh.tvArrivalTime.setText(formatTime(feedback.getArrivalTime()));
+            vh.tvDestination.setText(feedback.getDestination() != null ? feedback.getDestination() : "");
+            vh.tvDuration.setText(feedback.getDuration() != null ? feedback.getDuration() : "");
+            vh.tvDate.setText(feedback.getDate() != null ? feedback.getDate() : "");
             vh.ratingBar.setRating(feedback.getRating());
-            vh.tvComment.setText(feedback.getComment());
-            vh.tvFeedbackDate.setText("Đã nhận xét lúc: " + feedback.getFeedbackDate());
+            vh.tvComment.setText(feedback.getComment() != null ? feedback.getComment() : "");
+            vh.tvFeedbackDate.setText("Đã nhận xét lúc: " + (feedback.getFeedbackDate() != null ? feedback.getFeedbackDate() : ""));
         }
+    }
+
+    private String formatTime(String dateTimeString) {
+        if (dateTimeString == null || dateTimeString.isEmpty()) {
+            return "";
+        }
+        // Extract HH:mm from ISO format datetime (e.g., "2025-01-04T07:30:00" -> "07:30")
+        try {
+            if (dateTimeString.contains("T")) {
+                return dateTimeString.split("T")[1].substring(0, 5);
+            } else if (dateTimeString.contains(" ")) {
+                return dateTimeString.split(" ")[1].substring(0, 5);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return dateTimeString;
     }
 
     @Override
@@ -72,25 +102,40 @@ public class FeedbackAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     }
 
     public static class PendingViewHolder extends RecyclerView.ViewHolder {
-        TextView tvRoute, tvOperator, tvDepartureTime;
+        TextView tvOperator, tvVehicleType, tvPrice, tvDepartureTime, tvOrigin, tvArrivalTime, tvDestination, tvDuration, tvDate;
         Button btnFeedback;
 
         public PendingViewHolder(@NonNull View itemView) {
             super(itemView);
-            tvRoute = itemView.findViewById(R.id.tvRoute);
             tvOperator = itemView.findViewById(R.id.tvOperator);
+            tvVehicleType = itemView.findViewById(R.id.tvVehicleType);
+            tvPrice = itemView.findViewById(R.id.tvPrice);
             tvDepartureTime = itemView.findViewById(R.id.tvDepartureTime);
+            tvOrigin = itemView.findViewById(R.id.tvOrigin);
+            tvArrivalTime = itemView.findViewById(R.id.tvArrivalTime);
+            tvDestination = itemView.findViewById(R.id.tvDestination);
+            tvDuration = itemView.findViewById(R.id.tvDuration);
+            tvDate = itemView.findViewById(R.id.tvDate);
             btnFeedback = itemView.findViewById(R.id.btnFeedback);
         }
     }
 
     public static class ReviewedViewHolder extends RecyclerView.ViewHolder {
-        TextView tvRoute, tvComment, tvFeedbackDate;
+        TextView tvOperator, tvVehicleType, tvPrice, tvDepartureTime, tvOrigin, tvArrivalTime, tvDestination, tvDuration, tvDate;
+        TextView tvComment, tvFeedbackDate;
         RatingBar ratingBar;
 
         public ReviewedViewHolder(@NonNull View itemView) {
             super(itemView);
-            tvRoute = itemView.findViewById(R.id.tvRoute);
+            tvOperator = itemView.findViewById(R.id.tvOperator);
+            tvVehicleType = itemView.findViewById(R.id.tvVehicleType);
+            tvPrice = itemView.findViewById(R.id.tvPrice);
+            tvDepartureTime = itemView.findViewById(R.id.tvDepartureTime);
+            tvOrigin = itemView.findViewById(R.id.tvOrigin);
+            tvArrivalTime = itemView.findViewById(R.id.tvArrivalTime);
+            tvDestination = itemView.findViewById(R.id.tvDestination);
+            tvDuration = itemView.findViewById(R.id.tvDuration);
+            tvDate = itemView.findViewById(R.id.tvDate);
             tvComment = itemView.findViewById(R.id.tvComment);
             tvFeedbackDate = itemView.findViewById(R.id.tvFeedbackDate);
             ratingBar = itemView.findViewById(R.id.ratingBar);

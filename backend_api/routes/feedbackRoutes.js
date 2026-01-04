@@ -9,8 +9,11 @@ router.get("/feedbacks/pending", async (req, res) => {
 
     const sql = `
         SELECT b.id as booking_id, b.trip_id, b.total_amount, b.created_at as booking_date,
-               t.departure_time, t.operator, t.bus_type,
+               t.id as trip_id, t.departure_time, t.arrival_time, t.operator, t.bus_type,
                r.origin, r.destination,
+               CAST(b.total_amount AS VARCHAR) || ' VND' as price,
+               CAST(EXTRACT(HOUR FROM (t.arrival_time - t.departure_time)) AS INT) || ' giờ' as duration,
+               TO_CHAR(t.departure_time, 'Dy, DD Mon') as date,
                COALESCE(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]) as seat_labels
         FROM bookings b
         JOIN trips t ON b.trip_id = t.id
@@ -20,7 +23,7 @@ router.get("/feedbacks/pending", async (req, res) => {
         WHERE b.user_id = $1 
           AND (b.status = 'completed' OR (b.status = 'confirmed' AND (t.departure_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < NOW()))
           AND f.id IS NULL
-        GROUP BY b.id, t.id, r.id, t.departure_time, t.operator, t.bus_type, r.origin, r.destination
+        GROUP BY b.id, t.id, r.id, t.departure_time, t.arrival_time, t.operator, t.bus_type, r.origin, r.destination, b.total_amount
         ORDER BY t.departure_time DESC
     `;
 
@@ -41,8 +44,11 @@ router.get("/feedbacks/reviewed", async (req, res) => {
     const sql = `
         SELECT f.id as feedback_id, f.rating, f.comment, f.created_at as feedback_date,
                b.id as booking_id, b.total_amount,
-               t.departure_time, t.operator,
-               r.origin, r.destination
+               t.departure_time, t.arrival_time, t.operator, t.bus_type,
+               r.origin, r.destination,
+               CAST(b.total_amount AS VARCHAR) || ' VND' as price,
+               CAST(EXTRACT(HOUR FROM (t.arrival_time - t.departure_time)) AS INT) || ' giờ' as duration,
+               TO_CHAR(t.departure_time, 'Dy, DD Mon') as date
         FROM feedbacks f
         JOIN bookings b ON f.booking_id = b.id
         JOIN trips t ON b.trip_id = t.id
