@@ -762,7 +762,7 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
 
 // 5. Chi tiết doanh thu
 router.get("/revenue/details", checkAdminRole, async (req, res) => {
-  const { group_by, value } = req.query;
+  const { group_by, value, from_date, to_date, payment_method } = req.query;
   let sql = `
     SELECT
       b.id AS booking_id,
@@ -770,7 +770,8 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
       r.origin || ' - ' || r.destination AS route_info,
       t.departure_time,
       b.seats_count AS ticket_count,
-      b.total_amount AS total_price
+      b.total_amount AS total_price,
+      b.payment_method
     FROM bookings b
     JOIN users u ON u.id = b.user_id
     JOIN trips t ON t.id = b.trip_id
@@ -779,22 +780,61 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
   `;
   const params = [];
 
+  // ✅ Thêm filter theo payment_method
+  if (payment_method && payment_method.toLowerCase() !== 'all') {
+    params.push(payment_method);
+    sql += ` AND b.payment_method = $${params.length}`;
+  }
+
+  // ✅ Sửa: Hỗ trợ cả from_date/to_date cho tất cả loại lọc
   if (group_by === "day" || group_by === "date") {
-    sql += ` AND DATE(b.created_at) = $1`;
-    params.push(value);
+    if (from_date && to_date) {
+      params.push(from_date, to_date);
+      sql += ` AND DATE(b.created_at) >= $${params.length - 1} AND DATE(b.created_at) <= $${params.length}`;
+    } else if (value) {
+      params.push(value);
+      sql += ` AND DATE(b.created_at) = $${params.length}`;
+    }
   } else if (group_by === "month") {
-    sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $1`;
-    params.push(value);
+    if (value) {
+      params.push(value);
+      sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $${params.length}`;
+    }
+    // ✅ Thêm date range filter cho month
+    if (from_date && to_date) {
+      params.push(from_date, to_date);
+      sql += ` AND DATE(b.created_at) >= $${params.length - 1} AND DATE(b.created_at) <= $${params.length}`;
+    }
   } else if (group_by === "year") {
-    sql += ` AND EXTRACT(YEAR FROM b.created_at) = $1`;
-    params.push(value);
+    if (value) {
+      params.push(value);
+      sql += ` AND EXTRACT(YEAR FROM b.created_at) = $${params.length}`;
+    }
+    // ✅ Thêm date range filter cho year
+    if (from_date && to_date) {
+      params.push(from_date, to_date);
+      sql += ` AND DATE(b.created_at) >= $${params.length - 1} AND DATE(b.created_at) <= $${params.length}`;
+    }
   } else if (group_by === "route") {
-    // Assuming value is route_id
-    sql += ` AND t.route_id = $1`;
-    params.push(value);
+    if (value) {
+      params.push(value);
+      sql += ` AND t.route_id = $${params.length}`;
+    }
+    // ✅ Thêm date range filter cho route
+    if (from_date && to_date) {
+      params.push(from_date, to_date);
+      sql += ` AND DATE(b.created_at) >= $${params.length - 1} AND DATE(b.created_at) <= $${params.length}`;
+    }
   } else if (group_by === "trip") {
-    sql += ` AND t.id = $1`;
-    params.push(value);
+    if (value) {
+      params.push(value);
+      sql += ` AND t.id = $${params.length}`;
+    }
+    // ✅ Thêm date range filter cho trip
+    if (from_date && to_date) {
+      params.push(from_date, to_date);
+      sql += ` AND DATE(b.created_at) >= $${params.length - 1} AND DATE(b.created_at) <= $${params.length}`;
+    }
   }
 
   sql += " ORDER BY t.departure_time DESC";

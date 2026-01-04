@@ -238,7 +238,10 @@ public interface ApiService {
     Call<List<Map<String, Object>>> getRevenueDetails(
         @Header("user-id") int userId,
         @Query("group_by") String groupBy,
-        @Query("value") String value
+        @Query("value") String value,
+        @Query("from_date") String fromDate,
+        @Query("to_date") String toDate,
+        @Query("payment_method") String paymentMethod
     );
 
     // Chi tiết hoàn tiền
