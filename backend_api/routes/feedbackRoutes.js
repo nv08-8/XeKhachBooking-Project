@@ -46,6 +46,7 @@ router.get("/feedbacks/reviewed", async (req, res) => {
                b.id as booking_id, b.total_amount,
                t.departure_time, t.arrival_time, t.operator, t.bus_type,
                r.origin, r.destination,
+               u.name as user_name,
                CAST(b.total_amount AS VARCHAR) || ' VND' as price,
                CAST(EXTRACT(HOUR FROM (t.arrival_time - t.departure_time)) AS INT) || ' giờ' as duration,
                TO_CHAR(t.departure_time, 'Dy, DD Mon') as date
@@ -53,6 +54,7 @@ router.get("/feedbacks/reviewed", async (req, res) => {
         JOIN bookings b ON f.booking_id = b.id
         JOIN trips t ON b.trip_id = t.id
         JOIN routes r ON t.route_id = r.id
+        JOIN users u ON f.user_id = u.id
         WHERE f.user_id = $1
         ORDER BY f.created_at DESC
     `;
@@ -100,6 +102,130 @@ router.post("/feedbacks", async (req, res) => {
             return res.status(409).json({ message: "Feedback already exists for this booking" });
         }
         console.error("Error submitting feedback:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// ✅ PUT /feedbacks/{id} - Update feedback
+router.put("/feedbacks/:id", async (req, res) => {
+    const { id } = req.params;
+    const { comment } = req.body;
+
+    if (!comment) {
+        return res.status(400).json({ message: "Missing comment" });
+    }
+
+    try {
+        const result = await db.query(
+            "UPDATE feedbacks SET comment = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+            [comment, id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Feedback not found" });
+        }
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error("Error updating feedback:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// ✅ DELETE /feedbacks/{id} - Delete feedback
+router.delete("/feedbacks/:id", async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const result = await db.query(
+            "DELETE FROM feedbacks WHERE id = $1",
+            [id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Feedback not found" });
+        }
+
+        res.status(204).send();
+    } catch (err) {
+        console.error("Error deleting feedback:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// ✅ POST /feedbacks/{id}/reply - Reply to feedback
+router.post("/feedbacks/:id/reply", async (req, res) => {
+    const { id } = req.params;
+    const { reply } = req.body;
+
+    if (!reply) {
+        return res.status(400).json({ message: "Missing reply content" });
+    }
+
+    try {
+        const result = await db.query(
+            "UPDATE feedbacks SET reply = $1, reply_date = NOW() WHERE id = $2 RETURNING *",
+            [reply, id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Feedback not found" });
+        }
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error("Error replying to feedback:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// ✅ GET /api/admin/feedbacks - Admin lấy tất cả feedback từ tất cả người dùng
+router.get("/admin/feedbacks", async (req, res) => {
+    const sql = `
+        SELECT f.id as feedback_id, f.rating, f.comment, f.created_at as feedback_date,
+               b.id as booking_id, b.total_amount,
+               t.departure_time, t.arrival_time, t.operator, t.bus_type,
+               r.origin, r.destination,
+               u.name as user_name,
+               CAST(b.total_amount AS VARCHAR) || ' VND' as price,
+               CAST(EXTRACT(HOUR FROM (t.arrival_time - t.departure_time)) AS INT) || ' giờ' as duration,
+               TO_CHAR(t.departure_time, 'Dy, DD Mon') as date
+        FROM feedbacks f
+        JOIN bookings b ON f.booking_id = b.id
+        JOIN trips t ON b.trip_id = t.id
+        JOIN routes r ON t.route_id = r.id
+        JOIN users u ON f.user_id = u.id
+        ORDER BY f.created_at DESC
+    `;
+
+    try {
+        const { rows } = await db.query(sql);
+        res.json(rows);
+    } catch (err) {
+        console.error("Error fetching all feedbacks:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// ✅ GET /api/trips/{id}/feedbacks - Lấy feedback của một chuyến cụ thể
+router.get("/trips/:id/feedbacks", async (req, res) => {
+    const { id } = req.params;
+
+    const sql = `
+        SELECT f.id as feedback_id, f.rating, f.comment, f.created_at as feedback_date,
+               u.name as user_name
+        FROM feedbacks f
+        JOIN bookings b ON f.booking_id = b.id
+        JOIN users u ON f.user_id = u.id
+        WHERE b.trip_id = $1
+        ORDER BY f.created_at DESC
+    `;
+
+    try {
+        const { rows } = await db.query(sql, [id]);
+        res.json(rows);
+    } catch (err) {
+        console.error("Error fetching trip feedbacks:", err);
         res.status(500).json({ message: "Internal server error" });
     }
 });
