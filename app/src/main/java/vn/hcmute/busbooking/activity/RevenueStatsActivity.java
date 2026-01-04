@@ -57,7 +57,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
     private Spinner spinnerGroupBy, spinnerRoutes, spinnerTrips, spinnerRefundType, spinnerPaymentMethod, spinnerOperator;
     private Button btnApplyFilter;
     private EditText etStartDate, etEndDate;
-    private LinearLayout dateRangeFilter;
+    private LinearLayout dateRangeFilter, refundTypeContainer, routeFilterContainer, tripFilterContainer;
     private BarChart barChart;
     private NestedScrollView scrollView;
     private Toolbar toolbar;
@@ -122,6 +122,10 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         etStartDate = findViewById(R.id.etStartDate);
         etEndDate = findViewById(R.id.etEndDate);
         dateRangeFilter = findViewById(R.id.dateRangeFilter);
+        // ✅ Thêm các container
+        refundTypeContainer = findViewById(R.id.refundTypeContainer);
+        routeFilterContainer = findViewById(R.id.routeFilterContainer);
+        tripFilterContainer = findViewById(R.id.tripFilterContainer);
         barChart = findViewById(R.id.barChart);
         scrollView = findViewById(R.id.scrollView);
 
@@ -211,7 +215,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
                 isRefundMode = (tab.getPosition() == 1); // Tab 0 = doanh thu, Tab 1 = hoàn tiền
 
                 // Show/hide refund type filter
-                spinnerRefundType.setVisibility(isRefundMode ? View.VISIBLE : View.GONE);
+                refundTypeContainer.setVisibility(isRefundMode ? View.VISIBLE : View.GONE);
                 selectedRefundType = ""; // Reset refund type khi chuyển tab
                 spinnerRefundType.setSelection(0);
 
@@ -245,9 +249,10 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String selectedGroupBy = groupByValues[position];
 
+                // ✅ Ẩn/hiện các filter containers
                 dateRangeFilter.setVisibility(selectedGroupBy.equals("day") ? View.VISIBLE : View.GONE);
-                spinnerRoutes.setVisibility(selectedGroupBy.equals("trip") || selectedGroupBy.equals("route") ? View.VISIBLE : View.GONE);
-                spinnerTrips.setVisibility(selectedGroupBy.equals("trip") ? View.VISIBLE : View.GONE);
+                routeFilterContainer.setVisibility((selectedGroupBy.equals("trip") || selectedGroupBy.equals("route")) ? View.VISIBLE : View.GONE);
+                tripFilterContainer.setVisibility(selectedGroupBy.equals("trip") ? View.VISIBLE : View.GONE);
             }
 
             @Override
