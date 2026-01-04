@@ -12,9 +12,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -84,6 +87,24 @@ public class MyCoinsActivity extends AppCompatActivity {
         });
     }
 
+    // Chuyển đổi giờ từ UTC sang giờ Việt Nam (UTC+7)
+    private String convertToVietnamTime(String utcTimeString) {
+        try {
+            // Parse ISO 8601 format từ database
+            SimpleDateFormat utcFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+            utcFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+            Date date = utcFormat.parse(utcTimeString);
+
+            // Format theo giờ Việt Nam (UTC+7)
+            SimpleDateFormat vietnamFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+            vietnamFormat.setTimeZone(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+
+            return vietnamFormat.format(date);
+        } catch (Exception e) {
+            return utcTimeString; // Trả về giờ gốc nếu lỗi
+        }
+    }
+
     private class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
         @NonNull
         @Override
@@ -95,8 +116,12 @@ public class MyCoinsActivity extends AppCompatActivity {
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             Map<String, Object> item = historyList.get(position);
             holder.tvDescription.setText((String) item.get("description"));
-            holder.tvDate.setText((String) item.get("created_at"));
-            
+
+            // Chuyển đổi giờ từ UTC sang giờ Việt Nam (UTC+7)
+            String createdAt = (String) item.get("created_at");
+            String vietnamTime = convertToVietnamTime(createdAt);
+            holder.tvDate.setText(vietnamTime);
+
             double amount = ((Number) item.get("amount")).doubleValue();
             if (amount > 0) {
                 holder.tvAmount.setText("+" + String.format("%,.0f", amount));
