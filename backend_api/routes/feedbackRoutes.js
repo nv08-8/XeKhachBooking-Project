@@ -230,4 +230,36 @@ router.get("/trips/:id/feedbacks", async (req, res) => {
     }
 });
 
+// ✅ GET /api/feedbacks/trips-with-feedback/{user_id} - Lấy các chuyến có feedback của user
+router.get("/trips-with-feedback/:user_id", async (req, res) => {
+    const { user_id } = req.params;
+
+    const sql = `
+        SELECT DISTINCT
+               t.id,
+               t.departure_time,
+               t.arrival_time,
+               t.operator,
+               t.bus_type,
+               r.origin,
+               r.destination,
+               COUNT(f.id) as feedback_count
+        FROM bookings b
+        JOIN trips t ON b.trip_id = t.id
+        JOIN routes r ON t.route_id = r.id
+        LEFT JOIN feedbacks f ON f.booking_id = b.id
+        WHERE b.user_id = $1 AND f.id IS NOT NULL
+        GROUP BY t.id, t.departure_time, t.arrival_time, t.operator, t.bus_type, r.origin, r.destination
+        ORDER BY t.departure_time DESC
+    `;
+
+    try {
+        const { rows } = await db.query(sql, [user_id]);
+        res.json(rows);
+    } catch (err) {
+        console.error("Error fetching trips with feedback:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
 module.exports = router;
