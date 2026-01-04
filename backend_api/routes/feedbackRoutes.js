@@ -244,11 +244,11 @@ router.get("/feedbacks/trips-with-feedback/:user_id", async (req, res) => {
                r.origin,
                r.destination,
                COUNT(f.id) as feedback_count
-        FROM bookings b
+        FROM feedbacks f
+        INNER JOIN bookings b ON f.booking_id = b.id
         INNER JOIN trips t ON b.trip_id = t.id
         INNER JOIN routes r ON t.route_id = r.id
-        INNER JOIN feedbacks f ON f.booking_id = b.id
-        WHERE b.user_id = $1
+        WHERE f.user_id = $1
         GROUP BY t.id, t.departure_time, t.arrival_time, t.operator, t.bus_type, r.origin, r.destination
         ORDER BY t.departure_time DESC
     `;
