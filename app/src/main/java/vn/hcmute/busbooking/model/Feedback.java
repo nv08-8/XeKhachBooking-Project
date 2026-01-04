@@ -24,12 +24,23 @@ public class Feedback {
     @SerializedName("departure_time")
     private String departureTime;
     
+    @SerializedName("arrival_time")
+    private String arrivalTime;
+
     private String operator;
+
+    @SerializedName("bus_type")
+    private String vehicleType;
+
     private String origin;
     private String destination;
     
     @SerializedName("total_amount")
     private double totalAmount;
+
+    private String price;
+    private String duration;
+    private String date;
 
     // Getters and Setters
     public int getId() { return id; }
@@ -56,8 +67,14 @@ public class Feedback {
     public String getDepartureTime() { return departureTime; }
     public void setDepartureTime(String departureTime) { this.departureTime = departureTime; }
 
+    public String getArrivalTime() { return arrivalTime; }
+    public void setArrivalTime(String arrivalTime) { this.arrivalTime = arrivalTime; }
+
     public String getOperator() { return operator; }
     public void setOperator(String operator) { this.operator = operator; }
+
+    public String getVehicleType() { return vehicleType; }
+    public void setVehicleType(String vehicleType) { this.vehicleType = vehicleType; }
 
     public String getOrigin() { return origin; }
     public void setOrigin(String origin) { this.origin = origin; }
@@ -67,4 +84,13 @@ public class Feedback {
 
     public double getTotalAmount() { return totalAmount; }
     public void setTotalAmount(double totalAmount) { this.totalAmount = totalAmount; }
+
+    public String getPrice() { return price; }
+    public void setPrice(String price) { this.price = price; }
+
+    public String getDuration() { return duration; }
+    public void setDuration(String duration) { this.duration = duration; }
+
+    public String getDate() { return date; }
+    public void setDate(String date) { this.date = date; }
 }
