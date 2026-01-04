@@ -125,6 +125,14 @@
             android:layout_height="48dp"
             android:layout_margin="4dp" />
 
+        <!-- ✅ Thêm Spinner cho Operator (Nhà xe) -->
+        <Spinner
+            android:id="@+id/spinnerOperator"
+            style="@style/Widget.AppCompat.Spinner.Underlined"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_margin="4dp" />
+
         <Spinner
             android:id="@+id/spinnerRoutes"
             style="@style/Widget.AppCompat.Spinner.Underlined"

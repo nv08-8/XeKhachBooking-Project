@@ -63,15 +63,18 @@ public class RevenueDetailsActivity extends AppCompatActivity {
         // ✅ Lấy payment_method từ intent
         String paymentMethod = getIntent().getStringExtra("paymentMethod");
         if (paymentMethod == null) paymentMethod = "all";
+        // ✅ Lấy operator từ intent
+        String operator = getIntent().getStringExtra("operator");
+        if (operator == null) operator = null;
 
         // Gọi API khác nhau tùy theo mode
         Call<List<Map<String, Object>>> call;
         if (isRefund) {
-            // ✅ Truyền payment_method parameter cho hoàn tiền
-            call = api.getRevenueRefundDetails(userId, groupBy, value, refundType, paymentMethod);
+            // ✅ Truyền operator parameter cho hoàn tiền
+            call = api.getRevenueRefundDetails(userId, groupBy, value, refundType, paymentMethod, operator);
         } else {
-            // ✅ Truyền payment_method parameter
-            call = api.getRevenueDetails(userId, groupBy, value, paymentMethod);
+            // ✅ Truyền operator parameter
+            call = api.getRevenueDetails(userId, groupBy, value, paymentMethod, operator);
         }
 
         call.enqueue(new Callback<List<Map<String, Object>>>() {

@@ -54,7 +54,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
     private ProgressBar progressRevenue;
     private RecyclerView rvRevenue;
     private TextView tvEmptyRevenue;
-    private Spinner spinnerGroupBy, spinnerRoutes, spinnerTrips, spinnerRefundType, spinnerPaymentMethod;
+    private Spinner spinnerGroupBy, spinnerRoutes, spinnerTrips, spinnerRefundType, spinnerPaymentMethod, spinnerOperator;
     private Button btnApplyFilter;
     private EditText etStartDate, etEndDate;
     private LinearLayout dateRangeFilter;
@@ -79,12 +79,16 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
 
     private List<Map<String, Object>> routeList = new ArrayList<>();
     private List<Trip> tripList = new ArrayList<>();
+    // ✅ Thêm operatorList
+    private List<String> operatorList = new ArrayList<>();
 
     // Biến để track loại báo cáo hiện tại
     private boolean isRefundMode = false; // false = doanh thu, true = hoàn tiền
     private String selectedRefundType = ""; // "", "admin_cancelled", "trip_cancelled"
     // ✅ Thêm biến selected payment method
     private String selectedPaymentMethod = "all"; // "all", "qr", "card", "offline"
+    // ✅ Thêm biến selected operator
+    private String selectedOperator = null; // null hoặc operator name
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,8 +114,9 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         spinnerRoutes = findViewById(R.id.spinnerRoutes);
         spinnerTrips = findViewById(R.id.spinnerTrips);
         spinnerRefundType = findViewById(R.id.spinnerRefundType);
-        // ✅ Thêm spinnerPaymentMethod
         spinnerPaymentMethod = findViewById(R.id.spinnerPaymentMethod);
+        // ✅ Thêm spinnerOperator
+        spinnerOperator = findViewById(R.id.spinnerOperator);
         btnApplyFilter = findViewById(R.id.btnApplyFilter);
         tabRevenueType = findViewById(R.id.tabRevenueType);
         etStartDate = findViewById(R.id.etStartDate);
@@ -125,10 +130,14 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         setDefaultDates();
         // ✅ Setup payment method spinner
         setupPaymentMethodSpinner();
+        // ✅ Setup operator spinner
+        setupOperatorSpinner();
         setupFilterListeners();
 
         // Initial data fetch
         fetchRoutes();
+        // ✅ Fetch operators
+        fetchOperators();
     }
 
     // ✅ Thêm hàm setup payment method spinner
@@ -149,6 +158,35 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
                 selectedPaymentMethod = "all";
+            }
+        });
+    }
+
+    // ✅ Thêm hàm setup operator spinner
+    private void setupOperatorSpinner() {
+        // Tạo danh sách ban đầu với "Tất cả"
+        List<String> operators = new ArrayList<>();
+        operators.add("Tất cả nhà xe");
+        operators.addAll(operatorList);
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, operators);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerOperator.setAdapter(adapter);
+        spinnerOperator.setSelection(0);
+
+        spinnerOperator.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position == 0) {
+                    selectedOperator = null; // "Tất cả nhà xe"
+                } else if (position > 0 && position <= operatorList.size()) {
+                    selectedOperator = operatorList.get(position - 1);
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                selectedOperator = null;
             }
         });
     }
@@ -306,6 +344,28 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         });
     }
 
+    // ✅ Thêm hàm fetchOperators
+    private void fetchOperators() {
+        apiService.getOperators().enqueue(new Callback<List<String>>() {
+            @Override
+            public void onResponse(Call<List<String>> call, Response<List<String>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    operatorList.clear();
+                    operatorList.addAll(response.body());
+                    // Cập nhật lại adapter cho spinner
+                    setupOperatorSpinner();
+                } else {
+                    Toast.makeText(RevenueStatsActivity.this, "Lỗi khi tải danh sách nhà xe", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<String>> call, Throwable t) {
+                Toast.makeText(RevenueStatsActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
     private void showDatePickerDialog(EditText editText, Calendar calendar) {
         DatePickerDialog.OnDateSetListener dateSetListener = (view, year, month, dayOfMonth) -> {
             calendar.set(Calendar.YEAR, year);
@@ -351,10 +411,11 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         // Gọi API khác nhau tùy theo mode
         Call<List<Map<String, Object>>> call;
         if (isRefundMode) {
-            call = apiService.getRevenueRefunds(sessionManager.getUserId(), groupBy, routeId, tripId, startDate, endDate, selectedRefundType);
+            // ✅ Thêm operator parameter
+            call = apiService.getRevenueRefunds(sessionManager.getUserId(), groupBy, routeId, tripId, startDate, endDate, selectedRefundType, selectedOperator);
         } else {
-            // ✅ Thêm payment_method parameter
-            call = apiService.getRevenue(sessionManager.getUserId(), groupBy, routeId, tripId, startDate, endDate, selectedPaymentMethod);
+            // ✅ Thêm payment_method và operator parameter
+            call = apiService.getRevenue(sessionManager.getUserId(), groupBy, routeId, tripId, startDate, endDate, selectedPaymentMethod, selectedOperator);
         }
 
         call.enqueue(new Callback<List<Map<String, Object>>>() {
@@ -485,6 +546,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         intent.putExtra("isRefund", isRefundMode); // Truyền thêm mode để chi tiết biết là hoàn tiền
         intent.putExtra("refundType", selectedRefundType); // Truyền loại hoàn tiền
         intent.putExtra("paymentMethod", selectedPaymentMethod); // ✅ Truyền payment method
+        intent.putExtra("operator", selectedOperator); // ✅ Truyền operator
         startActivity(intent);
     }
 

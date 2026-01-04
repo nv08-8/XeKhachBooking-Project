@@ -219,7 +219,8 @@ public interface ApiService {
             @Query("trip_id") Integer tripId,
             @Query("from_date") String fromDate,
             @Query("to_date") String toDate,
-            @Query("payment_method") String paymentMethod
+            @Query("payment_method") String paymentMethod,
+            @Query("operator") String operator
     );
 
     // Báo cáo hoàn tiền
@@ -231,7 +232,8 @@ public interface ApiService {
             @Query("trip_id") Integer tripId,
             @Query("from_date") String fromDate,
             @Query("to_date") String toDate,
-            @Query("refundType") String refundType
+            @Query("refundType") String refundType,
+            @Query("operator") String operator
     );
 
     @GET("api/admin/revenue/details")
@@ -239,7 +241,8 @@ public interface ApiService {
         @Header("user-id") int userId,
         @Query("group_by") String groupBy,
         @Query("value") String value,
-        @Query("payment_method") String paymentMethod
+        @Query("payment_method") String paymentMethod,
+        @Query("operator") String operator
     );
 
     // Chi tiết hoàn tiền
@@ -249,7 +252,8 @@ public interface ApiService {
         @Query("group_by") String groupBy,
         @Query("value") String value,
         @Query("refundType") String refundType,
-        @Query("payment_method") String paymentMethod
+        @Query("payment_method") String paymentMethod,
+        @Query("operator") String operator
     );
 
 

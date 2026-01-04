@@ -574,7 +574,7 @@ router.delete("/users/:id", checkAdminRole, async (req, res) => {
 // ============================================================// ROUTES: BÁO CÁO DOANH THU// ============================================================
 
 router.get("/revenue", checkAdminRole, async (req, res) => {
-    const { groupBy, route_id, trip_id, from_date, to_date, payment_method } = req.query;
+    const { groupBy, route_id, trip_id, from_date, to_date, payment_method, operator } = req.query;
 
     let query = `
         SELECT
@@ -592,6 +592,12 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
     if (payment_method && payment_method.toLowerCase() !== 'all') {
         params.push(payment_method);
         query += ` AND b.payment_method = $${params.length}`;
+    }
+
+    // ✅ Thêm filter theo operator
+    if (operator && operator.toLowerCase() !== 'null') {
+        params.push(operator);
+        query += ` AND t.operator = $${params.length}`;
     }
 
     let groupByClause;
@@ -659,7 +665,7 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
 
 // Báo cáo hoàn tiền (từ những bookings của trip bị hủy hoặc admin hủy vé đã thanh toán hoặc user hủy vé đã thanh toán)
 router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
-    const { groupBy, route_id, trip_id, from_date, to_date, refundType } = req.query;
+    const { groupBy, route_id, trip_id, from_date, to_date, refundType, operator } = req.query;
 
     let query = `
         SELECT
@@ -692,6 +698,12 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
         query += ` AND b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled'`;
     } else if (refundType === 'user_cancelled') {
         query += ` AND b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0`;
+    }
+
+    // ✅ Thêm filter theo operator
+    if (operator && operator.toLowerCase() !== 'null') {
+        params.push(operator);
+        query += ` AND t.operator = $${params.length}`;
     }
 
     let groupByClause;
@@ -762,7 +774,7 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
 
 // 5. Chi tiết doanh thu
 router.get("/revenue/details", checkAdminRole, async (req, res) => {
-  const { group_by, value, payment_method } = req.query;
+  const { group_by, value, payment_method, operator } = req.query;
   let sql = `
     SELECT
       b.id AS booking_id,
@@ -783,6 +795,12 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
   if (payment_method && payment_method.toLowerCase() !== 'all') {
     params.push(payment_method);
     sql += ` AND b.payment_method = $${params.length}`;
+  }
+
+  // ✅ Thêm filter theo operator
+  if (operator && operator.toLowerCase() !== 'null') {
+    params.push(operator);
+    sql += ` AND t.operator = $${params.length}`;
   }
 
   if (group_by === "day" || group_by === "date") {
@@ -816,7 +834,7 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
 
 // 6. Chi tiết hoàn tiền (từ những bookings của trip bị hủy hoặc admin hủy vé đã thanh toán hoặc user hủy vé đã thanh toán)
 router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
-  const { group_by, value, refundType, payment_method } = req.query;
+  const { group_by, value, refundType, payment_method, operator } = req.query;
   let sql = `
     SELECT
       b.id AS booking_id,
@@ -861,6 +879,12 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
   if (payment_method && payment_method.toLowerCase() !== 'all') {
     params.push(payment_method);
     sql += ` AND b.payment_method = $${params.length}`;
+  }
+
+  // ✅ Thêm filter theo operator
+  if (operator && operator.toLowerCase() !== 'null') {
+    params.push(operator);
+    sql += ` AND t.operator = $${params.length}`;
   }
 
   if (group_by === "day" || group_by === "date") {
