@@ -123,7 +123,8 @@
             style="@style/Widget.AppCompat.Spinner.Underlined"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:layout_margin="4dp" />
+            android:layout_margin="4dp"
+            android:prompt="Phương thức thanh toán" />
 
         <Spinner
             android:id="@+id/spinnerRoutes"
