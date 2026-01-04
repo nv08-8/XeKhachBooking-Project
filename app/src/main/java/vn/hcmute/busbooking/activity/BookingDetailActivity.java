@@ -53,7 +53,7 @@ public class BookingDetailActivity extends AppCompatActivity {
     private ImageView ivPaymentMethodIcon;
     private View cardWaiting, cardPaymentMethod, cardPaymentMethodInfo, cardPriceBreakdown;
     private View qrCodeSection, actionButtonsContainer;
-    private View discountRow, promoCodeRow;
+    private View discountRow, coinDiscountRow, promoCodeRow;
     private ImageView ivQrCode;
     private Button btnCancelTicket, btnPayTicket;
     private TextView tvQrHint, btnChangePaymentInfo, btnChangePayment;
@@ -198,6 +198,7 @@ public class BookingDetailActivity extends AppCompatActivity {
         tvDiscount = findViewById(R.id.tvDiscount);
         tvTotalPrice = findViewById(R.id.tvTotalPrice);
         discountRow = findViewById(R.id.discountRow);
+        try { coinDiscountRow = findViewById(R.id.coinDiscountRow); } catch (Exception ignored) {}
         tvPromoCode = findViewById(R.id.tvPromoCode);
 
         qrCodeSection = findViewById(R.id.qrCodeSection);
@@ -403,11 +404,13 @@ public class BookingDetailActivity extends AppCompatActivity {
         Object totalAmountObj = data.get("total_amount");
         Object basePriceObj = data.get("base_price");
         Object discountObj = data.get("discount_amount");
+        Object coinDiscountObj = data.get("coin_discount");
         Object promoCodeObj = data.get("promo_code");
 
         double totalAmount = 0.0;
         double basePrice = 0.0;
         double discountAmount = 0.0;
+        double coinDiscount = 0.0;
         String promoCode = null;
 
         // Get total amount
@@ -421,9 +424,13 @@ public class BookingDetailActivity extends AppCompatActivity {
         if (basePriceObj instanceof Number) basePrice = ((Number) basePriceObj).doubleValue();
         else if (basePriceObj instanceof String) try { basePrice = Double.parseDouble((String) basePriceObj); } catch (Exception e){}
 
-        // Get discount
+        // Get promo discount
         if (discountObj instanceof Number) discountAmount = ((Number) discountObj).doubleValue();
         else if (discountObj instanceof String) try { discountAmount = Double.parseDouble((String) discountObj); } catch (Exception e){}
+
+        // Get coin discount
+        if (coinDiscountObj instanceof Number) coinDiscount = ((Number) coinDiscountObj).doubleValue();
+        else if (coinDiscountObj instanceof String) try { coinDiscount = Double.parseDouble((String) coinDiscountObj); } catch (Exception e){}
 
         // Get promo code
         if (promoCodeObj instanceof String) {
@@ -433,11 +440,11 @@ public class BookingDetailActivity extends AppCompatActivity {
 
         // If base price is not provided, calculate it
         if (basePrice == 0 && totalAmount > 0) {
-            basePrice = totalAmount + discountAmount;
+            basePrice = totalAmount + discountAmount + coinDiscount;
         }
 
         // Debug logs
-        Log.d(TAG, "Price breakdown - Base: " + basePrice + ", Discount: " + discountAmount + ", Total: " + totalAmount + ", PromoCode: " + promoCode);
+        Log.d(TAG, "Price breakdown - Base: " + basePrice + ", PromoDiscount: " + discountAmount + ", CoinDiscount: " + coinDiscount + ", Total: " + totalAmount + ", PromoCode: " + promoCode);
 
         String amountStr = CurrencyUtil.formatVND(totalAmount);
 
@@ -467,6 +474,23 @@ public class BookingDetailActivity extends AppCompatActivity {
             } else if (discountRow != null) {
                 Log.d(TAG, "Hiding discount row - discountAmount: " + discountAmount + ", discountRow null: " + (discountRow == null) + ", tvDiscount null: " + (tvDiscount == null));
                 discountRow.setVisibility(View.GONE);
+            }
+
+            // Show coin discount row only if there's a coin discount
+            if (coinDiscount > 0 && coinDiscountRow != null) {
+                Log.d(TAG, "Showing coin discount row with amount: " + coinDiscount);
+                coinDiscountRow.setVisibility(View.VISIBLE);
+                try {
+                    TextView tvCoinDiscount = coinDiscountRow.findViewById(R.id.tvCoinDiscount);
+                    if (tvCoinDiscount != null) {
+                        tvCoinDiscount.setText("-" + CurrencyUtil.formatVND(coinDiscount));
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error setting coin discount text: " + e.getMessage());
+                }
+            } else if (coinDiscountRow != null) {
+                Log.d(TAG, "Hiding coin discount row - coinDiscount: " + coinDiscount);
+                coinDiscountRow.setVisibility(View.GONE);
             }
         }
 

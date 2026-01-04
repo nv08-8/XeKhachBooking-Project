@@ -115,6 +115,13 @@ public class PaymentActivity extends AppCompatActivity {
     private Map<String, Object> appliedPromotion = null;
     private long lastApplyClickMs = 0L;
 
+    // Coin fields
+    private TextView tvUserCoinBalance;
+    private com.google.android.material.switchmaterial.SwitchMaterial switchUseCoins;
+    private LinearLayout layoutUseCoins;
+    private int userCoinBalance = 0;
+    private int usedCoinAmount = 0; // Track how many coins are being used
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -173,6 +180,7 @@ public class PaymentActivity extends AppCompatActivity {
             populateBookingSummary();
             setupPaymentMethodSelection();
             setupPromoHandlers(); // Setup promotion handlers
+            loadUserCoinBalance(); // Load user's coin balance
 
             if (isPendingPayment) {
                 // Check current payment method from booking details
@@ -226,6 +234,8 @@ public class PaymentActivity extends AppCompatActivity {
                 // If changing to QR, process payment
                 if (selectedMethod == R.id.rbQrPayment) {
                     Log.d(TAG, "User wants QR payment. paymentMethodChanged=" + paymentMethodChanged);
+                    // Calculate used coins before processing
+                    usedCoinAmount = calculateUsedCoins();
                     if (paymentMethodChanged && bookingIds != null && !bookingIds.isEmpty()) {
                         // Need to change payment method first
                         Log.d(TAG, "Calling changePaymentMethodForBookings to QR");
@@ -242,6 +252,8 @@ public class PaymentActivity extends AppCompatActivity {
                     }
                 } else if (selectedMethod == R.id.rbCreditCard) {
                     Log.d(TAG, "User wants Card payment. paymentMethodChanged=" + paymentMethodChanged);
+                    // Calculate used coins before processing
+                    usedCoinAmount = calculateUsedCoins();
                     // Validate card inputs before proceeding
                     if (!validateCardInputs()) {
                         // validateCardInputs shows appropriate messages
@@ -263,6 +275,8 @@ public class PaymentActivity extends AppCompatActivity {
                     }
                 } else if (selectedMethod == R.id.rbPayAtOffice) {
                     Log.d(TAG, "User wants Cash payment. paymentMethodChanged=" + paymentMethodChanged);
+                    // Calculate used coins before processing
+                    usedCoinAmount = calculateUsedCoins();
                     if (paymentMethodChanged) {
                         // Change to offline payment
                         changePaymentMethodToOfflineConfirm(newPaymentMethod);
@@ -275,6 +289,8 @@ public class PaymentActivity extends AppCompatActivity {
                     }
                 }
             } else {
+                // Calculate used coins before processing payment
+                usedCoinAmount = calculateUsedCoins();
                 createBookingAndProcessPayment();
             }
         });
@@ -348,6 +364,11 @@ public class PaymentActivity extends AppCompatActivity {
         tvSubtotal = findViewById(R.id.tvSubtotal);
         tvTotal = findViewById(R.id.tvTotal);
         tvSelectPromo = findViewById(R.id.tvSelectPromo);
+
+        // Coin-related views
+        tvUserCoinBalance = findViewById(R.id.tvUserCoinBalance);
+        switchUseCoins = findViewById(R.id.switchUseCoins);
+        layoutUseCoins = findViewById(R.id.layoutUseCoins);
     }
 
     private boolean collectIntentData() {
@@ -679,6 +700,13 @@ public class PaymentActivity extends AppCompatActivity {
             if (tvSelectPromo != null) {
                 tvSelectPromo.setOnClickListener(v -> showPromotionsBottomSheet());
             }
+
+            // Setup coin switch listener
+            if (switchUseCoins != null) {
+                switchUseCoins.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                    updatePricingUI();
+                });
+            }
         } catch (Exception ignored) {}
     }
 
@@ -749,6 +777,7 @@ public class PaymentActivity extends AppCompatActivity {
                     populateBookingSummary();
                     setupPaymentMethodSelection();
                     setupPromoHandlers();
+                    loadUserCoinBalance(); // Load user's coin balance
                 } else {
                     handlePaymentError("Không thể tải chi tiết vé.");
                 }
@@ -1033,11 +1062,91 @@ public class PaymentActivity extends AppCompatActivity {
     private void updatePricingUI() {
         try {
             double subtotal = (bookingTotalAmount != null) ? bookingTotalAmount : (trip != null ? trip.getPrice() * (seatLabels != null ? seatLabels.size() : 0) : 0);
-            subtotal = Math.max(0, subtotal - appliedDiscount);
-            if (tvSubtotal != null) tvSubtotal.setText(CurrencyUtil.formatVND(subtotal));
-            if (tvTotal != null) tvTotal.setText(CurrencyUtil.formatVND(subtotal));
-            if (tvBottomTotal != null) tvBottomTotal.setText(CurrencyUtil.formatVND(subtotal));
+
+            // Apply promotion discount first
+            double priceAfterPromo = subtotal - appliedDiscount;
+            priceAfterPromo = Math.max(0, priceAfterPromo);
+
+            // Apply coin discount on remaining amount (1 coin = 1 VND)
+            double coinDiscount = 0;
+            if (switchUseCoins != null && switchUseCoins.isChecked() && userCoinBalance > 0) {
+                // Use all available coins or up to the remaining amount
+                coinDiscount = Math.min(userCoinBalance, priceAfterPromo);
+            }
+
+            // Final price after both discounts
+            double finalPrice = Math.max(0, priceAfterPromo - coinDiscount);
+
+            if (tvSubtotal != null) tvSubtotal.setText(CurrencyUtil.formatVND(finalPrice));
+            if (tvTotal != null) tvTotal.setText(CurrencyUtil.formatVND(finalPrice));
+            if (tvBottomTotal != null) tvBottomTotal.setText(CurrencyUtil.formatVND(finalPrice));
         } catch (Exception ignored) {}
+    }
+
+    // Calculate how many coins will be used based on current settings
+    private int calculateUsedCoins() {
+        if (switchUseCoins == null || !switchUseCoins.isChecked() || userCoinBalance == 0) {
+            return 0;
+        }
+
+        double subtotal = (bookingTotalAmount != null) ? bookingTotalAmount : (trip != null ? trip.getPrice() * (seatLabels != null ? seatLabels.size() : 0) : 0);
+        double afterPromoDiscount = subtotal - appliedDiscount;
+        afterPromoDiscount = Math.max(0, afterPromoDiscount);
+
+        // Use coins up to the remaining amount (1 coin = 1 VND)
+        return (int) Math.min(userCoinBalance, afterPromoDiscount);
+    }
+
+    private void loadUserCoinBalance() {
+        try {
+            Integer userId = sessionManager.getUserId();
+            if (userId == null) {
+                if (tvUserCoinBalance != null) {
+                    tvUserCoinBalance.setText("Bạn có 0 xu");
+                }
+                return;
+            }
+
+            apiService.getCoinBalance(userId).enqueue(new Callback<Map<String, Integer>>() {
+                @Override
+                public void onResponse(Call<Map<String, Integer>> call, Response<Map<String, Integer>> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        Integer balance = response.body().get("balance");
+                        userCoinBalance = balance != null ? balance : 0;
+                        usedCoinAmount = 0; // Reset used coins
+
+                        if (tvUserCoinBalance != null) {
+                            tvUserCoinBalance.setText("Bạn có " + String.format("%,d", userCoinBalance) + " xu");
+                        }
+
+                        // Enable/disable coin switch based on balance
+                        if (switchUseCoins != null) {
+                            switchUseCoins.setEnabled(userCoinBalance > 0);
+                            if (userCoinBalance == 0) {
+                                switchUseCoins.setChecked(false);
+                            }
+                        }
+
+                        // Update pricing UI to reflect current coin balance
+                        updatePricingUI();
+                    } else {
+                        if (tvUserCoinBalance != null) {
+                            tvUserCoinBalance.setText("Bạn có 0 xu");
+                        }
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<Map<String, Integer>> call, Throwable t) {
+                    Log.e(TAG, "Failed to load coin balance", t);
+                    if (tvUserCoinBalance != null) {
+                        tvUserCoinBalance.setText("Bạn có 0 xu");
+                    }
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading coin balance", e);
+        }
     }
 
 
@@ -1209,6 +1318,11 @@ public class PaymentActivity extends AppCompatActivity {
     private void onAllPaymentsSuccess(int primaryBookingId) {
         Log.d(TAG, "All payments completed successfully");
 
+        // If coins were used, deduct them from user account
+        if (usedCoinAmount > 0) {
+            deductUserCoins(primaryBookingId);
+        }
+
         Toast.makeText(this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
 
         // Delay 2 seconds then navigate to MyBookingsActivity to show the new booking
@@ -1222,6 +1336,41 @@ public class PaymentActivity extends AppCompatActivity {
             }
             finish();
         }, 2000);
+    }
+
+    // Deduct coins from user and record in coin_history
+    private void deductUserCoins(int bookingId) {
+        try {
+            Integer userId = sessionManager.getUserId();
+            if (userId == null || usedCoinAmount <= 0) {
+                return;
+            }
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("user_id", userId);
+            body.put("amount", usedCoinAmount);
+            body.put("booking_id", bookingId);
+
+            Log.d(TAG, "Deducting " + usedCoinAmount + " coins for booking " + bookingId);
+
+            apiService.useCoins(body).enqueue(new Callback<Map<String, Object>>() {
+                @Override
+                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                    if (response.isSuccessful()) {
+                        Log.d(TAG, "Coins deducted successfully");
+                    } else {
+                        Log.e(TAG, "Failed to deduct coins: " + response.code());
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                    Log.e(TAG, "Error deducting coins", t);
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "Error in deductUserCoins", e);
+        }
     }
 
 

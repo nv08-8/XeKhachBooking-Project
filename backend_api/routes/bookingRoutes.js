@@ -326,12 +326,41 @@ router.get('/bookings/:id', async (req, res) => {
     const seatsCount = booking.seats_count || 0;
     const seatPrice = parseFloat(booking.seat_price) || 0;
     const basePrice = seatPrice * seatsCount;
-    const totalAmount = parseFloat(booking.total_amount) || parseFloat(booking.price_paid) || 0;
-    const discountAmount = basePrice > totalAmount ? basePrice - totalAmount : 0;
+
+    // Use total_amount as the source of truth (it's the price after all discounts including coins during checkout)
+    const totalAmount = parseFloat(booking.total_amount) || 0;
+
+    // Fetch coin discount from coin_history table
+    // This is the actual amount of coins used (stored as negative in coin_history)
+    let coinDiscount = 0;
+    let promoDiscount = 0;
+
+    try {
+      const coinHistRes = await db.query(
+        `SELECT ABS(SUM(amount)) as total_coins FROM coin_history WHERE booking_id=$1 AND type='spend'`,
+        [id]
+      );
+      if (coinHistRes.rows && coinHistRes.rows[0] && coinHistRes.rows[0].total_coins) {
+        coinDiscount = parseFloat(coinHistRes.rows[0].total_coins) || 0;
+      }
+    } catch (e) {
+      console.error('Failed to fetch coin discount from coin_history:', e);
+      coinDiscount = 0;
+    }
+
+    // Calculate promotion discount
+    // promoDiscount = basePrice - coinDiscount - totalAmount
+    if (basePrice > totalAmount) {
+      const totalDiscount = basePrice - totalAmount;
+      promoDiscount = Math.max(0, totalDiscount - coinDiscount);
+    } else {
+      promoDiscount = 0;
+    }
 
     // Add calculated fields to response
     booking.base_price = basePrice;
-    booking.discount_amount = discountAmount;
+    booking.discount_amount = promoDiscount; // Promotion discount only
+    booking.coin_discount = coinDiscount; // Coin discount
     booking.promo_code = booking.promotion_code; // Alias for consistency
 
     // Format trip times and created_at/published times to local ISO without trailing Z

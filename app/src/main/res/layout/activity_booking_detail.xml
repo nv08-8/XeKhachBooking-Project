@@ -573,6 +573,45 @@
                         android:textSize="14sp" />
                 </LinearLayout>
 
+                <!-- Coin Discount (if applicable) -->
+                <LinearLayout
+                    android:id="@+id/coinDiscountRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Giảm giá (Xu)"
+                        android:textColor="#8E8E93"
+                        android:textSize="14sp" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_coin_gold"
+                            android:layout_marginEnd="4dp" />
+
+                        <TextView
+                            android:id="@+id/tvCoinDiscount"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="-100đ"
+                            android:textColor="#FF3B30"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
                 <!-- Divider before total -->
                 <View
                     android:layout_width="match_parent"
