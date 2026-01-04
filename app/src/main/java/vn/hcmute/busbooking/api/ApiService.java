@@ -218,7 +218,8 @@ public interface ApiService {
             @Query("route_id") Integer routeId,
             @Query("trip_id") Integer tripId,
             @Query("from_date") String fromDate,
-            @Query("to_date") String toDate
+            @Query("to_date") String toDate,
+            @Query("payment_method") String paymentMethod
     );
 
     // Báo cáo hoàn tiền

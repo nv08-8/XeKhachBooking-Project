@@ -574,7 +574,7 @@ router.delete("/users/:id", checkAdminRole, async (req, res) => {
 // ============================================================// ROUTES: BÁO CÁO DOANH THU// ============================================================
 
 router.get("/revenue", checkAdminRole, async (req, res) => {
-    const { groupBy, route_id, trip_id, from_date, to_date } = req.query;
+    const { groupBy, route_id, trip_id, from_date, to_date, payment_method } = req.query;
 
     let query = `
         SELECT
@@ -587,6 +587,12 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
         WHERE b.status = 'confirmed' AND t.status != 'cancelled'
     `;
     const params = [];
+
+    // ✅ Thêm filter theo payment_method
+    if (payment_method && payment_method.toLowerCase() !== 'all') {
+        params.push(payment_method);
+        query += ` AND b.payment_method = $${params.length}`;
+    }
 
     let groupByClause;
     let orderByClause;
