@@ -2,6 +2,7 @@ package vn.hcmute.busbooking.activity;
 
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -58,15 +59,15 @@ public class FeedbackManagementActivity extends AppCompatActivity {
             return;
         }
 
+        // Setup ViewPager2 và TabLayout
         tabLayout = findViewById(R.id.tabLayout);
         viewPager = findViewById(R.id.viewPager);
-        findViewById(R.id.toolbar).setOnClickListener(v -> finish());
 
         FeedbackPagerAdapter adapter = new FeedbackPagerAdapter(this);
         viewPager.setAdapter(adapter);
 
         new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
-            tab.setText(position == 0 ? "Chờ nhận xét" : "Đã nhận xét");
+            tab.setText(position == 0 ? "Chưa đánh giá" : "Đã đánh giá");
         }).attach();
     }
 

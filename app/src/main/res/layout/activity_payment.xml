@@ -261,11 +261,24 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:orientation="horizontal"
-                            android:gravity="top">
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:id="@+id/tvPickupTime"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="09:00"
+                                android:textColor="#000000"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                app:layout_constraintStart_toStartOf="parent"
+                                app:layout_constraintTop_toTopOf="@id/tvPickupLocation"
+                                app:layout_constraintBottom_toBottomOf="@id/tvPickupLocation" />
 
                             <ImageView
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
+                                android:id="@+id/imgPickupDot"
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
                                 android:src="@drawable/ic_origin_dot"
                                 app:tint="#007AFF" />
 
@@ -275,13 +288,6 @@
                                 android:layout_weight="1"
                                 android:layout_marginStart="12dp"
                                 android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="Điểm đón"
-                                    android:textColor="#8E8E93"
-                                    android:textSize="12sp" />
 
                                 <TextView
                                     android:id="@+id/tvPickupLocation"
@@ -309,11 +315,24 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="20dp"
                             android:orientation="horizontal"
-                            android:gravity="top">
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:id="@+id/tvDropoffTime"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="13:00"
+                                android:textColor="@color/textSecondary"
+                                android:textStyle="bold"
+                                android:textSize="20sp"
+                                app:layout_constraintStart_toStartOf="parent"
+                                app:layout_constraintTop_toTopOf="@id/tvDropoffLocation"
+                                app:layout_constraintBottom_toBottomOf="@id/tvDropoffLocation" />
 
                             <ImageView
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
+                                android:id="@+id/imgDropoffDot"
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
                                 android:src="@drawable/ic_location_pin_24"
                                 app:tint="#FF9500" />
 
@@ -323,13 +342,6 @@
                                 android:layout_weight="1"
                                 android:layout_marginStart="12dp"
                                 android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="Điểm trả"
-                                    android:textColor="#8E8E93"
-                                    android:textSize="12sp" />
 
                                 <TextView
                                     android:id="@+id/tvDropoffLocation"
@@ -679,7 +691,7 @@
                                 android:textColor="@android:color/black"/>
                         </RelativeLayout>
                     </com.google.android.material.card.MaterialCardView>
-                    
+
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/cardPayAtOffice"
                         android:layout_width="match_parent"
@@ -715,7 +727,7 @@
                                 android:textColor="@android:color/black"/>
                         </RelativeLayout>
                     </com.google.android.material.card.MaterialCardView>
-                    
+
                 </RadioGroup>
 
                 <!-- Card Details Form -->

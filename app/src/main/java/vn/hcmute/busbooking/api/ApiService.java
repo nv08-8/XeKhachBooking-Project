@@ -87,6 +87,9 @@ public interface ApiService {
     @GET("api/meta/operators")
     Call<List<String>> getOperators();
 
+    @GET("api/meta/bus-types")
+    Call<List<String>> getBusTypes();
+
     @GET("api/trips/{id}")
     Call<Map<String, Object>> getTripDetails(@Path("id") int tripId);
 
@@ -215,7 +218,9 @@ public interface ApiService {
             @Query("route_id") Integer routeId,
             @Query("trip_id") Integer tripId,
             @Query("from_date") String fromDate,
-            @Query("to_date") String toDate
+            @Query("to_date") String toDate,
+            @Query("payment_method") String paymentMethod,
+            @Query("operator") String operator
     );
 
     // Báo cáo hoàn tiền
@@ -227,14 +232,17 @@ public interface ApiService {
             @Query("trip_id") Integer tripId,
             @Query("from_date") String fromDate,
             @Query("to_date") String toDate,
-            @Query("refundType") String refundType
+            @Query("refundType") String refundType,
+            @Query("operator") String operator
     );
 
     @GET("api/admin/revenue/details")
     Call<List<Map<String, Object>>> getRevenueDetails(
         @Header("user-id") int userId,
         @Query("group_by") String groupBy,
-        @Query("value") String value
+        @Query("value") String value,
+        @Query("payment_method") String paymentMethod,
+        @Query("operator") String operator
     );
 
     // Chi tiết hoàn tiền
@@ -243,7 +251,9 @@ public interface ApiService {
         @Header("user-id") int userId,
         @Query("group_by") String groupBy,
         @Query("value") String value,
-        @Query("refundType") String refundType
+        @Query("refundType") String refundType,
+        @Query("payment_method") String paymentMethod,
+        @Query("operator") String operator
     );
 
 
@@ -307,6 +317,28 @@ public interface ApiService {
 
     @POST("api/feedbacks")
     Call<Feedback> submitFeedback(@Body Map<String, Object> body);
+
+    // ✅ Thêm các methods quản lý feedback
+    @PUT("api/feedbacks/{id}")
+    Call<Feedback> updateFeedback(@Path("id") int feedbackId, @Body Map<String, Object> body);
+
+    @DELETE("api/feedbacks/{id}")
+    Call<Void> deleteFeedback(@Path("id") int feedbackId);
+
+    @POST("api/feedbacks/{id}/reply")
+    Call<Void> replyFeedback(@Path("id") int feedbackId, @Body Map<String, Object> body);
+
+    // ✅ Thêm method lấy tất cả feedback (cho admin)
+    @GET("api/admin/feedbacks")
+    Call<List<Feedback>> getAllFeedbacks();
+
+    // ✅ Thêm method lấy feedback theo trip_id
+    @GET("api/trips/{id}/feedbacks")
+    Call<List<Feedback>> getTripFeedbacks(@Path("id") int tripId);
+
+    // ✅ Thêm method lấy các trips có feedback của user
+    @GET("api/feedbacks/trips-with-feedback/{user_id}")
+    Call<List<Map<String, Object>>> getTripsWithFeedback(@Path("user_id") int userId);
 
     // ========== COIN MANAGEMENT ==========
     @GET("api/coins/balance")

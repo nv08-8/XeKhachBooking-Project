@@ -36,8 +36,7 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
 
     private TextView tvOperatorName, tvStatus, tvOrigin, tvDepartureTime, 
                      tvDestination, tvArrivalTime, tvDate, tvPassengerName, tvPhoneNumber, 
-                     tvSeatNumber, tvLicensePlate, tvTotalAmount;
-    private ImageView ivOperatorLogo;
+                     tvSeatNumber, tvBookingCode, tvPaymentName, tvBasePrice, tvDiscount, tvTotalPrice;
     private Button btnConfirmBooking, btnCancelBooking;
     private Toolbar toolbar;
 
@@ -82,9 +81,11 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
         tvPassengerName = findViewById(R.id.tvPassengerName);
         tvPhoneNumber = findViewById(R.id.tvPhoneNumber);
         tvSeatNumber = findViewById(R.id.tvSeatNumber);
-        tvLicensePlate = findViewById(R.id.tvLicensePlate);
-        tvTotalAmount = findViewById(R.id.tvTotalAmount);
-        ivOperatorLogo = findViewById(R.id.ivOperatorLogo);
+        tvBookingCode = findViewById(R.id.tvBookingCode);
+        tvPaymentName = findViewById(R.id.tvPaymentName);
+        tvBasePrice = findViewById(R.id.tvBasePrice);
+        tvDiscount = findViewById(R.id.tvDiscount);
+        tvTotalPrice = findViewById(R.id.tvTotalPrice);
         btnConfirmBooking = findViewById(R.id.btnConfirmBooking);
         btnCancelBooking = findViewById(R.id.btnCancelBooking);
     }
@@ -116,38 +117,136 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
     }
 
     private void displayBookingDetails(Map<String, Object> data) {
-        // Operator and Status
-        tvOperatorName.setText((String) data.get("operator"));
-        tvStatus.setText(getStatusText((String) data.get("status")));
+        // Store booking data for later use
+
+        // Operator and Bus Type
+        String operator = (String) data.get("operator");
+        if (operator != null) tvOperatorName.setText(operator.toUpperCase());
+
+        // Status
+        String status = (String) data.get("status");
+        if (status != null) tvStatus.setText(getStatusText(status));
 
         // Route and Time
-        tvOrigin.setText((String) data.get("origin"));
-        tvDestination.setText((String) data.get("destination"));
-        tvDepartureTime.setText(formatTime((String) data.get("departure_time")));
-        tvArrivalTime.setText(formatTime((String) data.get("arrival_time")));
-        tvDate.setText(formatDate((String) data.get("departure_time")));
+        String origin = (String) data.get("origin");
+        String destination = (String) data.get("destination");
+        if (origin != null) tvOrigin.setText(origin);
+        if (destination != null) tvDestination.setText(destination);
 
-        // Passenger and Seat Info
-        tvPassengerName.setText((String) data.get("passenger_name"));
-        tvPhoneNumber.setText((String) data.get("passenger_phone"));
-        
-        try {
-            Object seatLabelsObj = data.get("seat_labels");
-            String seatText = "";
-            if (seatLabelsObj instanceof java.util.List) {
-                java.util.List<?> list = (java.util.List<?>) seatLabelsObj;
-                seatText = android.text.TextUtils.join(", ", list);
-            } else if (seatLabelsObj instanceof String) {
-                seatText = (String) seatLabelsObj;
-            } else if (data.get("seat_label") instanceof String) {
-                seatText = (String) data.get("seat_label");
-            }
-            tvSeatNumber.setText(seatText);
-        } catch (Exception e) {
-            tvSeatNumber.setText( (String) data.get("seat_label") );
+        String departureTimeStr = (String) data.get("departure_time");
+        String departureTime = formatTime(departureTimeStr);
+        String departureDate = formatDate(departureTimeStr);
+
+        Log.d(TAG, "Departure time string: " + departureTimeStr);
+        Log.d(TAG, "Formatted departure time: " + departureTime);
+        Log.d(TAG, "Formatted departure date: " + departureDate);
+
+        if (tvDepartureTime != null && !departureTime.isEmpty()) {
+            tvDepartureTime.setText(departureTime);
+        }
+        if (tvDate != null && !departureDate.isEmpty()) {
+            tvDate.setText(departureDate);
         }
 
-        tvLicensePlate.setText("51F-123.45"); // Placeholder, needs to come from API
+        String arrivalTime = formatTime((String) data.get("arrival_time"));
+        if (tvArrivalTime != null && !arrivalTime.isEmpty()) {
+            tvArrivalTime.setText(arrivalTime);
+        }
+
+        // Passenger Info - Prefer passenger_info object if available
+        String passengerName = (String) data.get("passenger_name");
+        String passengerPhone = (String) data.get("passenger_phone");
+
+        try {
+            Object pObj = data.get("passenger_info");
+            if (pObj instanceof Map) {
+                Map<?, ?> pm = (Map<?, ?>) pObj;
+                Object n = pm.get("name");
+                Object ph = pm.get("phone");
+                if (n != null) passengerName = String.valueOf(n);
+                if (ph != null) passengerPhone = String.valueOf(ph);
+            } else if (pObj instanceof String) {
+                try {
+                    org.json.JSONObject jo = new org.json.JSONObject((String) pObj);
+                    String n = jo.optString("name", null);
+                    String ph = jo.optString("phone", null);
+                    if (n != null && !n.isEmpty()) passengerName = n;
+                    if (ph != null && !ph.isEmpty()) passengerPhone = ph;
+                } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
+
+        if (tvPassengerName != null) tvPassengerName.setText(passengerName != null ? passengerName : "");
+        if (tvPhoneNumber != null) tvPhoneNumber.setText(passengerPhone != null ? passengerPhone : "");
+
+
+        // Seat Number - Process multiple formats
+        if (tvSeatNumber != null) {
+            try {
+                Object seatLabelsObj = data.get("seat_labels");
+                java.util.List<String> labels = new java.util.ArrayList<>();
+
+                if (seatLabelsObj instanceof java.util.List) {
+                    for (Object obj : (java.util.List<?>) seatLabelsObj) {
+                        if (obj == null) continue;
+                        if (obj instanceof String) {
+                            labels.add(((String) obj).trim());
+                        } else if (obj instanceof Number) {
+                            labels.add(String.valueOf(obj));
+                        } else if (obj instanceof Map) {
+                            Map<?, ?> m = (Map<?, ?>) obj;
+                            Object lbl = null;
+                            if (m.containsKey("label")) lbl = m.get("label");
+                            if (lbl == null && m.containsKey("seat_label")) lbl = m.get("seat_label");
+                            if (lbl == null && m.containsKey("seat_code")) lbl = m.get("seat_code");
+                            if (lbl == null && m.containsKey("code")) lbl = m.get("code");
+                            if (lbl == null && m.containsKey("seat")) lbl = m.get("seat");
+                            if (lbl != null) labels.add(String.valueOf(lbl).trim());
+                            else labels.add(m.toString());
+                        } else {
+                            labels.add(obj.toString());
+                        }
+                    }
+                }
+
+                // Fallback: legacy 'seat' field
+                if (labels.isEmpty()) {
+                    Object seatObj = data.get("seat");
+                    if (seatObj instanceof String) {
+                        String s = ((String) seatObj).trim();
+                        if (!s.isEmpty()) {
+                            for (String p : s.split(",")) if (!p.trim().isEmpty()) labels.add(p.trim());
+                        }
+                    } else if (seatObj instanceof Number) {
+                        labels.add(String.valueOf(seatObj));
+                    }
+                }
+
+                // Remove empty & duplicates
+                java.util.LinkedHashSet<String> unique = new java.util.LinkedHashSet<>(labels);
+                String seatText = android.text.TextUtils.join(", ", unique);
+                tvSeatNumber.setText(seatText.isEmpty() ? "-" : seatText);
+            } catch (Exception e) {
+                Log.e(TAG, "Error processing seat_labels", e);
+                Object seatObj = data.get("seat_label");
+                tvSeatNumber.setText(seatObj != null ? (String) seatObj : "-");
+            }
+        }
+
+        // License Plate information is not displayed in admin layout
+
+        // Booking Code
+        String bookingCode = (String) data.get("booking_code");
+        if (tvBookingCode != null && bookingCode != null) {
+            tvBookingCode.setText(bookingCode);
+        }
+
+        // Payment Method
+        String paymentMethod = (String) data.get("payment_method");
+        if (tvPaymentName != null && paymentMethod != null) {
+            String paymentDisplayName = getPaymentMethodName(paymentMethod);
+            tvPaymentName.setText(paymentDisplayName);
+        }
 
         // Total Amount
         Object totalAmountObj = data.get("total_amount");
@@ -160,11 +259,50 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
             }
         } else if (totalAmountObj instanceof Number) {
             totalAmount = ((Number) totalAmountObj).doubleValue();
-        } 
-        tvTotalAmount.setText(CurrencyUtil.formatVND(totalAmount));
+        }
+
+        // Base Price
+        Object basePriceObj = data.get("base_price");
+        double basePrice = totalAmount;
+        if (basePriceObj instanceof Number) {
+            basePrice = ((Number) basePriceObj).doubleValue();
+        } else if (basePriceObj instanceof String) {
+            try {
+                basePrice = Double.parseDouble((String) basePriceObj);
+            } catch (NumberFormatException ignored) {}
+        }
+
+        // Display base price and total price
+        if (tvBasePrice != null) {
+            tvBasePrice.setText(CurrencyUtil.formatVND(basePrice));
+        }
+        if (tvTotalPrice != null) {
+            tvTotalPrice.setText(CurrencyUtil.formatVND(totalAmount));
+        }
+
+        // Discount (if applicable)
+        Object discountObj = data.get("discount_amount");
+        double discount = basePrice - totalAmount;
+        if (discountObj instanceof Number) {
+            discount = ((Number) discountObj).doubleValue();
+        } else if (discountObj instanceof String) {
+            try {
+                discount = Double.parseDouble((String) discountObj);
+            } catch (NumberFormatException ignored) {}
+        }
+
+        // Display discount if > 0
+        if (discount > 0) {
+            android.view.View discountRow = findViewById(R.id.discountRow);
+            if (discountRow != null) {
+                discountRow.setVisibility(View.VISIBLE);
+            }
+            if (tvDiscount != null) {
+                tvDiscount.setText("-" + CurrencyUtil.formatVND(discount));
+            }
+        }
 
         // Determine UI by status
-        String status = (String) data.get("status");
         if ("pending".equals(status)) {
             btnConfirmBooking.setVisibility(View.VISIBLE);
             btnCancelBooking.setVisibility(View.VISIBLE);
@@ -173,32 +311,50 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
             btnCancelBooking.setVisibility(View.GONE);
         } else {
             btnConfirmBooking.setVisibility(View.GONE);
-            btnCancelBooking.setVisibility(View.VISIBLE); // Allow cancelling confirmed bookings
+            btnCancelBooking.setVisibility(View.VISIBLE);
         }
     }
 
     private String formatTime(String isoString) {
-        if (isoString == null) return "";
+        if (isoString == null || isoString.isEmpty()) return "";
         try {
-            SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-            Date date = isoFormat.parse(isoString);
+            // Handle ISO 8601 format: both with Z and without Z
+            // "2026-01-21T08:00:00.000Z" or "2026-01-21T08:00:00.000"
+            String cleanDate = isoString;
+            if (isoString.endsWith("Z")) {
+                cleanDate = isoString.substring(0, isoString.length() - 1);
+            }
+
+            SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US);
+            Date date = isoFormat.parse(cleanDate);
+
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
             return timeFormat.format(date);
         } catch (ParseException e) {
-            return "";
+            Log.e(TAG, "Error parsing time: " + isoString, e);
         }
+        return "";
     }
 
     private String formatDate(String isoString) {
-        if (isoString == null) return "";
+        if (isoString == null || isoString.isEmpty()) return "";
         try {
-            SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-            Date date = isoFormat.parse(isoString);
-            SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd/MM/yyyy", new Locale("vi", "VN"));
+            // Handle ISO 8601 format: both with Z and without Z
+            // "2026-01-21T08:00:00.000Z" or "2026-01-21T08:00:00.000"
+            String cleanDate = isoString;
+            if (isoString.endsWith("Z")) {
+                cleanDate = isoString.substring(0, isoString.length() - 1);
+            }
+
+            SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US);
+            Date date = isoFormat.parse(cleanDate);
+
+            SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
             return dateFormat.format(date);
         } catch (ParseException e) {
-            return "";
+            Log.e(TAG, "Error parsing date: " + isoString, e);
         }
+        return "";
     }
 
     private String getStatusText(String status) {
@@ -216,6 +372,26 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
                 return "Đã hủy";
             default:
                 return status;
+        }
+    }
+
+    private String getPaymentMethodName(String paymentMethod) {
+        if (paymentMethod == null) return "Không xác định";
+        switch (paymentMethod) {
+            case "card":
+                return "Thẻ tín dụng";
+            case "qr":
+                return "QR Code (PayOS)";
+            case "offline":
+                return "Thanh toán tại quầy";
+            case "momo":
+                return "Momo";
+            case "vnpay":
+                return "VNPay";
+            case "banking":
+                return "Chuyển khoản ngân hàng";
+            default:
+                return paymentMethod;
         }
     }
 

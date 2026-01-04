@@ -596,12 +596,15 @@ router.post('/bookings/:id/payment', async (req, res) => {
       try {
         console.log(`📧 Sending email for online payment: booking ${id}`);
         const fullBooking = await db.query(
-          `SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type
+          `SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type,
+                  COALESCE(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]) AS seat_labels
            FROM bookings b
            JOIN users u ON b.user_id = u.id
            JOIN trips t ON b.trip_id = t.id
            JOIN routes r ON t.route_id = r.id
-           WHERE b.id=$1`,
+           LEFT JOIN booking_items bi ON bi.booking_id = b.id
+           WHERE b.id=$1
+           GROUP BY b.id, b.booking_code, b.trip_id, b.total_amount, b.price_paid, b.payment_method, b.status, b.created_at, b.paid_at, b.user_id, u.id, u.email, u.name, u.phone, r.id, r.origin, r.destination, t.id, t.departure_time, t.operator, t.bus_type`,
           [id]
         );
 

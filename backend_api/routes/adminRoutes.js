@@ -56,16 +56,74 @@ router.post("/routes", checkAdminRole, async (req, res) => {
   }
 
   try {
-    const result = await db.query(
-      `INSERT INTO routes (origin, destination, distance_km, duration_min, created_at)
-       VALUES ($1, $2, $3, $4, NOW())
-       RETURNING *`,
-      [origin, destination, distance_km, duration_min]
+    console.log("[admin.routes.POST] Attempting to insert/update route:", { origin, destination, distance_km, duration_min });
+
+    // Step 1: Check if route exists by (origin, destination) using EXACT match
+    const checkResult = await db.query(
+      `SELECT id FROM routes WHERE origin = $1 AND destination = $2 LIMIT 1`,
+      [origin, destination]
     );
-    res.status(201).json(result.rows[0]);
+
+    if (checkResult.rowCount > 0) {
+      // Route exists - UPDATE it
+      const routeId = checkResult.rows[0].id;
+      console.log(`[admin.routes.POST] Route exists (id=${routeId}), updating...`);
+      const result = await db.query(
+        `UPDATE routes SET distance_km = $1, duration_min = $2 WHERE id = $3 RETURNING *`,
+        [distance_km, duration_min, routeId]
+      );
+      console.log("[admin.routes.POST] Route updated:", result.rows[0]);
+      res.status(200).json(result.rows[0]);
+    } else {
+      // Route doesn't exist - INSERT new one
+      console.log("[admin.routes.POST] Route doesn't exist, inserting new...");
+
+      // Get next available ID (since sequence might not exist)
+      const maxIdRes = await db.query(`SELECT COALESCE(MAX(id), 0)::INTEGER as max_id FROM routes`);
+      const maxId = parseInt(maxIdRes.rows[0].max_id, 10); // Ensure it's a number
+      const nextId = maxId + 1;
+      console.log(`[admin.routes.POST] Max ID: ${maxId}, Next available ID: ${nextId}`);
+
+      const result = await db.query(
+        `INSERT INTO routes (id, origin, destination, distance_km, duration_min, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())
+         RETURNING *`,
+        [nextId, origin, destination, distance_km, duration_min]
+      );
+      console.log("[admin.routes.POST] Route inserted:", result.rows[0]);
+      res.status(201).json(result.rows[0]);
+    }
   } catch (err) {
-    console.error("Error adding route:", err);
-    res.status(500).json({ message: "Lỗi khi thêm tuyến xe" });
+    console.error("[admin.routes.POST] Error:", err.message || err);
+    console.error("[admin.routes.POST] Error code:", err.code);
+    console.error("[admin.routes.POST] Constraint:", err.constraint);
+
+    // If it's a unique constraint violation, route exists
+    if (err.code === '23505' || err.code === '23514') {
+      try {
+        console.log("[admin.routes.POST] Unique constraint violation - route already exists, trying UPDATE...");
+        const checkResult = await db.query(
+          `SELECT id FROM routes WHERE origin = $1 AND destination = $2 LIMIT 1`,
+          [origin, destination]
+        );
+        if (checkResult.rowCount > 0) {
+          const routeId = checkResult.rows[0].id;
+          const result = await db.query(
+            `UPDATE routes SET distance_km = $1, duration_min = $2 WHERE id = $3 RETURNING *`,
+            [distance_km, duration_min, routeId]
+          );
+          console.log("[admin.routes.POST] Fallback UPDATE successful:", result.rows[0]);
+          res.status(200).json(result.rows[0]);
+        } else {
+          res.status(500).json({ message: "Lỗi khi thêm tuyến xe", error: err.message });
+        }
+      } catch (fallbackErr) {
+        console.error("[admin.routes.POST] Fallback failed:", fallbackErr.message);
+        res.status(500).json({ message: "Lỗi khi thêm tuyến xe", error: fallbackErr.message });
+      }
+    } else {
+      res.status(500).json({ message: "Lỗi khi thêm tuyến xe", error: err.message });
+    }
   }
 });
 
@@ -436,7 +494,9 @@ router.put("/bookings/:id/cancel", checkAdminRole, async (req, res) => {
 
 router.get("/users", checkAdminRole, async (req, res) => {
   try {
-    const result = await db.query("SELECT id, name, email, phone, role, status FROM users ORDER BY id ASC");
+    const result = await db.query(
+      "SELECT id, name, email, phone, role, status FROM users WHERE status != 'deleted' ORDER BY id ASC"
+    );
     res.json(result.rows);
   } catch (err) {
     console.error("Error fetching users:", err);
@@ -470,21 +530,51 @@ router.delete("/users/:id", checkAdminRole, async (req, res) => {
   const { id } = req.params;
 
   try {
-    const result = await db.query("DELETE FROM users WHERE id=$1 RETURNING id", [id]);
+    console.log(`[DELETE USER] Attempting to soft delete user ID: ${id}`);
+
+    // Validate ID is numeric
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    // Use soft delete: Set status to 'deleted' instead of permanent deletion
+    // This preserves booking history while preventing login
+    console.log(`[DELETE USER] Running UPDATE query for user ID: ${id}`);
+
+    const result = await db.query(
+      `UPDATE users
+       SET status = 'deleted'
+       WHERE id = $1
+       RETURNING id, name, email, phone, role, status`,
+      [parseInt(id)]
+    );
+
+    console.log(`[DELETE USER] Query result: ${result.rowCount} row(s) updated`);
+
     if (!result.rows.length) {
+      console.log(`[DELETE USER] User not found with ID: ${id}`);
       return res.status(404).json({ message: "Người dùng không tìm thấy" });
     }
-    res.json({ message: "Xóa người dùng thành công" });
+
+    console.log(`[DELETE USER] User ${id} successfully soft deleted`, result.rows[0]);
+    res.json({
+      message: "Xóa người dùng thành công (lịch sử vé vẫn được giữ lại)",
+      user: result.rows[0]
+    });
   } catch (err) {
-    console.error("Error deleting user:", err);
-    res.status(500).json({ message: "Lỗi khi xóa người dùng" });
+    console.error(`[DELETE USER] Error deleting user ${id}:`, err.message);
+    console.error(`[DELETE USER] Full error:`, err);
+    res.status(500).json({
+      message: "Lỗi khi xóa người dùng",
+      error: err.message
+    });
   }
 });
 
 // ============================================================// ROUTES: BÁO CÁO DOANH THU// ============================================================
 
 router.get("/revenue", checkAdminRole, async (req, res) => {
-    const { groupBy, route_id, trip_id, from_date, to_date } = req.query;
+    const { groupBy, route_id, trip_id, from_date, to_date, payment_method, operator } = req.query;
 
     let query = `
         SELECT
@@ -497,6 +587,18 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
         WHERE b.status = 'confirmed' AND t.status != 'cancelled'
     `;
     const params = [];
+
+    // ✅ Thêm filter theo payment_method
+    if (payment_method && payment_method.toLowerCase() !== 'all') {
+        params.push(payment_method);
+        query += ` AND b.payment_method = $${params.length}`;
+    }
+
+    // ✅ Thêm filter theo operator
+    if (operator && operator.toLowerCase() !== 'null') {
+        params.push(operator);
+        query += ` AND t.operator = $${params.length}`;
+    }
 
     let groupByClause;
     let orderByClause;
@@ -563,7 +665,7 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
 
 // Báo cáo hoàn tiền (từ những bookings của trip bị hủy hoặc admin hủy vé đã thanh toán hoặc user hủy vé đã thanh toán)
 router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
-    const { groupBy, route_id, trip_id, from_date, to_date, refundType } = req.query;
+    const { groupBy, route_id, trip_id, from_date, to_date, refundType, operator } = req.query;
 
     let query = `
         SELECT
@@ -596,6 +698,12 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
         query += ` AND b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled'`;
     } else if (refundType === 'user_cancelled') {
         query += ` AND b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0`;
+    }
+
+    // ✅ Thêm filter theo operator
+    if (operator && operator.toLowerCase() !== 'null') {
+        params.push(operator);
+        query += ` AND t.operator = $${params.length}`;
     }
 
     let groupByClause;
@@ -666,7 +774,7 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
 
 // 5. Chi tiết doanh thu
 router.get("/revenue/details", checkAdminRole, async (req, res) => {
-  const { group_by, value } = req.query;
+  const { group_by, value, payment_method, operator } = req.query;
   let sql = `
     SELECT
       b.id AS booking_id,
@@ -683,22 +791,34 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
   `;
   const params = [];
 
+  // ✅ Thêm filter theo payment_method
+  if (payment_method && payment_method.toLowerCase() !== 'all') {
+    params.push(payment_method);
+    sql += ` AND b.payment_method = $${params.length}`;
+  }
+
+  // ✅ Thêm filter theo operator
+  if (operator && operator.toLowerCase() !== 'null') {
+    params.push(operator);
+    sql += ` AND t.operator = $${params.length}`;
+  }
+
   if (group_by === "day" || group_by === "date") {
-    sql += ` AND DATE(b.created_at) = $1`;
     params.push(value);
+    sql += ` AND DATE(b.created_at) = $${params.length}`;
   } else if (group_by === "month") {
-    sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $1`;
     params.push(value);
+    sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $${params.length}`;
   } else if (group_by === "year") {
-    sql += ` AND EXTRACT(YEAR FROM b.created_at) = $1`;
     params.push(value);
+    sql += ` AND EXTRACT(YEAR FROM b.created_at) = $${params.length}`;
   } else if (group_by === "route") {
     // Assuming value is route_id
-    sql += ` AND t.route_id = $1`;
     params.push(value);
+    sql += ` AND t.route_id = $${params.length}`;
   } else if (group_by === "trip") {
-    sql += ` AND t.id = $1`;
     params.push(value);
+    sql += ` AND t.id = $${params.length}`;
   }
 
   sql += " ORDER BY t.departure_time DESC";
@@ -714,7 +834,7 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
 
 // 6. Chi tiết hoàn tiền (từ những bookings của trip bị hủy hoặc admin hủy vé đã thanh toán hoặc user hủy vé đã thanh toán)
 router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
-  const { group_by, value, refundType } = req.query;
+  const { group_by, value, refundType, payment_method, operator } = req.query;
   let sql = `
     SELECT
       b.id AS booking_id,
@@ -755,21 +875,33 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
     sql += ` AND b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0`;
   }
 
+  // ✅ Thêm filter theo payment_method
+  if (payment_method && payment_method.toLowerCase() !== 'all') {
+    params.push(payment_method);
+    sql += ` AND b.payment_method = $${params.length}`;
+  }
+
+  // ✅ Thêm filter theo operator
+  if (operator && operator.toLowerCase() !== 'null') {
+    params.push(operator);
+    sql += ` AND t.operator = $${params.length}`;
+  }
+
   if (group_by === "day" || group_by === "date") {
-    sql += ` AND DATE(b.created_at) = $1`;
     params.push(value);
+    sql += ` AND DATE(b.created_at) = $${params.length}`;
   } else if (group_by === "month") {
-    sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $1`;
     params.push(value);
+    sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $${params.length}`;
   } else if (group_by === "year") {
-    sql += ` AND EXTRACT(YEAR FROM b.created_at) = $1`;
     params.push(value);
+    sql += ` AND EXTRACT(YEAR FROM b.created_at) = $${params.length}`;
   } else if (group_by === "route") {
-    sql += ` AND t.route_id = $1`;
     params.push(value);
+    sql += ` AND t.route_id = $${params.length}`;
   } else if (group_by === "trip") {
-    sql += ` AND t.id = $1`;
     params.push(value);
+    sql += ` AND t.id = $${params.length}`;
   }
 
   sql += " ORDER BY COALESCE(t.departure_time, b.created_at) DESC";
@@ -1376,4 +1508,98 @@ router.post("/test-send-email/:bookingId", checkAdminRole, async (req, res) => {
     }
 });
 
+// ============================================================
+// ROUTES: QUẢN LÝ DELETED USERS & BOOKING HISTORY
+// ============================================================
+
+// Get deleted users with their booking history
+router.get("/deleted-users", checkAdminRole, async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.phone,
+        u.role,
+        u.status,
+        COUNT(b.id) as total_bookings,
+        SUM(CASE WHEN b.status = 'confirmed' THEN 1 ELSE 0 END) as confirmed_bookings,
+        MAX(b.created_at) as last_booking_date
+       FROM users u
+       LEFT JOIN bookings b ON u.id = b.user_id
+       WHERE u.status = 'deleted'
+       GROUP BY u.id, u.name, u.email, u.phone, u.role, u.status
+       ORDER BY u.id DESC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching deleted users:", err);
+    res.status(500).json({ message: "Lỗi khi lấy danh sách người dùng đã xóa" });
+  }
+});
+
+// Get booking history of a deleted user
+router.get("/deleted-users/:id/bookings", checkAdminRole, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.query(
+      `SELECT
+        b.id,
+        b.booking_code,
+        b.user_id,
+        u.name as user_name,
+        u.email as user_email,
+        t.id as trip_id,
+        r.origin,
+        r.destination,
+        t.departure_date,
+        t.departure_time,
+        b.status,
+        b.total_amount,
+        b.created_at,
+        b.updated_at
+       FROM bookings b
+       LEFT JOIN users u ON b.user_id = u.id
+       JOIN trips t ON b.trip_id = t.id
+       JOIN routes r ON t.route_id = r.id
+       WHERE b.user_id = $1
+       ORDER BY b.created_at DESC`,
+      [id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching deleted user's bookings:", err);
+    res.status(500).json({ message: "Lỗi khi lấy lịch sử vé" });
+  }
+});
+
+// Restore a deleted user (change status back to active/inactive)
+router.put("/deleted-users/:id/restore", checkAdminRole, async (req, res) => {
+  const { id } = req.params;
+  const { newStatus = 'active' } = req.body;
+
+  try {
+    const result = await db.query(
+      `UPDATE users
+       SET status = $1
+       WHERE id = $2 AND status = 'deleted'
+       RETURNING id, name, email, phone, role, status`,
+      [newStatus, id]
+    );
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Người dùng không tìm thấy hoặc không ở trạng thái deleted" });
+    }
+    res.json({
+      message: "Khôi phục người dùng thành công",
+      user: result.rows[0]
+    });
+  } catch (err) {
+    console.error("Error restoring deleted user:", err);
+    res.status(500).json({ message: "Lỗi khi khôi phục người dùng" });
+  }
+});
+
 module.exports = router;
+
+

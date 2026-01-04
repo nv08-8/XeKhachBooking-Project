@@ -9,6 +9,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,6 +35,7 @@ public class TripFormActivity extends AppCompatActivity {
     private SessionManager sessionManager;
     private int currentTripId = -1; // -1 for new, > -1 for editing
     private List<Map<String, Object>> routesList = new ArrayList<>();
+    private List<String> busTypesList = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,7 +60,11 @@ public class TripFormActivity extends AppCompatActivity {
         etSeatsTotal = findViewById(R.id.etSeatsTotal);
         btnSaveTrip = findViewById(R.id.btnSaveTrip);
 
+        // Setup bus type autocomplete
+        setupBusTypeAutocomplete();
+
         loadRoutes();
+        loadBusTypes();
 
         if (getIntent().hasExtra("trip_id")) {
             currentTripId = getIntent().getIntExtra("trip_id", -1);
@@ -108,6 +114,46 @@ public class TripFormActivity extends AppCompatActivity {
                 Toast.makeText(TripFormActivity.this, "Không thể tải danh sách tuyến", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void loadBusTypes() {
+        apiService.getBusTypes().enqueue(new Callback<List<String>>() {
+            @Override
+            public void onResponse(Call<List<String>> call, Response<List<String>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    busTypesList.clear();
+                    busTypesList.addAll(response.body());
+                    updateBusTypeAutocomplete();
+                } else {
+                    Toast.makeText(TripFormActivity.this, "Không thể tải danh sách loại xe", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<String>> call, Throwable t) {
+                Toast.makeText(TripFormActivity.this, "Lỗi tải loại xe: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void setupBusTypeAutocomplete() {
+        // This will be called after loadBusTypes completes
+        // For now, just setup the autocomplete with empty list
+        // busTypesList will be populated by loadBusTypes()
+        MaterialAutoCompleteTextView autoCompleteTextView = (MaterialAutoCompleteTextView) etBusType;
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_dropdown_item_1line, busTypesList);
+        autoCompleteTextView.setAdapter(adapter);
+        autoCompleteTextView.setThreshold(1);
+    }
+
+    private void updateBusTypeAutocomplete() {
+        // Update the adapter with fresh data after loading bus types
+        MaterialAutoCompleteTextView autoCompleteTextView = (MaterialAutoCompleteTextView) etBusType;
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_dropdown_item_1line, busTypesList);
+        autoCompleteTextView.setAdapter(adapter);
+        autoCompleteTextView.setThreshold(1);
     }
 
     private int getIntFromObject(Object obj) {

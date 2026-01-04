@@ -3,14 +3,13 @@ package vn.hcmute.busbooking.activity.admin;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.activity.LoginActivity;
 import vn.hcmute.busbooking.activity.RevenueStatsActivity;
+import vn.hcmute.busbooking.activity.TripFeedbackListActivity;
 
 public class AdminHomeActivity extends AppCompatActivity {
 
@@ -35,7 +34,7 @@ public class AdminHomeActivity extends AppCompatActivity {
         if (btnManageBookings != null) btnManageBookings.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageBookingsActivity.class)));
         if (btnRevenueStats != null) btnRevenueStats.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, RevenueStatsActivity.class)));
         if (btnManageUsers != null) btnManageUsers.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManageUsersActivity.class)));
-        if (btnManageReviews != null) btnManageReviews.setOnClickListener(v -> showToast("Chức năng đang được phát triển"));
+        if (btnManageReviews != null) btnManageReviews.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, TripFeedbackListActivity.class)));
         if (btnManagePromotions != null) btnManagePromotions.setOnClickListener(v -> startActivity(new Intent(AdminHomeActivity.this, ManagePromotionsActivity.class)));
 
         if (btnLogout != null) btnLogout.setOnClickListener(v -> {
@@ -44,9 +43,5 @@ public class AdminHomeActivity extends AppCompatActivity {
             startActivity(intent);
             finish();
         });
-    }
-
-    private void showToast(String message) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 }

@@ -63,6 +63,8 @@
         <activity android:name=".activity.UserPromotionsActivity" />
         <activity android:name=".activity.FeedbackManagementActivity" />
         <activity android:name=".activity.MyCoinsActivity" />
+        <!-- ✅ Thêm TripFeedbackListActivity -->
+        <activity android:name=".activity.TripFeedbackListActivity" android:parentActivityName=".activity.FeedbackManagementActivity" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
@@ -86,6 +88,8 @@
         <activity android:name=".activity.admin.ManageDriversActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
         <activity android:name=".activity.admin.DriverFormActivity" android:parentActivityName=".activity.admin.ManageDriversActivity" />
         <activity android:name=".activity.admin.ManageReviewsActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
+        <!-- ✅ Thêm ReviewManagementActivity -->
+        <activity android:name=".activity.ReviewManagementActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
         <activity android:name=".activity.admin.ManagePromotionsActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
         <activity android:name=".activity.admin.PromotionFormActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
         <activity android:name=".activity.admin.AdminOfflinePaymentActivity" android:parentActivityName=".activity.admin.AdminHomeActivity" />
