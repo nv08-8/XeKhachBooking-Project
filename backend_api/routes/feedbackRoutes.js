@@ -230,10 +230,13 @@ router.get("/trips/:id/feedbacks", async (req, res) => {
     }
 });
 
-// ✅ GET /api/feedbacks/trips-with-feedback/{user_id} - Lấy các chuyến có feedback của user
+// ✅ GET /api/feedbacks/trips-with-feedback/{user_id} - Lấy các chuyến đã đi của user và đã có feedback từ user đó
 router.get("/feedbacks/trips-with-feedback/:user_id", async (req, res) => {
     const { user_id } = req.params;
 
+    console.log("🔍 DEBUG: Fetching trips with feedback for user_id:", user_id);
+
+    // Lấy trips của user hiện tại mà user đã viết feedback
     const sql = `
         SELECT DISTINCT
                t.id,
@@ -244,20 +247,22 @@ router.get("/feedbacks/trips-with-feedback/:user_id", async (req, res) => {
                r.origin,
                r.destination,
                COUNT(f.id) as feedback_count
-        FROM feedbacks f
-        INNER JOIN bookings b ON f.booking_id = b.id
+        FROM bookings b
         INNER JOIN trips t ON b.trip_id = t.id
         INNER JOIN routes r ON t.route_id = r.id
-        WHERE f.user_id = $1
+        INNER JOIN feedbacks f ON f.booking_id = b.id
+        WHERE b.user_id = $1 AND f.user_id = $1
         GROUP BY t.id, t.departure_time, t.arrival_time, t.operator, t.bus_type, r.origin, r.destination
         ORDER BY t.departure_time DESC
     `;
 
     try {
         const { rows } = await db.query(sql, [user_id]);
+        console.log("✅ DEBUG: Query result rows count:", rows.length);
+        console.log("✅ DEBUG: Query result:", JSON.stringify(rows));
         res.json(rows);
     } catch (err) {
-        console.error("Error fetching trips with feedback:", err);
+        console.error("❌ Error fetching trips with feedback:", err);
         res.status(500).json({ message: "Internal server error" });
     }
 });
