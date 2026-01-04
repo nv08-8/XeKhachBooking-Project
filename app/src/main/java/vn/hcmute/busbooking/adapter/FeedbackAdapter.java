@@ -10,7 +10,14 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
 
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.model.Feedback;
@@ -75,7 +82,8 @@ public class FeedbackAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             vh.tvDate.setText(feedback.getDate() != null ? feedback.getDate() : "");
             vh.ratingBar.setRating(feedback.getRating());
             vh.tvComment.setText(feedback.getComment() != null ? feedback.getComment() : "");
-            vh.tvFeedbackDate.setText("Đã nhận xét lúc: " + (feedback.getFeedbackDate() != null ? feedback.getFeedbackDate() : ""));
+            String feedbackDateFormatted = formatFeedbackDate(feedback.getFeedbackDate());
+            vh.tvFeedbackDate.setText("Đã nhận xét lúc: " + feedbackDateFormatted);
         }
     }
 
@@ -94,6 +102,40 @@ public class FeedbackAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             e.printStackTrace();
         }
         return dateTimeString;
+    }
+
+    private String formatFeedbackDate(String dateTimeString) {
+        if (dateTimeString == null || dateTimeString.isEmpty()) {
+            return "";
+        }
+
+        try {
+            // Parse ISO 8601 datetime string (with or without timezone)
+            LocalDateTime dateTime;
+
+            if (dateTimeString.contains("Z")) {
+                // UTC timezone (Z suffix)
+                OffsetDateTime offsetDateTime = OffsetDateTime.parse(dateTimeString);
+                dateTime = offsetDateTime.atZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDateTime();
+            } else if (dateTimeString.contains("+") || (dateTimeString.lastIndexOf("-") > 10)) {
+                // With timezone offset
+                OffsetDateTime offsetDateTime = OffsetDateTime.parse(dateTimeString);
+                dateTime = offsetDateTime.atZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDateTime();
+            } else {
+                // No timezone info, assume it's already in UTC
+                dateTime = LocalDateTime.parse(dateTimeString.replace(" ", "T"));
+                dateTime = dateTime.atZone(ZoneId.of("UTC"))
+                        .withZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"))
+                        .toLocalDateTime();
+            }
+
+            // Format: "05/01/2025 14:30"
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+            return dateTime.format(formatter);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return dateTimeString;
+        }
     }
 
     @Override
