@@ -248,7 +248,8 @@ public interface ApiService {
         @Header("user-id") int userId,
         @Query("group_by") String groupBy,
         @Query("value") String value,
-        @Query("refundType") String refundType
+        @Query("refundType") String refundType,
+        @Query("payment_method") String paymentMethod
     );
 
 

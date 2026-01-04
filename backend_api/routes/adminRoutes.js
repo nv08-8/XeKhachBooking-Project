@@ -816,7 +816,7 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
 
 // 6. Chi tiết hoàn tiền (từ những bookings của trip bị hủy hoặc admin hủy vé đã thanh toán hoặc user hủy vé đã thanh toán)
 router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
-  const { group_by, value, refundType } = req.query;
+  const { group_by, value, refundType, payment_method } = req.query;
   let sql = `
     SELECT
       b.id AS booking_id,
@@ -857,21 +857,27 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
     sql += ` AND b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0`;
   }
 
+  // ✅ Thêm filter theo payment_method
+  if (payment_method && payment_method.toLowerCase() !== 'all') {
+    params.push(payment_method);
+    sql += ` AND b.payment_method = $${params.length}`;
+  }
+
   if (group_by === "day" || group_by === "date") {
-    sql += ` AND DATE(b.created_at) = $1`;
     params.push(value);
+    sql += ` AND DATE(b.created_at) = $${params.length}`;
   } else if (group_by === "month") {
-    sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $1`;
     params.push(value);
+    sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $${params.length}`;
   } else if (group_by === "year") {
-    sql += ` AND EXTRACT(YEAR FROM b.created_at) = $1`;
     params.push(value);
+    sql += ` AND EXTRACT(YEAR FROM b.created_at) = $${params.length}`;
   } else if (group_by === "route") {
-    sql += ` AND t.route_id = $1`;
     params.push(value);
+    sql += ` AND t.route_id = $${params.length}`;
   } else if (group_by === "trip") {
-    sql += ` AND t.id = $1`;
     params.push(value);
+    sql += ` AND t.id = $${params.length}`;
   }
 
   sql += " ORDER BY COALESCE(t.departure_time, b.created_at) DESC";

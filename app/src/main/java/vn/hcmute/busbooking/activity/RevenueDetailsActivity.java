@@ -67,7 +67,8 @@ public class RevenueDetailsActivity extends AppCompatActivity {
         // Gọi API khác nhau tùy theo mode
         Call<List<Map<String, Object>>> call;
         if (isRefund) {
-            call = api.getRevenueRefundDetails(userId, groupBy, value, refundType);
+            // ✅ Truyền payment_method parameter cho hoàn tiền
+            call = api.getRevenueRefundDetails(userId, groupBy, value, refundType, paymentMethod);
         } else {
             // ✅ Truyền payment_method parameter
             call = api.getRevenueDetails(userId, groupBy, value, paymentMethod);
