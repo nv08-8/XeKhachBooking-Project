@@ -195,7 +195,7 @@
                         android:layout_height="wrap_content"
                         android:clickable="true"
                         android:focusable="true"
-                        android:drawableStart="@drawable/ic_reviews"
+                        android:drawableStart="@drawable/ic_reviews_blue"
                         android:drawableEnd="@drawable/ic_chevron_right"
                         android:drawablePadding="16dp"
                         android:foreground="?attr/selectableItemBackground"
