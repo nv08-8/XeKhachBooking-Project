@@ -72,6 +72,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
     private Calendar endCalendar = Calendar.getInstance();
 
     private final String[] groupByValues = {"day", "month", "year", "route", "trip"};
+    private final String[] groupByNames = {"Theo ngày", "Theo tháng", "Theo năm", "Theo tuyến", "Theo chuyến"};
     private final String[] refundTypeValues = {"", "admin_cancelled", "trip_cancelled", "user_cancelled"};
     // ✅ Thêm mảng payment method
     private final String[] paymentMethodValues = {"all", "qr", "card", "offline"};
@@ -132,6 +133,8 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         // Setup
         rvRevenue.setLayoutManager(new LinearLayoutManager(this));
         setDefaultDates();
+        // ✅ Setup groupBy spinner
+        setupGroupBySpinner();
         // ✅ Setup payment method spinner
         setupPaymentMethodSpinner();
         // ✅ Setup operator spinner
@@ -142,6 +145,14 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         fetchRoutes();
         // ✅ Fetch operators
         fetchOperators();
+    }
+
+    // ✅ Thêm hàm setup groupBy spinner
+    private void setupGroupBySpinner() {
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, groupByNames);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerGroupBy.setAdapter(adapter);
+        spinnerGroupBy.setSelection(0); // Default: "Theo ngày"
     }
 
     // ✅ Thêm hàm setup payment method spinner

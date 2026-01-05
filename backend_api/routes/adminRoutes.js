@@ -672,12 +672,12 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
         SELECT
             %s AS group_key,
             COUNT(b.id) AS total_bookings,
-            SUM(CASE
-                WHEN b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0)
-                WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN COALESCE(b.total_amount, 0)
-                WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0)
+            COALESCE(SUM(CASE
+                WHEN b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0) / NULLIF(b.seats_count, 0)
+                WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN COALESCE(b.total_amount, 0) / NULLIF(b.seats_count, 0)
+                WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0) / NULLIF(b.seats_count, 0)
                 ELSE 0
-            END) AS refund_amount,
+            END), 0) AS refund_amount,
             SUM(b.seats_count) AS total_tickets,
             SUM(CASE WHEN b.status = 'pending_refund' THEN 1 ELSE 0 END) AS admin_cancelled_count,
             SUM(CASE WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN 1 ELSE 0 END) AS trip_cancelled_count,
