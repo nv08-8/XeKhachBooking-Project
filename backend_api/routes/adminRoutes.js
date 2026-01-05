@@ -678,6 +678,7 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
                 WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0)
                 ELSE 0
             END) AS refund_amount,
+            SUM(b.seats_count) AS total_tickets,
             SUM(CASE WHEN b.status = 'pending_refund' THEN 1 ELSE 0 END) AS admin_cancelled_count,
             SUM(CASE WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN 1 ELSE 0 END) AS trip_cancelled_count,
             SUM(CASE WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN 1 ELSE 0 END) AS user_cancelled_count
@@ -713,23 +714,23 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
     switch (groupBy) {
         case 'day':
         case 'date':
-            groupByClause = "DATE(b.created_at)";
+            groupByClause = "DATE(b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')";
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
-                query += ` AND b.created_at >= $${params.length}`;
+                query += ` AND (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= $${params.length}::date`;
             }
             if (to_date) {
                 params.push(to_date);
-                query += ` AND b.created_at < ($${params.length}::date + INTERVAL '1 day') AT TIME ZONE 'Asia/Ho_Chi_Minh'`;
+                query += ` AND (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < ($${params.length}::date + INTERVAL '1 day')`;
             }
             break;
         case 'month':
-            groupByClause = "TO_CHAR(b.created_at, 'YYYY-MM')";
+            groupByClause = "TO_CHAR(b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM')";
             orderByClause = "group_key DESC";
             break;
         case 'year':
-            groupByClause = "EXTRACT(YEAR FROM b.created_at)";
+            groupByClause = "EXTRACT(YEAR FROM b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')";
             orderByClause = "group_key DESC";
             break;
         case 'route':
@@ -762,115 +763,7 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
     query += ` GROUP BY ${groupByClause} ORDER BY ${orderByClause}`;
 
     try {
-        console.log(`📊 [Revenue Report] groupBy=${groupBy}, Query: ${query}`);
-        const result = await db.query(query, params);
-        console.log(`📊 [Revenue Report] Found ${result.rows.length} rows`);
-        res.json(result.rows);
-    } catch (err) {
-        console.error(`Error fetching revenue by ${groupBy}:`, err);
-        res.status(500).json({ message: `Lỗi khi lấy doanh thu theo ${groupBy}` });
-    }
-});
-
-// Báo cáo hoàn tiền (từ những bookings của trip bị hủy hoặc admin hủy vé đã thanh toán hoặc user hủy vé đã thanh toán)
-router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
-    const { groupBy, route_id, trip_id, from_date, to_date, refundType, operator } = req.query;
-
-    let query = `
-        SELECT
-            %s AS group_key,
-            COUNT(b.id) AS total_bookings,
-            SUM(CASE
-                WHEN b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0)
-                WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN COALESCE(b.total_amount, 0)
-                WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0)
-                ELSE 0
-            END) AS refund_amount,
-            SUM(CASE WHEN b.status = 'pending_refund' THEN 1 ELSE 0 END) AS admin_cancelled_count,
-            SUM(CASE WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN 1 ELSE 0 END) AS trip_cancelled_count,
-            SUM(CASE WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN 1 ELSE 0 END) AS user_cancelled_count
-        FROM bookings b
-        LEFT JOIN trips t ON b.trip_id = t.id
-        LEFT JOIN routes r ON t.route_id = r.id
-        WHERE (
-            (b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0)
-            OR (b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled')
-            OR (b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0)
-        )
-    `;
-    const params = [];
-
-    // Filter by refund type
-    if (refundType === 'admin_cancelled') {
-        query += ` AND b.status = 'pending_refund'`;
-    } else if (refundType === 'trip_cancelled') {
-        query += ` AND b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled'`;
-    } else if (refundType === 'user_cancelled') {
-        query += ` AND b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0`;
-    }
-
-    // ✅ Thêm filter theo operator
-    if (operator && operator.toLowerCase() !== 'null') {
-        params.push(operator);
-        query += ` AND t.operator = $${params.length}`;
-    }
-
-    let groupByClause;
-    let orderByClause;
-
-    switch (groupBy) {
-        case 'day':
-        case 'date':
-            groupByClause = "DATE(b.created_at)";
-            orderByClause = "group_key DESC";
-            if (from_date) {
-                params.push(from_date);
-                query += ` AND b.created_at >= $${params.length}`;
-            }
-            if (to_date) {
-                params.push(to_date);
-                query += ` AND b.created_at < ($${params.length}::date + INTERVAL '1 day') AT TIME ZONE 'Asia/Ho_Chi_Minh'`;
-            }
-            break;
-        case 'month':
-            groupByClause = "TO_CHAR(b.created_at, 'YYYY-MM')";
-            orderByClause = "group_key DESC";
-            break;
-        case 'year':
-            groupByClause = "EXTRACT(YEAR FROM b.created_at)";
-            orderByClause = "group_key DESC";
-            break;
-        case 'route':
-            groupByClause = "r.id, r.origin, r.destination";
-            orderByClause = "refund_amount DESC NULLS LAST";
-            query = query.replace("%s", "COALESCE(r.id, 0) AS group_key, COALESCE(r.origin, 'N/A') AS origin, COALESCE(r.destination, 'N/A') AS destination");
-            break;
-        case 'trip':
-            groupByClause = "COALESCE(t.id, 0), COALESCE(t.departure_time, NOW()), COALESCE(r.origin, 'N/A'), COALESCE(r.destination, 'N/A')";
-            orderByClause = "refund_amount DESC NULLS LAST";
-            query = query.replace("%s", "COALESCE(t.id, 0) AS group_key, COALESCE(t.departure_time, NOW()), COALESCE(r.origin, 'N/A'), COALESCE(r.destination, 'N/A')");
-            if (route_id) {
-                params.push(route_id);
-                query += ` AND t.route_id = $${params.length}`;
-            }
-            break;
-        default:
-            return res.status(400).json({ message: "Invalid groupBy value: " + groupBy });
-    }
-
-    if (groupBy !== 'route' && groupBy !== 'trip') {
-        query = query.replace("%s", groupByClause);
-    }
-
-    if (trip_id) {
-        params.push(trip_id);
-        query += ` AND b.trip_id = $${params.length}`;
-    }
-
-    query += ` GROUP BY ${groupByClause} ORDER BY ${orderByClause}`;
-
-    try {
-        console.log(`📊 [Refunds Report] refundType=${refundType}, Query: ${query}`);
+        console.log(`📊 [Refunds Report] refundType=${refundType}, groupBy=${groupBy}, Query: ${query}`);
         const result = await db.query(query, params);
         console.log(`📊 [Refunds Report] Found ${result.rows.length} rows`);
         res.json(result.rows);
@@ -879,7 +772,6 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
         res.status(500).json({ message: `Lỗi khi lấy báo cáo hoàn tiền theo ${groupBy}` });
     }
 });
-
 
 // 5. Chi tiết doanh thu
 router.get("/revenue/details", checkAdminRole, async (req, res) => {
@@ -1716,5 +1608,4 @@ router.put("/deleted-users/:id/restore", checkAdminRole, async (req, res) => {
 });
 
 module.exports = router;
-
 
