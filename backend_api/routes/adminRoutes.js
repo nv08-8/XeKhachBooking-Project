@@ -808,14 +808,14 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
   if (group_by === "day" || group_by === "date") {
     params.push(value);
     params.push(value);
-    // Include entire day from 00:00:00 to 23:59:59 in Vietnam timezone
-    sql += ` AND (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= $${params.length - 1}::date AND (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < ($${params.length}::date + INTERVAL '1 day')`;
+    // Filter theo ngày đã cộng +7 tiếng (để hiển thị đúng theo múi giờ Việt Nam)
+    sql += ` AND DATE(b.paid_at + INTERVAL '7 hours') >= $${params.length - 1}::date AND DATE(b.paid_at + INTERVAL '7 hours') < ($${params.length}::date + INTERVAL '1 day')`;
   } else if (group_by === "month") {
     params.push(value);
-    sql += ` AND TO_CHAR(b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') = $${params.length}`;
+    sql += ` AND TO_CHAR(b.paid_at + INTERVAL '7 hours', 'YYYY-MM') = $${params.length}`;
   } else if (group_by === "year") {
     params.push(value);
-    sql += ` AND EXTRACT(YEAR FROM b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = $${params.length}`;
+    sql += ` AND EXTRACT(YEAR FROM b.paid_at + INTERVAL '7 hours') = $${params.length}`;
   } else if (group_by === "route") {
     // Assuming value is route_id
     params.push(value);
@@ -895,14 +895,14 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
   if (group_by === "day" || group_by === "date") {
     params.push(value);
     params.push(value);
-    // Include entire day from 00:00:00 to 23:59:59 in Vietnam timezone
-    sql += ` AND DATE(b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh') >= $${params.length - 1}::date AND DATE(b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh') < $${params.length}::date + INTERVAL '1 day'`;
+    // Include entire day from 00:00:00 to 23:59:59 in Vietnam timezone (với +7 tiếng)
+    sql += ` AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') >= $${params.length - 1}::date AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') < ($${params.length}::date + INTERVAL '1 day')`;
   } else if (group_by === "month") {
     params.push(value);
-    sql += ` AND TO_CHAR(b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') = $${params.length}`;
+    sql += ` AND TO_CHAR(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours', 'YYYY-MM') = $${params.length}`;
   } else if (group_by === "year") {
     params.push(value);
-    sql += ` AND EXTRACT(YEAR FROM b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = $${params.length}`;
+    sql += ` AND EXTRACT(YEAR FROM COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') = $${params.length}`;
   } else if (group_by === "route") {
     params.push(value);
     sql += ` AND t.route_id = $${params.length}`;
