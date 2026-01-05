@@ -139,7 +139,7 @@ exports.verifyPayment = async (req, res) => {
             if (bookings.length > 0) {
                 const bookingIds = bookings.map(b => b.id);
                 await db.query(
-                    "UPDATE bookings SET status='confirmed', price_paid = total_amount, paid_at=NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh' WHERE id = ANY($1::bigint[])",
+                    "UPDATE bookings SET status='confirmed', price_paid = total_amount, paid_at=NOW() WHERE id = ANY($1::bigint[])",
                     [bookingIds]
                 );
                 console.log(`Verified and updated bookings: ${bookingIds.join(', ')}`);
@@ -219,7 +219,7 @@ exports.handleWebhook = async (req, res) => {
             if (bookings.length > 0) {
                 const bookingIds = bookings.map(b => b.id);
                  await db.query(
-                    "UPDATE bookings SET status='confirmed', price_paid = total_amount, paid_at=NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh' WHERE id = ANY($1::bigint[])",
+                    "UPDATE bookings SET status='confirmed', price_paid = total_amount, paid_at=NOW() WHERE id = ANY($1::bigint[])",
                     [bookingIds]
                 );
                 console.log(`Webhook: Updated bookings ${bookingIds.join(', ')} to confirmed`);
