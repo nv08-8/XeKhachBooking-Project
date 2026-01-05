@@ -189,8 +189,8 @@ router.post("/bookings", async (req, res) => {
     const bookingCode = generateBookingCode(trip_id);
 
     const bookingInsert = await client.query(
-      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_info, booking_code, coins_used, discount_amount, coin_discount)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
+      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_info, booking_code, coins_used, discount_amount, coin_discount, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') RETURNING id`,
       [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, 'pending', metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id, finalPaymentMethod, passengerInfoJson, bookingCode, coinsUsed, discountAmount, coinDiscount]
     );
     const bookingId = bookingInsert.rows[0].id;
