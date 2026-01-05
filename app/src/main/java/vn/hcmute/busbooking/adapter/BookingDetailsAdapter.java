@@ -68,6 +68,7 @@ public class BookingDetailsAdapter extends RecyclerView.Adapter<BookingDetailsAd
         String ticketCount = detail.get("ticket_count") != null ? detail.get("ticket_count").toString() : "";
         String totalPrice = detail.get("total_price") != null ? detail.get("total_price").toString() : "";
         String refundAmount = detail.get("refund_amount") != null ? detail.get("refund_amount").toString() : "";
+        String paidAt = detail.get("paid_at") != null ? detail.get("paid_at").toString() : "";
 
         android.util.Log.d("BookingDetailsAdapter", "totalPrice=" + totalPrice + ", refundAmount=" + refundAmount);
 
@@ -84,6 +85,13 @@ public class BookingDetailsAdapter extends RecyclerView.Adapter<BookingDetailsAd
         // Nếu cả hai đều trống, hiển thị 0
         String priceDisplay = !totalPrice.isEmpty() ? totalPrice : (!refundAmount.isEmpty() ? refundAmount : "0");
         holder.tvTotalPrice.setText("Tổng tiền: " + priceDisplay + " VNĐ");
+
+        // Hiển thị thời gian thanh toán
+        if (!paidAt.isEmpty()) {
+            holder.tvPaymentTime.setText("Thanh toán: " + formatDateTime(paidAt));
+        } else {
+            holder.tvPaymentTime.setText("Thanh toán: -");
+        }
     }
 
     @Override
@@ -92,7 +100,7 @@ public class BookingDetailsAdapter extends RecyclerView.Adapter<BookingDetailsAd
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvBookingId, tvUserName, tvRouteInfo, tvDepartureTime, tvTicketCount, tvTotalPrice;
+        TextView tvBookingId, tvUserName, tvRouteInfo, tvDepartureTime, tvTicketCount, tvTotalPrice, tvPaymentTime;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -102,6 +110,7 @@ public class BookingDetailsAdapter extends RecyclerView.Adapter<BookingDetailsAd
             tvDepartureTime = itemView.findViewById(R.id.tvDepartureTime);
             tvTicketCount = itemView.findViewById(R.id.tvTicketCount);
             tvTotalPrice = itemView.findViewById(R.id.tvTotalPrice);
+            tvPaymentTime = itemView.findViewById(R.id.tvPaymentTime);
         }
     }
 }

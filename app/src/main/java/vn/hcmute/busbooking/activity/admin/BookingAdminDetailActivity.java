@@ -35,8 +35,9 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
     private static final String TAG = "BookingAdminDetail";
 
     private TextView tvOperatorName, tvStatus, tvOrigin, tvDepartureTime, 
-                     tvDestination, tvArrivalTime, tvDate, tvPassengerName, tvPhoneNumber, 
-                     tvSeatNumber, tvBookingCode, tvPaymentName, tvBasePrice, tvDiscount, tvTotalPrice;
+                     tvDestination, tvArrivalTime, tvDate, tvPassengerName, tvPhoneNumber,
+                     tvSeatNumber, tvBookingCode, tvPaymentName, tvBasePrice, tvDiscount, tvTotalPrice,
+                     tvPickupLocation, tvPickupAddress, tvDropoffLocation, tvDropoffAddress;
     private Button btnConfirmBooking, btnCancelBooking;
     private Toolbar toolbar;
 
@@ -86,6 +87,10 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
         tvBasePrice = findViewById(R.id.tvBasePrice);
         tvDiscount = findViewById(R.id.tvDiscount);
         tvTotalPrice = findViewById(R.id.tvTotalPrice);
+        tvPickupLocation = findViewById(R.id.tvPickupLocation);
+        tvPickupAddress = findViewById(R.id.tvPickupAddress);
+        tvDropoffLocation = findViewById(R.id.tvDropoffLocation);
+        tvDropoffAddress = findViewById(R.id.tvDropoffAddress);
         btnConfirmBooking = findViewById(R.id.btnConfirmBooking);
         btnCancelBooking = findViewById(R.id.btnCancelBooking);
     }
@@ -179,6 +184,32 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
         if (tvPassengerName != null) tvPassengerName.setText(passengerName != null ? passengerName : "");
         if (tvPhoneNumber != null) tvPhoneNumber.setText(passengerPhone != null ? passengerPhone : "");
 
+        // Pickup and Dropoff Locations
+        String pickupLocation = (String) data.get("pickup_location");
+        if (tvPickupLocation != null) {
+            tvPickupLocation.setText(pickupLocation != null && !pickupLocation.isEmpty() ? pickupLocation : "-");
+        }
+
+        String pickupAddress = (String) data.get("pickup_address");
+        if (tvPickupAddress != null) {
+            tvPickupAddress.setText(pickupAddress != null && !pickupAddress.isEmpty() ? pickupAddress : "");
+            if (pickupAddress == null || pickupAddress.isEmpty()) {
+                tvPickupAddress.setVisibility(View.GONE);
+            }
+        }
+
+        String dropoffLocation = (String) data.get("dropoff_location");
+        if (tvDropoffLocation != null) {
+            tvDropoffLocation.setText(dropoffLocation != null && !dropoffLocation.isEmpty() ? dropoffLocation : "-");
+        }
+
+        String dropoffAddress = (String) data.get("dropoff_address");
+        if (tvDropoffAddress != null) {
+            tvDropoffAddress.setText(dropoffAddress != null && !dropoffAddress.isEmpty() ? dropoffAddress : "");
+            if (dropoffAddress == null || dropoffAddress.isEmpty()) {
+                tvDropoffAddress.setVisibility(View.GONE);
+            }
+        }
 
         // Seat Number - Process multiple formats
         if (tvSeatNumber != null) {
@@ -239,13 +270,6 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
         String bookingCode = (String) data.get("booking_code");
         if (tvBookingCode != null && bookingCode != null) {
             tvBookingCode.setText(bookingCode);
-        }
-
-        // Payment Method
-        String paymentMethod = (String) data.get("payment_method");
-        if (tvPaymentName != null && paymentMethod != null) {
-            String paymentDisplayName = getPaymentMethodName(paymentMethod);
-            tvPaymentName.setText(paymentDisplayName);
         }
 
         // Total Amount
@@ -315,6 +339,13 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
             if (tvDiscount != null) {
                 tvDiscount.setText("-" + CurrencyUtil.formatVND(totalDiscount));
             }
+        }
+
+        // Payment Method
+        String paymentMethod = (String) data.get("payment_method");
+        if (tvPaymentName != null && paymentMethod != null) {
+            String paymentDisplayName = getPaymentMethodName(paymentMethod);
+            tvPaymentName.setText(paymentDisplayName);
         }
 
         // Determine UI by status
@@ -398,7 +429,7 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
             case "qr":
                 return "QR Code (PayOS)";
             case "offline":
-                return "Thanh toán tại quầy";
+                return "Thanh toán tại nhà xe";
             case "momo":
                 return "Momo";
             case "vnpay":
