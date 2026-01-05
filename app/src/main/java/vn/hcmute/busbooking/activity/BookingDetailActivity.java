@@ -405,12 +405,14 @@ public class BookingDetailActivity extends AppCompatActivity {
         Object basePriceObj = data.get("base_price");
         Object discountObj = data.get("discount_amount");
         Object coinDiscountObj = data.get("coin_discount");
+        Object coinsUsedObj = data.get("coins_used");
         Object promoCodeObj = data.get("promo_code");
 
         double totalAmount = 0.0;
         double basePrice = 0.0;
         double discountAmount = 0.0;
         double coinDiscount = 0.0;
+        int coinsUsed = 0;
         String promoCode = null;
 
         // Get total amount
@@ -428,9 +430,16 @@ public class BookingDetailActivity extends AppCompatActivity {
         if (discountObj instanceof Number) discountAmount = ((Number) discountObj).doubleValue();
         else if (discountObj instanceof String) try { discountAmount = Double.parseDouble((String) discountObj); } catch (Exception e){}
 
-        // Get coin discount
+        // Get coin discount - try from coin_discount field first, then from coins_used
         if (coinDiscountObj instanceof Number) coinDiscount = ((Number) coinDiscountObj).doubleValue();
         else if (coinDiscountObj instanceof String) try { coinDiscount = Double.parseDouble((String) coinDiscountObj); } catch (Exception e){}
+
+        // If coin_discount is not available, use coins_used (1 coin = 1 VND)
+        if (coinDiscount == 0 && coinsUsedObj != null) {
+            if (coinsUsedObj instanceof Number) coinsUsed = ((Number) coinsUsedObj).intValue();
+            else if (coinsUsedObj instanceof String) try { coinsUsed = Integer.parseInt((String) coinsUsedObj); } catch (Exception e){}
+            coinDiscount = coinsUsed;
+        }
 
         // Get promo code
         if (promoCodeObj instanceof String) {
@@ -444,7 +453,7 @@ public class BookingDetailActivity extends AppCompatActivity {
         }
 
         // Debug logs
-        Log.d(TAG, "Price breakdown - Base: " + basePrice + ", PromoDiscount: " + discountAmount + ", CoinDiscount: " + coinDiscount + ", Total: " + totalAmount + ", PromoCode: " + promoCode);
+        Log.d(TAG, "Price breakdown - Base: " + basePrice + ", PromoDiscount: " + discountAmount + ", CoinDiscount: " + coinDiscount + ", Total: " + totalAmount + ", PromoCode: " + promoCode + ", CoinsUsed: " + coinsUsed);
 
         String amountStr = CurrencyUtil.formatVND(totalAmount);
 
@@ -466,13 +475,13 @@ public class BookingDetailActivity extends AppCompatActivity {
                 promoCodeRow.setVisibility(View.GONE);
             }
 
-            // Show discount row only if there's a discount
-            if (discountAmount > 0 && discountRow != null && tvDiscount != null) {
-                Log.d(TAG, "Showing discount row with amount: " + discountAmount);
+            // Show discount row only if there's a promo discount (and promo code exists)
+            if (promoCode != null && discountAmount > 0 && discountRow != null && tvDiscount != null) {
+                Log.d(TAG, "Showing discount row with amount: " + discountAmount + " (promo code: " + promoCode + ")");
                 discountRow.setVisibility(View.VISIBLE);
                 tvDiscount.setText("-" + CurrencyUtil.formatVND(discountAmount));
             } else if (discountRow != null) {
-                Log.d(TAG, "Hiding discount row - discountAmount: " + discountAmount + ", discountRow null: " + (discountRow == null) + ", tvDiscount null: " + (tvDiscount == null));
+                Log.d(TAG, "Hiding discount row - promoCode: " + promoCode + ", discountAmount: " + discountAmount);
                 discountRow.setVisibility(View.GONE);
             }
 
