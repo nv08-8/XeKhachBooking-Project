@@ -580,7 +580,7 @@ router.post('/bookings/:id/payment', async (req, res) => {
 
       try {
         await client.query(
-          `UPDATE bookings SET status=$1, price_paid=$2, payment_method=$3, paid_at=NOW() WHERE id=$4`,
+          `UPDATE bookings SET status=$1, price_paid=$2, payment_method=$3, paid_at=NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh' WHERE id=$4`,
           [finalStatus, paidAmount, normalizedMethod, id]
         );
       } catch (updateErr) {
@@ -653,7 +653,7 @@ router.post('/bookings/:id/payment', async (req, res) => {
 
     try {
       await client.query(
-        `UPDATE bookings SET status=$1, price_paid=$2, payment_method=$3, paid_at=NOW() WHERE id=$4`,
+        `UPDATE bookings SET status=$1, price_paid=$2, payment_method=$3, paid_at=NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh' WHERE id=$4`,
         [finalStatus, paidAmount, normalizedMethod, id]
       );
       console.log(`[bookings/${id}/payment] Main update successful`);
@@ -949,7 +949,7 @@ router.post('/bookings/:id/confirm-offline-payment', async (req, res) => {
 
     await client.query(
       `UPDATE bookings
-       SET status=$1, price_paid=$2, paid_at=NOW(), metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
+       SET status=$1, price_paid=$2, paid_at=NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh', metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
        WHERE id=$4`,
       ['confirmed', totalAmount, JSON.stringify({ payment: paymentMeta }), id]
     );
