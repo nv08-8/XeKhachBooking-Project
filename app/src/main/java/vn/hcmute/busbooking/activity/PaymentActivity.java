@@ -1611,18 +1611,25 @@ public class PaymentActivity extends AppCompatActivity {
                         } else if ("card".equals(paymentMethod)) {
                             confirmNextPayment(bookingIds, 0, "card");
                         } else {
-                            // Offline payment - DO NOT deduct coins yet. Only deduct when payment is confirmed.
-                            Log.d(TAG, "Offline payment - coins will NOT be deducted yet (usedCoinAmount=" + usedCoinAmount + ")");
-                            Log.d(TAG, "Offline payment: Coins will be deducted only when payment is confirmed by user");
+                            // Offline payment - deduct coins immediately
+                            Log.d(TAG, "Offline payment - deducting coins (usedCoinAmount=" + usedCoinAmount + ")");
 
                             Toast.makeText(PaymentActivity.this,
                                     "Vé đã được đặt với thanh toán tại nhà xe. Vui lòng thanh toán trước khi lên xe.",
                                     Toast.LENGTH_LONG).show();
 
-                            // Navigate immediately without deducting coins
-                            // Coins will be deducted when user confirms payment in MyBookingsActivity
-                            Log.d(TAG, "Offline payment: navigating to MyBookingsActivity without coin deduction");
-                            navigateToMyBookings();
+                            // Deduct coins if any were used
+                            if (usedCoinAmount > 0 && !bookingIds.isEmpty()) {
+                                int bookingId = bookingIds.get(0);
+                                Log.d(TAG, "Offline payment: deducting " + usedCoinAmount + " coins for booking " + bookingId);
+                                deductUserCoins(bookingId, () -> {
+                                    Log.d(TAG, "Offline payment: coins deducted, navigating to MyBookingsActivity");
+                                    navigateToMyBookings();
+                                });
+                            } else {
+                                Log.d(TAG, "Offline payment: no coins to deduct, navigating to MyBookingsActivity");
+                                navigateToMyBookings();
+                            }
                         }
                     } else {
                         handlePaymentError("Không thể tạo đặt vé. Vui lòng thử lại.");
