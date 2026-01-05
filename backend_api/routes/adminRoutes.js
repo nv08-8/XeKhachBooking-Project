@@ -896,14 +896,13 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
   if (group_by === "day" || group_by === "date") {
     params.push(value);
     // Include entire day from 00:00:00 to 23:59:59 in Vietnam timezone
-    // Use paid_at for refund details (group by payment date, not creation date)
-    sql += ` AND (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= $${params.length}::date AND (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < $${params.length}::date + INTERVAL '1 day'`;
+    sql += ` AND (b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= $${params.length}::date AND (b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < $${params.length}::date + INTERVAL '1 day'`;
   } else if (group_by === "month") {
     params.push(value);
-    sql += ` AND TO_CHAR(b.paid_at, 'YYYY-MM') = $${params.length}`;
+    sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $${params.length}`;
   } else if (group_by === "year") {
     params.push(value);
-    sql += ` AND EXTRACT(YEAR FROM b.paid_at) = $${params.length}`;
+    sql += ` AND EXTRACT(YEAR FROM b.created_at) = $${params.length}`;
   } else if (group_by === "route") {
     params.push(value);
     sql += ` AND t.route_id = $${params.length}`;
