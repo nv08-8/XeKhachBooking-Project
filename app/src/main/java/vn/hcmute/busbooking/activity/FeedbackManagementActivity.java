@@ -20,6 +20,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 import androidx.viewpager2.widget.ViewPager2;
 
+import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
 
@@ -57,6 +58,12 @@ public class FeedbackManagementActivity extends AppCompatActivity {
             Toast.makeText(this, "Vui lòng đăng nhập để xem nhận xét", Toast.LENGTH_SHORT).show();
             finish();
             return;
+        }
+
+        // Setup Toolbar back button
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        if (toolbar != null) {
+            toolbar.setNavigationOnClickListener(v -> finish());
         }
 
         // Setup ViewPager2 và TabLayout
