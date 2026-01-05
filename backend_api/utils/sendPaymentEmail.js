@@ -94,13 +94,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
         console.log(`[sendPaymentEmail] Starting email send for booking ${booking.id}, email: ${email}`);
 
         // Format dates and prices
-        const departureDate = new Date(trip.departure_time).toLocaleDateString('vi-VN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        const departureDate = formatDateInVietnamTZ(trip.departure_time, true);
 
         const pricePaid = booking.price_paid || booking.total_amount || 0;
         const formattedPrice = new Intl.NumberFormat('vi-VN', {
@@ -238,7 +232,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                                 </tr>
                                 <tr>
                                     <td>Ngày đặt</td>
-                                    <td>${new Date(booking.created_at).toLocaleDateString('vi-VN')}</td>
+                                    <td>${formatDateInVietnamTZ(booking.created_at, false)}</td>
                                 </tr>
                             </table>
                         </div>

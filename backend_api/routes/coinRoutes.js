@@ -2,6 +2,32 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
+// Helper to format date to Vietnam timezone (UTC+7)
+function formatVietnamTime(date) {
+  try {
+    if (!date) return null;
+    const d = new Date(date instanceof Date ? date : new Date(date));
+    if (isNaN(d.getTime())) return null;
+
+    // Convert to Vietnam time (UTC+7) by adding 7 hours
+    const vietnamTime = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+
+    // Format as ISO string: YYYY-MM-DDTHH:mm:ss.sssZ
+    const year = vietnamTime.getUTCFullYear();
+    const month = String(vietnamTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(vietnamTime.getUTCDate()).padStart(2, '0');
+    const hours = String(vietnamTime.getUTCHours()).padStart(2, '0');
+    const minutes = String(vietnamTime.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(vietnamTime.getUTCSeconds()).padStart(2, '0');
+    const ms = String(vietnamTime.getUTCMilliseconds()).padStart(3, '0');
+
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${ms}Z`;
+  } catch (e) {
+    console.warn('Failed to format Vietnam time:', e);
+    return null;
+  }
+}
+
 // Lấy số dư xu
 router.get("/coins/balance", async (req, res) => {
     const { user_id } = req.query;
@@ -21,7 +47,12 @@ router.get("/coins/history", async (req, res) => {
             "SELECT * FROM coin_history WHERE user_id = $1 ORDER BY created_at DESC",
             [user_id]
         );
-        res.json(rows);
+        // Format created_at to Vietnam timezone
+        const formattedRows = rows.map(row => ({
+            ...row,
+            created_at: row.created_at ? formatVietnamTime(new Date(row.created_at)) : row.created_at
+        }));
+        res.json(formattedRows);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

@@ -59,6 +59,33 @@ function formatLocalISO(date = new Date()) {
     return String(date);
   }
 }
+
+// Helper to format date to Vietnam timezone (UTC+7)
+function formatVietnamTime(date) {
+  try {
+    if (!date) return null;
+    const d = new Date(date instanceof Date ? date : new Date(date));
+    if (isNaN(d.getTime())) return null;
+
+    // Convert to Vietnam time (UTC+7) by adding 7 hours
+    const vietnamTime = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+
+    // Format as ISO string: YYYY-MM-DDTHH:mm:ss.sssZ
+    const year = vietnamTime.getUTCFullYear();
+    const month = String(vietnamTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(vietnamTime.getUTCDate()).padStart(2, '0');
+    const hours = String(vietnamTime.getUTCHours()).padStart(2, '0');
+    const minutes = String(vietnamTime.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(vietnamTime.getUTCSeconds()).padStart(2, '0');
+    const ms = String(vietnamTime.getUTCMilliseconds()).padStart(3, '0');
+
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${ms}Z`;
+  } catch (e) {
+    console.warn('Failed to format Vietnam time:', e);
+    return null;
+  }
+}
+
 // POST /bookings - Create a new booking with multiple seats
 router.post("/bookings", async (req, res) => {
   const { user_id, trip_id, seat_labels, promotion_code, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_name, passenger_phone, passenger_email, used_coins_amount } = req.body;
@@ -284,11 +311,12 @@ router.get('/bookings/my', async (req, res) => {
       console.log(`   First booking: #${rows[0].id}, status: ${rows[0].status}, route: ${rows[0].origin} → ${rows[0].destination}`);
     }
     // Format departure_time and arrival_time to local ISO without trailing Z
+    // Format created_at to Vietnam timezone (UTC+7)
     const formattedRows = rows.map(r => ({
       ...r,
       departure_time: r.departure_time ? formatLocalISO(new Date(r.departure_time)) : r.departure_time,
       arrival_time: r.arrival_time ? formatLocalISO(new Date(r.arrival_time)) : r.arrival_time,
-      created_at: r.created_at ? formatLocalISO(new Date(r.created_at)) : r.created_at,
+      created_at: r.created_at ? formatVietnamTime(new Date(r.created_at)) : r.created_at,
       // Thêm thông báo nếu trip bị hủy hoặc admin hủy vé hoặc user hủy vé đã thanh toán
       trip_cancelled_message:
         (r.trip_status === 'cancelled' || r.status === 'pending_refund' || (r.status === 'cancelled' && r.price_paid > 0))
@@ -381,11 +409,11 @@ router.get('/bookings/:id', async (req, res) => {
     booking.coin_discount = coinDiscount; // Coin discount
     booking.promo_code = booking.promotion_code; // Alias for consistency
 
-    // Format trip times and created_at/published times to local ISO without trailing Z
+    // Format trip times and created_at/paid_at times to Vietnam timezone (UTC+7)
     if (booking.departure_time) booking.departure_time = formatLocalISO(new Date(booking.departure_time));
     if (booking.arrival_time) booking.arrival_time = formatLocalISO(new Date(booking.arrival_time));
-    if (booking.created_at) booking.created_at = formatLocalISO(new Date(booking.created_at));
-    if (booking.paid_at) booking.paid_at = formatLocalISO(new Date(booking.paid_at));
+    if (booking.created_at) booking.created_at = formatVietnamTime(new Date(booking.created_at));
+    if (booking.paid_at) booking.paid_at = formatVietnamTime(new Date(booking.paid_at));
 
     // Thêm thông báo nếu trip bị hủy hoặc admin hủy vé
     if (booking.trip_status === 'cancelled' || booking.status === 'pending_refund') {
