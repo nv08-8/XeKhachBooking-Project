@@ -610,11 +610,11 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
-                query += ` AND (b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= $${params.length}::date`;
+                query += ` AND b.created_at >= $${params.length}`;
             }
             if (to_date) {
                 params.push(to_date);
-                query += ` AND (b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < $${params.length}::date + INTERVAL '1 day'`;
+                query += ` AND b.created_at < ($${params.length}::date + INTERVAL '1 day') AT TIME ZONE 'Asia/Ho_Chi_Minh'`;
             }
             break;
         case 'month':
@@ -716,11 +716,11 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
-                query += ` AND (b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= $${params.length}::date`;
+                query += ` AND b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh' >= $${params.length}::date`;
             }
             if (to_date) {
                 params.push(to_date);
-                query += ` AND (b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < $${params.length}::date + INTERVAL '1 day'`;
+                query += ` AND b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh' < ($${params.length}::date + INTERVAL '1 day')`;
             }
             break;
         case 'month':
@@ -762,12 +762,8 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
 
     try {
         console.log(`📊 [Revenue Report] groupBy=${groupBy}, Query: ${query}`);
-        console.log(`📊 [Revenue Report] Params:`, params);
         const result = await db.query(query, params);
         console.log(`📊 [Revenue Report] Found ${result.rows.length} rows`);
-        if (result.rows.length === 0) {
-            console.log(`📊 [Revenue Report] WARNING: No data found for groupBy=${groupBy}`);
-        }
         res.json(result.rows);
     } catch (err) {
         console.error(`Error fetching revenue by ${groupBy}:`, err);
@@ -915,13 +911,8 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
 
   try {
     console.log(`💸 [Refund Details] refundType=${refundType}, group_by=${group_by}, value=${value}`);
-    console.log(`💸 [Refund Details] SQL:`, sql);
-    console.log(`💸 [Refund Details] Params:`, params);
     const result = await db.query(sql, params);
     console.log(`💸 [Refund Details] Found ${result.rows.length} bookings`);
-    if (result.rows.length === 0) {
-      console.log(`💸 [Refund Details] WARNING: No data found for date=${value}`);
-    }
     res.json(result.rows);
   } catch (err) {
     console.error("Error fetching refund details:", err);
