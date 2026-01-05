@@ -716,11 +716,11 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
-                query += ` AND b.created_at >= $${params.length}`;
+                query += ` AND b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh' >= $${params.length}::date`;
             }
             if (to_date) {
                 params.push(to_date);
-                query += ` AND b.created_at < ($${params.length}::date + INTERVAL '1 day') AT TIME ZONE 'Asia/Ho_Chi_Minh'`;
+                query += ` AND b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh' < ($${params.length}::date + INTERVAL '1 day')`;
             }
             break;
         case 'month':
@@ -824,11 +824,11 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
-                query += ` AND b.created_at >= $${params.length}`;
+                query += ` AND b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh' >= $${params.length}::date`;
             }
             if (to_date) {
                 params.push(to_date);
-                query += ` AND b.created_at < ($${params.length}::date + INTERVAL '1 day') AT TIME ZONE 'Asia/Ho_Chi_Minh'`;
+                query += ` AND b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh' < ($${params.length}::date + INTERVAL '1 day')`;
             }
             break;
         case 'month':
