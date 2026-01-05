@@ -281,24 +281,39 @@ public class BookingAdminDetailActivity extends AppCompatActivity {
         }
 
         // Discount (if applicable)
+        // Calculate total discount from both discount_amount (voucher) and coin_discount
+        double voucherDiscount = 0.0;
+        double coinDiscount = 0.0;
+
         Object discountObj = data.get("discount_amount");
-        double discount = basePrice - totalAmount;
         if (discountObj instanceof Number) {
-            discount = ((Number) discountObj).doubleValue();
+            voucherDiscount = ((Number) discountObj).doubleValue();
         } else if (discountObj instanceof String) {
             try {
-                discount = Double.parseDouble((String) discountObj);
+                voucherDiscount = Double.parseDouble((String) discountObj);
             } catch (NumberFormatException ignored) {}
         }
 
+        Object coinDiscountObj = data.get("coin_discount");
+        if (coinDiscountObj instanceof Number) {
+            coinDiscount = ((Number) coinDiscountObj).doubleValue();
+        } else if (coinDiscountObj instanceof String) {
+            try {
+                coinDiscount = Double.parseDouble((String) coinDiscountObj);
+            } catch (NumberFormatException ignored) {}
+        }
+
+        // Total discount = voucher + coins
+        double totalDiscount = voucherDiscount + coinDiscount;
+
         // Display discount if > 0
-        if (discount > 0) {
+        if (totalDiscount > 0) {
             android.view.View discountRow = findViewById(R.id.discountRow);
             if (discountRow != null) {
                 discountRow.setVisibility(View.VISIBLE);
             }
             if (tvDiscount != null) {
-                tvDiscount.setText("-" + CurrencyUtil.formatVND(discount));
+                tvDiscount.setText("-" + CurrencyUtil.formatVND(totalDiscount));
             }
         }
 
