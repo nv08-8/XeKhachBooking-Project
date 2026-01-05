@@ -580,7 +580,8 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
         SELECT
             %s AS group_key,
             COUNT(b.id) AS total_bookings,
-            SUM(b.total_amount) AS total_revenue
+            SUM(b.total_amount) AS total_revenue,
+            SUM(b.seats_count) AS total_tickets
         FROM bookings b
         JOIN trips t ON b.trip_id = t.id
         JOIN routes r ON t.route_id = r.id
@@ -606,23 +607,23 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
     switch (groupBy) {
         case 'day':
         case 'date':
-            groupByClause = "DATE(b.created_at)";
+            groupByClause = "DATE(b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')";
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
-                query += ` AND b.created_at >= $${params.length}`;
+                query += ` AND (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= $${params.length}::date`;
             }
             if (to_date) {
                 params.push(to_date);
-                query += ` AND b.created_at < ($${params.length}::date + INTERVAL '1 day') AT TIME ZONE 'Asia/Ho_Chi_Minh'`;
+                query += ` AND (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < ($${params.length}::date + INTERVAL '1 day')`;
             }
             break;
         case 'month':
-            groupByClause = "TO_CHAR(b.created_at, 'YYYY-MM')";
+            groupByClause = "TO_CHAR(b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM')";
             orderByClause = "group_key DESC";
             break;
         case 'year':
-            groupByClause = "EXTRACT(YEAR FROM b.created_at)";
+            groupByClause = "EXTRACT(YEAR FROM b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')";
             orderByClause = "group_key DESC";
             break;
         case 'route':
