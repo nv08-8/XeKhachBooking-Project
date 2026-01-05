@@ -75,9 +75,6 @@ public class FeedbackManagementActivity extends AppCompatActivity {
         tabLayout = findViewById(R.id.tabLayout);
         viewPager = findViewById(R.id.viewPager);
 
-        // Setup toolbar navigation
-        MaterialToolbar toolbar = findViewById(R.id.toolbar);
-        toolbar.setNavigationOnClickListener(v -> finish());
 
         FeedbackPagerAdapter adapter = new FeedbackPagerAdapter(this);
         viewPager.setAdapter(adapter);
