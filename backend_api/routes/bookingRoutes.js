@@ -602,6 +602,45 @@ router.post('/bookings/:id/payment', async (req, res) => {
       await client.query('COMMIT');
       client.release();
       console.log(`[bookings/${id}/payment] ✅ Card payment simulated and booking confirmed`);
+
+      // Send confirmation email for card payment
+      try {
+        console.log(`📧 Sending email for card payment: booking ${id}`);
+        const fullBooking = await db.query(
+          `SELECT b.*, u.email, u.name, u.phone, r.origin, r.destination, t.departure_time, t.operator, t.bus_type,
+                  COALESCE(array_agg(bi.seat_code) FILTER (WHERE bi.seat_code IS NOT NULL), ARRAY[]::text[]) AS seat_labels
+           FROM bookings b
+           JOIN users u ON b.user_id = u.id
+           JOIN trips t ON b.trip_id = t.id
+           JOIN routes r ON t.route_id = r.id
+           LEFT JOIN booking_items bi ON bi.booking_id = b.id
+           WHERE b.id=$1
+           GROUP BY b.id, b.booking_code, b.trip_id, b.total_amount, b.price_paid, b.payment_method, b.status, b.created_at, b.paid_at, b.user_id, u.id, u.email, u.name, u.phone, r.id, r.origin, r.destination, t.id, t.departure_time, t.operator, t.bus_type`,
+          [id]
+        );
+
+        if (fullBooking.rowCount > 0) {
+          const booking = fullBooking.rows[0];
+          const userData = {
+            email: booking.email,
+            name: booking.name,
+            phone: booking.phone
+          };
+          const tripData = {
+            origin: booking.origin,
+            destination: booking.destination,
+            departure_time: booking.departure_time,
+            operator: booking.operator,
+            bus_type: booking.bus_type
+          };
+          await sendPaymentConfirmationEmail(booking.email, booking, tripData, userData);
+          console.log(`✅ Email sent for card payment booking ${id}`);
+        }
+      } catch (emailError) {
+        console.error(`❌ Failed to send email for card payment booking ${id}:`, emailError.message || emailError);
+        // Don't fail the payment confirmation if email fails
+      }
+
       return res.json({ message: 'Payment confirmed', booking_id: Number(id), status: finalStatus, paidAmount });
     }
 
