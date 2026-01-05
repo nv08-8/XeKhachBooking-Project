@@ -61,7 +61,7 @@ router.post("/coins/use", async (req, res) => {
 
         // Note: Do NOT update total_amount here because it was already calculated correctly when booking was created
         // total_amount already includes coin discount from createBooking endpoint
-        Log.d(TAG, "⚠️  Skipping booking total_amount update: already applied at booking creation time");
+        console.log("⚠️  Skipping booking total_amount update: already applied at booking creation time");
 
         await client.query("COMMIT");
         client.release();

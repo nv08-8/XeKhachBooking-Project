@@ -134,7 +134,8 @@ router.post("/bookings", async (req, res) => {
 
     const totalAmount = Number((tripPrice * requiredSeats).toFixed(2));
 
-    // If a promotion_code is provided, re-validate it server-side and compute discount
+    // Calculate promotion discount
+    let discountAmount = 0;
     let finalAmount = totalAmount;
     if (promotion_code) {
       try {
@@ -159,8 +160,8 @@ router.post("/bookings", async (req, res) => {
               const maxDiscount = Number(promo.max_discount || 0);
               let discount = rawDiscount;
               if (maxDiscount > 0) discount = Math.min(discount, maxDiscount);
-              discount = Math.max(0, Math.min(discount, totalAmount));
-              finalAmount = Number((totalAmount - discount).toFixed(2));
+              discountAmount = Math.max(0, Math.min(discount, totalAmount));
+              finalAmount = Number((totalAmount - discountAmount).toFixed(2));
             }
           }
         }
@@ -171,8 +172,9 @@ router.post("/bookings", async (req, res) => {
 
     // Apply coin discount on remaining amount (after promo discount)
     // 1 coin = 1 VND, coins can only be used up to the remaining amount after promo discount
+    let coinDiscount = 0;
     if (coinsUsed > 0) {
-      const coinDiscount = Math.min(coinsUsed, finalAmount);
+      coinDiscount = Math.min(coinsUsed, finalAmount);
       finalAmount = Number((finalAmount - coinDiscount).toFixed(2));
       console.log(`💰 Applied coin discount: ${coinDiscount} VND (coins_used: ${coinsUsed}), finalAmount: ${finalAmount}`);
     }
@@ -188,9 +190,9 @@ router.post("/bookings", async (req, res) => {
     const bookingCode = generateBookingCode(trip_id);
 
     const bookingInsert = await client.query(
-      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_info, booking_code, coins_used)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-      [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, 'pending', metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id, finalPaymentMethod, passengerInfoJson, bookingCode, coinsUsed]
+      `INSERT INTO bookings (user_id, trip_id, total_amount, seats_count, promotion_code, status, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_info, booking_code, coins_used, discount_amount, coin_discount)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
+      [user_id, trip_id, finalAmount, requiredSeats, promotion_code || null, 'pending', metadata ? JSON.stringify(metadata) : null, pickup_stop_id, dropoff_stop_id, finalPaymentMethod, passengerInfoJson, bookingCode, coinsUsed, discountAmount, coinDiscount]
     );
     const bookingId = bookingInsert.rows[0].id;
     
@@ -212,7 +214,15 @@ router.post("/bookings", async (req, res) => {
 
     console.log(`✅ [BOOKING-CREATED] Booking #${bookingId} created: user=${user_id}, trip=${trip_id}, payment_method="${finalPaymentMethod}", status="pending", coins_used=${coinsUsed}, seats=[${seat_labels.join(',')}]`);
 
-    res.json({ message: 'Booking created successfully', booking_ids: bookingIds, total_amount: finalAmount });
+    res.json({
+      message: 'Booking created successfully',
+      booking_ids: bookingIds,
+      total_amount: finalAmount,
+      discount_amount: discountAmount,
+      coin_discount: coinDiscount,
+      promotion_code: promotion_code || null,
+      coins_used: coinsUsed
+    });
 
   } catch (err) {
     console.error('Booking failed:', err.message || err);
@@ -249,7 +259,7 @@ router.get('/bookings/my', async (req, res) => {
 
   const sql = `
     SELECT b.id, b.status, b.price_paid, b.created_at, b.total_amount, b.payment_method,
-           b.passenger_info, COALESCE(b.booking_code, '') as booking_code, b.coins_used,
+           b.passenger_info, COALESCE(b.booking_code, '') as booking_code, b.coins_used, b.discount_amount, b.coin_discount,
            t.id AS trip_id, t.departure_time, t.arrival_time, t.operator, t.bus_type, t.status AS trip_status,
            r.origin, r.destination,
            pickup_stop.name AS pickup_location,
@@ -301,7 +311,7 @@ router.get('/bookings/:id', async (req, res) => {
     SELECT b.id, b.user_id, b.trip_id, b.total_amount, b.seats_count, b.promotion_code,
            b.status, b.metadata, b.pickup_stop_id, b.dropoff_stop_id, b.payment_method,
            b.passenger_info, b.created_at, b.paid_at, b.cancelled_at, b.expired_at,
-           b.price_paid, COALESCE(b.booking_code, '') as booking_code, b.coins_used,
+           b.price_paid, COALESCE(b.booking_code, '') as booking_code, b.coins_used, b.discount_amount, b.coin_discount,
            t.departure_time, t.arrival_time, t.operator, t.bus_type, t.price AS seat_price, t.status AS trip_status,
            r.origin, r.destination,
            u.name AS passenger_name, u.phone AS passenger_phone,
