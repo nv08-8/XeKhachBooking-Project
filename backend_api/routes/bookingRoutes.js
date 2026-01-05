@@ -59,7 +59,6 @@ function formatLocalISO(date = new Date()) {
     return String(date);
   }
 }
-
 // POST /bookings - Create a new booking with multiple seats
 router.post("/bookings", async (req, res) => {
   const { user_id, trip_id, seat_labels, promotion_code, metadata, pickup_stop_id, dropoff_stop_id, payment_method, passenger_name, passenger_phone, passenger_email, used_coins_amount } = req.body;
@@ -791,6 +790,18 @@ router.put('/bookings/:id/payment-method', async (req, res) => {
        WHERE id=$4`,
       [normalizedMethod, newStatus, JSON.stringify({ payment: paymentMeta }), id]
     );
+
+    // If user changed to an online payment method (card/qr/online gateways),
+    // refresh created_at to restart the pending TTL so the server won't auto-cancel
+    // the booking immediately. This keeps the booking alive for another TTL window.
+    if (!isOfflinePayment) {
+      try {
+        await client.query(`UPDATE bookings SET created_at=NOW() WHERE id=$1`, [id]);
+      } catch (e) {
+        // Non-fatal: log and continue — booking still updated with new payment method
+        console.warn('[payment-method] Failed to refresh created_at for booking', id, e.message || e);
+      }
+    }
 
     await commitAndRelease(client);
 
