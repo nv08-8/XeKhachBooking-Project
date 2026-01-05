@@ -237,17 +237,6 @@
                             android:textColor="@android:color/white"
                             android:textSize="16sp" />
                     </LinearLayout>
-
-                    <!-- Arrival Time -->
-                    <TextView
-                        android:id="@+id/tvArrivalTime"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="--:--"
-                        android:textColor="@android:color/white"
-                        android:textSize="14sp"
-                        android:visibility="visible" />
                 </LinearLayout>
             </FrameLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -366,29 +355,6 @@
                         android:fontFamily="monospace" />
                 </LinearLayout>
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Phương thức TT"
-                        android:textColor="#8E8E93"
-                        android:textSize="14sp" />
-
-                    <TextView
-                        android:id="@+id/tvPaymentName"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Chuyển khoản"
-                        android:textColor="@android:color/black"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
 
                 <View
                     android:layout_width="match_parent"
@@ -747,16 +713,6 @@
                             android:textColor="@android:color/black"
                             android:textSize="16sp"
                             android:textStyle="bold" />
-
-                        <!-- Dynamic Subtext -->
-                        <TextView
-                            android:id="@+id/tvPaymentSubtext"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:text="Chi tiết bên dưới"
-                            android:textColor="#8E8E93"
-                            android:textSize="13sp" />
                     </LinearLayout>
                 </LinearLayout>
 
