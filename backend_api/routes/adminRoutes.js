@@ -714,23 +714,23 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
     switch (groupBy) {
         case 'day':
         case 'date':
-            groupByClause = "DATE(b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')";
+            groupByClause = "DATE(COALESCE(b.paid_at, b.created_at) AT TIME ZONE 'Asia/Ho_Chi_Minh')";
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
-                query += ` AND (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= $${params.length}::date`;
+                query += ` AND (COALESCE(b.paid_at, b.created_at) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= $${params.length}::date`;
             }
             if (to_date) {
                 params.push(to_date);
-                query += ` AND (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < ($${params.length}::date + INTERVAL '1 day')`;
+                query += ` AND (COALESCE(b.paid_at, b.created_at) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < ($${params.length}::date + INTERVAL '1 day')`;
             }
             break;
         case 'month':
-            groupByClause = "TO_CHAR(b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM')";
+            groupByClause = "TO_CHAR(COALESCE(b.paid_at, b.created_at) AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM')";
             orderByClause = "group_key DESC";
             break;
         case 'year':
-            groupByClause = "EXTRACT(YEAR FROM b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')";
+            groupByClause = "EXTRACT(YEAR FROM COALESCE(b.paid_at, b.created_at) AT TIME ZONE 'Asia/Ho_Chi_Minh')";
             orderByClause = "group_key DESC";
             break;
         case 'route':
