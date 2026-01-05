@@ -728,10 +728,26 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
         case 'month':
             groupByClause = "TO_CHAR(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours', 'YYYY-MM')";
             orderByClause = "group_key DESC";
+            if (from_date) {
+                params.push(from_date);
+                query += ` AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') >= $${params.length}::date`;
+            }
+            if (to_date) {
+                params.push(to_date);
+                query += ` AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') < ($${params.length}::date + INTERVAL '1 day')`;
+            }
             break;
         case 'year':
             groupByClause = "EXTRACT(YEAR FROM COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours')";
             orderByClause = "group_key DESC";
+            if (from_date) {
+                params.push(from_date);
+                query += ` AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') >= $${params.length}::date`;
+            }
+            if (to_date) {
+                params.push(to_date);
+                query += ` AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') < ($${params.length}::date + INTERVAL '1 day')`;
+            }
             break;
         case 'route':
             groupByClause = "r.id, r.origin, r.destination";
