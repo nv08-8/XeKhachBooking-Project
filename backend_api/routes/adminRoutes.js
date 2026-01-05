@@ -6,32 +6,6 @@ const { generateBookingCode } = require("../utils/bookingHelper");
 const { generateDetailedSeatLayout } = require("../data/seat_layout");
 const sendPaymentConfirmationEmail = require("../utils/sendPaymentEmail");
 
-// Helper to format date to Vietnam timezone (UTC+7)
-function formatVietnamTime(date) {
-  try {
-    if (!date) return null;
-    const d = new Date(date instanceof Date ? date : new Date(date));
-    if (isNaN(d.getTime())) return null;
-
-    // Convert to Vietnam time (UTC+7) by adding 7 hours
-    const vietnamTime = new Date(d.getTime() + 7 * 60 * 60 * 1000);
-
-    // Format as ISO string: YYYY-MM-DDTHH:mm:ss.sssZ
-    const year = vietnamTime.getUTCFullYear();
-    const month = String(vietnamTime.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(vietnamTime.getUTCDate()).padStart(2, '0');
-    const hours = String(vietnamTime.getUTCHours()).padStart(2, '0');
-    const minutes = String(vietnamTime.getUTCMinutes()).padStart(2, '0');
-    const seconds = String(vietnamTime.getUTCSeconds()).padStart(2, '0');
-    const ms = String(vietnamTime.getUTCMilliseconds()).padStart(3, '0');
-
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${ms}Z`;
-  } catch (e) {
-    console.warn('Failed to format Vietnam time:', e);
-    return null;
-  }
-}
-
 // ============================================================
 // MIDDLEWARE: Kiểm tra quyền admin
 // ============================================================
@@ -327,13 +301,7 @@ router.get("/bookings", checkAdminRole, async (req, res) => {
 
   try {
     const result = await db.query(sql, params);
-    // Format created_at and paid_at to Vietnam timezone
-    const formattedRows = result.rows.map(row => ({
-      ...row,
-      created_at: row.created_at ? formatVietnamTime(new Date(row.created_at)) : row.created_at,
-      paid_at: row.paid_at ? formatVietnamTime(new Date(row.paid_at)) : row.paid_at
-    }));
-    res.json(formattedRows);
+    res.json(result.rows);
   } catch (err) {
     console.error("Error fetching bookings:", err);
     res.status(500).json({ message: "Lỗi khi lấy danh sách đặt vé" });
@@ -1079,12 +1047,7 @@ router.get("/pending-offline-payments", checkAdminRole, async (req, res) => {
             ORDER BY b.created_at DESC
         `;
         const result = await db.query(sql);
-        // Format created_at to Vietnam timezone
-        const formattedRows = result.rows.map(row => ({
-            ...row,
-            created_at: row.created_at ? formatVietnamTime(new Date(row.created_at)) : row.created_at
-        }));
-        res.json(formattedRows);
+        res.json(result.rows);
     } catch (err) {
         console.error("Error fetching pending offline payments:", err);
         res.status(500).json({ message: "Lỗi khi lấy danh sách thanh toán chờ xác nhận" });
@@ -1620,12 +1583,7 @@ router.get("/deleted-users/:id/bookings", checkAdminRole, async (req, res) => {
        ORDER BY b.created_at DESC`,
       [id]
     );
-    // Format created_at to Vietnam timezone
-    const formattedRows = result.rows.map(row => ({
-      ...row,
-      created_at: row.created_at ? formatVietnamTime(new Date(row.created_at)) : row.created_at
-    }));
-    res.json(formattedRows);
+    res.json(result.rows);
   } catch (err) {
     console.error("Error fetching deleted user's bookings:", err);
     res.status(500).json({ message: "Lỗi khi lấy lịch sử vé" });
