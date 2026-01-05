@@ -716,7 +716,6 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
         case 'date':
             groupByClause = "DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours')";
             orderByClause = "group_key DESC";
-            query = query.replace("%s", "TO_CHAR(DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours'), 'YYYY-MM-DD')");
             if (from_date) {
                 params.push(from_date);
                 query += ` AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') >= $${params.length}::date`;
@@ -729,7 +728,6 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
         case 'month':
             groupByClause = "TO_CHAR(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours', 'YYYY-MM')";
             orderByClause = "group_key DESC";
-            query = query.replace("%s", "TO_CHAR(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours', 'YYYY-MM')");
             if (from_date) {
                 params.push(from_date);
                 query += ` AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') >= $${params.length}::date`;
@@ -742,7 +740,6 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
         case 'year':
             groupByClause = "EXTRACT(YEAR FROM COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours')";
             orderByClause = "group_key DESC";
-            query = query.replace("%s", "CAST(EXTRACT(YEAR FROM COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') AS TEXT)");
             if (from_date) {
                 params.push(from_date);
                 query += ` AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') >= $${params.length}::date`;
