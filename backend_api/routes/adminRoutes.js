@@ -890,7 +890,8 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
       r.origin || ' - ' || r.destination AS route_info,
       t.departure_time,
       b.seats_count AS ticket_count,
-      b.total_amount AS total_price
+      b.total_amount AS total_price,
+      (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh') AS paid_at
     FROM bookings b
     JOIN users u ON u.id = b.user_id
     JOIN trips t ON t.id = b.trip_id
@@ -963,7 +964,8 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
         WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN 'trip_cancelled'
         WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN 'user_cancelled'
         ELSE 'unknown'
-      END AS refund_type
+      END AS refund_type,
+      (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh') AS paid_at
     FROM bookings b
     LEFT JOIN users u ON u.id = b.user_id
     LEFT JOIN trips t ON t.id = b.trip_id
