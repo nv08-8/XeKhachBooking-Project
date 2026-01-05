@@ -2,32 +2,6 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
-// Helper to format date to Vietnam timezone (UTC+7)
-function formatVietnamTime(date) {
-  try {
-    if (!date) return null;
-    const d = new Date(date instanceof Date ? date : new Date(date));
-    if (isNaN(d.getTime())) return null;
-
-    // Convert to Vietnam time (UTC+7) by adding 7 hours
-    const vietnamTime = new Date(d.getTime() + 7 * 60 * 60 * 1000);
-
-    // Format as ISO string: YYYY-MM-DDTHH:mm:ss.sssZ
-    const year = vietnamTime.getUTCFullYear();
-    const month = String(vietnamTime.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(vietnamTime.getUTCDate()).padStart(2, '0');
-    const hours = String(vietnamTime.getUTCHours()).padStart(2, '0');
-    const minutes = String(vietnamTime.getUTCMinutes()).padStart(2, '0');
-    const seconds = String(vietnamTime.getUTCSeconds()).padStart(2, '0');
-    const ms = String(vietnamTime.getUTCMilliseconds()).padStart(3, '0');
-
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${ms}Z`;
-  } catch (e) {
-    console.warn('Failed to format Vietnam time:', e);
-    return null;
-  }
-}
-
 // GET /feedbacks/pending - Get bookings that are completed (or confirmed and past departure) but not yet reviewed
 router.get("/feedbacks/pending", async (req, res) => {
     const { user_id } = req.query;
@@ -55,12 +29,7 @@ router.get("/feedbacks/pending", async (req, res) => {
 
     try {
         const { rows } = await db.query(sql, [user_id]);
-        // Format booking_date to Vietnam timezone
-        const formattedRows = rows.map(row => ({
-            ...row,
-            booking_date: row.booking_date ? formatVietnamTime(new Date(row.booking_date)) : row.booking_date
-        }));
-        res.json(formattedRows);
+        res.json(rows);
     } catch (err) {
         console.error("Error fetching pending feedbacks:", err);
         res.status(500).json({ message: "Internal server error" });
@@ -92,12 +61,7 @@ router.get("/feedbacks/reviewed", async (req, res) => {
 
     try {
         const { rows } = await db.query(sql, [user_id]);
-        // Format feedback_date to Vietnam timezone
-        const formattedRows = rows.map(row => ({
-            ...row,
-            feedback_date: row.feedback_date ? formatVietnamTime(new Date(row.feedback_date)) : row.feedback_date
-        }));
-        res.json(formattedRows);
+        res.json(rows);
     } catch (err) {
         console.error("Error fetching reviewed feedbacks:", err);
         res.status(500).json({ message: "Internal server error" });
@@ -236,12 +200,7 @@ router.get("/admin/feedbacks", async (req, res) => {
 
     try {
         const { rows } = await db.query(sql);
-        // Format feedback_date to Vietnam timezone
-        const formattedRows = rows.map(row => ({
-            ...row,
-            feedback_date: row.feedback_date ? formatVietnamTime(new Date(row.feedback_date)) : row.feedback_date
-        }));
-        res.json(formattedRows);
+        res.json(rows);
     } catch (err) {
         console.error("Error fetching all feedbacks:", err);
         res.status(500).json({ message: "Internal server error" });
@@ -264,12 +223,7 @@ router.get("/trips/:id/feedbacks", async (req, res) => {
 
     try {
         const { rows } = await db.query(sql, [id]);
-        // Format feedback_date to Vietnam timezone
-        const formattedRows = rows.map(row => ({
-            ...row,
-            feedback_date: row.feedback_date ? formatVietnamTime(new Date(row.feedback_date)) : row.feedback_date
-        }));
-        res.json(formattedRows);
+        res.json(rows);
     } catch (err) {
         console.error("Error fetching trip feedbacks:", err);
         res.status(500).json({ message: "Internal server error" });
@@ -308,14 +262,9 @@ router.get("/feedbacks/trips-with-feedback/:user_id", async (req, res) => {
 
     try {
         const { rows } = await db.query(sql);
-        // Format feedback_date to Vietnam timezone
-        const formattedRows = rows.map(row => ({
-            ...row,
-            feedback_date: row.feedback_date ? formatVietnamTime(new Date(row.feedback_date)) : row.feedback_date
-        }));
-        console.log("✅ DEBUG: Query result rows count:", formattedRows.length);
-        console.log("✅ DEBUG: Query result:", JSON.stringify(formattedRows.slice(0, 3)));
-        res.json(formattedRows);
+        console.log("✅ DEBUG: Query result rows count:", rows.length);
+        console.log("✅ DEBUG: Query result:", JSON.stringify(rows.slice(0, 3)));
+        res.json(rows);
     } catch (err) {
         console.error("❌ Error fetching trips with feedback:", err);
         res.status(500).json({ message: "Internal server error" });
