@@ -712,23 +712,23 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
     switch (groupBy) {
         case 'day':
         case 'date':
-            groupByClause = "DATE(COALESCE(b.paid_at, b.created_at))";
+            groupByClause = "DATE(b.created_at)";
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
-                query += ` AND (COALESCE(b.paid_at, b.created_at) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= $${params.length}::date`;
+                query += ` AND (b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= $${params.length}::date`;
             }
             if (to_date) {
                 params.push(to_date);
-                query += ` AND (COALESCE(b.paid_at, b.created_at) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < $${params.length}::date + INTERVAL '1 day'`;
+                query += ` AND (b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < $${params.length}::date + INTERVAL '1 day'`;
             }
             break;
         case 'month':
-            groupByClause = "TO_CHAR(COALESCE(b.paid_at, b.created_at), 'YYYY-MM')";
+            groupByClause = "TO_CHAR(b.created_at, 'YYYY-MM')";
             orderByClause = "group_key DESC";
             break;
         case 'year':
-            groupByClause = "EXTRACT(YEAR FROM COALESCE(b.paid_at, b.created_at))";
+            groupByClause = "EXTRACT(YEAR FROM b.created_at)";
             orderByClause = "group_key DESC";
             break;
         case 'route':
@@ -897,14 +897,13 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
     params.push(value);
     // Include entire day from 00:00:00 to 23:59:59 in Vietnam timezone
     // Use paid_at for refund details (group by payment date, not creation date)
-    // Fallback to created_at if paid_at is NULL
-    sql += ` AND (COALESCE(b.paid_at, b.created_at) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= $${params.length}::date AND (COALESCE(b.paid_at, b.created_at) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < $${params.length}::date + INTERVAL '1 day'`;
+    sql += ` AND (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= $${params.length}::date AND (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < $${params.length}::date + INTERVAL '1 day'`;
   } else if (group_by === "month") {
     params.push(value);
-    sql += ` AND TO_CHAR(COALESCE(b.paid_at, b.created_at), 'YYYY-MM') = $${params.length}`;
+    sql += ` AND TO_CHAR(b.paid_at, 'YYYY-MM') = $${params.length}`;
   } else if (group_by === "year") {
     params.push(value);
-    sql += ` AND EXTRACT(YEAR FROM COALESCE(b.paid_at, b.created_at)) = $${params.length}`;
+    sql += ` AND EXTRACT(YEAR FROM b.paid_at) = $${params.length}`;
   } else if (group_by === "route") {
     params.push(value);
     sql += ` AND t.route_id = $${params.length}`;
