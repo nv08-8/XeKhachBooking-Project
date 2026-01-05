@@ -914,9 +914,8 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
 
   if (group_by === "day" || group_by === "date") {
     params.push(value);
-    params.push(value);
     // Include entire day from 00:00:00 to 23:59:59 in Vietnam timezone
-    sql += ` AND DATE(b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') >= $${params.length - 1}::date AND DATE(b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') < $${params.length - 1}::date + INTERVAL '1 day'`;
+    sql += ` AND b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh' >= $${params.length}::date AND b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh' < ($${params.length}::date + INTERVAL '1 day')`;
   } else if (group_by === "month") {
     params.push(value);
     sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $${params.length}`;
@@ -1002,7 +1001,7 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
   if (group_by === "day" || group_by === "date") {
     params.push(value);
     // Include entire day from 00:00:00 to 23:59:59 in Vietnam timezone
-    sql += ` AND DATE(b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') >= $${params.length}::date AND DATE(b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') < $${params.length}::date + INTERVAL '1 day'`;
+    sql += ` AND b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh' >= $${params.length}::date AND b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh' < ($${params.length}::date + INTERVAL '1 day')`;
   } else if (group_by === "month") {
     params.push(value);
     sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $${params.length}`;
