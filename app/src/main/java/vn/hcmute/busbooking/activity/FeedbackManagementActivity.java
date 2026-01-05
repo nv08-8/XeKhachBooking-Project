@@ -15,11 +15,17 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 import androidx.viewpager2.widget.ViewPager2;
 
+import com.google.android.material.appbar.AppBarLayout;
+import com.google.android.material.appbar.AppBarLayout;
+import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
 
@@ -47,6 +53,7 @@ public class FeedbackManagementActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_feedback_management);
 
         SessionManager sessionManager = new SessionManager(this);
@@ -63,12 +70,36 @@ public class FeedbackManagementActivity extends AppCompatActivity {
         tabLayout = findViewById(R.id.tabLayout);
         viewPager = findViewById(R.id.viewPager);
 
+        // Setup toolbar navigation
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        toolbar.setNavigationOnClickListener(v -> finish());
+
         FeedbackPagerAdapter adapter = new FeedbackPagerAdapter(this);
         viewPager.setAdapter(adapter);
 
         new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
             tab.setText(position == 0 ? "Chưa đánh giá" : "Đã đánh giá");
         }).attach();
+
+        // Handle window insets
+        AppBarLayout appBarLayout = findViewById(R.id.appBarLayout);
+        View statusBarScrim = findViewById(R.id.statusBarScrim);
+        handleWindowInsets(appBarLayout, statusBarScrim);
+    }
+
+    private void handleWindowInsets(AppBarLayout appBarLayout, View statusBarScrim) {
+        ViewCompat.setOnApplyWindowInsetsListener(appBarLayout, (v, insets) -> {
+            int statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top;
+
+            if (statusBarScrim != null) {
+                ViewGroup.LayoutParams scrimParams = statusBarScrim.getLayoutParams();
+                scrimParams.height = statusBarHeight;
+                statusBarScrim.setLayoutParams(scrimParams);
+                statusBarScrim.setVisibility(statusBarHeight > 0 ? View.VISIBLE : View.GONE);
+            }
+
+            return insets;
+        });
     }
 
     private class FeedbackPagerAdapter extends FragmentStateAdapter {

@@ -56,13 +56,6 @@ public class UserPromotionsActivity extends AppCompatActivity {
         apiService = ApiClient.getClient().create(ApiService.class);
         
         loadPromotions();
-        
-        View mainView = findViewById(android.R.id.content);
-        ViewCompat.setOnApplyWindowInsetsListener(mainView, (v, insets) -> {
-            int top = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top;
-            findViewById(R.id.appBarLayout).setPadding(0, top, 0, 0);
-            return insets;
-        });
     }
 
     private void loadPromotions() {
