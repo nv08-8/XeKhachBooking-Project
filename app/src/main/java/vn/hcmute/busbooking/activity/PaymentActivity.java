@@ -826,10 +826,17 @@ public class PaymentActivity extends AppCompatActivity {
         // Clear previous errors
         try { etCardNumber.setError(null); etExpiryDate.setError(null); etCvv.setError(null); } catch (Exception ignored) {}
 
-        if (pan.isEmpty() || pan.length() < 16 || pan.length() > 19) {
+         if (pan.isEmpty() || pan.length() < 12 || pan.length() > 19) {
             try { etCardNumber.requestFocus(); etCardNumber.setError("Số thẻ phải có ít nhất 16 chữ số"); } catch (Exception ignored) {}
             return false;
         }
+
+        // New: Luhn checksum validation to catch obviously invalid card numbers early
+        if (!luhnCheck(pan)) {
+            try { etCardNumber.requestFocus(); etCardNumber.setError("Số thẻ không hợp lệ"); } catch (Exception ignored) {}
+            return false;
+        }
+
         if (!isExpiryValid(expiry)) {
             try { etExpiryDate.requestFocus(); etExpiryDate.setError("Ngày hết hạn không hợp lệ hoặc đã hết hạn (MM/YY)"); } catch (Exception ignored) {}
             return false;
@@ -839,6 +846,25 @@ public class PaymentActivity extends AppCompatActivity {
             return false;
         }
         return true;
+    }
+
+    // Luhn algorithm (client-side) to validate PAN before sending to server
+    private boolean luhnCheck(String number) {
+        if (number == null) return false;
+        String s = number.replaceAll("\\D", "");
+        if (s.length() < 12 || s.length() > 19) return false;
+        int sum = 0;
+        boolean alternate = false;
+        for (int i = s.length() - 1; i >= 0; i--) {
+            int n = Integer.parseInt(s.substring(i, i + 1));
+            if (alternate) {
+                n *= 2;
+                if (n > 9) n = (n % 10) + 1;
+            }
+            sum += n;
+            alternate = !alternate;
+        }
+        return (sum % 10 == 0);
     }
 
     private void setupCreditCardFormValidators() {
@@ -1277,7 +1303,22 @@ public class PaymentActivity extends AppCompatActivity {
         Map<String, String> body = new HashMap<>();
         body.put("payment_method", method);
 
-        Log.d(TAG, "Processing payment for booking: " + bookingId + " with method: " + method);
+        // If paying by card, include card fields (server requires them)
+        if ("card".equalsIgnoreCase(method)) {
+            try {
+                String rawPan = etCardNumber == null ? "" : (etCardNumber.getText() == null ? "" : etCardNumber.getText().toString());
+                String pan = rawPan.replaceAll("[^0-9]", "");
+                String expiry = etExpiryDate == null ? "" : (etExpiryDate.getText() == null ? "" : etExpiryDate.getText().toString().trim());
+                String cvv = etCvv == null ? "" : (etCvv.getText() == null ? "" : etCvv.getText().toString().trim());
+
+                // Put sanitized values expected by backend
+                body.put("card_number", pan);
+                body.put("expiry", expiry);
+                body.put("cvv", cvv);
+            } catch (Exception ignored) {}
+        }
+
+        Log.d(TAG, "Processing payment for booking: " + bookingId + " with method: " + method + " body: " + body);
 
         apiService.confirmPayment(bookingId, body).enqueue(new Callback<Map<String, Object>>() {
             @Override
@@ -1293,7 +1334,11 @@ public class PaymentActivity extends AppCompatActivity {
                     }
                 } else {
                     setLoadingState(false);
-                    handlePaymentError("Thanh toán thất bại: " + response.code());
+                    String errMsg = "Thanh toán thất bại: " + response.code();
+                    try {
+                        if (response.errorBody() != null) errMsg += " " + response.errorBody().string();
+                    } catch (Exception ignored) {}
+                    handlePaymentError(errMsg);
                 }
             }
 

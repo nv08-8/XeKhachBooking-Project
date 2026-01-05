@@ -102,6 +102,12 @@ public class BookingDetailActivity extends AppCompatActivity {
                 } else if ("card".equalsIgnoreCase(paymentMethod)) {
                     // Card payment - prefer inline form if available
                     View inline = findViewById(R.id.cardInlineCardPayment);
+                    if (inline != null && inline.getVisibility() == View.VISIBLE) {
+                        // Submit inline card form using the same logic as previous inline handler
+                        submitInlineCardForm();
+                        return;
+                    }
+                    // fallback to showing inline form
                     if (inline != null) {
                         inline.setVisibility(View.VISIBLE);
                         // scroll to inline form
@@ -1248,6 +1254,76 @@ public class BookingDetailActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Error showing inline card form", e);
             Toast.makeText(this, "Lỗi hiển thị form thẻ", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // Helper to submit inline card form (used by btnPayTicket when inline form is visible)
+    private void submitInlineCardForm() {
+        try {
+            EditText edtPan = findViewById(R.id.edtCardNumberDetail);
+            EditText edtExp = findViewById(R.id.edtExpiryDetail);
+            EditText edtCvv = findViewById(R.id.edtCvvDetail);
+
+            String pan = edtPan == null ? "" : (edtPan.getText() == null ? "" : edtPan.getText().toString().replaceAll("[^0-9]", ""));
+            String exp = edtExp == null ? "" : (edtExp.getText() == null ? "" : edtExp.getText().toString().trim());
+            String cvv = edtCvv == null ? "" : (edtCvv.getText() == null ? "" : edtCvv.getText().toString().trim());
+
+            if (pan.length() < 12 || pan.length() > 19) {
+                if (edtPan != null) edtPan.setError("Số thẻ không hợp lệ");
+                Toast.makeText(BookingDetailActivity.this, "Số thẻ không hợp lệ", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (!luhnCheck(pan)) {
+                if (edtPan != null) edtPan.setError("Số thẻ không hợp lệ (kiểm tra Luhn)");
+                Toast.makeText(BookingDetailActivity.this, "Số thẻ không hợp lệ", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (!isExpiryValid(exp)) {
+                if (edtExp != null) edtExp.setError("Expiry không hợp lệ");
+                Toast.makeText(BookingDetailActivity.this, "Ngày hết hạn không hợp lệ", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (cvv.length() < 3 || cvv.length() > 4) {
+                if (edtCvv != null) edtCvv.setError("CVV không hợp lệ");
+                Toast.makeText(BookingDetailActivity.this, "CVV không hợp lệ", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            java.util.Map<String, String> body = new java.util.HashMap<>();
+            body.put("payment_method", "card");
+            body.put("card_number", pan);
+            body.put("expiry", exp);
+            body.put("cvv", cvv);
+
+            android.app.ProgressDialog pd = new android.app.ProgressDialog(BookingDetailActivity.this);
+            pd.setMessage("Đang xử lý thanh toán...");
+            pd.setCancelable(false);
+            pd.show();
+
+            apiService.confirmPayment(bookingId, body).enqueue(new Callback<java.util.Map<String, Object>>() {
+                @Override
+                public void onResponse(Call<java.util.Map<String, Object>> call, Response<java.util.Map<String, Object>> response) {
+                    pd.dismiss();
+                    if (response.isSuccessful()) {
+                        Toast.makeText(BookingDetailActivity.this, "Thanh toán thành công", Toast.LENGTH_SHORT).show();
+                        loadBookingDetails();
+                    } else {
+                        String err = "Thanh toán thất bại: " + response.code();
+                        try { if (response.errorBody() != null) err += " " + response.errorBody().string(); } catch (Exception ignored) {}
+                        Toast.makeText(BookingDetailActivity.this, err, Toast.LENGTH_LONG).show();
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<java.util.Map<String, Object>> call, Throwable t) {
+                    pd.dismiss();
+                    Toast.makeText(BookingDetailActivity.this, "Lỗi kết nối: " + t.getMessage(), Toast.LENGTH_LONG).show();
+                }
+            });
+
+        } catch (Exception e) {
+            Log.e(TAG, "submitInlineCardForm error", e);
+            Toast.makeText(BookingDetailActivity.this, "Lỗi khi gửi thông tin thẻ", Toast.LENGTH_SHORT).show();
         }
     }
 
