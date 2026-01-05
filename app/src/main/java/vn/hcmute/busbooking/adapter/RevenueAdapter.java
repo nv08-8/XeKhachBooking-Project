@@ -61,8 +61,14 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
             }
 
             if (date != null) {
-                SimpleDateFormat newSdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
-                return newSdf.format(date);
+                // Nếu có giờ trong dateStr, hiển thị cả giờ (backend đã cộng +7 rồi)
+                if (dateStr.contains("T") || dateStr.contains(" ")) {
+                    SimpleDateFormat newSdf = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US);
+                    return newSdf.format(date);
+                } else {
+                    SimpleDateFormat newSdf = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
+                    return newSdf.format(date);
+                }
             }
         } catch (Exception e) {
             // Fallback: If it's yyyy-MM-dd... just take the first 10 chars and reformat manually
