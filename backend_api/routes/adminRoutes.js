@@ -915,13 +915,13 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
     params.push(value);
     params.push(value);
     // Include entire day from 00:00:00 to 23:59:59 in Vietnam timezone
-    sql += ` AND b.created_at >= $${params.length - 1}::date AND b.created_at < ($${params.length}::date + INTERVAL '1 day')`;
+    sql += ` AND (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= $${params.length - 1}::date AND (b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < ($${params.length}::date + INTERVAL '1 day')`;
   } else if (group_by === "month") {
     params.push(value);
-    sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $${params.length}`;
+    sql += ` AND TO_CHAR(b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') = $${params.length}`;
   } else if (group_by === "year") {
     params.push(value);
-    sql += ` AND EXTRACT(YEAR FROM b.created_at) = $${params.length}`;
+    sql += ` AND EXTRACT(YEAR FROM b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = $${params.length}`;
   } else if (group_by === "route") {
     // Assuming value is route_id
     params.push(value);
@@ -931,7 +931,7 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
     sql += ` AND t.id = $${params.length}`;
   }
 
-  sql += " ORDER BY t.departure_time DESC";
+  sql += " ORDER BY COALESCE(b.paid_at, b.created_at) DESC";
 
   try {
     const result = await db.query(sql, params);
@@ -1001,13 +1001,13 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
     params.push(value);
     params.push(value);
     // Include entire day from 00:00:00 to 23:59:59 in Vietnam timezone
-    sql += ` AND DATE(b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') >= $${params.length - 1}::date AND DATE(b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') < $${params.length}::date + INTERVAL '1 day'`;
+    sql += ` AND DATE(b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh') >= $${params.length - 1}::date AND DATE(b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh') < $${params.length}::date + INTERVAL '1 day'`;
   } else if (group_by === "month") {
     params.push(value);
-    sql += ` AND TO_CHAR(b.created_at, 'YYYY-MM') = $${params.length}`;
+    sql += ` AND TO_CHAR(b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') = $${params.length}`;
   } else if (group_by === "year") {
     params.push(value);
-    sql += ` AND EXTRACT(YEAR FROM b.created_at) = $${params.length}`;
+    sql += ` AND EXTRACT(YEAR FROM b.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = $${params.length}`;
   } else if (group_by === "route") {
     params.push(value);
     sql += ` AND t.route_id = $${params.length}`;
