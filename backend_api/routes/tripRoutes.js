@@ -146,11 +146,13 @@ router.get("/trips/:id", async (req, res) => {
         `;
 
         const reviewsQuery = `
-            SELECT r.rating, r.comment, u.name as user_name
-            FROM reviews r
-            JOIN users u ON r.user_id = u.id
-            WHERE r.trip_id = $1
-            ORDER BY r.created_at DESC
+            SELECT f.id as feedback_id, f.rating, f.comment, u.name as user_name, f.created_at
+            FROM feedbacks f
+            JOIN users u ON f.user_id = u.id
+            WHERE f.booking_id IN (
+                SELECT b.id FROM bookings b WHERE b.trip_id = $1
+            )
+            ORDER BY f.created_at DESC
         `;
 
         const stopsQuery = `
