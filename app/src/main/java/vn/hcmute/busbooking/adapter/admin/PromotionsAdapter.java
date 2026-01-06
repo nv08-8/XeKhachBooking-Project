@@ -61,7 +61,7 @@ public class PromotionsAdapter extends RecyclerView.Adapter<PromotionsAdapter.Pr
         holder.chipPromoCode.setText(promotion.getCode());
         // Remove .0 from numbers
         long discountValue = (long) promotion.getDiscount_value();
-        holder.tvPromoDetails.setText("Giảm " + discountValue + (promotion.getDiscount_type().equals("percent") ? "%" : "đ"));
+        holder.tvPromoDetails.setText("Giảm " + discountValue + (promotion.getDiscount_type().equals("percent") ? "%" : " VND"));
 
         String endDate = promotion.getEnd_date();
         if (endDate != null) {

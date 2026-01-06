@@ -401,7 +401,7 @@ public class GuestHomeActivity extends AppCompatActivity {
                             try {
                                 String priceStr = String.valueOf(priceObj).trim().replace("\"", "");
                                 double priceValue = Double.parseDouble(priceStr);
-                                priceTemp = "Từ " + String.format("%,.0f", priceValue) + "đ";
+                                priceTemp = "Từ " + String.format("%,.0f", priceValue) + " VND";
                                 Log.d("GuestHomeActivity", "  Price parsed: " + priceTemp);
                             } catch (Exception e) {
                                 Log.e("GuestHomeActivity", "Error parsing avg_price: " + priceObj, e);
@@ -510,7 +510,7 @@ public class GuestHomeActivity extends AppCompatActivity {
                             title = "Giảm " + (int)discountValue + "%";
                         } else {
                             // Format as currency (VND)
-                            title = "Giảm " + String.format("%,.0f", discountValue) + "đ";
+                            title = "Giảm " + String.format("%,.0f", discountValue) + " VND";
                         }
 
                         // Create description from code
@@ -524,7 +524,7 @@ public class GuestHomeActivity extends AppCompatActivity {
                                 minPriceStr = minPriceStr.replace("\"", "");
                                 double minPrice = Double.parseDouble(minPriceStr);
                                 if (minPrice > 0) {
-                                    desc += " • Đơn tối thiểu " + String.format("%,.0f", minPrice) + "đ";
+                                    desc += " • Đơn tối thiểu " + String.format("%,.0f", minPrice) + " VND";
                                 }
                             } catch (Exception e) {
                                 Log.e("GuestHomeActivity", "Error parsing min_price: '" + minPriceObj + "'", e);

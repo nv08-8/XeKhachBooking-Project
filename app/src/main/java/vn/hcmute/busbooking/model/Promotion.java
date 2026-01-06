@@ -48,7 +48,7 @@ public class Promotion {
         if ("percent".equals(this.discount_type)) {
             this.description = "Giảm " + (int)this.discount_value + "%";
         } else {
-            this.description = String.format("Giảm %,.0fđ", this.discount_value);
+            this.description = String.format("Giảm %,.0f VND", this.discount_value);
         }
     }
 

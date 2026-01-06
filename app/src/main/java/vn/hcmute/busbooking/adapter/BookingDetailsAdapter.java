@@ -77,9 +77,16 @@ public class BookingDetailsAdapter extends RecyclerView.Adapter<BookingDetailsAd
         holder.tvRouteInfo.setText("Tuyến: " + routeInfo);
         holder.tvDepartureTime.setText("Khởi hành: " + formatDateTime(departureTime));
 
-        // Hiển thị số vé - nếu không có ticket_count thì hiển thị 1 (mặc định)
-        String displayTicketCount = !ticketCount.isEmpty() ? ticketCount : "1";
-        holder.tvTicketCount.setText("Số vé: " + displayTicketCount);
+        // Hiển thị số vé - convert về long để loại bỏ .0
+        long ticketCountLong = 1; // mặc định
+        if (!ticketCount.isEmpty()) {
+            try {
+                ticketCountLong = (long) Double.parseDouble(ticketCount);
+            } catch (Exception e) {
+                ticketCountLong = 1;
+            }
+        }
+        holder.tvTicketCount.setText("Số vé: " + ticketCountLong);
 
         // Dùng total_price nếu có, nếu không dùng refund_amount (cho hoàn tiền)
         // Nếu cả hai đều trống, hiển thị 0

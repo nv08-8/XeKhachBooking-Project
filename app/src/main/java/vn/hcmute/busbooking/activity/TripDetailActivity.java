@@ -168,7 +168,7 @@ public class TripDetailActivity extends AppCompatActivity {
             txtBusType.setText(trip.getBusType());
         }
 
-        txtPrice.setText(String.format(Locale.getDefault(), "%,.0f ₫", trip.getPrice()));
+        txtPrice.setText(String.format(Locale.getDefault(), "%,.0f VND", trip.getPrice()));
 
         btnBookNow.setOnClickListener(v -> {
             Intent intent = new Intent(TripDetailActivity.this, SeatSelectionActivity.class);

@@ -76,7 +76,7 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
 
         holder.tvOperator.setText(trip.getOperator());
         holder.tvVehicleType.setText(trip.getBusType());
-        holder.tvPrice.setText(String.format(Locale.GERMAN, "%,.0fđ", trip.getPrice()));
+        holder.tvPrice.setText(String.format(Locale.GERMAN, "%,.0f VND", trip.getPrice()));
 
         String departureTimeStr = trip.getDepartureTime();
         String arrivalTimeStr = trip.getArrivalTime();

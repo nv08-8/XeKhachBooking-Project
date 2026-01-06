@@ -503,7 +503,7 @@ public class MainActivity extends AppCompatActivity {
                             try {
                                 String priceStr = String.valueOf(priceObj).trim().replace("\"", "");
                                 double priceValue = Double.parseDouble(priceStr);
-                                priceTemp = "Từ " + String.format("%,.0f", priceValue) + "đ";
+                                priceTemp = "Từ " + String.format("%,.0f", priceValue) + " VND";
                                 Log.d("MainActivity", "  Price parsed: " + priceTemp);
                             } catch (Exception e) {
                                 Log.e("MainActivity", "Error parsing avg_price: " + priceObj, e);
@@ -617,7 +617,7 @@ public class MainActivity extends AppCompatActivity {
                         if ("percent".equalsIgnoreCase(discountType)) {
                             title = "Giảm " + (int)discountValue + "%";
                         } else {
-                            title = "Giảm " + String.format("%,.0f", discountValue) + "đ";
+                            title = "Giảm " + String.format("%,.0f", discountValue) + " VND";
                         }
 
                         // Create description from code
@@ -631,7 +631,7 @@ public class MainActivity extends AppCompatActivity {
                                 minPriceStr = minPriceStr.replace("\"", "");
                                 double minPrice = Double.parseDouble(minPriceStr);
                                 if (minPrice > 0) {
-                                    desc += " • Đơn tối thiểu " + String.format("%,.0f", minPrice) + "đ";
+                                    desc += " • Đơn tối thiểu " + String.format("%,.0f", minPrice) + " VND";
                                 }
                             } catch (Exception e) {
                                 Log.e("MainActivity", "Error parsing min_price: '" + minPriceObj + "'", e);

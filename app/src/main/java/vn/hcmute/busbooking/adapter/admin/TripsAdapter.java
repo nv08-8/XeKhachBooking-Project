@@ -55,9 +55,9 @@ public class TripsAdapter extends RecyclerView.Adapter<TripsAdapter.TripViewHold
         holder.tvDestination.setText(String.valueOf(trip.get("destination")));
 
         try {
-             holder.tvPrice.setText(String.format(Locale.GERMANY, "%,.0fđ", Double.parseDouble(String.valueOf(trip.get("price")))));
+             holder.tvPrice.setText(String.format(Locale.GERMANY, "%,.0f VND", Double.parseDouble(String.valueOf(trip.get("price")))));
         } catch(Exception e) {
-            holder.tvPrice.setText(trip.get("price") + "đ");
+            holder.tvPrice.setText(trip.get("price") + " VND");
         }
 
         String departureTimeStr = String.valueOf(trip.get("departure_time"));

@@ -152,7 +152,9 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
         holder.tvRevenueTitle.setText(title);
         holder.tvRevenueDate.setText(date);
         holder.tvRevenueAmount.setText(formatCurrency(totalRev));
-        holder.tvRevenueTickets.setText((totalBookings != null ? totalBookings.toString() : "0") + " vé");
+        // Format tickets without .0 by casting to long
+        long ticketCount = totalBookings != null ? getLongFromObject(totalBookings) : 0;
+        holder.tvRevenueTickets.setText(ticketCount + " vé");
 
         // Update label to show "Hoàn tiền" or "Doanh thu"
         holder.tvRevenueLabel.setText(isRefund ? "Hoàn tiền" : "Doanh thu");
