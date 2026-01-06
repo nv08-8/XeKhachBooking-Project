@@ -37,14 +37,13 @@ const getTrips = async (req, res) => {
       (SELECT image_urls FROM bus_images bi WHERE LOWER(TRIM(bi.bus_type)) = LOWER(TRIM(t.bus_type)) LIMIT 1) AS generic_bus_images,
       d.name AS driver_name, d.phone AS driver_phone,
       COALESCE(ROUND(AVG(f.rating)::numeric, 1), 0) as operator_rating,
-      COALESCE(COUNT(f.id), 0) as total_ratings
+      COALESCE(COUNT(DISTINCT f.id), 0) as total_ratings
     FROM trips t
     JOIN routes r ON r.id = t.route_id
     LEFT JOIN buses b ON b.id = t.bus_id
     LEFT JOIN drivers d ON d.id = t.driver_id
-    LEFT JOIN feedbacks f ON f.booking_id IN (
-      SELECT b.id FROM bookings b WHERE b.trip_id = t.id
-    )
+    LEFT JOIN bookings bk ON bk.trip_id = t.id
+    LEFT JOIN feedbacks f ON f.booking_id = bk.id
     WHERE 1=1`;
   const params = [];
 
@@ -149,9 +148,9 @@ router.get("/trips/:id", async (req, res) => {
             SELECT f.id as feedback_id, f.rating, f.comment, u.name as user_name, f.created_at
             FROM feedbacks f
             JOIN users u ON f.user_id = u.id
-            WHERE f.booking_id IN (
-                SELECT b.id FROM bookings b WHERE b.trip_id = $1
-            )
+            JOIN bookings b ON f.booking_id = b.id
+            JOIN trips t ON b.trip_id = t.id
+            WHERE t.id = $1
             ORDER BY f.created_at DESC
         `;
 
