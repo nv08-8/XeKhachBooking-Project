@@ -212,7 +212,7 @@ router.get("/trips/:id/feedbacks", async (req, res) => {
     const { id } = req.params;
 
     const sql = `
-        SELECT f.id as feedback_id, f.rating, f.comment, f.created_at as feedback_date,
+        SELECT f.id, f.id as feedback_id, f.rating, f.comment, f.created_at as feedback_date,
                u.name as user_name
         FROM feedbacks f
         JOIN bookings b ON f.booking_id = b.id

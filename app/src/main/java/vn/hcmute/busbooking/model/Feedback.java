@@ -3,6 +3,7 @@ package vn.hcmute.busbooking.model;
 import com.google.gson.annotations.SerializedName;
 
 public class Feedback {
+    @SerializedName("feedback_id")
     private int id;
     
     @SerializedName("user_id")
