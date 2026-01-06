@@ -10,20 +10,8 @@ const path = require('path');
 const fs = require('fs');
 const { runMigrations } = require("./migrations/run_migrations");
 
-const authRoutes = require("./routes/authRoutes");
-const tripRoutes = require("./routes/tripRoutes");
-const dataRoutes = require("./routes/dataRoutes");
-const bookingRoutes = require("./routes/bookingRoutes");
-const promoRoutes = require("./routes/promoRoutes");
-const metaRoutes = require("./routes/metaRoutes");
-const paymentRoutes = require("./routes/paymentRoutes");
-const busImageRoutes = require("./routes/busImageRoutes");
-const seatsRoutes = require("./routes/seatsRoutes");
-const adminRoutes = require("./routes/adminRoutes");
-const driversRoutes = require("./routes/driversRoutes"); 
-const feedbackRoutes = require("./routes/feedbackRoutes");
-const coinRoutes = require("./routes/coinRoutes"); // Import coin routes
-
+const routes = require("./routes");
+const bookingRoutes = require("./routes/api/bookingRoutes"); // Cần riêng cho Socket.IO
 
 app.use(express.json());
 app.use(cors());
@@ -43,19 +31,7 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use("/api/auth", authRoutes);
-app.use("/api", tripRoutes);
-app.use("/api", dataRoutes);
-app.use("/api", bookingRoutes);
-app.use("/api", promoRoutes);
-app.use("/api", metaRoutes);
-app.use("/api/payment", paymentRoutes);
-app.use("/api", busImageRoutes);
-app.use('/api/seats', seatsRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/admin/drivers", driversRoutes);
-app.use("/api", feedbackRoutes);
-app.use("/api", coinRoutes); // Use coin routes
+app.use("/api", routes);
 
 // small helper to list registered routes (useful for debugging 404s/method mismatches)
 function listRoutes(app) {
