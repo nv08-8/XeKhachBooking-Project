@@ -513,7 +513,7 @@ public class PaymentActivity extends AppCompatActivity {
                                     if (loc != null && loc.getId() == pickupId) {
                                         String iso = loc.getEstimatedTime();
                                         if (iso != null && !iso.isEmpty() && tvPickupTimeView != null) {
-                                            tvPickupTimeView.setText(formatDisplayTime(iso));
+                                            tvPickupTimeView.setText(formatEstimatedTime(iso));
                                             tvPickupTimeView.setVisibility(View.VISIBLE);
                                         }
                                         break;
@@ -536,7 +536,7 @@ public class PaymentActivity extends AppCompatActivity {
                                     if (loc != null && loc.getId() == dropoffId) {
                                         String iso = loc.getEstimatedTime();
                                         if (iso != null && !iso.isEmpty() && tvDropoffTimeView != null) {
-                                            tvDropoffTimeView.setText(formatDisplayTime(iso));
+                                            tvDropoffTimeView.setText(formatEstimatedTime(iso));
                                             tvDropoffTimeView.setVisibility(View.VISIBLE);
                                         }
                                         break;
@@ -1061,6 +1061,18 @@ public class PaymentActivity extends AppCompatActivity {
             Date date = new Date(millis);
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
             timeFormat.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+            return timeFormat.format(date);
+        } catch (Exception e) { return ""; }
+    }
+
+    private String formatEstimatedTime(String isoString) {
+        if (isoString == null) return "";
+        try {
+            long millis = parseIsoToMillis(isoString);
+            if (millis <= 0) return "";
+            Date date = new Date(millis);
+            SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+            // DO NOT set timezone - estimated_time is already in local format (no UTC indicator)
             return timeFormat.format(date);
         } catch (Exception e) { return ""; }
     }
