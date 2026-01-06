@@ -53,7 +53,6 @@ public class AccountFragment extends Fragment {
             TextView tvUserName = view.findViewById(R.id.tvUserName);
             TextView tvUserEmail = view.findViewById(R.id.tvUserEmail);
             
-            TextView tvBookingHistory = view.findViewById(R.id.tvBookingHistory);
             TextView tvMyOffers = view.findViewById(R.id.tvMyOffers);
             TextView tvMyFeedbacks = view.findViewById(R.id.tvMyFeedbacks);
             TextView tvMyCoins = view.findViewById(R.id.tvMyCoins);
@@ -67,10 +66,6 @@ public class AccountFragment extends Fragment {
             loadAvatarImage(ivUserAvatar);
 
             // Listeners
-            if (tvBookingHistory != null) {
-                tvBookingHistory.setOnClickListener(v -> startActivity(new Intent(getActivity(), MyBookingsActivity.class)));
-            }
-
             if (tvMyOffers != null) {
                 tvMyOffers.setOnClickListener(v -> startActivity(new Intent(getActivity(), UserPromotionsActivity.class)));
             }

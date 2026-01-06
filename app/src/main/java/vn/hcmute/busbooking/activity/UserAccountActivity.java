@@ -38,9 +38,8 @@ public class UserAccountActivity extends AppCompatActivity {
         TextView tvUserName = findViewById(R.id.tvUserName);
         TextView tvUserEmail = findViewById(R.id.tvUserEmail);
         
-        TextView tvBookingHistory = findViewById(R.id.tvBookingHistory);
+        // tvBookingHistory and tvPaymentMethods were removed from the layout; don't reference their IDs
         TextView tvMyOffers = findViewById(R.id.tvMyOffers);
-        TextView tvPaymentMethods = findViewById(R.id.tvPaymentMethods);
         TextView tvMyFeedbacks = findViewById(R.id.tvMyFeedbacks);
         TextView tvMyCoins = findViewById(R.id.tvMyCoins);
         
@@ -61,65 +60,71 @@ public class UserAccountActivity extends AppCompatActivity {
 
         //--- CLICK LISTENERS ---
 
-        tvBookingHistory.setOnClickListener(v -> {
-            startActivity(new Intent(UserAccountActivity.this, MyBookingsActivity.class));
-        });
+        if (tvMyOffers != null) {
+            tvMyOffers.setOnClickListener(v -> {
+                startActivity(new Intent(UserAccountActivity.this, UserPromotionsActivity.class));
+            });
+        }
 
-        tvMyOffers.setOnClickListener(v -> {
-            startActivity(new Intent(UserAccountActivity.this, UserPromotionsActivity.class));
-        });
+        if (tvMyFeedbacks != null) {
+            tvMyFeedbacks.setOnClickListener(v -> {
+                startActivity(new Intent(UserAccountActivity.this, FeedbackManagementActivity.class));
+            });
+        }
 
-        tvPaymentMethods.setOnClickListener(v -> {
-            showPaymentMethodsDialog();
-        });
+        if (tvMyCoins != null) {
+            tvMyCoins.setOnClickListener(v -> {
+                startActivity(new Intent(UserAccountActivity.this, MyCoinsActivity.class));
+            });
+        }
 
-        tvMyFeedbacks.setOnClickListener(v -> {
-            startActivity(new Intent(UserAccountActivity.this, FeedbackManagementActivity.class));
-        });
+        if (tvPersonalInfo != null) {
+            tvPersonalInfo.setOnClickListener(v -> {
+                startActivity(new Intent(UserAccountActivity.this, PersonalInfoActivity.class));
+            });
+        }
 
-        tvMyCoins.setOnClickListener(v -> {
-            startActivity(new Intent(UserAccountActivity.this, MyCoinsActivity.class));
-        });
+        if (tvChangePassword != null) {
+            tvChangePassword.setOnClickListener(v -> {
+                startActivity(new Intent(UserAccountActivity.this, ChangePasswordActivity.class));
+            });
+        }
 
-        tvPersonalInfo.setOnClickListener(v -> {
-            startActivity(new Intent(UserAccountActivity.this, PersonalInfoActivity.class));
-        });
+        if (tvLogout != null) {
+            tvLogout.setOnClickListener(v -> {
+                sessionManager.logout();
+                Toast.makeText(this, "Đã đăng xuất", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(UserAccountActivity.this, MainActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(intent);
+                finish();
+            });
+        }
 
-        tvChangePassword.setOnClickListener(v -> {
-            startActivity(new Intent(UserAccountActivity.this, ChangePasswordActivity.class));
-        });
-
-        tvLogout.setOnClickListener(v -> {
-            sessionManager.logout();
-            Toast.makeText(this, "Đã đăng xuất", Toast.LENGTH_SHORT).show();
-            Intent intent = new Intent(UserAccountActivity.this, MainActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
-        });
-
-        tvHelpCenter.setOnClickListener(v -> startActivity(new Intent(this, HelpCenterActivity.class)));
-        tvTerms.setOnClickListener(v -> startActivity(new Intent(this, TermsServiceActivity.class)));
-        tvPrivacyPolicy.setOnClickListener(v -> startActivity(new Intent(this, PrivacyPolicyActivity.class)));
+        if (tvHelpCenter != null) tvHelpCenter.setOnClickListener(v -> startActivity(new Intent(this, HelpCenterActivity.class)));
+        if (tvTerms != null) tvTerms.setOnClickListener(v -> startActivity(new Intent(this, TermsServiceActivity.class)));
+        if (tvPrivacyPolicy != null) tvPrivacyPolicy.setOnClickListener(v -> startActivity(new Intent(this, PrivacyPolicyActivity.class)));
 
         //--- BOTTOM NAVIGATION ---
-        bottomNav.setSelectedItemId(R.id.nav_account);
-        bottomNav.setOnItemSelectedListener(item -> {
-            int itemId = item.getItemId();
-            if (itemId == R.id.nav_home) {
-                startActivity(new Intent(this, MainActivity.class));
-                return true;
-            } else if (itemId == R.id.nav_tickets) {
-                startActivity(new Intent(this, MyBookingsActivity.class));
-                return true;
-            } else if (itemId == R.id.nav_favorites) {
-                startActivity(new Intent(this, FavoritesActivity.class));
-                return true;
-            } else if (itemId == R.id.nav_account) {
-                return true;
-            }
-            return false;
-        });
+        if (bottomNav != null) {
+            bottomNav.setSelectedItemId(R.id.nav_account);
+            bottomNav.setOnItemSelectedListener(item -> {
+                int itemId = item.getItemId();
+                if (itemId == R.id.nav_home) {
+                    startActivity(new Intent(this, MainActivity.class));
+                    return true;
+                } else if (itemId == R.id.nav_tickets) {
+                    startActivity(new Intent(this, MyBookingsActivity.class));
+                    return true;
+                } else if (itemId == R.id.nav_favorites) {
+                    startActivity(new Intent(this, FavoritesActivity.class));
+                    return true;
+                } else if (itemId == R.id.nav_account) {
+                    return true;
+                }
+                return false;
+            });
+        }
 
         handleWindowInsets();
     }

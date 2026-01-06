@@ -130,26 +130,6 @@
                     android:orientation="vertical">
 
                     <TextView
-                        android:id="@+id/tvBookingHistory"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:drawableStart="@drawable/ic_history_blue"
-                        android:drawableEnd="@drawable/ic_chevron_right"
-                        android:drawablePadding="16dp"
-                        android:foreground="?attr/selectableItemBackground"
-                        android:gravity="center_vertical"
-                        android:padding="16dp"
-                        android:text="Lịch sử đặt vé" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginStart="56dp"
-                        android:background="#F0F0F0" />
-
-                    <TextView
                         android:id="@+id/tvMyOffers"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -162,26 +142,6 @@
                         android:gravity="center_vertical"
                         android:padding="16dp"
                         android:text="Ưu đãi của tôi" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginStart="56dp"
-                        android:background="#F0F0F0" />
-
-                    <TextView
-                        android:id="@+id/tvPaymentMethods"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:drawableStart="@drawable/ic_payment_blue"
-                        android:drawableEnd="@drawable/ic_chevron_right"
-                        android:drawablePadding="16dp"
-                        android:foreground="?attr/selectableItemBackground"
-                        android:gravity="center_vertical"
-                        android:padding="16dp"
-                        android:text="Phương thức thanh toán" />
 
                     <View
                         android:layout_width="match_parent"
