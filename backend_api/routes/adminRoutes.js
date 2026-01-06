@@ -349,7 +349,7 @@ router.put("/bookings/:id/confirm", checkAdminRole, async (req, res) => {
     if (Number.isNaN(paidAmount)) paidAmount = 0;
 
     const updateRes = await client.query(
-      `UPDATE bookings SET status='confirmed', price_paid=$1, paid_at=NOW() WHERE id=$2 RETURNING *`,
+      `UPDATE bookings SET status='confirmed', price_paid=$1, paid_at=NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh' WHERE id=$2 RETURNING *`,
       [paidAmount, id]
     );
 
@@ -1121,7 +1121,7 @@ router.post("/confirm-offline-payment/:id", checkAdminRole, async (req, res) => 
         try {
             await client.query(
                 `UPDATE bookings
-                 SET status=$1, price_paid=$2, paid_at=NOW(), metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
+                 SET status=$1, price_paid=$2, paid_at=NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh', metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
                  WHERE id=$4`,
                 ['confirmed', totalAmount, JSON.stringify({ payment: paymentMeta }), id]
             );
