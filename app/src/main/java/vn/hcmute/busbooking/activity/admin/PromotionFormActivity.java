@@ -7,7 +7,7 @@ import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
+import com.google.android.material.appbar.MaterialToolbar;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -36,10 +36,8 @@ public class PromotionFormActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_promotion_form);
 
-        Toolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        toolbar.setNavigationOnClickListener(v -> onSupportNavigateUp());
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        toolbar.setNavigationOnClickListener(v -> onBackPressed());
 
         sessionManager = new SessionManager(this);
         apiService = ApiClient.getClient().create(ApiService.class);

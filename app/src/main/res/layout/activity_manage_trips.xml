@@ -28,7 +28,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:minHeight="50dp"
-            app:title="Quản lý chuyến đi"
+            app:title="Quản lý Chuyến đi"
             app:titleTextAppearance="@style/ToolbarTitleStyle"
             app:titleTextColor="@color/textPrimary"
             app:titleCentered="true"

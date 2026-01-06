@@ -9,10 +9,11 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.appbar.MaterialToolbar;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -65,7 +66,7 @@ public class TripFeedbackListFragment extends Fragment implements TripFeedbackAd
         apiService = ApiClient.getClient().create(ApiService.class);
 
         // Setup Toolbar
-        Toolbar toolbar = view.findViewById(R.id.toolbar);
+        MaterialToolbar toolbar = view.findViewById(R.id.toolbar);
         toolbar.setNavigationOnClickListener(v -> getActivity().onBackPressed());
 
         // Find Views

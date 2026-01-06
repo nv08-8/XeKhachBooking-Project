@@ -20,6 +20,8 @@ import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.appbar.MaterialToolbar;
+
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.data.BarData;
@@ -60,7 +62,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
     private LinearLayout dateRangeFilter, refundTypeContainer, routeFilterContainer, tripFilterContainer;
     private BarChart barChart;
     private NestedScrollView scrollView;
-    private Toolbar toolbar;
+    private MaterialToolbar toolbar;
     private com.google.android.material.tabs.TabLayout tabRevenueType;
 
     private RevenueAdapter adapter;
@@ -100,12 +102,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         apiService = ApiClient.getClient().create(ApiService.class);
 
         toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setDisplayShowHomeEnabled(true);
-        }
-        toolbar.setNavigationOnClickListener(v -> onSupportNavigateUp());
+        toolbar.setNavigationOnClickListener(v -> onBackPressed());
 
         // Find Views
         progressRevenue = findViewById(R.id.progressRevenue);
