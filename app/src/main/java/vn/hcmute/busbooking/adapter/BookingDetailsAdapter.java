@@ -35,33 +35,20 @@ public class BookingDetailsAdapter extends RecyclerView.Adapter<BookingDetailsAd
     private String formatDateTime(String dateTimeStr) {
         if (dateTimeStr == null) return "";
         try {
-            // Try parsing with milliseconds and Z first (UTC format)
+            // Try parsing with milliseconds and Z first
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
-            sdf.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
             Date date = sdf.parse(dateTimeStr);
-
-            // Convert UTC to Vietnam timezone (+7)
             SimpleDateFormat newSdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
-            newSdf.setTimeZone(java.util.TimeZone.getTimeZone("GMT+7"));
             return newSdf.format(date);
         } catch (ParseException e) {
             try {
-                // Try parsing server format: YYYY-MM-DD HH:MI:SS (already in Vietnam time)
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+                // Try parsing without milliseconds (local format)
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US);
                 Date date = sdf.parse(dateTimeStr);
                 SimpleDateFormat newSdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
-                // No timezone conversion needed - server already sent Vietnam time
                 return newSdf.format(date);
             } catch (ParseException e2) {
-                try {
-                    // Try parsing without milliseconds - ISO format (UTC)
-                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US);
-                    Date date = sdf.parse(dateTimeStr);
-                    SimpleDateFormat newSdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
-                    return newSdf.format(date);
-                } catch (ParseException e3) {
-                    return dateTimeStr; // Return original if parsing fails
-                }
+                return dateTimeStr; // Return original if parsing fails
             }
         }
     }
