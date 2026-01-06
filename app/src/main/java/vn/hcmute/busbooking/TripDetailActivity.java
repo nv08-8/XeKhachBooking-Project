@@ -14,6 +14,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.fragment.app.DialogFragment;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.google.gson.Gson;
@@ -59,6 +60,9 @@ public class TripDetailActivity extends AppCompatActivity {
     private SessionManager sessionManager;
     private boolean isFavorite = false;
     private int tripId;
+    private List<Map<String, Object>> feedbacks;
+    private double operatorRating;
+    private int totalRatings;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,6 +120,10 @@ public class TripDetailActivity extends AppCompatActivity {
         txtPercent4 = findViewById(R.id.txtPercent4);
         txtPercent5 = findViewById(R.id.txtPercent5);
         btnFavorite = findViewById(R.id.btnFavorite);
+
+        // Add click listener to rating section
+        txtRating.setOnClickListener(v -> showOperatorRatingsDialog());
+        txtReviews.setOnClickListener(v -> showOperatorRatingsDialog());
     }
 
     private void fetchTripDetails(int tripId) {
@@ -363,6 +371,9 @@ public class TripDetailActivity extends AppCompatActivity {
     }
 
     private void displayReviews(List<Map<String, Object>> reviews) {
+        // Save feedbacks for dialog
+        this.feedbacks = reviews;
+
         int totalReviews = reviews.size();
         Log.d(TAG, "displayReviews called with " + totalReviews + " reviews");
 
@@ -370,6 +381,8 @@ public class TripDetailActivity extends AppCompatActivity {
             Log.d(TAG, "No reviews, showing 0.0");
             txtRating.setText("0.0");
             txtReviews.setText("(0 đánh giá)");
+            this.operatorRating = 0;
+            this.totalRatings = 0;
             setRatingBar(progressBar5, txtPercent5, 0);
             setRatingBar(progressBar4, txtPercent4, 0);
             setRatingBar(progressBar3, txtPercent3, 0);
@@ -397,6 +410,10 @@ public class TripDetailActivity extends AppCompatActivity {
         double averageRating = totalRatingSum / totalReviews;
         Log.d(TAG, "Average rating calculated: " + averageRating + " (sum: " + totalRatingSum + ", total: " + totalReviews + ")");
         Log.d(TAG, "Rating distribution: 5*: " + ratingCounts[4] + ", 4*: " + ratingCounts[3] + ", 3*: " + ratingCounts[2] + ", 2*: " + ratingCounts[1] + ", 1*: " + ratingCounts[0]);
+
+        // Save for dialog
+        this.operatorRating = averageRating;
+        this.totalRatings = totalReviews;
 
         txtRating.setText(new DecimalFormat("0.0").format(averageRating));
         txtReviews.setText(String.format(Locale.getDefault(), "(%d đánh giá)", totalReviews));
@@ -556,5 +573,14 @@ public class TripDetailActivity extends AppCompatActivity {
     private void updateFavoriteIcon() {
         int iconRes = isFavorite ? R.drawable.ic_favorite_filled : R.drawable.ic_favorite_border;
         btnFavorite.setImageResource(iconRes);
+    }
+
+    private void showOperatorRatingsDialog() {
+        if (feedbacks != null && !feedbacks.isEmpty()) {
+            OperatorRatingsDialogFragment dialog = new OperatorRatingsDialogFragment(feedbacks, operatorRating, totalRatings);
+            dialog.show(getSupportFragmentManager(), "operator_ratings");
+        } else {
+            Toast.makeText(this, "Không có dữ liệu đánh giá", Toast.LENGTH_SHORT).show();
+        }
     }
 }
