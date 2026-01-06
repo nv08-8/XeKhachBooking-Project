@@ -32,7 +32,8 @@ public class SplashActivity extends AppCompatActivity {
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             Intent intent;
             try {
-                if (sessionManager.isLoggedIn()) {
+                // Check if user is logged in AND remember me is enabled (or default)
+                if (sessionManager.isLoggedIn() && sessionManager.isRememberMe()) {
                     // User is logged in, check if they are an admin
                     if (sessionManager.isAdmin()) {
                         intent = new Intent(SplashActivity.this, AdminHomeActivity.class);
@@ -40,7 +41,13 @@ public class SplashActivity extends AppCompatActivity {
                         intent = new Intent(SplashActivity.this, MainActivity.class);
                     }
                 } else {
-                    // No user logged in, go to GuestHomeActivity
+                    // No user logged in or "Remember Me" was unchecked
+                    // Clear session if logged in but remember me is false (just to be safe/clean)
+                    if (sessionManager.isLoggedIn() && !sessionManager.isRememberMe()) {
+                        sessionManager.clearSession();
+                    }
+
+                    // Go to GuestHomeActivity
                     intent = new Intent(SplashActivity.this, GuestHomeActivity.class);
                 }
             } catch (Exception e) {

@@ -18,6 +18,7 @@ public class SessionManager {
     private static final String KEY_AVATAR = "user_avatar";
     private static final String KEY_TOKEN = "user_token";
     private static final String KEY_ROLE = "user_role"; // Add key for role
+    private static final String KEY_REMEMBER_ME = "remember_me";
 
     private final SharedPreferences prefs;
 
@@ -90,6 +91,15 @@ public class SessionManager {
         if (role != null && !role.isEmpty()) {
             prefs.edit().putString(KEY_ROLE, role.trim()).apply();
         }
+    }
+
+    public void setRememberMe(boolean isRemember) {
+        prefs.edit().putBoolean(KEY_REMEMBER_ME, isRemember).apply();
+    }
+
+    public boolean isRememberMe() {
+        // Default to true so existing users stay logged in
+        return prefs.getBoolean(KEY_REMEMBER_ME, true);
     }
 
     /**

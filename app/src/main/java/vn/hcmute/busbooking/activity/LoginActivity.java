@@ -1,6 +1,7 @@
 package vn.hcmute.busbooking.activity;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SwitchCompat;
 
 import android.app.ProgressDialog;
 import android.content.Intent;
@@ -33,6 +34,7 @@ public class LoginActivity extends AppCompatActivity {
     private EditText edtEmail, edtPassword;
     private Button btnLogin;
     private TextView tvForgot, tvRegister;
+    private SwitchCompat chkRemember;
     private ApiService apiService;
     private SessionManager sessionManager;
     private ProgressDialog progressDialog;
@@ -47,6 +49,7 @@ public class LoginActivity extends AppCompatActivity {
         btnLogin = findViewById(R.id.btnLogin);
         tvForgot = findViewById(R.id.tvForgot);
         tvRegister = findViewById(R.id.tvRegister);
+        chkRemember = findViewById(R.id.chkRemember);
 
         String text = getString(R.string.signup_link);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -127,7 +130,9 @@ public class LoginActivity extends AppCompatActivity {
                     if (res.get("token") instanceof String) {
                         user.put("token", (String) res.get("token"));
                     }
+
                     sessionManager.saveUser(user);
+                    sessionManager.setRememberMe(chkRemember.isChecked());
 
                     Toast.makeText(LoginActivity.this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
 
@@ -274,11 +279,5 @@ public class LoginActivity extends AppCompatActivity {
 
     private boolean isEmpty(String str) {
         return str == null || str.trim().isEmpty();
-    }
-
-    @Override
-    protected void onDestroy() {
-        dismissProgress();
-        super.onDestroy();
     }
 }
