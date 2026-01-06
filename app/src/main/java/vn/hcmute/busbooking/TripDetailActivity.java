@@ -34,6 +34,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 import vn.hcmute.busbooking.activity.SeatSelectionActivity;
+import vn.hcmute.busbooking.activity.OperatorRatingsActivity;
 import vn.hcmute.busbooking.adapter.ImageSliderAdapter;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
@@ -577,8 +578,11 @@ public class TripDetailActivity extends AppCompatActivity {
 
     private void showOperatorRatingsDialog() {
         if (feedbacks != null && !feedbacks.isEmpty()) {
-            OperatorRatingsDialogFragment dialog = new OperatorRatingsDialogFragment(feedbacks, operatorRating, totalRatings);
-            dialog.show(getSupportFragmentManager(), "operator_ratings");
+            Intent intent = new Intent(this, OperatorRatingsActivity.class);
+            intent.putExtra(OperatorRatingsActivity.EXTRA_FEEDBACKS, (java.io.Serializable) feedbacks);
+            intent.putExtra(OperatorRatingsActivity.EXTRA_AVERAGE_RATING, operatorRating);
+            intent.putExtra(OperatorRatingsActivity.EXTRA_TOTAL_RATINGS, totalRatings);
+            startActivity(intent);
         } else {
             Toast.makeText(this, "Không có dữ liệu đánh giá", Toast.LENGTH_SHORT).show();
         }
