@@ -203,8 +203,16 @@ public class TripDetailActivity extends AppCompatActivity {
             displayTimeline((List<Map<String, Object>>) data.get("timeline"));
         }
 
+        // Display operator rating from API (operator_rating and total_ratings)
+        // Always try to display reviews first since they contain the actual feedback data
         if (data.get("reviews") instanceof List) {
+            Log.d(TAG, "Displaying reviews from API");
             displayReviews((List<Map<String, Object>>) data.get("reviews"));
+        } else if (data.containsKey("operator_rating") && data.containsKey("total_ratings")) {
+            Log.d(TAG, "No reviews found, using operator_rating fallback: " + data.get("operator_rating"));
+            displayOperatorRating(data);
+        } else {
+            Log.d(TAG, "No rating data found in response. Keys: " + data.keySet());
         }
 
         if (data.get("seat_layout") != null) {
@@ -298,9 +306,68 @@ public class TripDetailActivity extends AppCompatActivity {
         layoutTimeline.addView(stopView);
     }
 
+    private void displayOperatorRating(Map<String, Object> data) {
+        // Get rating data from API
+        Object ratingObj = data.get("operator_rating");
+        Object totalObj = data.get("total_ratings");
+
+        double operatorRating = 0;
+        int totalRatings = 0;
+
+        if (ratingObj instanceof Number) {
+            operatorRating = ((Number) ratingObj).doubleValue();
+        }
+        if (totalObj instanceof Number) {
+            totalRatings = ((Number) totalObj).intValue();
+        }
+
+        Log.d(TAG, "displayOperatorRating - Rating: " + operatorRating + ", Total: " + totalRatings);
+
+        if (totalRatings == 0) {
+            txtRating.setText("0.0");
+            txtReviews.setText("(0 đánh giá)");
+            setRatingBar(progressBar5, txtPercent5, 0);
+            setRatingBar(progressBar4, txtPercent4, 0);
+            setRatingBar(progressBar3, txtPercent3, 0);
+            setRatingBar(progressBar2, txtPercent2, 0);
+            setRatingBar(progressBar1, txtPercent1, 0);
+            return;
+        }
+
+        // Display average rating and total count
+        txtRating.setText(new DecimalFormat("0.0").format(operatorRating));
+        txtReviews.setText(String.format(Locale.getDefault(), "(%d đánh giá)", totalRatings));
+
+        // Calculate percentage for each star level based on average rating
+        // If average is 3.5: 5 stars should be lower, and as rating goes down, percentage increases
+        int percent5 = Math.max(0, (int) ((operatorRating - 4) * 100)); // 5.0 = 100%, 4.0 = 0%
+        int percent4 = Math.max(0, (int) ((operatorRating - 3) * 100)); // 5.0 = 200% (capped to 100%), 4.0 = 100%
+        int percent3 = Math.max(0, (int) ((operatorRating - 2) * 100)); // 5.0 = 300% (capped), 3.0 = 100%
+        int percent2 = Math.max(0, (int) ((operatorRating - 1) * 100)); // 5.0 = 400% (capped), 2.0 = 100%
+        int percent1 = Math.max(0, (int) (operatorRating * 100));       // 5.0 = 500% (capped), 1.0 = 100%
+
+        // Cap all percentages at 100
+        percent5 = Math.min(100, percent5);
+        percent4 = Math.min(100, percent4);
+        percent3 = Math.min(100, percent3);
+        percent2 = Math.min(100, percent2);
+        percent1 = Math.min(100, percent1);
+
+        Log.d(TAG, "Rating percentages - 5*: " + percent5 + "%, 4*: " + percent4 + "%, 3*: " + percent3 + "%, 2*: " + percent2 + "%, 1*: " + percent1 + "%");
+
+        setRatingBar(progressBar5, txtPercent5, percent5);
+        setRatingBar(progressBar4, txtPercent4, percent4);
+        setRatingBar(progressBar3, txtPercent3, percent3);
+        setRatingBar(progressBar2, txtPercent2, percent2);
+        setRatingBar(progressBar1, txtPercent1, percent1);
+    }
+
     private void displayReviews(List<Map<String, Object>> reviews) {
         int totalReviews = reviews.size();
+        Log.d(TAG, "displayReviews called with " + totalReviews + " reviews");
+
         if (totalReviews == 0) {
+            Log.d(TAG, "No reviews, showing 0.0");
             txtRating.setText("0.0");
             txtReviews.setText("(0 đánh giá)");
             setRatingBar(progressBar5, txtPercent5, 0);
@@ -316,8 +383,10 @@ public class TripDetailActivity extends AppCompatActivity {
 
         for (Map<String, Object> review : reviews) {
             Object ratingObj = review.get("rating");
+            Log.d(TAG, "Review rating object: " + ratingObj + " (type: " + (ratingObj != null ? ratingObj.getClass().getName() : "null") + ")");
             if (ratingObj instanceof Number) {
                 int rating = ((Number) ratingObj).intValue();
+                Log.d(TAG, "Parsed rating: " + rating);
                 if (rating >= 1 && rating <= 5) {
                     totalRatingSum += rating;
                     ratingCounts[rating - 1]++;
@@ -326,6 +395,9 @@ public class TripDetailActivity extends AppCompatActivity {
         }
 
         double averageRating = totalRatingSum / totalReviews;
+        Log.d(TAG, "Average rating calculated: " + averageRating + " (sum: " + totalRatingSum + ", total: " + totalReviews + ")");
+        Log.d(TAG, "Rating distribution: 5*: " + ratingCounts[4] + ", 4*: " + ratingCounts[3] + ", 3*: " + ratingCounts[2] + ", 2*: " + ratingCounts[1] + ", 1*: " + ratingCounts[0]);
+
         txtRating.setText(new DecimalFormat("0.0").format(averageRating));
         txtReviews.setText(String.format(Locale.getDefault(), "(%d đánh giá)", totalReviews));
 

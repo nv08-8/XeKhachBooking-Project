@@ -35,7 +35,17 @@ const getTrips = async (req, res) => {
       r.origin, r.destination, r.distance_km, r.duration_min,
       b.number_plate, b.image_url AS specific_bus_image,
       (SELECT image_urls FROM bus_images bi WHERE LOWER(TRIM(bi.bus_type)) = LOWER(TRIM(t.bus_type)) LIMIT 1) AS generic_bus_images,
-      d.name AS driver_name, d.phone AS driver_phone
+      d.name AS driver_name, d.phone AS driver_phone,
+      (SELECT COALESCE(ROUND(AVG(f2.rating)::numeric, 1), 0)
+       FROM feedbacks f2
+       JOIN bookings b2 ON f2.booking_id = b2.id
+       JOIN trips t2 ON b2.trip_id = t2.id
+       WHERE LOWER(TRIM(t2.operator)) = LOWER(TRIM(t.operator))) as operator_rating,
+      (SELECT COALESCE(COUNT(f2.id), 0)
+       FROM feedbacks f2
+       JOIN bookings b2 ON f2.booking_id = b2.id
+       JOIN trips t2 ON b2.trip_id = t2.id
+       WHERE LOWER(TRIM(t2.operator)) = LOWER(TRIM(t.operator))) as total_ratings
     FROM trips t
     JOIN routes r ON r.id = t.route_id
     LEFT JOIN buses b ON b.id = t.bus_id
@@ -126,7 +136,17 @@ router.get("/trips/:id", async (req, res) => {
                 r.origin, r.destination, r.distance_km, r.duration_min,
                 b.number_plate, b.image_url AS specific_bus_image, b.seat_layout,
                 (SELECT image_urls FROM bus_images bi WHERE LOWER(TRIM(bi.bus_type)) = LOWER(TRIM(t.bus_type)) LIMIT 1) AS generic_bus_images,
-                d.name AS driver_name, d.phone AS driver_phone
+                d.name AS driver_name, d.phone AS driver_phone,
+                (SELECT COALESCE(ROUND(AVG(f2.rating)::numeric, 1), 0)
+                 FROM feedbacks f2
+                 JOIN bookings b2 ON f2.booking_id = b2.id
+                 JOIN trips t2 ON b2.trip_id = t2.id
+                 WHERE LOWER(TRIM(t2.operator)) = LOWER(TRIM(t.operator))) as operator_rating,
+                (SELECT COALESCE(COUNT(f2.id), 0)
+                 FROM feedbacks f2
+                 JOIN bookings b2 ON f2.booking_id = b2.id
+                 JOIN trips t2 ON b2.trip_id = t2.id
+                 WHERE LOWER(TRIM(t2.operator)) = LOWER(TRIM(t.operator))) as total_ratings
             FROM trips t
             LEFT JOIN routes r ON t.route_id = r.id
             LEFT JOIN buses b ON t.bus_id = b.id
@@ -135,11 +155,14 @@ router.get("/trips/:id", async (req, res) => {
         `;
 
         const reviewsQuery = `
-            SELECT r.rating, r.comment, u.name as user_name
-            FROM reviews r
-            JOIN users u ON r.user_id = u.id
-            WHERE r.trip_id = $1
-            ORDER BY r.created_at DESC
+            SELECT f.id as feedback_id, f.rating, f.comment, u.name as user_name, f.created_at
+            FROM feedbacks f
+            JOIN users u ON f.user_id = u.id
+            JOIN bookings b ON f.booking_id = b.id
+            JOIN trips t ON b.trip_id = t.id
+            WHERE LOWER(TRIM(t.operator)) = LOWER(TRIM((SELECT operator FROM trips WHERE id = $1)))
+            ORDER BY f.created_at DESC
+            LIMIT 20
         `;
 
         const stopsQuery = `
