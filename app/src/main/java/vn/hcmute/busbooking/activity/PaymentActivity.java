@@ -62,7 +62,12 @@ public class PaymentActivity extends AppCompatActivity {
     private TextView tvOrigin, tvDestination;
     private TextView tvCountdown;
     private TextView tvPassengerName, tvPassengerPhone;
-    private TextView tvPickupTimeView, tvDropoffTimeView;
+    // Pickup / Dropoff time views (present in layout)
+    private TextView tvPickupTimeView;
+    private TextView tvDropoffTimeView;
+    // NEW: separate views for return leg times
+    private TextView tvReturnPickupTimeView;
+    private TextView tvReturnDropoffTimeView;
     private TextView tvBottomTotal;
     private Button btnConfirmPayment;
     private com.google.android.material.button.MaterialButton btnChangeToOffline;
@@ -308,6 +313,11 @@ public class PaymentActivity extends AppCompatActivity {
         // Pickup / Dropoff time views (present in layout)
         try { tvPickupTimeView = findViewById(R.id.tvPickupTime); } catch (Exception ignored) {}
         try { tvDropoffTimeView = findViewById(R.id.tvDropoffTime); } catch (Exception ignored) {}
+
+        // NEW: bind return-leg specific time views
+        try { tvReturnPickupTimeView = findViewById(R.id.tvReturnPickupTime); } catch (Exception ignored) {}
+        try { tvReturnDropoffTimeView = findViewById(R.id.tvReturnDropoffTime); } catch (Exception ignored) {}
+
         // Layout uses tvPickupLocation / tvDropoffLocation ids — map them to tvPickup/tvDropoff variables
         tvPickup = findViewById(R.id.tvPickupLocation);
         tvDropoff = findViewById(R.id.tvDropoffLocation);
@@ -385,7 +395,41 @@ public class PaymentActivity extends AppCompatActivity {
          trip = intent.getParcelableExtra("trip");
          seatLabels = intent.getStringArrayListExtra("seat_labels");
 
-         // Read return leg extras if present
+         // Read primary pickup/dropoff values from Intent (try ids/names and parcelable fallbacks)
+         try {
+             pickupStopId = intent.getIntExtra("pickup_stop_id", -1);
+             dropoffStopId = intent.getIntExtra("dropoff_stop_id", -1);
+             pickupStopName = intent.getStringExtra("pickup_stop_name");
+             dropoffStopName = intent.getStringExtra("dropoff_stop_name");
+
+             // Fallback: caller may have provided parcelable Location objects instead
+             if ((pickupStopId == -1 || pickupStopName == null) && intent.hasExtra("pickup_location")) {
+                 try {
+                     vn.hcmute.busbooking.model.Location loc = intent.getParcelableExtra("pickup_location");
+                     if (loc != null) {
+                         if (pickupStopId == -1) pickupStopId = loc.getId();
+                         if (pickupStopName == null || pickupStopName.isEmpty()) pickupStopName = (loc.getName() != null ? loc.getName() : loc.getAddress());
+                     }
+                 } catch (Exception ignored) {}
+             }
+
+             if ((dropoffStopId == -1 || dropoffStopName == null) && intent.hasExtra("dropoff_location")) {
+                 try {
+                     vn.hcmute.busbooking.model.Location loc = intent.getParcelableExtra("dropoff_location");
+                     if (loc != null) {
+                         if (dropoffStopId == -1) dropoffStopId = loc.getId();
+                         if (dropoffStopName == null || dropoffStopName.isEmpty()) dropoffStopName = (loc.getName() != null ? loc.getName() : loc.getAddress());
+                     }
+                 } catch (Exception ignored) {}
+             }
+
+             Log.d(TAG, "collectIntentData: primary trip=" + (trip != null ? trip.getId() : "null") +
+                     ", pickupStopId=" + pickupStopId + ", dropoffStopId=" + dropoffStopId +
+                     ", pickupStopName=" + (pickupStopName != null ? pickupStopName : "null") +
+                     ", dropoffStopName=" + (dropoffStopName != null ? dropoffStopName : "null"));
+         } catch (Exception ignored) {}
+
+         // Read return leg extras if present (ids/names and parcelable fallbacks)
          try {
              returnTrip = intent.getParcelableExtra("return_trip");
              returnSeatLabels = intent.getStringArrayListExtra("return_seat_labels");
@@ -393,17 +437,47 @@ public class PaymentActivity extends AppCompatActivity {
              returnDropoffStopId = intent.getIntExtra("return_dropoff_stop_id", -1);
              returnPickupStopName = intent.getStringExtra("return_pickup_stop_name");
              returnDropoffStopName = intent.getStringExtra("return_dropoff_stop_name");
-         } catch (Exception ignored) {}
 
-         pickupStopId = intent.getIntExtra("pickup_stop_id", -1);
-         dropoffStopId = intent.getIntExtra("dropoff_stop_id", -1);
-         pickupStopName = intent.getStringExtra("pickup_stop_name");
-         dropoffStopName = intent.getStringExtra("dropoff_stop_name");
+             if ((returnPickupStopId == -1 || returnPickupStopName == null) && intent.hasExtra("return_pickup_location")) {
+                 try {
+                     vn.hcmute.busbooking.model.Location loc = intent.getParcelableExtra("return_pickup_location");
+                     if (loc != null) {
+                         if (returnPickupStopId == -1) returnPickupStopId = loc.getId();
+                         if (returnPickupStopName == null || returnPickupStopName.isEmpty()) returnPickupStopName = (loc.getName() != null ? loc.getName() : loc.getAddress());
+                     }
+                 } catch (Exception ignored) {}
+             }
+
+             if ((returnDropoffStopId == -1 || returnDropoffStopName == null) && intent.hasExtra("return_dropoff_location")) {
+                 try {
+                     vn.hcmute.busbooking.model.Location loc = intent.getParcelableExtra("return_dropoff_location");
+                     if (loc != null) {
+                         if (returnDropoffStopId == -1) returnDropoffStopId = loc.getId();
+                         if (returnDropoffStopName == null || returnDropoffStopName.isEmpty()) returnDropoffStopName = (loc.getName() != null ? loc.getName() : loc.getAddress());
+                     }
+                 } catch (Exception ignored) {}
+             }
+
+             // Debug logs to help diagnose missing return leg
+             Log.d(TAG, "collectIntentData: returnTrip=" + (returnTrip != null ? returnTrip.getId() : "null") +
+                      ", returnSeatLabels=" + (returnSeatLabels != null ? returnSeatLabels.size() : "null") +
+                      ", returnPickupStopName=" + (returnPickupStopName != null ? returnPickupStopName : "null") +
+                      ", returnDropoffStopName=" + (returnDropoffStopName != null ? returnDropoffStopName : "null"));
+
+         } catch (Exception ignored) {
+             Log.d(TAG, "collectIntentData: exception reading return extras: " + ignored);
+         }
 
          // If this is a pending payment flow we allow missing trip/seatLabels because we'll fetch booking details from server
          if (!isPendingPayment) {
-             if (trip == null || seatLabels == null || seatLabels.isEmpty() || pickupStopId == -1 || dropoffStopId == -1 || pickupStopName == null || dropoffStopName == null) {
-                 Log.e(TAG, "Missing critical booking data from Intent.");
+             // Relax validation: accept if we have either (id AND name) OR at least a name for both pickup and dropoff
+             boolean pickupOk = (pickupStopId != -1 && pickupStopName != null && !pickupStopName.isEmpty()) || (pickupStopName != null && !pickupStopName.isEmpty());
+             boolean dropoffOk = (dropoffStopId != -1 && dropoffStopName != null && !dropoffStopName.isEmpty()) || (dropoffStopName != null && !dropoffStopName.isEmpty());
+
+             if (trip == null || seatLabels == null || seatLabels.isEmpty() || !pickupOk || !dropoffOk) {
+                 Log.e(TAG, "Missing critical booking data from Intent. trip=" + (trip != null ? trip.getId() : "null") +
+                         ", seats=" + (seatLabels != null ? seatLabels.size() : 0) +
+                         ", pickupOk=" + pickupOk + ", dropoffOk=" + dropoffOk);
                  return false;
              }
          }
@@ -424,6 +498,7 @@ public class PaymentActivity extends AppCompatActivity {
      }
 
     private void populateBookingSummary() {
+        // ============ HIỂN THỊ THÔNG TIN CHIỀU ĐI ============
         if (trip != null) {
             tvBusOperator.setText(trip.getOperator());
             tvBusType.setText(trip.getBusType());
@@ -433,60 +508,28 @@ public class PaymentActivity extends AppCompatActivity {
         }
 
         if (tvAppName != null) tvAppName.setText(R.string.logo_default);
-        // Split pickupStopName (may be "Name - Address") into name and address
-        if (tvPickup != null) {
-            String name = pickupStopName != null ? pickupStopName : "";
-            if (name.contains(" - ")) {
-                String[] parts = name.split(" - ", 2);
-                tvPickup.setText(parts[0]);
-                Object tag = tvPickup.getTag();
-                if (tag instanceof TextView) {
-                    TextView addrView = (TextView) tag;
-                    String addr = parts.length > 1 ? parts[1] : "";
-                    if (addr != null && !addr.isEmpty()) {
-                        addrView.setText(addr);
-                        addrView.setVisibility(View.VISIBLE);
-                    } else {
-                        addrView.setVisibility(View.GONE);
-                    }
-                }
-            } else {
-                tvPickup.setText(name);
-                Object tag = tvPickup.getTag();
-                if (tag instanceof TextView) {
-                    ((TextView) tag).setVisibility(View.GONE);
-                }
-            }
+
+        // Hiển thị điểm đón/trả chiều đi
+        displayStopInfo(tvPickup, pickupStopName);
+        displayStopInfo(tvDropoff, dropoffStopName);
+
+        // Hiển thị ghế (bao gồm cả chiều về nếu có)
+        String seatText = "";
+        if (seatLabels != null && !seatLabels.isEmpty()) {
+            seatText = "Đi: " + TextUtils.join(", ", seatLabels);
         }
 
-        if (tvDropoff != null) {
-            String name = dropoffStopName != null ? dropoffStopName : "";
-            if (name.contains(" - ")) {
-                String[] parts = name.split(" - ", 2);
-                tvDropoff.setText(parts[0]);
-                Object tag = tvDropoff.getTag();
-                if (tag instanceof TextView) {
-                    TextView addrView = (TextView) tag;
-                    String addr = parts.length > 1 ? parts[1] : "";
-                    if (addr != null && !addr.isEmpty()) {
-                        addrView.setText(addr);
-                        addrView.setVisibility(View.VISIBLE);
-                    } else {
-                        addrView.setVisibility(View.GONE);
-                    }
-                }
-            } else {
-                tvDropoff.setText(name);
-                Object tag = tvDropoff.getTag();
-                if (tag instanceof TextView) {
-                    ((TextView) tag).setVisibility(View.GONE);
-                }
-            }
+        if (returnTrip != null && returnSeatLabels != null && !returnSeatLabels.isEmpty()) {
+            if (!seatText.isEmpty()) seatText += "\n";
+            seatText += "Về: " + TextUtils.join(", ", returnSeatLabels);
         }
 
-        String seatText = (seatLabels != null) ? TextUtils.join(", ", seatLabels) : "";
-        tvSeat.setText(seatText);
+        if (tvSeat != null) tvSeat.setText(seatText);
 
+        // ============ HIỂN THỊ THÔNG TIN CHIỀU VỀ (NẾU CÓ) ============
+        populateReturnTripInfo();
+
+        // Thông tin hành khách
         if (fullName != null && !fullName.isEmpty()) {
             tvPassengerName.setText(fullName);
         } else if (sessionManager.getUserName() != null) {
@@ -498,31 +541,153 @@ public class PaymentActivity extends AppCompatActivity {
             tvPassengerPhone.setText(maskPhone(phoneToShow));
         }
 
-        // Update pricing to include return leg if present
+        // ============ TÍNH TỔNG TIỀN (BAO GỒM CẢ 2 CHIỀU) ============
         try {
-            if (returnTrip != null && returnSeatLabels != null && !returnSeatLabels.isEmpty()) {
-                double depart = trip != null ? trip.getPrice() * (seatLabels != null ? seatLabels.size() : 0) : 0;
-                double ret = returnTrip.getPrice() * (returnSeatLabels != null ? returnSeatLabels.size() : 0);
-                bookingTotalAmount = depart + ret;
+            double departPrice = 0.0;
+            double returnPrice = 0.0;
+
+            // Tính tiền chiều đi
+            if (trip != null && seatLabels != null && !seatLabels.isEmpty()) {
+                departPrice = trip.getPrice() * seatLabels.size();
+                Log.d(TAG, "Depart price: " + departPrice + " (seats: " + seatLabels.size() + ")");
             }
-        } catch (Exception ignored) {}
+
+            // Tính tiền chiều về
+            if (returnTrip != null && returnSeatLabels != null && !returnSeatLabels.isEmpty()) {
+                returnPrice = returnTrip.getPrice() * returnSeatLabels.size();
+                Log.d(TAG, "Return price: " + returnPrice + " (seats: " + returnSeatLabels.size() + ")");
+            }
+
+            bookingTotalAmount = departPrice + returnPrice;
+            Log.d(TAG, "Total booking amount: " + bookingTotalAmount);
+        } catch (Exception e) {
+            Log.e(TAG, "Error calculating total amount", e);
+        }
+
         updatePricingUI();
 
-        // Fetch and display estimated times for pickup/dropoff if we have trip and stop ids
+        // Fetch và hiển thị thời gian đón/trả ước tính
         try {
             if (trip != null && (pickupStopId > 0 || dropoffStopId > 0)) {
                 fetchAndShowStopTimes(trip.getId(), pickupStopId, dropoffStopId);
             }
-            // fetch return stop times if needed
+            // UPDATED: ensure return leg updates its own return-specific views
             if (returnTrip != null && (returnPickupStopId > 0 || returnDropoffStopId > 0)) {
-                fetchAndShowStopTimes(returnTrip.getId(), returnPickupStopId, returnDropoffStopId);
+                fetchAndShowStopTimes(returnTrip.getId(), returnPickupStopId, returnDropoffStopId, true);
             }
          } catch (Exception ignored) {}
     }
 
-    // Fetch pickup/dropoff locations from API and display estimated_time for the selected stops
-    private void fetchAndShowStopTimes(int tripId, int pickupId, int dropoffId) {
+    // New helper: populate the dedicated return-trip card views safely
+    private void populateReturnTripInfo() {
+        // Find views
+        TextView tvReturnInfoOld = findViewById(R.id.tvReturnTripInfo); // legacy single-text display
+        TextView tvReturnLabel = findViewById(R.id.tvReturnLabel);
+        LinearLayout layoutReturnTrip = findViewById(R.id.layoutReturnTrip);
+        MaterialCardView cardReturn = findViewById(R.id.cardReturnTripInfo);
+
+        // If no return trip selected, hide return section (both new card and legacy view)
+        if (returnTrip == null || returnSeatLabels == null || returnSeatLabels.isEmpty()) {
+            if (tvReturnLabel != null) tvReturnLabel.setVisibility(View.GONE);
+            if (layoutReturnTrip != null) layoutReturnTrip.setVisibility(View.GONE);
+            if (cardReturn != null) cardReturn.setVisibility(View.GONE);
+            if (tvReturnInfoOld != null) tvReturnInfoOld.setVisibility(View.GONE);
+            return;
+        }
+
+        // Show return section
+        if (tvReturnLabel != null) tvReturnLabel.setVisibility(View.VISIBLE);
+        if (layoutReturnTrip != null) layoutReturnTrip.setVisibility(View.VISIBLE);
+        if (cardReturn != null) cardReturn.setVisibility(View.VISIBLE);
+        if (tvReturnInfoOld != null) tvReturnInfoOld.setVisibility(View.GONE); // hide legacy
+
+        // Populate the new return-trip card fields
+        TextView tvReturnBusType = findViewById(R.id.tvReturnBusType);
+        TextView tvReturnBusOperator = findViewById(R.id.tvReturnBusOperator);
+        TextView tvReturnOrigin = findViewById(R.id.tvReturnOrigin);
+        TextView tvReturnDestination = findViewById(R.id.tvReturnDestination);
+        TextView tvReturnDepartureTime = findViewById(R.id.tvReturnDepartureTime);
+        TextView tvReturnPickupLocation = findViewById(R.id.tvReturnPickupLocation);
+        TextView tvReturnPickupAddress = findViewById(R.id.tvReturnPickupAddress);
+        TextView tvReturnDropoffLocation = findViewById(R.id.tvReturnDropoffLocation);
+        TextView tvReturnDropoffAddress = findViewById(R.id.tvReturnDropoffAddress);
+        TextView tvReturnSeatNumber = findViewById(R.id.tvSeatNumber); // reuse main seat text view for combined display
+
         try {
+            if (tvReturnBusType != null) tvReturnBusType.setText(returnTrip.getBusType());
+            if (tvReturnBusOperator != null) tvReturnBusOperator.setText(returnTrip.getOperator());
+            if (tvReturnOrigin != null) tvReturnOrigin.setText(returnTrip.getOrigin());
+            if (tvReturnDestination != null) tvReturnDestination.setText(returnTrip.getDestination());
+            if (tvReturnDepartureTime != null) tvReturnDepartureTime.setText(formatDisplayDateTime(returnTrip.getDepartureTime()));
+
+            // Display pickup/dropoff names on the dedicated fields
+            displayStopInfo(tvReturnPickupLocation, returnPickupStopName);
+            displayStopInfo(tvReturnDropoffLocation, returnDropoffStopName);
+
+            // Also update the combined seat text (tvSeat / tvSeatNumber already set in populateBookingSummary),
+            // but ensure tvReturnSeatNumber shows combined text where applicable
+            if (tvReturnSeatNumber != null) {
+                String combinedSeats = "";
+                if (seatLabels != null && !seatLabels.isEmpty()) combinedSeats = "Đi: " + TextUtils.join(", ", seatLabels);
+                if (returnSeatLabels != null && !returnSeatLabels.isEmpty()) {
+                    if (!combinedSeats.isEmpty()) combinedSeats += "\n";
+                    combinedSeats += "Về: " + TextUtils.join(", ", returnSeatLabels);
+                }
+                tvReturnSeatNumber.setText(combinedSeats);
+            }
+
+        } catch (Exception e) {
+            Log.w(TAG, "populateReturnTripInfo: error populating return UI", e);
+        }
+
+        // Fetch and display estimated times for return trip stops if available
+        try {
+            if (returnTrip != null && (returnPickupStopId > 0 || returnDropoffStopId > 0)) {
+                fetchAndShowStopTimes(returnTrip.getId(), returnPickupStopId, returnDropoffStopId, true);
+            }
+        } catch (Exception ignored) {}
+
+        Log.d(TAG, "populateReturnTripInfo: return trip UI updated (returnTripId=" + (returnTrip != null ? returnTrip.getId() : "null") + ")");
+    }
+
+    // Helper method để hiển thị thông tin điểm đón/trả
+    private void displayStopInfo(TextView tv, String stopName) {
+        if (tv == null || stopName == null) return;
+
+        if (stopName.contains(" - ")) {
+            String[] parts = stopName.split(" - ", 2);
+            tv.setText(parts[0]);
+            Object tag = tv.getTag();
+            if (tag instanceof TextView) {
+                TextView addrView = (TextView) tag;
+                String addr = parts.length > 1 ? parts[1] : "";
+                if (addr != null && !addr.isEmpty()) {
+                    addrView.setText(addr);
+                    addrView.setVisibility(View.VISIBLE);
+                } else {
+                    addrView.setVisibility(View.GONE);
+                }
+            }
+        } else {
+            tv.setText(stopName);
+            Object tag = tv.getTag();
+            if (tag instanceof TextView) {
+                ((TextView) tag).setVisibility(View.GONE);
+            }
+        }
+    }
+
+    // Overload for backward-compatibility (defaults to depart/main trip)
+    private void fetchAndShowStopTimes(int tripId, int pickupId, int dropoffId) {
+        fetchAndShowStopTimes(tripId, pickupId, dropoffId, false);
+    }
+
+    // New: support specifying whether this is the return leg so we update the correct views
+    private void fetchAndShowStopTimes(int tripId, int pickupId, int dropoffId, boolean isReturnTrip) {
+        try {
+            final TextView pickupTarget = isReturnTrip ? tvReturnPickupTimeView : tvPickupTimeView;
+            final TextView dropoffTarget = isReturnTrip ? tvReturnDropoffTimeView : tvDropoffTimeView;
+
             ApiService service = apiService != null ? apiService : ApiClient.getClient().create(ApiService.class);
 
             if (pickupId > 0) {
@@ -533,9 +698,9 @@ public class PaymentActivity extends AppCompatActivity {
                                 for (vn.hcmute.busbooking.model.Location loc : response.body()) {
                                     if (loc != null && loc.getId() == pickupId) {
                                         String iso = loc.getEstimatedTime();
-                                        if (iso != null && !iso.isEmpty() && tvPickupTimeView != null) {
-                                            tvPickupTimeView.setText(formatDisplayTime(iso));
-                                            tvPickupTimeView.setVisibility(View.VISIBLE);
+                                        if (iso != null && !iso.isEmpty() && pickupTarget != null) {
+                                            pickupTarget.setText(formatDisplayTime(iso));
+                                            pickupTarget.setVisibility(View.VISIBLE);
                                         }
                                         break;
                                     }
@@ -556,9 +721,9 @@ public class PaymentActivity extends AppCompatActivity {
                                 for (vn.hcmute.busbooking.model.Location loc : response.body()) {
                                     if (loc != null && loc.getId() == dropoffId) {
                                         String iso = loc.getEstimatedTime();
-                                        if (iso != null && !iso.isEmpty() && tvDropoffTimeView != null) {
-                                            tvDropoffTimeView.setText(formatDisplayTime(iso));
-                                            tvDropoffTimeView.setVisibility(View.VISIBLE);
+                                        if (iso != null && !iso.isEmpty() && dropoffTarget != null) {
+                                            dropoffTarget.setText(formatDisplayTime(iso));
+                                            dropoffTarget.setVisibility(View.VISIBLE);
                                         }
                                         break;
                                     }
@@ -1074,6 +1239,30 @@ public class PaymentActivity extends AppCompatActivity {
         return -1;
     }
 
+    // New helper: detect timezone information from the ISO string. If the ISO contains
+    // an explicit timezone (Z or an offset like +07:00), return a matching TimeZone so
+    // formatting can preserve the original clock time instead of converting to device tz.
+    private java.util.TimeZone getTimeZoneFromIso(String iso) {
+        if (iso == null) return null;
+        String s = iso.trim();
+        if (s.isEmpty()) return null;
+        // Zulu (UTC)
+        if (s.endsWith("Z") || s.endsWith("z")) {
+            return java.util.TimeZone.getTimeZone("UTC");
+        }
+        // Match offsets like +07:00, -05:30, +0700, -0530 at the end of string
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("([+-]\\d{2}:?\\d{2})$").matcher(s);
+        if (m.find()) {
+            String off = m.group(1);
+            // Normalize to +HH:MM
+            if (!off.contains(":")) {
+                if (off.length() == 5) off = off.substring(0, 3) + ":" + off.substring(3);
+            }
+            return java.util.TimeZone.getTimeZone("GMT" + off);
+        }
+        return null;
+    }
+
     private String formatDisplayTime(String isoString) {
         if (isoString == null) return "";
         try {
@@ -1081,6 +1270,8 @@ public class PaymentActivity extends AppCompatActivity {
             if (millis <= 0) return "";
             Date date = new Date(millis);
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+            java.util.TimeZone tz = getTimeZoneFromIso(isoString);
+            if (tz != null) timeFormat.setTimeZone(tz);
             return timeFormat.format(date);
         } catch (Exception e) { return ""; }
     }
@@ -1093,6 +1284,11 @@ public class PaymentActivity extends AppCompatActivity {
             Date date = new Date(millis);
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
             SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+            java.util.TimeZone tz = getTimeZoneFromIso(isoString);
+            if (tz != null) {
+                timeFormat.setTimeZone(tz);
+                dateFormat.setTimeZone(tz);
+            }
             return timeFormat.format(date) + " • " + dateFormat.format(date);
         } catch (Exception e) { return ""; }
     }

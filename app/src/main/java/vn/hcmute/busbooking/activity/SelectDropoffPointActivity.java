@@ -144,7 +144,8 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
                 if (roundPhase) {
                     intent.putExtra("return_trip", trip);
                     intent.putStringArrayListExtra("return_seat_labels", seatLabels);
-                    intent.putExtra("return_pickup_location", (Location) src.getParcelableExtra("pickup_location"));
+                    // Use the CURRENT selection as the return pickup (selectedPickup) and the current selectedDropoff
+                    intent.putExtra("return_pickup_location", selectedPickup);
                     intent.putExtra("return_dropoff_location", selectedDropoff);
 
                     // forward depart_* that were stored earlier
@@ -158,6 +159,14 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
                     if (departDropoff != null) intent.putExtra("dropoff_location", departDropoff);
 
                     intent.putExtra("isRoundTrip", true);
+
+                    // Debug log
+                    try {
+                        android.util.Log.d("SelectDropoff", "Forwarding for ContactInfo - departPickup=" + (departPickup != null ? departPickup.getName() : "null") +
+                                ", departDropoff=" + (departDropoff != null ? departDropoff.getName() : "null") +
+                                ", returnPickup=" + (selectedPickup != null ? selectedPickup.getName() : "null") +
+                                ", returnDropoff=" + (selectedDropoff != null ? selectedDropoff.getName() : "null"));
+                    } catch (Exception ignored) {}
                 } else {
                     // single leg or normal flow
                 }

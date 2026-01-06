@@ -82,24 +82,30 @@ public class ContactInfoActivity extends AppCompatActivity {
         android.util.Log.d("ContactInfo", "ReturnTrip: " + (returnTrip != null ? returnTrip.getId() : "null"));
         android.util.Log.d("ContactInfo", "DepartExplicitTrip: " + (departTripExplicit != null ? departTripExplicit.getId() : "null"));
 
-        // If depart_* explicit values are present, prefer them as the primary/depart leg data
+        // Determine explicit leg objects to display (avoid overwriting primary with return values)
+        // Build depart leg from explicit depart_* if available, otherwise from primary trip/pickup/dropoff
+        Trip legDepartTrip = departTripExplicit != null ? departTripExplicit : trip;
+        ArrayList<String> legDepartSeats = departSeatLabelsExplicit != null ? departSeatLabelsExplicit : seatLabels;
+        Location legDepartPickup = departSelectedPickupExplicit != null ? departSelectedPickupExplicit : selectedPickup;
+        Location legDepartDropoff = departSelectedDropoffExplicit != null ? departSelectedDropoffExplicit : selectedDropoff;
+
+        // Build return leg from explicit return_* if available
+        Trip legReturnTrip = returnTrip;
+        ArrayList<String> legReturnSeats = returnSeatLabels;
+        Location legReturnPickup = returnSelectedPickup;
+        Location legReturnDropoff = returnSelectedDropoff;
+
+        // If depart explicit was provided, and original primary trip info referred to what is actually the return leg,
+        // ensure primary variables still reflect depart leg for subsequent code paths that expect 'trip' to be depart.
         if (departTripExplicit != null) {
-            android.util.Log.d("ContactInfo", "Using explicit depart_* values as primary leg");
-            // Swap values: treat explicit depart as primary, and treat the previously-read primary as return if returnTrip was not set
-            trip = departTripExplicit;
-            seatLabels = departSeatLabelsExplicit != null ? departSeatLabelsExplicit : seatLabels;
-            selectedPickup = departSelectedPickupExplicit != null ? departSelectedPickupExplicit : selectedPickup;
-            selectedDropoff = departSelectedDropoffExplicit != null ? departSelectedDropoffExplicit : selectedDropoff;
+            // Keep original 'trip' as departTripExplicit so downstream logic that uses 'trip'/'seatLabels' refers to depart
+            trip = legDepartTrip;
+            seatLabels = legDepartSeats;
+            selectedPickup = legDepartPickup;
+            selectedDropoff = legDepartDropoff;
         }
 
-        if (trip == null || seatLabels == null || seatLabels.isEmpty() ||
-            selectedPickup == null || selectedDropoff == null) {
-            android.util.Log.e("ContactInfo", "Missing required data - finishing activity");
-            Toast.makeText(this, "Lỗi: Thiếu thông tin đặt vé.", Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
-
+        // Initialize summaries views after resolving leg variables
         sessionManager = new SessionManager(this);
         android.util.Log.d("ContactInfo", "SessionManager initialized, logged in: " + sessionManager.isLoggedIn());
 
@@ -133,11 +139,11 @@ public class ContactInfoActivity extends AppCompatActivity {
 
         // Display subtotal (include return leg if present)
         double total = 0.0;
-        if (seatLabels != null && trip != null) {
-            total += seatLabels.size() * trip.getPrice();
+        if (legDepartSeats != null && legDepartTrip != null) {
+            total += legDepartSeats.size() * legDepartTrip.getPrice();
         }
-        if (returnSeatLabels != null && returnTrip != null) {
-            total += returnSeatLabels.size() * returnTrip.getPrice();
+        if (legReturnSeats != null && legReturnTrip != null) {
+            total += legReturnSeats.size() * legReturnTrip.getPrice();
         }
         tvSubtotal.setText(CurrencyUtil.formatVND(total));
 
@@ -146,10 +152,10 @@ public class ContactInfoActivity extends AppCompatActivity {
 
         // Show depart and return summaries if returnTrip provided
         if (tvDepartSummary != null) {
-            tvDepartSummary.setText(buildLegSummary(trip, seatLabels, selectedPickup, selectedDropoff));
+            tvDepartSummary.setText(buildLegSummary(legDepartTrip, legDepartSeats, legDepartPickup, legDepartDropoff));
         }
-        if (returnTrip != null && tvReturnSummary != null) {
-            tvReturnSummary.setText(buildLegSummary(returnTrip, returnSeatLabels, returnSelectedPickup, returnSelectedDropoff));
+        if (legReturnTrip != null && tvReturnSummary != null) {
+            tvReturnSummary.setText(buildLegSummary(legReturnTrip, legReturnSeats, legReturnPickup, legReturnDropoff));
             tvReturnSummary.setVisibility(android.view.View.VISIBLE);
             findViewById(R.id.summaryContainer).setVisibility(android.view.View.VISIBLE);
         } else {
@@ -185,9 +191,9 @@ public class ContactInfoActivity extends AppCompatActivity {
     }
 
     private void validateAndContinue() {
-        String fullName = etFullName.getText() != null ? etFullName.getText().toString().trim() : "";
-        String phoneNumber = etPhoneNumber.getText() != null ? etPhoneNumber.getText().toString().trim() : "";
-        String email = etEmail.getText() != null ? etEmail.getText().toString().trim() : "";
+         String fullName = etFullName.getText() != null ? etFullName.getText().toString().trim() : "";
+         String phoneNumber = etPhoneNumber.getText() != null ? etPhoneNumber.getText().toString().trim() : "";
+         String email = etEmail.getText() != null ? etEmail.getText().toString().trim() : "";
 
         // Validate full name
         if (TextUtils.isEmpty(fullName)) {
@@ -231,31 +237,57 @@ public class ContactInfoActivity extends AppCompatActivity {
         }
 
         // Go to payment activity
-        Intent intent = new Intent(this, PaymentActivity.class);
-        // Primary (depart) leg
-        intent.putExtra("trip", departTrip);
-        intent.putStringArrayListExtra("seat_labels", departSeats);
-        intent.putExtra("pickup_stop_id", departPickup.getId());
-        intent.putExtra("pickup_stop_name", formatLocationName(departPickup));
-        intent.putExtra("dropoff_stop_id", departDropoff.getId());
-        intent.putExtra("dropoff_stop_name", formatLocationName(departDropoff));
-        intent.putExtra("passenger_name", fullName);
-        intent.putExtra("passenger_phone", phoneNumber);
-        intent.putExtra("passenger_email", email);
-
-        // If return leg provided, attach return_* extras
-        if (returnTrip != null && returnSeatLabels != null && !returnSeatLabels.isEmpty() && returnSelectedPickup != null && returnSelectedDropoff != null) {
-            intent.putExtra("return_trip", returnTrip);
-            intent.putStringArrayListExtra("return_seat_labels", returnSeatLabels);
-            intent.putExtra("return_pickup_stop_id", returnSelectedPickup.getId());
-            intent.putExtra("return_pickup_stop_name", formatLocationName(returnSelectedPickup));
-            intent.putExtra("return_dropoff_stop_id", returnSelectedDropoff.getId());
-            intent.putExtra("return_dropoff_stop_name", formatLocationName(returnSelectedDropoff));
-            intent.putExtra("isRoundTrip", true);
+        // If this is a round-trip booking but return leg data is missing, redirect user to choose return trip
+        Intent src = getIntent();
+        boolean isRoundTrip = src.getBooleanExtra("isRoundTrip", false);
+        if (isRoundTrip && (returnTrip == null || returnSeatLabels == null || returnSeatLabels.isEmpty() || returnSelectedPickup == null || returnSelectedDropoff == null)) {
+            // Need to choose return trip first - forward depart_* info and mark round_trip_phase
+            Intent toReturnSearch = new Intent(this, TripListActivity.class);
+            // Determine the origin/destination for return search (swap)
+            String returnDate = src.getStringExtra("returnDate");
+            String returnOrigin = src.getStringExtra("returnOrigin");
+            String returnDestination = src.getStringExtra("returnDestination");
+            if (returnOrigin == null || returnOrigin.isEmpty()) returnOrigin = trip != null ? trip.getDestination() : null;
+            if (returnDestination == null || returnDestination.isEmpty()) returnDestination = trip != null ? trip.getOrigin() : null;
+            if (returnOrigin != null) toReturnSearch.putExtra("origin", returnOrigin);
+            if (returnDestination != null) toReturnSearch.putExtra("destination", returnDestination);
+            if (returnDate != null) toReturnSearch.putExtra("date", returnDate);
+            // mark phase and carry depart_* keys
+            toReturnSearch.putExtra("round_trip_phase", true);
+            toReturnSearch.putExtra("isRoundTrip", true);
+            toReturnSearch.putExtra("depart_trip", departTripExplicit != null ? departTripExplicit : trip);
+            toReturnSearch.putStringArrayListExtra("depart_seat_labels", departSeatLabelsExplicit != null ? departSeatLabelsExplicit : seatLabels);
+            toReturnSearch.putExtra("depart_pickup_location", departSelectedPickupExplicit != null ? departSelectedPickupExplicit : selectedPickup);
+            toReturnSearch.putExtra("depart_dropoff_location", departSelectedDropoffExplicit != null ? departSelectedDropoffExplicit : selectedDropoff);
+            startActivity(toReturnSearch);
+            return;
         }
 
-        startActivity(intent);
-    }
+        Intent intent = new Intent(this, PaymentActivity.class);
+         // Primary (depart) leg
+         intent.putExtra("trip", departTrip);
+         intent.putStringArrayListExtra("seat_labels", departSeats);
+         intent.putExtra("pickup_stop_id", departPickup.getId());
+         intent.putExtra("pickup_stop_name", formatLocationName(departPickup));
+         intent.putExtra("dropoff_stop_id", departDropoff.getId());
+         intent.putExtra("dropoff_stop_name", formatLocationName(departDropoff));
+         intent.putExtra("passenger_name", fullName);
+         intent.putExtra("passenger_phone", phoneNumber);
+         intent.putExtra("passenger_email", email);
+
+         // If return leg provided, attach return_* extras
+         if (returnTrip != null && returnSeatLabels != null && !returnSeatLabels.isEmpty() && returnSelectedPickup != null && returnSelectedDropoff != null) {
+             intent.putExtra("return_trip", returnTrip);
+             intent.putStringArrayListExtra("return_seat_labels", returnSeatLabels);
+             intent.putExtra("return_pickup_stop_id", returnSelectedPickup.getId());
+             intent.putExtra("return_pickup_stop_name", formatLocationName(returnSelectedPickup));
+             intent.putExtra("return_dropoff_stop_id", returnSelectedDropoff.getId());
+             intent.putExtra("return_dropoff_stop_name", formatLocationName(returnSelectedDropoff));
+             intent.putExtra("isRoundTrip", true);
+         }
+
+         startActivity(intent);
+     }
 
     private String formatLocationName(Location location) {
         String name = location.getName();
