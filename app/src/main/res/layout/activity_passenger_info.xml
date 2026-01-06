@@ -10,7 +10,7 @@
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#F7F8FA"
+        android:background="@color/appBarBackground"
         app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
@@ -18,11 +18,16 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:layout_marginTop="36dp"
-            android:background="@android:color/transparent"
             app:navigationIcon="@drawable/ic_arrow_back"
             app:title="Thông tin liên hệ"
             app:titleCentered="true"
             app:titleTextAppearance="@style/Toolbar.TitleText" />
+
+        <View
+            android:id="@+id/divider"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:background="#CCCCCC" />
 
     </com.google.android.material.appbar.AppBarLayout>
 

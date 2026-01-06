@@ -698,9 +698,9 @@ public class PaymentActivity extends AppCompatActivity {
                                 for (vn.hcmute.busbooking.model.Location loc : response.body()) {
                                     if (loc != null && loc.getId() == pickupId) {
                                         String iso = loc.getEstimatedTime();
-                                        if (iso != null && !iso.isEmpty() && pickupTarget != null) {
-                                            pickupTarget.setText(formatDisplayTime(iso));
-                                            pickupTarget.setVisibility(View.VISIBLE);
+                                        if (iso != null && !iso.isEmpty() && tvPickupTimeView != null) {
+                                            tvPickupTimeView.setText(formatEstimatedTime(iso));
+                                            tvPickupTimeView.setVisibility(View.VISIBLE);
                                         }
                                         break;
                                     }
@@ -721,9 +721,9 @@ public class PaymentActivity extends AppCompatActivity {
                                 for (vn.hcmute.busbooking.model.Location loc : response.body()) {
                                     if (loc != null && loc.getId() == dropoffId) {
                                         String iso = loc.getEstimatedTime();
-                                        if (iso != null && !iso.isEmpty() && dropoffTarget != null) {
-                                            dropoffTarget.setText(formatDisplayTime(iso));
-                                            dropoffTarget.setVisibility(View.VISIBLE);
+                                        if (iso != null && !iso.isEmpty() && tvDropoffTimeView != null) {
+                                            tvDropoffTimeView.setText(formatEstimatedTime(iso));
+                                            tvDropoffTimeView.setVisibility(View.VISIBLE);
                                         }
                                         break;
                                     }
@@ -1270,8 +1270,19 @@ public class PaymentActivity extends AppCompatActivity {
             if (millis <= 0) return "";
             Date date = new Date(millis);
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
-            java.util.TimeZone tz = getTimeZoneFromIso(isoString);
-            if (tz != null) timeFormat.setTimeZone(tz);
+            timeFormat.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+            return timeFormat.format(date);
+        } catch (Exception e) { return ""; }
+    }
+
+    private String formatEstimatedTime(String isoString) {
+        if (isoString == null) return "";
+        try {
+            long millis = parseIsoToMillis(isoString);
+            if (millis <= 0) return "";
+            Date date = new Date(millis);
+            SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+            // DO NOT set timezone - estimated_time is already in local format (no UTC indicator)
             return timeFormat.format(date);
         } catch (Exception e) { return ""; }
     }
@@ -1284,11 +1295,9 @@ public class PaymentActivity extends AppCompatActivity {
             Date date = new Date(millis);
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
             SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
-            java.util.TimeZone tz = getTimeZoneFromIso(isoString);
-            if (tz != null) {
-                timeFormat.setTimeZone(tz);
-                dateFormat.setTimeZone(tz);
-            }
+            // Set timezone to UTC to match the incoming data
+            timeFormat.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+            dateFormat.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
             return timeFormat.format(date) + " • " + dateFormat.format(date);
         } catch (Exception e) { return ""; }
     }

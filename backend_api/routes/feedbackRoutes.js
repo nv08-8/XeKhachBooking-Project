@@ -291,4 +291,83 @@ router.post("/test/create-feedback/:user_id/:booking_id/:rating", async (req, re
     }
 });
 
+// ✅ GET /api/operators/ratings - Lấy trung bình đánh giá cho từng nhà xe (operator)
+router.get("/operators/ratings", async (req, res) => {
+    const sql = `
+        SELECT
+            t.operator,
+            COUNT(f.id) as total_ratings,
+            ROUND(AVG(f.rating)::numeric, 1) as average_rating,
+            MAX(f.created_at) as latest_rating_date
+        FROM feedbacks f
+        JOIN bookings b ON f.booking_id = b.id
+        JOIN trips t ON b.trip_id = t.id
+        WHERE t.operator IS NOT NULL
+        GROUP BY t.operator
+        ORDER BY average_rating DESC, total_ratings DESC
+    `;
+
+    try {
+        const { rows } = await db.query(sql);
+        res.json(rows);
+    } catch (err) {
+        console.error("Error fetching operators ratings:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// ✅ GET /api/operators/:operator/ratings - Lấy trung bình đánh giá và feedback chi tiết cho một nhà xe
+router.get("/operators/:operator/ratings", async (req, res) => {
+    const { operator } = req.params;
+
+    const sql = `
+        SELECT
+            t.operator,
+            COUNT(f.id) as total_ratings,
+            ROUND(AVG(f.rating)::numeric, 1) as average_rating,
+            MIN(f.rating) as min_rating,
+            MAX(f.rating) as max_rating,
+            SUM(CASE WHEN f.rating >= 4 THEN 1 ELSE 0 END) as positive_count,
+            SUM(CASE WHEN f.rating = 3 THEN 1 ELSE 0 END) as neutral_count,
+            SUM(CASE WHEN f.rating < 3 THEN 1 ELSE 0 END) as negative_count,
+            json_agg(
+                json_build_object(
+                    'feedback_id', f.id,
+                    'rating', f.rating,
+                    'comment', f.comment,
+                    'user_name', u.name,
+                    'feedback_date', f.created_at,
+                    'trip_date', t.departure_time,
+                    'trip_origin', r.origin,
+                    'trip_destination', r.destination
+                ) ORDER BY f.created_at DESC
+            ) as feedbacks
+        FROM feedbacks f
+        JOIN bookings b ON f.booking_id = b.id
+        JOIN trips t ON b.trip_id = t.id
+        JOIN routes r ON t.route_id = r.id
+        JOIN users u ON f.user_id = u.id
+        WHERE LOWER(TRIM(t.operator)) = LOWER(TRIM($1))
+        GROUP BY t.operator
+    `;
+
+    try {
+        const { rows } = await db.query(sql, [operator]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({
+                message: "Không tìm thấy đánh giá cho nhà xe này",
+                operator: operator,
+                total_ratings: 0,
+                average_rating: 0
+            });
+        }
+
+        res.json(rows[0]);
+    } catch (err) {
+        console.error("Error fetching operator detail ratings:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
 module.exports = router;

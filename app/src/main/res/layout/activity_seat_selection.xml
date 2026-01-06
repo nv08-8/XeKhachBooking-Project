@@ -21,11 +21,16 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:layout_marginTop="36dp"
-            android:background="@android:color/transparent"
             app:navigationIcon="@drawable/ic_arrow_back"
             app:title="Thông tin vé"
             app:titleCentered="true"
             app:titleTextAppearance="@style/Toolbar.TitleText" />
+
+        <View
+            android:id="@+id/divider"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#AF999999" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
