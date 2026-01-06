@@ -35,11 +35,16 @@ const getTrips = async (req, res) => {
       r.origin, r.destination, r.distance_km, r.duration_min,
       b.number_plate, b.image_url AS specific_bus_image,
       (SELECT image_urls FROM bus_images bi WHERE LOWER(TRIM(bi.bus_type)) = LOWER(TRIM(t.bus_type)) LIMIT 1) AS generic_bus_images,
-      d.name AS driver_name, d.phone AS driver_phone
+      d.name AS driver_name, d.phone AS driver_phone,
+      COALESCE(ROUND(AVG(f.rating)::numeric, 1), 0) as operator_rating,
+      COALESCE(COUNT(f.id), 0) as total_ratings
     FROM trips t
     JOIN routes r ON r.id = t.route_id
     LEFT JOIN buses b ON b.id = t.bus_id
     LEFT JOIN drivers d ON d.id = t.driver_id
+    LEFT JOIN feedbacks f ON f.booking_id IN (
+      SELECT b.id FROM bookings b WHERE b.trip_id = t.id
+    )
     WHERE 1=1`;
   const params = [];
 
@@ -60,7 +65,7 @@ const getTrips = async (req, res) => {
   if (status) { sql += " AND t.status = $" + (params.length + 1); params.push(status); }
   if (bus_type) { sql += " AND t.bus_type ILIKE $" + (params.length + 1); params.push(`%${bus_type}%`); }
 
-  sql += " ORDER BY t.departure_time ASC LIMIT $" + (params.length + 1) + " OFFSET $" + (params.length + 2);
+  sql += " GROUP BY t.id, r.id, b.id, d.id ORDER BY t.departure_time ASC LIMIT $" + (params.length + 1) + " OFFSET $" + (params.length + 2);
   params.push(pageSize, offset);
 
   try {
@@ -126,12 +131,18 @@ router.get("/trips/:id", async (req, res) => {
                 r.origin, r.destination, r.distance_km, r.duration_min,
                 b.number_plate, b.image_url AS specific_bus_image, b.seat_layout,
                 (SELECT image_urls FROM bus_images bi WHERE LOWER(TRIM(bi.bus_type)) = LOWER(TRIM(t.bus_type)) LIMIT 1) AS generic_bus_images,
-                d.name AS driver_name, d.phone AS driver_phone
+                d.name AS driver_name, d.phone AS driver_phone,
+                COALESCE(ROUND(AVG(f.rating)::numeric, 1), 0) as operator_rating,
+                COALESCE(COUNT(f.id), 0) as total_ratings
             FROM trips t
             LEFT JOIN routes r ON t.route_id = r.id
             LEFT JOIN buses b ON t.bus_id = b.id
             LEFT JOIN drivers d ON d.id = t.driver_id
+            LEFT JOIN feedbacks f ON f.booking_id IN (
+                SELECT b.id FROM bookings b WHERE b.trip_id = t.id
+            )
             WHERE t.id = $1
+            GROUP BY t.id, r.id, b.id, d.id
         `;
 
         const reviewsQuery = `
