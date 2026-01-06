@@ -250,6 +250,16 @@
                                 android:textStyle="bold" />
                         </LinearLayout>
 
+                        <!-- Return trip summary (hidden by default) -->
+                        <TextView
+                            android:id="@+id/tvReturnSummary"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:textColor="#333333"
+                            android:textSize="14sp"
+                            android:visibility="gone" />
+
                         <View
                             android:layout_width="match_parent"
                             android:layout_height="1dp"

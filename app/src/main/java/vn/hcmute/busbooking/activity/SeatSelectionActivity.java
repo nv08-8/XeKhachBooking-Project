@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -14,12 +13,10 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.gson.Gson;
 
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 import retrofit2.Call;
@@ -31,7 +28,7 @@ import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.Seat;
 import vn.hcmute.busbooking.model.Trip;
-import vn.hcmute.busbooking.util.CurrencyUtil;
+import vn.hcmute.busbooking.utils.CurrencyUtil;
 
 public class SeatSelectionActivity extends AppCompatActivity {
 
@@ -75,6 +72,38 @@ public class SeatSelectionActivity extends AppCompatActivity {
             Intent intent = new Intent(this, SelectPickupPointActivity.class);
             intent.putExtra("trip", trip);
             intent.putStringArrayListExtra("seat_labels", new ArrayList<>(selectedSeats));
+            // Forward round-trip related extras if present so next screens know about return flow
+            try {
+                Intent src = getIntent();
+                // Prefer isRoundTrip but accept legacy isReturn for compatibility
+                if (src.getBooleanExtra("isRoundTrip", src.getBooleanExtra("isReturn", false))) intent.putExtra("isRoundTrip", true);
+                String returnDate = src.getStringExtra("returnDate"); if (returnDate != null) intent.putExtra("returnDate", returnDate);
+                String returnOrigin = src.getStringExtra("returnOrigin"); if (returnOrigin != null) intent.putExtra("returnOrigin", returnOrigin);
+                String returnDestination = src.getStringExtra("returnDestination"); if (returnDestination != null) intent.putExtra("returnDestination", returnDestination);
+                boolean isRoundTrip = src.getBooleanExtra("isRoundTrip", false); if (isRoundTrip) intent.putExtra("isRoundTrip", true);
+
+                // Normalize round_trip_phase: accept boolean or string from caller
+                boolean roundPhase = src.getBooleanExtra("round_trip_phase", false);
+                if (!roundPhase) {
+                    String phaseStr = src.getStringExtra("round_trip_phase");
+                    roundPhase = phaseStr != null && (phaseStr.equalsIgnoreCase("true") || phaseStr.equals("1"));
+                }
+                if (roundPhase) intent.putExtra("round_trip_phase", true);
+
+                // Only forward depart_* keys when we're selecting return trip seats (roundPhase == true)
+                if (roundPhase) {
+                    // We're selecting return trip seats, forward depart_* keys
+                    android.os.Parcelable departTrip = src.getParcelableExtra("depart_trip");
+                    java.util.ArrayList<String> departSeats = src.getStringArrayListExtra("depart_seat_labels");
+                    android.os.Parcelable departPickup = src.getParcelableExtra("depart_pickup_location");
+                    android.os.Parcelable departDropoff = src.getParcelableExtra("depart_dropoff_location");
+                    if (departTrip != null) intent.putExtra("depart_trip", departTrip);
+                    if (departSeats != null) intent.putStringArrayListExtra("depart_seat_labels", departSeats);
+                    if (departPickup != null) intent.putExtra("depart_pickup_location", departPickup);
+                    if (departDropoff != null) intent.putExtra("depart_dropoff_location", departDropoff);
+                    intent.putExtra("round_trip_phase", true);
+                }
+            } catch (Exception ignored) {}
             startActivity(intent);
         });
     }
@@ -84,12 +113,12 @@ public class SeatSelectionActivity extends AppCompatActivity {
     }
 
     private void fetchSeatStatuses() {
-        ((ProgressBar) findViewById(R.id.progressBar)).setVisibility(View.VISIBLE);
+        findViewById(R.id.progressBar).setVisibility(View.VISIBLE);
         // Revert to fetching all seats and checking their status on the client-side.
         ApiClient.getClient().create(ApiService.class).getSeats(trip.getId(), null).enqueue(new Callback<List<Seat>>() {
             @Override
             public void onResponse(Call<List<Seat>> call, Response<List<Seat>> response) {
-                ((ProgressBar) findViewById(R.id.progressBar)).setVisibility(View.GONE);
+                findViewById(R.id.progressBar).setVisibility(View.GONE);
                 if (response.isSuccessful() && response.body() != null) {
                     Set<String> bookedSeats = new HashSet<>();
                     // Iterate through all seats returned by the API and check their `isBooked` status.
@@ -107,7 +136,7 @@ public class SeatSelectionActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<List<Seat>> call, Throwable t) {
-                ((ProgressBar) findViewById(R.id.progressBar)).setVisibility(View.GONE);
+                findViewById(R.id.progressBar).setVisibility(View.GONE);
                 Toast.makeText(SeatSelectionActivity.this, "Lỗi mạng: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });

@@ -22,7 +22,7 @@ import retrofit2.Response;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
-import vn.hcmute.busbooking.util.LoadingUtil;
+import vn.hcmute.busbooking.utils.LoadingUtil;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class TripFormActivity extends AppCompatActivity {

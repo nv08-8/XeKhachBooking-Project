@@ -11,14 +11,12 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.textfield.TextInputEditText;
 
-import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Locale;
 
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.model.Location;
 import vn.hcmute.busbooking.model.Trip;
-import vn.hcmute.busbooking.util.CurrencyUtil;
+import vn.hcmute.busbooking.utils.CurrencyUtil;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class ContactInfoActivity extends AppCompatActivity {
@@ -28,11 +26,25 @@ public class ContactInfoActivity extends AppCompatActivity {
     private Location selectedPickup;
     private Location selectedDropoff;
 
+    // New: return leg fields
+    private Trip returnTrip;
+    private ArrayList<String> returnSeatLabels;
+    private Location returnSelectedPickup;
+    private Location returnSelectedDropoff;
+
+    // Support explicit depart_* carry-through
+    private Trip departTripExplicit;
+    private ArrayList<String> departSeatLabelsExplicit;
+    private Location departSelectedPickupExplicit;
+    private Location departSelectedDropoffExplicit;
+
     private TextInputEditText etFullName;
     private TextInputEditText etPhoneNumber;
     private TextInputEditText etEmail;
     private TextView tvSubtotal;
     private Button btnContinue;
+
+    private TextView tvDepartSummary, tvReturnSummary;
 
     private SessionManager sessionManager;
 
@@ -44,16 +56,41 @@ public class ContactInfoActivity extends AppCompatActivity {
         setContentView(R.layout.activity_contact_info);
         android.util.Log.d("ContactInfo", "Layout set");
 
-        // Get data from previous activity
-        trip = getIntent().getParcelableExtra("trip");
-        seatLabels = getIntent().getStringArrayListExtra("seat_labels");
-        selectedPickup = getIntent().getParcelableExtra("pickup_location");
-        selectedDropoff = getIntent().getParcelableExtra("dropoff_location");
+        // Get data from previous activity (may be depart or return selection flows)
+        Intent src = getIntent();
+        trip = src.getParcelableExtra("trip");
+        seatLabels = src.getStringArrayListExtra("seat_labels");
+        selectedPickup = src.getParcelableExtra("pickup_location");
+        selectedDropoff = src.getParcelableExtra("dropoff_location");
+
+        // Read explicit depart_* if present (these are carried when switching to return search)
+        departTripExplicit = src.getParcelableExtra("depart_trip");
+        departSeatLabelsExplicit = src.getStringArrayListExtra("depart_seat_labels");
+        departSelectedPickupExplicit = src.getParcelableExtra("depart_pickup_location");
+        departSelectedDropoffExplicit = src.getParcelableExtra("depart_dropoff_location");
+
+        // Also read possible return leg extras
+        returnTrip = src.getParcelableExtra("return_trip");
+        returnSeatLabels = src.getStringArrayListExtra("return_seat_labels");
+        returnSelectedPickup = src.getParcelableExtra("return_pickup_location");
+        returnSelectedDropoff = src.getParcelableExtra("return_dropoff_location");
 
         android.util.Log.d("ContactInfo", "Trip: " + (trip != null ? trip.getId() : "null"));
         android.util.Log.d("ContactInfo", "Seats: " + (seatLabels != null ? seatLabels.size() : "null"));
         android.util.Log.d("ContactInfo", "Pickup: " + (selectedPickup != null ? selectedPickup.getName() : "null"));
         android.util.Log.d("ContactInfo", "Dropoff: " + (selectedDropoff != null ? selectedDropoff.getName() : "null"));
+        android.util.Log.d("ContactInfo", "ReturnTrip: " + (returnTrip != null ? returnTrip.getId() : "null"));
+        android.util.Log.d("ContactInfo", "DepartExplicitTrip: " + (departTripExplicit != null ? departTripExplicit.getId() : "null"));
+
+        // If depart_* explicit values are present, prefer them as the primary/depart leg data
+        if (departTripExplicit != null) {
+            android.util.Log.d("ContactInfo", "Using explicit depart_* values as primary leg");
+            // Swap values: treat explicit depart as primary, and treat the previously-read primary as return if returnTrip was not set
+            trip = departTripExplicit;
+            seatLabels = departSeatLabelsExplicit != null ? departSeatLabelsExplicit : seatLabels;
+            selectedPickup = departSelectedPickupExplicit != null ? departSelectedPickupExplicit : selectedPickup;
+            selectedDropoff = departSelectedDropoffExplicit != null ? departSelectedDropoffExplicit : selectedDropoff;
+        }
 
         if (trip == null || seatLabels == null || seatLabels.isEmpty() ||
             selectedPickup == null || selectedDropoff == null) {
@@ -73,9 +110,6 @@ public class ContactInfoActivity extends AppCompatActivity {
         tvSubtotal = findViewById(R.id.tvSubtotal);
         btnContinue = findViewById(R.id.btnContinue);
 
-        // Setup toolbar
-        findViewById(R.id.toolbar).setOnClickListener(v -> finish());
-
         // Pre-fill with user info if logged in (user can still edit)
         if (sessionManager.isLoggedIn()) {
             String userName = sessionManager.getUserName();
@@ -93,14 +127,61 @@ public class ContactInfoActivity extends AppCompatActivity {
             }
         }
 
-        // Display subtotal
+        // Read depart summary views
+        tvDepartSummary = findViewById(R.id.tvDepartSummary);
+        tvReturnSummary = findViewById(R.id.tvReturnSummary);
+
+        // Display subtotal (include return leg if present)
+        double total = 0.0;
         if (seatLabels != null && trip != null) {
-            double totalAmount = seatLabels.size() * trip.getPrice();
-            tvSubtotal.setText(CurrencyUtil.formatVND(totalAmount));
+            total += seatLabels.size() * trip.getPrice();
+        }
+        if (returnSeatLabels != null && returnTrip != null) {
+            total += returnSeatLabels.size() * returnTrip.getPrice();
+        }
+        tvSubtotal.setText(CurrencyUtil.formatVND(total));
+
+        // Setup toolbar
+        findViewById(R.id.toolbar).setOnClickListener(v -> finish());
+
+        // Show depart and return summaries if returnTrip provided
+        if (tvDepartSummary != null) {
+            tvDepartSummary.setText(buildLegSummary(trip, seatLabels, selectedPickup, selectedDropoff));
+        }
+        if (returnTrip != null && tvReturnSummary != null) {
+            tvReturnSummary.setText(buildLegSummary(returnTrip, returnSeatLabels, returnSelectedPickup, returnSelectedDropoff));
+            tvReturnSummary.setVisibility(android.view.View.VISIBLE);
+            findViewById(R.id.summaryContainer).setVisibility(android.view.View.VISIBLE);
+        } else {
+            // If no return trip, still show depart summary container for clarity
+            if (tvDepartSummary != null) {
+                findViewById(R.id.summaryContainer).setVisibility(android.view.View.VISIBLE);
+            }
         }
 
         // Handle continue button
         btnContinue.setOnClickListener(v -> validateAndContinue());
+    }
+
+    private String buildLegSummary(Trip t, ArrayList<String> seats, Location pu, Location dof) {
+        if (t == null) return "";
+        StringBuilder sb = new StringBuilder();
+        String origin = t.getOrigin() != null ? t.getOrigin() : "";
+        String destination = t.getDestination() != null ? t.getDestination() : "";
+        sb.append("").append(origin).append(" → ").append(destination);
+        if (t.getDepartureTime() != null) {
+            // show date part only
+            String dt = t.getDepartureTime();
+            // try to extract date if ISO format
+            if (dt.length() >= 10) dt = dt.substring(0, 10);
+            sb.append(" | ").append(dt);
+        }
+        if (seats != null && !seats.isEmpty()) {
+            sb.append(" | Ghế: ").append(TextUtils.join(", ", seats));
+        }
+        if (pu != null) sb.append(" | Đón: ").append(pu.getName());
+        if (dof != null) sb.append(" | Trả: ").append(dof.getName());
+        return sb.toString();
     }
 
     private void validateAndContinue() {
@@ -137,17 +218,42 @@ public class ContactInfoActivity extends AppCompatActivity {
             }
         }
 
+        // Determine final depart leg values (prefer explicit depart_* if present)
+        Trip departTrip = departTripExplicit != null ? departTripExplicit : trip;
+        ArrayList<String> departSeats = departSeatLabelsExplicit != null ? departSeatLabelsExplicit : seatLabels;
+        Location departPickup = departSelectedPickupExplicit != null ? departSelectedPickupExplicit : selectedPickup;
+        Location departDropoff = departSelectedDropoffExplicit != null ? departSelectedDropoffExplicit : selectedDropoff;
+
+        // Basic validation again
+        if (departTrip == null || departSeats == null || departSeats.isEmpty() || departPickup == null || departDropoff == null) {
+            Toast.makeText(this, "Lỗi: Thiếu thông tin chiều đi.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         // Go to payment activity
         Intent intent = new Intent(this, PaymentActivity.class);
-        intent.putExtra("trip", trip);
-        intent.putStringArrayListExtra("seat_labels", seatLabels);
-        intent.putExtra("pickup_stop_id", selectedPickup.getId());
-        intent.putExtra("pickup_stop_name", formatLocationName(selectedPickup));
-        intent.putExtra("dropoff_stop_id", selectedDropoff.getId());
-        intent.putExtra("dropoff_stop_name", formatLocationName(selectedDropoff));
+        // Primary (depart) leg
+        intent.putExtra("trip", departTrip);
+        intent.putStringArrayListExtra("seat_labels", departSeats);
+        intent.putExtra("pickup_stop_id", departPickup.getId());
+        intent.putExtra("pickup_stop_name", formatLocationName(departPickup));
+        intent.putExtra("dropoff_stop_id", departDropoff.getId());
+        intent.putExtra("dropoff_stop_name", formatLocationName(departDropoff));
         intent.putExtra("passenger_name", fullName);
         intent.putExtra("passenger_phone", phoneNumber);
         intent.putExtra("passenger_email", email);
+
+        // If return leg provided, attach return_* extras
+        if (returnTrip != null && returnSeatLabels != null && !returnSeatLabels.isEmpty() && returnSelectedPickup != null && returnSelectedDropoff != null) {
+            intent.putExtra("return_trip", returnTrip);
+            intent.putStringArrayListExtra("return_seat_labels", returnSeatLabels);
+            intent.putExtra("return_pickup_stop_id", returnSelectedPickup.getId());
+            intent.putExtra("return_pickup_stop_name", formatLocationName(returnSelectedPickup));
+            intent.putExtra("return_dropoff_stop_id", returnSelectedDropoff.getId());
+            intent.putExtra("return_dropoff_stop_name", formatLocationName(returnSelectedDropoff));
+            intent.putExtra("isRoundTrip", true);
+        }
+
         startActivity(intent);
     }
 
@@ -166,4 +272,3 @@ public class ContactInfoActivity extends AppCompatActivity {
         }
     }
 }
-

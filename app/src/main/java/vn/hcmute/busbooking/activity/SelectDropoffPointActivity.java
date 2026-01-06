@@ -33,7 +33,7 @@ import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.Location;
 import vn.hcmute.busbooking.model.Trip;
-import vn.hcmute.busbooking.util.CurrencyUtil;
+import vn.hcmute.busbooking.utils.CurrencyUtil;
 
 public class SelectDropoffPointActivity extends AppCompatActivity {
 
@@ -93,12 +93,74 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
             }
 
             try {
-                // Go to contact info screen before payment
+                Intent src = getIntent();
+                boolean isRoundTrip = src.getBooleanExtra("isRoundTrip", false);
+                boolean roundPhase = src.getBooleanExtra("round_trip_phase", false);
+
+                // If this was launched as part of initial round-trip booking (not return-selection phase),
+                // and round-trip is requested, then after creating depart selections we should launch TripListActivity
+                // for the return trip (so user chooses return trip then its seats/pickup/dropoff). We pass depart_* keys.
+                if (isRoundTrip && !roundPhase) {
+                    Intent toReturnSearch = new Intent(this, TripListActivity.class);
+                    // For return search we swap origin/destination
+                    String depOrigin = trip.getOrigin();
+                    String depDestination = trip.getDestination();
+                    // Use returnOrigin/returnDestination from src if present (TripListActivity expects origin/destination for search)
+                    String returnOrigin = src.getStringExtra("returnOrigin");
+                    String returnDestination = src.getStringExtra("returnDestination");
+                    if (returnOrigin == null || returnOrigin.isEmpty()) returnOrigin = depDestination;
+                    if (returnDestination == null || returnDestination.isEmpty()) returnDestination = depOrigin;
+
+                    toReturnSearch.putExtra("origin", returnOrigin);
+                    toReturnSearch.putExtra("destination", returnDestination);
+
+                    // Pass returnDate if present (picked earlier)
+                    String returnDate = src.getStringExtra("returnDate");
+                    if (returnDate != null) toReturnSearch.putExtra("date", returnDate);
+
+                    // Mark that TripList should operate as return-selection and carry depart_* details
+                    toReturnSearch.putExtra("round_trip_phase", true);
+
+                    // embed depart selections so return flow can assemble final booking
+                    toReturnSearch.putExtra("depart_trip", trip);
+                    toReturnSearch.putStringArrayListExtra("depart_seat_labels", seatLabels == null ? new java.util.ArrayList<>() : seatLabels);
+                    // Explicitly cast parcelable extras to concrete types so putExtra overload is unambiguous
+                    toReturnSearch.putExtra("depart_pickup_location", (Location) src.getParcelableExtra("pickup_location"));
+                    toReturnSearch.putExtra("depart_dropoff_location", selectedDropoff);
+                    toReturnSearch.putExtra("isRoundTrip", true);
+
+                    startActivity(toReturnSearch);
+                    return;
+                }
+
+                // Otherwise (not round-trip or this is the return-selection phase), proceed to ContactInfoActivity
                 Intent intent = new Intent(this, ContactInfoActivity.class);
                 intent.putExtra("trip", trip);
                 intent.putStringArrayListExtra("seat_labels", seatLabels);
-                intent.putExtra("pickup_location", selectedPickup);
+                intent.putExtra("pickup_location", (Location) src.getParcelableExtra("pickup_location"));
                 intent.putExtra("dropoff_location", selectedDropoff);
+
+                // If this is part of a return-selection phase, also forward the depart_* extras so ContactInfoActivity can show both legs
+                if (roundPhase) {
+                    intent.putExtra("return_trip", trip);
+                    intent.putStringArrayListExtra("return_seat_labels", seatLabels);
+                    intent.putExtra("return_pickup_location", (Location) src.getParcelableExtra("pickup_location"));
+                    intent.putExtra("return_dropoff_location", selectedDropoff);
+
+                    // forward depart_* that were stored earlier
+                    Trip departTrip = (Trip) src.getParcelableExtra("depart_trip");
+                    java.util.ArrayList<String> departSeats = src.getStringArrayListExtra("depart_seat_labels");
+                    Location departPickup = (Location) src.getParcelableExtra("depart_pickup_location");
+                    Location departDropoff = (Location) src.getParcelableExtra("depart_dropoff_location");
+                    if (departTrip != null) intent.putExtra("trip", departTrip); // set primary trip as depart
+                    if (departSeats != null) intent.putStringArrayListExtra("seat_labels", departSeats);
+                    if (departPickup != null) intent.putExtra("pickup_location", departPickup);
+                    if (departDropoff != null) intent.putExtra("dropoff_location", departDropoff);
+
+                    intent.putExtra("isRoundTrip", true);
+                } else {
+                    // single leg or normal flow
+                }
 
                 startActivity(intent);
             } catch (Exception e) {
@@ -164,7 +226,7 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(VH holder, int position) {
-            int pos = holder.getAdapterPosition();
+            int pos = holder.getBindingAdapterPosition();
             if (pos == RecyclerView.NO_POSITION) return;
             Location loc = items.get(pos);
             String name = loc.getName();
@@ -206,7 +268,7 @@ public class SelectDropoffPointActivity extends AppCompatActivity {
             }
 
             holder.itemView.setOnClickListener(v -> {
-                int p = holder.getAdapterPosition();
+                int p = holder.getBindingAdapterPosition();
                 if (p == RecyclerView.NO_POSITION) return;
                 int old = selected;
                 selected = p;

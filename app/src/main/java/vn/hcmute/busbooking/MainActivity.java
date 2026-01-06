@@ -16,6 +16,7 @@ import android.view.animation.Animation;
 import android.view.animation.RotateAnimation;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.MotionEvent;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -71,6 +72,7 @@ public class MainActivity extends AppCompatActivity {
     private SessionManager sessionManager;
     private View mainLayout;
     private java.util.Calendar selectedDate = java.util.Calendar.getInstance();
+    private java.util.Calendar returnDate = null; // new: store selected return date when round-trip enabled
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -115,7 +117,16 @@ public class MainActivity extends AppCompatActivity {
                 intent.putExtra("origin", origin);
                 intent.putExtra("destination", destination);
                 intent.putExtra("date", todayDate);
-                intent.putExtra("isReturn", isReturn);
+                // if return is enabled and we have a cached returnDate, pass it
+                if (isReturn && returnDate != null) {
+                    String r = dateFormat.format(returnDate.getTime());
+                    intent.putExtra("returnDate", r);
+                    // forward return origin/destination (swap)
+                    intent.putExtra("returnOrigin", destination);
+                    intent.putExtra("returnDestination", origin);
+                }
+                // Use unified key 'isRoundTrip' so downstream activities know this is a round trip
+                intent.putExtra("isRoundTrip", isReturn);
                 startActivity(intent);
             });
             rvPopularRoutes.setAdapter(popularRoutesAdapter);
@@ -210,17 +221,20 @@ public class MainActivity extends AppCompatActivity {
         etOrigin.setOnClickListener(v -> { etOrigin.requestFocus(); etOrigin.showDropDown(); });
         etDestination.setOnClickListener(v -> { etDestination.requestFocus(); etDestination.showDropDown(); });
         etOrigin.setOnTouchListener((v, event) -> {
-            etOrigin.requestFocus();
-            etOrigin.post(() -> {
-                try { etOrigin.showDropDown(); } catch (Exception ignored) {}
-            });
-            return false; // allow normal handling
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                // signal click for accessibility
+                v.performClick();
+                try { etOrigin.requestFocus(); etOrigin.showDropDown(); } catch (Exception ignored) {}
+                return true; // consumed
+            }
+            return false;
         });
         etDestination.setOnTouchListener((v, event) -> {
-            etDestination.requestFocus();
-            etDestination.post(() -> {
-                try { etDestination.showDropDown(); } catch (Exception ignored) {}
-            });
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                v.performClick();
+                try { etDestination.requestFocus(); etDestination.showDropDown(); } catch (Exception ignored) {}
+                return true;
+            }
             return false;
         });
 
@@ -241,7 +255,19 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // Date Picker setup
-        tvDate.setOnClickListener(v -> showDatePickerDialog());
+        tvDate.setOnClickListener(v -> showDatePickerDialog(false));
+
+        // When round-trip is toggled on, ask user to pick a return date immediately
+        switchReturn.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                // open return date picker
+                showDatePickerDialog(true);
+            } else {
+                // clear return date
+                returnDate = null;
+                updateDateLabel();
+            }
+        });
 
         btnSearchTrips.setOnClickListener(v -> {
             String from = etOrigin.getText().toString().trim();
@@ -258,7 +284,14 @@ public class MainActivity extends AppCompatActivity {
             intent.putExtra("origin", from);
             intent.putExtra("destination", to);
             intent.putExtra("date", date);
-            intent.putExtra("isReturn", isReturn);
+            // Use unified key 'isRoundTrip' instead of legacy 'isReturn'
+            intent.putExtra("isRoundTrip", isReturn);
+            if (isReturn && returnDate != null) {
+                intent.putExtra("returnDate", new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(returnDate.getTime()));
+                // forward swap info to help downstream form the return search
+                intent.putExtra("returnOrigin", to);
+                intent.putExtra("returnDestination", from);
+            }
             startActivity(intent);
         });
 
@@ -303,6 +336,40 @@ public class MainActivity extends AppCompatActivity {
                 return false;
             }
         });
+    }
+
+    // Show DatePicker; if isReturn==true, pick return date instead of departure
+    private void showDatePickerDialog(boolean isReturn) {
+        java.util.Calendar cal = isReturn && returnDate != null ? returnDate : selectedDate;
+        DatePickerDialog.OnDateSetListener dateSetListener = (view, year, month, dayOfMonth) -> {
+            if (isReturn) {
+                if (returnDate == null) returnDate = java.util.Calendar.getInstance();
+                returnDate.set(Calendar.YEAR, year);
+                returnDate.set(Calendar.MONTH, month);
+                returnDate.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+                // Validate return date not before departure
+                if (returnDate.before(selectedDate)) {
+                    Toast.makeText(MainActivity.this, "Ngày về không thể trước ngày đi", Toast.LENGTH_LONG).show();
+                    returnDate = null;
+                }
+            } else {
+                selectedDate.set(Calendar.YEAR, year);
+                selectedDate.set(Calendar.MONTH, month);
+                selectedDate.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+                // If we already have returnDate ensure it's after depart
+                if (returnDate != null && returnDate.before(selectedDate)) {
+                    // reset return date so user can pick again
+                    returnDate = null;
+                }
+            }
+            updateDateLabel();
+        };
+
+        new DatePickerDialog(MainActivity.this,
+                dateSetListener,
+                cal.get(Calendar.YEAR),
+                cal.get(Calendar.MONTH),
+                cal.get(Calendar.DAY_OF_MONTH)).show();
     }
 
     @Override
@@ -353,23 +420,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showDatePickerDialog() {
-        DatePickerDialog.OnDateSetListener dateSetListener = (view, year, month, dayOfMonth) -> {
-            selectedDate.set(Calendar.YEAR, year);
-            selectedDate.set(Calendar.MONTH, month);
-            selectedDate.set(Calendar.DAY_OF_MONTH, dayOfMonth);
-            updateDateLabel();
-        };
-
-        new DatePickerDialog(MainActivity.this,
-                dateSetListener,
-                selectedDate.get(Calendar.YEAR),
-                selectedDate.get(Calendar.MONTH),
-                selectedDate.get(Calendar.DAY_OF_MONTH)).show();
+        // Legacy compatibility: Pick departure if called without param
+        showDatePickerDialog(false);
     }
 
     private void updateDateLabel() {
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
-        tvDate.setText(sdf.format(selectedDate.getTime()));
+        if (switchReturn != null && switchReturn.isChecked() && returnDate != null) {
+            String dep = sdf.format(selectedDate.getTime());
+            String ret = sdf.format(returnDate.getTime());
+            tvDate.setText(String.format(Locale.getDefault(), "%s → %s", dep, ret));
+        } else {
+            tvDate.setText(sdf.format(selectedDate.getTime()));
+        }
     }
 
     private void updateUI() {
@@ -483,7 +546,16 @@ public class MainActivity extends AppCompatActivity {
                         intent.putExtra("origin", origin);
                         intent.putExtra("destination", destination);
                         intent.putExtra("date", todayDate);
-                        intent.putExtra("isReturn", isReturn);
+                        // Use unified key 'isRoundTrip' so downstream activities know this is a round trip
+                        intent.putExtra("isRoundTrip", isReturn);
+                        // if return is enabled and we have a cached returnDate, pass it
+                        if (isReturn && returnDate != null) {
+                            String r = dateFormat.format(returnDate.getTime());
+                            intent.putExtra("returnDate", r);
+                            // forward return origin/destination (swap)
+                            intent.putExtra("returnOrigin", destination);
+                            intent.putExtra("returnDestination", origin);
+                        }
                         startActivity(intent);
                     });
                     rvPopularRoutes.setAdapter(popularRoutesAdapter);
@@ -663,8 +735,7 @@ public class MainActivity extends AppCompatActivity {
             intent.putExtra("origin", origin);
             intent.putExtra("destination", destination);
             intent.putExtra("date", todayDate);
-            intent.putExtra("isReturn", isReturn);
-            startActivity(intent);
+            intent.putExtra("isRoundTrip", isReturn);
         });
         rvPopularRoutes.setAdapter(popularRoutesAdapter);
     }

@@ -1,4 +1,4 @@
-package vn.hcmute.busbooking;
+package vn.hcmute.busbooking.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import vn.hcmute.busbooking.activity.SeatSelectionActivity;
+import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.adapter.ImageSliderAdapter;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
@@ -165,6 +165,40 @@ public class TripDetailActivity extends AppCompatActivity {
         btnBookNow.setOnClickListener(v -> {
             Intent intent = new Intent(TripDetailActivity.this, SeatSelectionActivity.class);
             intent.putExtra("trip", trip);
+            // Forward round-trip related extras so downstream activities can handle round-trip
+            try {
+                Intent src = getIntent();
+                // Read round-trip indicator (accept both new and legacy key for compatibility)
+                boolean isRoundTrip = src.getBooleanExtra("isRoundTrip", src.getBooleanExtra("isReturn", false)) || src.getBooleanExtra("is_round_trip", false);
+                if (isRoundTrip) intent.putExtra("isRoundTrip", true);
+                String returnDate = src.getStringExtra("returnDate"); if (returnDate != null) intent.putExtra("returnDate", returnDate);
+                String returnOrigin = src.getStringExtra("returnOrigin"); if (returnOrigin != null) intent.putExtra("returnOrigin", returnOrigin);
+                String returnDestination = src.getStringExtra("returnDestination"); if (returnDestination != null) intent.putExtra("returnDestination", returnDestination);
+
+                // Normalize round_trip_phase: accept string or boolean from caller, forward as boolean
+                boolean roundPhase = src.getBooleanExtra("round_trip_phase", false);
+                if (!roundPhase) {
+                    // maybe caller set it as string 'true'
+                    String phaseStr = src.getStringExtra("round_trip_phase");
+                    roundPhase = phaseStr != null && (phaseStr.equalsIgnoreCase("true") || phaseStr.equals("1"));
+                }
+                if (roundPhase) intent.putExtra("round_trip_phase", true);
+
+                // If this TripDetail was opened as part of return-selection (round_trip_phase=true) forward depart_* keys
+                if (roundPhase) {
+                    android.os.Parcelable departTrip = src.getParcelableExtra("depart_trip");
+                    java.util.ArrayList<String> departSeats = src.getStringArrayListExtra("depart_seat_labels");
+                    android.os.Parcelable departPickup = src.getParcelableExtra("depart_pickup_location");
+                    android.os.Parcelable departDropoff = src.getParcelableExtra("depart_dropoff_location");
+                    if (departTrip != null) intent.putExtra("depart_trip", departTrip);
+                    if (departSeats != null) intent.putStringArrayListExtra("depart_seat_labels", departSeats);
+                    if (departPickup != null) intent.putExtra("depart_pickup_location", departPickup);
+                    if (departDropoff != null) intent.putExtra("depart_dropoff_location", departDropoff);
+                    // ensure we carry the round-trip flag forward
+                    intent.putExtra("isRoundTrip", true);
+                }
+            } catch (Exception ignored) {}
+
             startActivity(intent);
         });
 
@@ -201,10 +235,6 @@ public class TripDetailActivity extends AppCompatActivity {
 
         if (data.get("timeline") instanceof List) {
             displayTimeline((List<Map<String, Object>>) data.get("timeline"));
-        }
-
-        if (data.get("reviews") instanceof List) {
-            displayReviews((List<Map<String, Object>>) data.get("reviews"));
         }
 
         if (data.get("seat_layout") != null) {
@@ -259,13 +289,13 @@ public class TripDetailActivity extends AppCompatActivity {
             addTimelineStop(
                     (String) stop.get("location"),
                     (String) stop.get("time"),
-                    (String) stop.get("description"),
-                    i == 0
+                    i == 0,
+                    i == timelineData.size() - 1
             );
         }
     }
 
-    private void addTimelineStop(String location, String time, String description, boolean isFirst) {
+    private void addTimelineStop(String location, String time, boolean isFirst, boolean isLast) {
         View stopView = getLayoutInflater().inflate(R.layout.item_timeline_stop, layoutTimeline, false);
         TextView tvLocation = (TextView) stopView.findViewById(R.id.txtStopLocation);
         TextView tvAddress = (TextView) stopView.findViewById(R.id.txtStopAddress);
@@ -288,13 +318,18 @@ public class TripDetailActivity extends AppCompatActivity {
             tvAddress.setVisibility(View.GONE);
         }
 
-        tvDescription.setText(description);
+        // The timeline data may not include a description field. Hide description view by default
+        try {
+            tvDescription.setVisibility(View.GONE);
+        } catch (Exception ignored) {}
+
         try {
             ((TextView) stopView.findViewById(R.id.txtStopTime)).setText(formatTime(time));
         } catch (Exception e) {
             ((TextView) stopView.findViewById(R.id.txtStopTime)).setText("N/A");
         }
         stopView.findViewById(R.id.lineTop).setVisibility(isFirst ? View.INVISIBLE : View.VISIBLE);
+        stopView.findViewById(R.id.lineBottom).setVisibility(isLast ? View.INVISIBLE : View.VISIBLE);
         layoutTimeline.addView(stopView);
     }
 
