@@ -6,22 +6,46 @@
     android:orientation="vertical"
     android:background="@drawable/background">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <!-- Status Bar Scrim -->
+    <View
+        android:id="@+id/statusBarScrim"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:layout_marginTop="36dp"
-        android:background="@android:color/transparent"
-        app:title="Thêm vé đặt trước"
-        app:titleTextAppearance="@style/ToolbarTitleStyle"
-        app:titleTextColor="@color/textPrimary"
-        app:titleCentered="true"
-        app:navigationIcon="@drawable/ic_arrow_back" />
+        android:layout_height="40dp"
+        android:background="@color/appBarBackground" />
+
+    <!-- App Bar -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/appBarBackground"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="50dp"
+            app:title="Thêm vé đặt trước"
+            app:titleTextAppearance="@style/ToolbarTitleStyle"
+            app:titleTextColor="@color/textPrimary"
+            app:titleCentered="true"
+            app:navigationIcon="@drawable/ic_arrow_back" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Divider -->
+    <View
+        android:id="@+id/divider"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="#AF999999" />
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
+        android:layout_below="@+id/divider"
         android:fillViewport="true">
 
         <LinearLayout

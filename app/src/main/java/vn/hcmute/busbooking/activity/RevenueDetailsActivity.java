@@ -8,6 +8,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.appbar.MaterialToolbar;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +39,10 @@ public class RevenueDetailsActivity extends AppCompatActivity {
         setContentView(R.layout.activity_revenue_details);
 
         sessionManager = new SessionManager(this);
+
+        // Thiết lập toolbar và xử lý nút mũi tên
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        toolbar.setNavigationOnClickListener(v -> onBackPressed());
 
         rvBookingDetails = findViewById(R.id.rvBookingDetails);
         tvNoDetails = findViewById(R.id.tvNoDetails);

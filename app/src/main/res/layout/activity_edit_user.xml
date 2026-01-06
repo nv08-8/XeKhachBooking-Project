@@ -8,41 +8,40 @@
     android:orientation="vertical"
     tools:context=".activity.EditUserActivity">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <!-- Status Bar Scrim -->
+    <View
+        android:id="@+id/statusBarScrim"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:layout_marginTop="36dp"
-        android:background="@android:color/transparent"
-        app:title="Chỉnh sửa Người dùng"
-        app:titleTextAppearance="@style/ToolbarTitleStyle"
-        app:titleTextColor="@color/textPrimary"
-        app:titleCentered="true"
-        app:navigationIcon="@drawable/ic_arrow_back" />
+        android:layout_height="40dp"
+        android:background="@color/appBarBackground" />
 
-    <!-- Subtitle Description -->
-    <LinearLayout
+    <!-- App Bar -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingHorizontal="20dp"
-        android:paddingVertical="12dp">
+        android:background="@color/appBarBackground"
+        app:elevation="0dp">
 
-        <TextView
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Cập nhật thông tin người dùng"
-            android:textColor="@color/textSecondary"
-            android:textSize="13sp"
-            android:gravity="center" />
+            android:minHeight="50dp"
+            app:title="Chỉnh sửa Người dùng"
+            app:titleTextAppearance="@style/ToolbarTitleStyle"
+            app:titleTextColor="@color/textPrimary"
+            app:titleCentered="true"
+            app:navigationIcon="@drawable/ic_arrow_back" />
 
-    </LinearLayout>
+    </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Divider Line -->
+    <!-- Divider -->
     <View
+        android:id="@+id/divider"
         android:layout_width="match_parent"
-        android:layout_height="0.5dp"
-        android:background="#30000000" />
+        android:layout_height="2dp"
+        android:background="#AF999999" />
 
     <ScrollView
         android:layout_width="match_parent"
