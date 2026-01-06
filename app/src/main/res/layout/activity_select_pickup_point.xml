@@ -12,7 +12,7 @@
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/white"
+        android:background="@color/appBarBackground"
         app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
@@ -27,6 +27,12 @@
             app:titleTextAppearance="@style/Toolbar.TitleText" />
 
     </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="#AF999999" />
 
     <!-- Locations List -->
     <androidx.recyclerview.widget.RecyclerView
