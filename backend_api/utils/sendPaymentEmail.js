@@ -63,6 +63,32 @@ function formatDateInVietnamTZ(date, includeTime = false) {
 }
 
 /**
+ * Format paid_at timestamp (already stored as UTC+7 in database)
+ * NO NEED to add 7 hours - the timestamp is already in Asia/Ho_Chi_Minh timezone
+ * @param {Date|string} date - Payment time from paid_at column
+ * @returns {string} Formatted time string (dd/MM/yyyy HH:mm:ss)
+ */
+function formatPaidAtTime(date) {
+    try {
+        if (!date) return 'N/A';
+        const d = new Date(date);
+
+        // Format directly without adding 7 hours (paid_at is already UTC+7)
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        const seconds = String(d.getSeconds()).padStart(2, '0');
+
+        return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    } catch (err) {
+        console.warn("⚠️ Failed to format paid_at time:", err.message);
+        return 'N/A';
+    }
+}
+
+/**
  * Send payment confirmation email with booking and ticket details
  * @param {string} email - Customer email
  * @param {object} booking - Booking data from database
@@ -294,7 +320,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                                 </tr>
                                 <tr>
                                     <td>Thời gian thanh toán</td>
-                                    <td>${formatDateInVietnamTZ(booking.paid_at || Date.now(), true)}</td>
+                                    <td>${formatPaidAtTime(booking.paid_at)}</td>
                                 </tr>
                             </table>
                         </div>

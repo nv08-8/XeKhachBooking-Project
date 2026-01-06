@@ -1060,6 +1060,7 @@ public class PaymentActivity extends AppCompatActivity {
             if (millis <= 0) return "";
             Date date = new Date(millis);
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+            timeFormat.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
             return timeFormat.format(date);
         } catch (Exception e) { return ""; }
     }
@@ -1072,6 +1073,9 @@ public class PaymentActivity extends AppCompatActivity {
             Date date = new Date(millis);
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
             SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+            // Set timezone to UTC to match the incoming data
+            timeFormat.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+            dateFormat.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
             return timeFormat.format(date) + " • " + dateFormat.format(date);
         } catch (Exception e) { return ""; }
     }
