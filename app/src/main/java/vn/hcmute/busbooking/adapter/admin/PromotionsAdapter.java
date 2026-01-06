@@ -30,6 +30,24 @@ public class PromotionsAdapter extends RecyclerView.Adapter<PromotionsAdapter.Pr
         this.listener = listener;
     }
 
+    private String formatDateTime(String dateTime) {
+        if (dateTime == null || dateTime.isEmpty()) {
+            return "";
+        }
+        // Remove timezone info (e.g., "2025-12-31T23:59:59+00:00" -> "2025-12-31 23:59:59")
+        try {
+            if (dateTime.contains("T")) {
+                String cleaned = dateTime.replace("T", " ");
+                cleaned = cleaned.replaceAll("[+Z].*$", "");
+                cleaned = cleaned.replaceAll("\\.\\d+.*$", "");
+                return cleaned;
+            }
+            return dateTime;
+        } catch (Exception e) {
+            return dateTime;
+        }
+    }
+
     @NonNull
     @Override
     public PromotionViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -41,14 +59,16 @@ public class PromotionsAdapter extends RecyclerView.Adapter<PromotionsAdapter.Pr
     public void onBindViewHolder(@NonNull PromotionViewHolder holder, int position) {
         Promotion promotion = promotionList.get(position);
         holder.chipPromoCode.setText(promotion.getCode());
-        holder.tvPromoDetails.setText("Giảm " + promotion.getDiscount_value() + (promotion.getDiscount_type().equals("percent") ? "%" : "đ"));
-        
+        // Remove .0 from numbers
+        long discountValue = (long) promotion.getDiscount_value();
+        holder.tvPromoDetails.setText("Giảm " + discountValue + (promotion.getDiscount_type().equals("percent") ? "%" : "đ"));
+
         String endDate = promotion.getEnd_date();
-        if (endDate != null && endDate.contains("T")) {
-            String formattedDate = endDate.substring(0, endDate.indexOf("T"));
-            holder.tvPromoDate.setText("Hết hạn: " + formattedDate);
+        if (endDate != null) {
+            // Format datetime to clean format (YYYY-MM-DD HH:mm:ss)
+            holder.tvPromoDate.setText("Hết hạn: " + formatDateTime(endDate));
         } else {
-            holder.tvPromoDate.setText("Hết hạn: " + endDate);
+            holder.tvPromoDate.setText("Hết hạn: N/A");
         }
 
         holder.btnEditPromotion.setOnClickListener(v -> {

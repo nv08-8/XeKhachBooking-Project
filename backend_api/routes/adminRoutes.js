@@ -970,11 +970,16 @@ router.get("/promotions/:id", checkAdminRole, async (req, res) => {
 router.post("/promotions", checkAdminRole, async (req, res) => {
     const { code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status } = req.body;
     try {
+        // FIX: Reset sequence to prevent duplicate key errors
+        console.log(`[PROMO] Resetting promotions_id_seq before insert...`);
+        await db.query(`SELECT setval('promotions_id_seq', (SELECT COALESCE(MAX(id), 0) + 1 FROM promotions), false);`);
+
         const { rows } = await db.query(
             `INSERT INTO promotions (code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
             [code, discount_type, discount_value, min_price, max_discount, start_date, end_date, status]
         );
+        console.log(`[PROMO] ✅ Successfully created promotion ID ${rows[0].id}: ${rows[0].code}`);
         res.status(201).json(rows[0]);
     } catch (err) {
         console.error("Error creating promotion:", err);
