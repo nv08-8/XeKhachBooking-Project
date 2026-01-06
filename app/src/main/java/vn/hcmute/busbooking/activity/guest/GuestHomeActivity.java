@@ -63,6 +63,8 @@ public class GuestHomeActivity extends AppCompatActivity {
 
     private ApiService apiService;
     private final Calendar myCalendar = Calendar.getInstance();
+    private java.util.Calendar selectedDate = java.util.Calendar.getInstance();
+    private java.util.Calendar returnDate = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,15 +98,38 @@ public class GuestHomeActivity extends AppCompatActivity {
         });
 
         DatePickerDialog.OnDateSetListener date = (view, year, month, day) -> {
-            myCalendar.set(Calendar.YEAR, year);
-            myCalendar.set(Calendar.MONTH, month);
-            myCalendar.set(Calendar.DAY_OF_MONTH, day);
+            selectedDate.set(Calendar.YEAR, year);
+            selectedDate.set(Calendar.MONTH, month);
+            selectedDate.set(Calendar.DAY_OF_MONTH, day);
             updateLabel();
         };
 
         tvDate.setOnClickListener(v -> {
-            new DatePickerDialog(GuestHomeActivity.this, date, myCalendar.get(Calendar.YEAR),
-                    myCalendar.get(Calendar.MONTH), myCalendar.get(Calendar.DAY_OF_MONTH)).show();
+            new DatePickerDialog(GuestHomeActivity.this, date, selectedDate.get(Calendar.YEAR),
+                    selectedDate.get(Calendar.MONTH), selectedDate.get(Calendar.DAY_OF_MONTH)).show();
+        });
+
+        // When round-trip is toggled, immediately pick return date when enabled
+        switchReturn.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                DatePickerDialog.OnDateSetListener returnListener = (view, year, month, day) -> {
+                    if (returnDate == null) returnDate = java.util.Calendar.getInstance();
+                    returnDate.set(Calendar.YEAR, year);
+                    returnDate.set(Calendar.MONTH, month);
+                    returnDate.set(Calendar.DAY_OF_MONTH, day);
+                    if (returnDate.before(selectedDate)) {
+                        // invalid, reset and alert
+                        returnDate = null;
+                        android.widget.Toast.makeText(GuestHomeActivity.this, "Ngày về không thể trước ngày đi", android.widget.Toast.LENGTH_LONG).show();
+                    }
+                    updateLabel();
+                };
+                new DatePickerDialog(GuestHomeActivity.this, returnListener,
+                        selectedDate.get(Calendar.YEAR), selectedDate.get(Calendar.MONTH), selectedDate.get(Calendar.DAY_OF_MONTH)).show();
+            } else {
+                returnDate = null;
+                updateLabel();
+            }
         });
 
         btnSearchTrips.setOnClickListener(v -> {
@@ -122,7 +147,18 @@ public class GuestHomeActivity extends AppCompatActivity {
             Intent intent = new Intent(GuestHomeActivity.this, TripListActivity.class);
             intent.putExtra("origin", from);
             intent.putExtra("destination", to);
-            intent.putExtra("isReturn", isReturn);
+            // Use unified key 'isRoundTrip' instead of legacy 'isReturn'
+            intent.putExtra("isRoundTrip", isReturn);
+            if (isReturn && returnDate != null) {
+                String r = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(returnDate.getTime());
+                intent.putExtra("returnDate", r);
+                // Also pass departure date if tvDate was changed earlier
+                String d = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(selectedDate.getTime());
+                intent.putExtra("date", d);
+            } else {
+                String d = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(selectedDate.getTime());
+                intent.putExtra("date", d);
+            }
             startActivity(intent);
         });
 
@@ -237,13 +273,21 @@ public class GuestHomeActivity extends AppCompatActivity {
         etOrigin.setOnClickListener(v -> { etOrigin.requestFocus(); adjustDropDownPosition(etOrigin); etOrigin.showDropDown(); });
         etDestination.setOnClickListener(v -> { etDestination.requestFocus(); adjustDropDownPosition(etDestination); etDestination.showDropDown(); });
         etOrigin.setOnTouchListener((v, event) -> {
-            etOrigin.requestFocus();
-            etOrigin.post(() -> { try { adjustDropDownPosition(etOrigin); etOrigin.showDropDown(); } catch (Exception ignored) {} });
+            if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
+                v.performClick();
+                etOrigin.requestFocus();
+                etOrigin.post(() -> { try { adjustDropDownPosition(etOrigin); etOrigin.showDropDown(); } catch (Exception ignored) {} });
+                return true;
+            }
             return false;
         });
         etDestination.setOnTouchListener((v, event) -> {
-            etDestination.requestFocus();
-            etDestination.post(() -> { try { adjustDropDownPosition(etDestination); etDestination.showDropDown(); } catch (Exception ignored) {} });
+            if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
+                v.performClick();
+                etDestination.requestFocus();
+                etDestination.post(() -> { try { adjustDropDownPosition(etDestination); etDestination.showDropDown(); } catch (Exception ignored) {} });
+                return true;
+            }
             return false;
         });
         etOrigin.setOnFocusChangeListener((v, hasFocus) -> { if (hasFocus) { adjustDropDownPosition(etOrigin); etOrigin.showDropDown(); } });
@@ -283,7 +327,8 @@ public class GuestHomeActivity extends AppCompatActivity {
             intent.putExtra("origin", origin);
             intent.putExtra("destination", destination);
             intent.putExtra("date", todayDate);
-            intent.putExtra("isReturn", isReturn);
+            // Use unified key 'isRoundTrip' instead of legacy 'isReturn'
+            intent.putExtra("isRoundTrip", isReturn);
             startActivity(intent);
         });
         promotionsAdapter = new PromotionsAdapter(new java.util.ArrayList<>());
@@ -300,20 +345,27 @@ public class GuestHomeActivity extends AppCompatActivity {
     }
 
     private void updateLabel() {
-        String myFormat = "dd/MM/yy"; //In which you need put here
-        SimpleDateFormat dateFormat = new SimpleDateFormat(myFormat, Locale.US);
-        tvDate.setText(dateFormat.format(myCalendar.getTime()));
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+        if (switchReturn != null && switchReturn.isChecked() && returnDate != null) {
+            tvDate.setText(sdf.format(selectedDate.getTime()) + " → " + sdf.format(returnDate.getTime()));
+        } else {
+            tvDate.setText(sdf.format(selectedDate.getTime()));
+        }
     }
 
-    private void handleWindowInsets(View target) {
-        ViewCompat.setOnApplyWindowInsetsListener(target, (v, insets) -> {
+    private void handleWindowInsets(View mainLayout) {
+        ViewCompat.setOnApplyWindowInsetsListener(mainLayout, (v, insets) -> {
             int statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top;
-            v.setPadding(v.getPaddingLeft(), statusBarHeight + v.getPaddingTop(), v.getPaddingRight(), v.getPaddingBottom());
+            ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+            params.topMargin = statusBarHeight;
+            v.setLayoutParams(params);
+
             if (statusBarScrim != null) {
-                ViewGroup.LayoutParams params = statusBarScrim.getLayoutParams();
-                params.height = statusBarHeight;
-                statusBarScrim.setLayoutParams(params);
+                ViewGroup.LayoutParams scrimParams = statusBarScrim.getLayoutParams();
+                scrimParams.height = statusBarHeight;
+                statusBarScrim.setLayoutParams(scrimParams);
                 statusBarScrim.setVisibility(statusBarHeight > 0 ? View.VISIBLE : View.GONE);
+                statusBarScrim.setBackgroundColor(androidx.core.content.ContextCompat.getColor(this, R.color.appBarBackground));
             }
             return insets;
         });
@@ -392,15 +444,16 @@ public class GuestHomeActivity extends AppCompatActivity {
                         intent.putExtra("origin", origin);
                         intent.putExtra("destination", destination);
                         intent.putExtra("date", todayDate);
-                        intent.putExtra("isReturn", isReturn);
+                        // Use unified key 'isRoundTrip' instead of legacy 'isReturn'
+                        intent.putExtra("isRoundTrip", isReturn);
                         startActivity(intent);
-                    });
-                    rvPopularRoutes.setAdapter(popularRoutesAdapter);
-                } else {
+                     });
+                     rvPopularRoutes.setAdapter(popularRoutesAdapter);
+                 } else {
                     Log.w("GuestHomeActivity", "Popular routes response failed or empty: successful=" + response.isSuccessful() + ", body=" + (response.body() != null ? response.body().size() : "null"));
                     // fallback to mock data
                     setupMockData();
-                }
+                 }
             }
 
             @Override
@@ -573,7 +626,8 @@ public class GuestHomeActivity extends AppCompatActivity {
             intent.putExtra("origin", origin);
             intent.putExtra("destination", destination);
             intent.putExtra("date", todayDate);
-            intent.putExtra("isReturn", isReturn);
+            // Use unified key 'isRoundTrip' instead of legacy 'isReturn'
+            intent.putExtra("isRoundTrip", isReturn);
             startActivity(intent);
         });
         rvPopularRoutes.setAdapter(popularRoutesAdapter);

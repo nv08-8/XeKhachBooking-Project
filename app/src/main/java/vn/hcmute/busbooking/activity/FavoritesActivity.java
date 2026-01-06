@@ -38,7 +38,6 @@ import retrofit2.Callback;
 import retrofit2.Response;
 import vn.hcmute.busbooking.MainActivity;
 import vn.hcmute.busbooking.R;
-import vn.hcmute.busbooking.TripDetailActivity;
 import vn.hcmute.busbooking.activity.guest.GuestAccountActivity;
 import vn.hcmute.busbooking.adapter.TripAdapter;
 import vn.hcmute.busbooking.api.ApiClient;

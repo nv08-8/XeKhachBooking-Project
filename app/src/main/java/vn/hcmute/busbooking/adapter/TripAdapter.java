@@ -26,6 +26,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 import vn.hcmute.busbooking.R;
+import vn.hcmute.busbooking.activity.TripDetailActivity;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.Trip;
@@ -291,7 +292,7 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
                 listener.onItemClick(trip);
             } else {
                 Context ctx = v.getContext();
-                Intent intent = new Intent(ctx, vn.hcmute.busbooking.TripDetailActivity.class);
+                Intent intent = new Intent(ctx, TripDetailActivity.class);
                 intent.putExtra("trip_id", trip.getId());
                 ctx.startActivity(intent);
             }

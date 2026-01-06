@@ -63,7 +63,8 @@ public class PassengerInfoActivity extends AppCompatActivity {
         origin = intent.getStringExtra("origin");
         destination = intent.getStringExtra("destination");
         operator = intent.getStringExtra("operator");
-        isReturn = intent.getBooleanExtra("isReturn", false);
+        // Prefer isRoundTrip but fall back to legacy isReturn
+        isReturn = intent.getBooleanExtra("isRoundTrip", intent.getBooleanExtra("isReturn", false));
         returnOrigin = intent.getStringExtra("returnOrigin");
         returnDestination = intent.getStringExtra("returnDestination");
         returnDate = intent.getStringExtra("returnDate");
@@ -128,7 +129,8 @@ public class PassengerInfoActivity extends AppCompatActivity {
         paymentIntent.putExtra("origin", origin);
         paymentIntent.putExtra("destination", destination);
         paymentIntent.putExtra("operator", operator);
-        paymentIntent.putExtra("isReturn", isReturn);
+        // Use unified key 'isRoundTrip' when creating payment intent
+        paymentIntent.putExtra("isRoundTrip", isReturn);
         paymentIntent.putExtra("returnOrigin", returnOrigin);
         paymentIntent.putExtra("returnDestination", returnDestination);
         paymentIntent.putExtra("returnDate", returnDate);

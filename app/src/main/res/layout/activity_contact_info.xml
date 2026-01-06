@@ -40,6 +40,36 @@
             android:orientation="vertical"
             android:padding="24dp">
 
+            <!-- Summary for depart/return (added) -->
+            <LinearLayout
+                android:id="@+id/summaryContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="16dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tvDepartSummary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@android:color/black"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="6dp"
+                    tools:text="Chiều đi: TP.HCM → Đà Lạt | 12/01/2026 | Ghế: A1" />
+
+                <TextView
+                    android:id="@+id/tvReturnSummary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="13sp"
+                    android:visibility="gone"
+                    tools:text="Chiều về: Đà Lạt → TP.HCM | 15/01/2026 | Ghế: B2" />
+
+            </LinearLayout>
+
             <!-- Full Name -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"

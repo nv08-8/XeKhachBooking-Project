@@ -18,13 +18,10 @@ import android.widget.EditText;
 import android.view.inputmethod.EditorInfo;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -35,8 +32,6 @@ import com.google.android.material.card.MaterialCardView;
 
 import org.json.JSONObject;
 
-import java.text.NumberFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -45,20 +40,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import okhttp3.ResponseBody; // added for safe response body handling
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 import vn.hcmute.busbooking.R;
-import vn.hcmute.busbooking.adapter.PromotionsAdapter;
 import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
-import vn.hcmute.busbooking.model.PaymentRequest;
 import vn.hcmute.busbooking.model.PaymentResponse;
 import vn.hcmute.busbooking.model.Promotion;
 import vn.hcmute.busbooking.model.Trip;
 import vn.hcmute.busbooking.utils.SessionManager;
-import vn.hcmute.busbooking.util.CurrencyUtil;
+import vn.hcmute.busbooking.utils.CurrencyUtil;
 
 public class PaymentActivity extends AppCompatActivity {
 
@@ -66,11 +58,16 @@ public class PaymentActivity extends AppCompatActivity {
     private static final String PREFS_NAME = "payment_timers";
     private static final long HOLD_DURATION_MS = 10 * 60 * 1000L; // 10 minutes
 
-    private TextView tvBusOperator, tvBusType, tvAppName, tvPickup, tvDropoff, tvDate, tvSeat, tvDepartureTime, tvArrivalTime;
+    private TextView tvBusOperator, tvBusType, tvAppName, tvPickup, tvDropoff, tvSeat, tvDepartureTime;
     private TextView tvOrigin, tvDestination;
     private TextView tvCountdown;
     private TextView tvPassengerName, tvPassengerPhone;
-    private TextView tvPickupTimeView, tvDropoffTimeView;
+    // Pickup / Dropoff time views (present in layout)
+    private TextView tvPickupTimeView;
+    private TextView tvDropoffTimeView;
+    // NEW: separate views for return leg times
+    private TextView tvReturnPickupTimeView;
+    private TextView tvReturnDropoffTimeView;
     private TextView tvBottomTotal;
     private Button btnConfirmPayment;
     private com.google.android.material.button.MaterialButton btnChangeToOffline;
@@ -86,6 +83,13 @@ public class PaymentActivity extends AppCompatActivity {
 
     private Trip trip;
     private ArrayList<String> seatLabels;
+    // return leg
+    private Trip returnTrip = null;
+    private ArrayList<String> returnSeatLabels = null;
+    private int returnPickupStopId = -1;
+    private int returnDropoffStopId = -1;
+    private String returnPickupStopName = null;
+    private String returnDropoffStopName = null;
     private ApiService apiService;
     private SessionManager sessionManager;
     private Double bookingTotalAmount = null; // if opening for existing booking, use this amount when available
@@ -309,6 +313,11 @@ public class PaymentActivity extends AppCompatActivity {
         // Pickup / Dropoff time views (present in layout)
         try { tvPickupTimeView = findViewById(R.id.tvPickupTime); } catch (Exception ignored) {}
         try { tvDropoffTimeView = findViewById(R.id.tvDropoffTime); } catch (Exception ignored) {}
+
+        // NEW: bind return-leg specific time views
+        try { tvReturnPickupTimeView = findViewById(R.id.tvReturnPickupTime); } catch (Exception ignored) {}
+        try { tvReturnDropoffTimeView = findViewById(R.id.tvReturnDropoffTime); } catch (Exception ignored) {}
+
         // Layout uses tvPickupLocation / tvDropoffLocation ids — map them to tvPickup/tvDropoff variables
         tvPickup = findViewById(R.id.tvPickupLocation);
         tvDropoff = findViewById(R.id.tvDropoffLocation);
@@ -325,16 +334,16 @@ public class PaymentActivity extends AppCompatActivity {
         // We'll use tags on tvPickup/tvDropoff to keep address views accessible in other methods
         if (tvPickup != null && tvPickupAddressView != null) tvPickup.setTag(tvPickupAddressView);
         if (tvDropoff != null && tvDropoffAddressView != null) tvDropoff.setTag(tvDropoffAddressView);
-        // tvDate view doesn't exist in layout, set to null to avoid crash
-        tvDate = null; // findViewById(R.id.tvDate);
+        // tvDate view doesn't exist in layout; we don't use it, avoid null references
+        // tvDate = null; // findViewById(R.id.tvDate);
         // seat textview id in layout is tvSeatNumber
         tvSeat = findViewById(R.id.tvSeatNumber);
         tvPassengerName = findViewById(R.id.tvPassengerName);
         // phone field id in layout is tvPhoneNumber
         tvPassengerPhone = findViewById(R.id.tvPhoneNumber);
         tvDepartureTime = findViewById(R.id.tvDepartureTime);
-        // tvArrivalTime view doesn't exist in layout, set to null to avoid crash
-        tvArrivalTime = null; // findViewById(R.id.tvArrivalTime);
+        // tvArrivalTime view doesn't exist in layout; we don't use it
+        // tvArrivalTime = null; // findViewById(R.id.tvArrivalTime);
         tvCountdown = findViewById(R.id.tvCountdown);
         tvBottomTotal = findViewById(R.id.tvBottomTotal);
         cardCountdown = findViewById(R.id.cardCountdown);
@@ -386,15 +395,89 @@ public class PaymentActivity extends AppCompatActivity {
          trip = intent.getParcelableExtra("trip");
          seatLabels = intent.getStringArrayListExtra("seat_labels");
 
-         pickupStopId = intent.getIntExtra("pickup_stop_id", -1);
-         dropoffStopId = intent.getIntExtra("dropoff_stop_id", -1);
-         pickupStopName = intent.getStringExtra("pickup_stop_name");
-         dropoffStopName = intent.getStringExtra("dropoff_stop_name");
+         // Read primary pickup/dropoff values from Intent (try ids/names and parcelable fallbacks)
+         try {
+             pickupStopId = intent.getIntExtra("pickup_stop_id", -1);
+             dropoffStopId = intent.getIntExtra("dropoff_stop_id", -1);
+             pickupStopName = intent.getStringExtra("pickup_stop_name");
+             dropoffStopName = intent.getStringExtra("dropoff_stop_name");
+
+             // Fallback: caller may have provided parcelable Location objects instead
+             if ((pickupStopId == -1 || pickupStopName == null) && intent.hasExtra("pickup_location")) {
+                 try {
+                     vn.hcmute.busbooking.model.Location loc = intent.getParcelableExtra("pickup_location");
+                     if (loc != null) {
+                         if (pickupStopId == -1) pickupStopId = loc.getId();
+                         if (pickupStopName == null || pickupStopName.isEmpty()) pickupStopName = (loc.getName() != null ? loc.getName() : loc.getAddress());
+                     }
+                 } catch (Exception ignored) {}
+             }
+
+             if ((dropoffStopId == -1 || dropoffStopName == null) && intent.hasExtra("dropoff_location")) {
+                 try {
+                     vn.hcmute.busbooking.model.Location loc = intent.getParcelableExtra("dropoff_location");
+                     if (loc != null) {
+                         if (dropoffStopId == -1) dropoffStopId = loc.getId();
+                         if (dropoffStopName == null || dropoffStopName.isEmpty()) dropoffStopName = (loc.getName() != null ? loc.getName() : loc.getAddress());
+                     }
+                 } catch (Exception ignored) {}
+             }
+
+             Log.d(TAG, "collectIntentData: primary trip=" + (trip != null ? trip.getId() : "null") +
+                     ", pickupStopId=" + pickupStopId + ", dropoffStopId=" + dropoffStopId +
+                     ", pickupStopName=" + (pickupStopName != null ? pickupStopName : "null") +
+                     ", dropoffStopName=" + (dropoffStopName != null ? dropoffStopName : "null"));
+         } catch (Exception ignored) {}
+
+         // Read return leg extras if present (ids/names and parcelable fallbacks)
+         try {
+             returnTrip = intent.getParcelableExtra("return_trip");
+             returnSeatLabels = intent.getStringArrayListExtra("return_seat_labels");
+             returnPickupStopId = intent.getIntExtra("return_pickup_stop_id", -1);
+             returnDropoffStopId = intent.getIntExtra("return_dropoff_stop_id", -1);
+             returnPickupStopName = intent.getStringExtra("return_pickup_stop_name");
+             returnDropoffStopName = intent.getStringExtra("return_dropoff_stop_name");
+
+             if ((returnPickupStopId == -1 || returnPickupStopName == null) && intent.hasExtra("return_pickup_location")) {
+                 try {
+                     vn.hcmute.busbooking.model.Location loc = intent.getParcelableExtra("return_pickup_location");
+                     if (loc != null) {
+                         if (returnPickupStopId == -1) returnPickupStopId = loc.getId();
+                         if (returnPickupStopName == null || returnPickupStopName.isEmpty()) returnPickupStopName = (loc.getName() != null ? loc.getName() : loc.getAddress());
+                     }
+                 } catch (Exception ignored) {}
+             }
+
+             if ((returnDropoffStopId == -1 || returnDropoffStopName == null) && intent.hasExtra("return_dropoff_location")) {
+                 try {
+                     vn.hcmute.busbooking.model.Location loc = intent.getParcelableExtra("return_dropoff_location");
+                     if (loc != null) {
+                         if (returnDropoffStopId == -1) returnDropoffStopId = loc.getId();
+                         if (returnDropoffStopName == null || returnDropoffStopName.isEmpty()) returnDropoffStopName = (loc.getName() != null ? loc.getName() : loc.getAddress());
+                     }
+                 } catch (Exception ignored) {}
+             }
+
+             // Debug logs to help diagnose missing return leg
+             Log.d(TAG, "collectIntentData: returnTrip=" + (returnTrip != null ? returnTrip.getId() : "null") +
+                      ", returnSeatLabels=" + (returnSeatLabels != null ? returnSeatLabels.size() : "null") +
+                      ", returnPickupStopName=" + (returnPickupStopName != null ? returnPickupStopName : "null") +
+                      ", returnDropoffStopName=" + (returnDropoffStopName != null ? returnDropoffStopName : "null"));
+
+         } catch (Exception ignored) {
+             Log.d(TAG, "collectIntentData: exception reading return extras: " + ignored);
+         }
 
          // If this is a pending payment flow we allow missing trip/seatLabels because we'll fetch booking details from server
          if (!isPendingPayment) {
-             if (trip == null || seatLabels == null || seatLabels.isEmpty() || pickupStopId == -1 || dropoffStopId == -1 || pickupStopName == null || dropoffStopName == null) {
-                 Log.e(TAG, "Missing critical booking data from Intent.");
+             // Relax validation: accept if we have either (id AND name) OR at least a name for both pickup and dropoff
+             boolean pickupOk = (pickupStopId != -1 && pickupStopName != null && !pickupStopName.isEmpty()) || (pickupStopName != null && !pickupStopName.isEmpty());
+             boolean dropoffOk = (dropoffStopId != -1 && dropoffStopName != null && !dropoffStopName.isEmpty()) || (dropoffStopName != null && !dropoffStopName.isEmpty());
+
+             if (trip == null || seatLabels == null || seatLabels.isEmpty() || !pickupOk || !dropoffOk) {
+                 Log.e(TAG, "Missing critical booking data from Intent. trip=" + (trip != null ? trip.getId() : "null") +
+                         ", seats=" + (seatLabels != null ? seatLabels.size() : 0) +
+                         ", pickupOk=" + pickupOk + ", dropoffOk=" + dropoffOk);
                  return false;
              }
          }
@@ -415,6 +498,7 @@ public class PaymentActivity extends AppCompatActivity {
      }
 
     private void populateBookingSummary() {
+        // ============ HIỂN THỊ THÔNG TIN CHIỀU ĐI ============
         if (trip != null) {
             tvBusOperator.setText(trip.getOperator());
             tvBusType.setText(trip.getBusType());
@@ -424,60 +508,28 @@ public class PaymentActivity extends AppCompatActivity {
         }
 
         if (tvAppName != null) tvAppName.setText(R.string.logo_default);
-        // Split pickupStopName (may be "Name - Address") into name and address
-        if (tvPickup != null) {
-            String name = pickupStopName != null ? pickupStopName : "";
-            if (name.contains(" - ")) {
-                String[] parts = name.split(" - ", 2);
-                tvPickup.setText(parts[0]);
-                Object tag = tvPickup.getTag();
-                if (tag instanceof TextView) {
-                    TextView addrView = (TextView) tag;
-                    String addr = parts.length > 1 ? parts[1] : "";
-                    if (addr != null && !addr.isEmpty()) {
-                        addrView.setText(addr);
-                        addrView.setVisibility(View.VISIBLE);
-                    } else {
-                        addrView.setVisibility(View.GONE);
-                    }
-                }
-            } else {
-                tvPickup.setText(name);
-                Object tag = tvPickup.getTag();
-                if (tag instanceof TextView) {
-                    ((TextView) tag).setVisibility(View.GONE);
-                }
-            }
+
+        // Hiển thị điểm đón/trả chiều đi
+        displayStopInfo(tvPickup, pickupStopName);
+        displayStopInfo(tvDropoff, dropoffStopName);
+
+        // Hiển thị ghế (bao gồm cả chiều về nếu có)
+        String seatText = "";
+        if (seatLabels != null && !seatLabels.isEmpty()) {
+            seatText = "Đi: " + TextUtils.join(", ", seatLabels);
         }
 
-        if (tvDropoff != null) {
-            String name = dropoffStopName != null ? dropoffStopName : "";
-            if (name.contains(" - ")) {
-                String[] parts = name.split(" - ", 2);
-                tvDropoff.setText(parts[0]);
-                Object tag = tvDropoff.getTag();
-                if (tag instanceof TextView) {
-                    TextView addrView = (TextView) tag;
-                    String addr = parts.length > 1 ? parts[1] : "";
-                    if (addr != null && !addr.isEmpty()) {
-                        addrView.setText(addr);
-                        addrView.setVisibility(View.VISIBLE);
-                    } else {
-                        addrView.setVisibility(View.GONE);
-                    }
-                }
-            } else {
-                tvDropoff.setText(name);
-                Object tag = tvDropoff.getTag();
-                if (tag instanceof TextView) {
-                    ((TextView) tag).setVisibility(View.GONE);
-                }
-            }
+        if (returnTrip != null && returnSeatLabels != null && !returnSeatLabels.isEmpty()) {
+            if (!seatText.isEmpty()) seatText += "\n";
+            seatText += "Về: " + TextUtils.join(", ", returnSeatLabels);
         }
 
-        String seatText = (seatLabels != null) ? TextUtils.join(", ", seatLabels) : "";
-        tvSeat.setText(seatText);
+        if (tvSeat != null) tvSeat.setText(seatText);
 
+        // ============ HIỂN THỊ THÔNG TIN CHIỀU VỀ (NẾU CÓ) ============
+        populateReturnTripInfo();
+
+        // Thông tin hành khách
         if (fullName != null && !fullName.isEmpty()) {
             tvPassengerName.setText(fullName);
         } else if (sessionManager.getUserName() != null) {
@@ -489,19 +541,153 @@ public class PaymentActivity extends AppCompatActivity {
             tvPassengerPhone.setText(maskPhone(phoneToShow));
         }
 
+        // ============ TÍNH TỔNG TIỀN (BAO GỒM CẢ 2 CHIỀU) ============
+        try {
+            double departPrice = 0.0;
+            double returnPrice = 0.0;
+
+            // Tính tiền chiều đi
+            if (trip != null && seatLabels != null && !seatLabels.isEmpty()) {
+                departPrice = trip.getPrice() * seatLabels.size();
+                Log.d(TAG, "Depart price: " + departPrice + " (seats: " + seatLabels.size() + ")");
+            }
+
+            // Tính tiền chiều về
+            if (returnTrip != null && returnSeatLabels != null && !returnSeatLabels.isEmpty()) {
+                returnPrice = returnTrip.getPrice() * returnSeatLabels.size();
+                Log.d(TAG, "Return price: " + returnPrice + " (seats: " + returnSeatLabels.size() + ")");
+            }
+
+            bookingTotalAmount = departPrice + returnPrice;
+            Log.d(TAG, "Total booking amount: " + bookingTotalAmount);
+        } catch (Exception e) {
+            Log.e(TAG, "Error calculating total amount", e);
+        }
+
         updatePricingUI();
 
-        // Fetch and display estimated times for pickup/dropoff if we have trip and stop ids
+        // Fetch và hiển thị thời gian đón/trả ước tính
         try {
             if (trip != null && (pickupStopId > 0 || dropoffStopId > 0)) {
                 fetchAndShowStopTimes(trip.getId(), pickupStopId, dropoffStopId);
             }
-        } catch (Exception ignored) {}
+            // UPDATED: ensure return leg updates its own return-specific views
+            if (returnTrip != null && (returnPickupStopId > 0 || returnDropoffStopId > 0)) {
+                fetchAndShowStopTimes(returnTrip.getId(), returnPickupStopId, returnDropoffStopId, true);
+            }
+         } catch (Exception ignored) {}
     }
 
-    // Fetch pickup/dropoff locations from API and display estimated_time for the selected stops
-    private void fetchAndShowStopTimes(int tripId, int pickupId, int dropoffId) {
+    // New helper: populate the dedicated return-trip card views safely
+    private void populateReturnTripInfo() {
+        // Find views
+        TextView tvReturnInfoOld = findViewById(R.id.tvReturnTripInfo); // legacy single-text display
+        TextView tvReturnLabel = findViewById(R.id.tvReturnLabel);
+        LinearLayout layoutReturnTrip = findViewById(R.id.layoutReturnTrip);
+        MaterialCardView cardReturn = findViewById(R.id.cardReturnTripInfo);
+
+        // If no return trip selected, hide return section (both new card and legacy view)
+        if (returnTrip == null || returnSeatLabels == null || returnSeatLabels.isEmpty()) {
+            if (tvReturnLabel != null) tvReturnLabel.setVisibility(View.GONE);
+            if (layoutReturnTrip != null) layoutReturnTrip.setVisibility(View.GONE);
+            if (cardReturn != null) cardReturn.setVisibility(View.GONE);
+            if (tvReturnInfoOld != null) tvReturnInfoOld.setVisibility(View.GONE);
+            return;
+        }
+
+        // Show return section
+        if (tvReturnLabel != null) tvReturnLabel.setVisibility(View.VISIBLE);
+        if (layoutReturnTrip != null) layoutReturnTrip.setVisibility(View.VISIBLE);
+        if (cardReturn != null) cardReturn.setVisibility(View.VISIBLE);
+        if (tvReturnInfoOld != null) tvReturnInfoOld.setVisibility(View.GONE); // hide legacy
+
+        // Populate the new return-trip card fields
+        TextView tvReturnBusType = findViewById(R.id.tvReturnBusType);
+        TextView tvReturnBusOperator = findViewById(R.id.tvReturnBusOperator);
+        TextView tvReturnOrigin = findViewById(R.id.tvReturnOrigin);
+        TextView tvReturnDestination = findViewById(R.id.tvReturnDestination);
+        TextView tvReturnDepartureTime = findViewById(R.id.tvReturnDepartureTime);
+        TextView tvReturnPickupLocation = findViewById(R.id.tvReturnPickupLocation);
+        TextView tvReturnPickupAddress = findViewById(R.id.tvReturnPickupAddress);
+        TextView tvReturnDropoffLocation = findViewById(R.id.tvReturnDropoffLocation);
+        TextView tvReturnDropoffAddress = findViewById(R.id.tvReturnDropoffAddress);
+        TextView tvReturnSeatNumber = findViewById(R.id.tvSeatNumber); // reuse main seat text view for combined display
+
         try {
+            if (tvReturnBusType != null) tvReturnBusType.setText(returnTrip.getBusType());
+            if (tvReturnBusOperator != null) tvReturnBusOperator.setText(returnTrip.getOperator());
+            if (tvReturnOrigin != null) tvReturnOrigin.setText(returnTrip.getOrigin());
+            if (tvReturnDestination != null) tvReturnDestination.setText(returnTrip.getDestination());
+            if (tvReturnDepartureTime != null) tvReturnDepartureTime.setText(formatDisplayDateTime(returnTrip.getDepartureTime()));
+
+            // Display pickup/dropoff names on the dedicated fields
+            displayStopInfo(tvReturnPickupLocation, returnPickupStopName);
+            displayStopInfo(tvReturnDropoffLocation, returnDropoffStopName);
+
+            // Also update the combined seat text (tvSeat / tvSeatNumber already set in populateBookingSummary),
+            // but ensure tvReturnSeatNumber shows combined text where applicable
+            if (tvReturnSeatNumber != null) {
+                String combinedSeats = "";
+                if (seatLabels != null && !seatLabels.isEmpty()) combinedSeats = "Đi: " + TextUtils.join(", ", seatLabels);
+                if (returnSeatLabels != null && !returnSeatLabels.isEmpty()) {
+                    if (!combinedSeats.isEmpty()) combinedSeats += "\n";
+                    combinedSeats += "Về: " + TextUtils.join(", ", returnSeatLabels);
+                }
+                tvReturnSeatNumber.setText(combinedSeats);
+            }
+
+        } catch (Exception e) {
+            Log.w(TAG, "populateReturnTripInfo: error populating return UI", e);
+        }
+
+        // Fetch and display estimated times for return trip stops if available
+        try {
+            if (returnTrip != null && (returnPickupStopId > 0 || returnDropoffStopId > 0)) {
+                fetchAndShowStopTimes(returnTrip.getId(), returnPickupStopId, returnDropoffStopId, true);
+            }
+        } catch (Exception ignored) {}
+
+        Log.d(TAG, "populateReturnTripInfo: return trip UI updated (returnTripId=" + (returnTrip != null ? returnTrip.getId() : "null") + ")");
+    }
+
+    // Helper method để hiển thị thông tin điểm đón/trả
+    private void displayStopInfo(TextView tv, String stopName) {
+        if (tv == null || stopName == null) return;
+
+        if (stopName.contains(" - ")) {
+            String[] parts = stopName.split(" - ", 2);
+            tv.setText(parts[0]);
+            Object tag = tv.getTag();
+            if (tag instanceof TextView) {
+                TextView addrView = (TextView) tag;
+                String addr = parts.length > 1 ? parts[1] : "";
+                if (addr != null && !addr.isEmpty()) {
+                    addrView.setText(addr);
+                    addrView.setVisibility(View.VISIBLE);
+                } else {
+                    addrView.setVisibility(View.GONE);
+                }
+            }
+        } else {
+            tv.setText(stopName);
+            Object tag = tv.getTag();
+            if (tag instanceof TextView) {
+                ((TextView) tag).setVisibility(View.GONE);
+            }
+        }
+    }
+
+    // Overload for backward-compatibility (defaults to depart/main trip)
+    private void fetchAndShowStopTimes(int tripId, int pickupId, int dropoffId) {
+        fetchAndShowStopTimes(tripId, pickupId, dropoffId, false);
+    }
+
+    // New: support specifying whether this is the return leg so we update the correct views
+    private void fetchAndShowStopTimes(int tripId, int pickupId, int dropoffId, boolean isReturnTrip) {
+        try {
+            final TextView pickupTarget = isReturnTrip ? tvReturnPickupTimeView : tvPickupTimeView;
+            final TextView dropoffTarget = isReturnTrip ? tvReturnDropoffTimeView : tvDropoffTimeView;
+
             ApiService service = apiService != null ? apiService : ApiClient.getClient().create(ApiService.class);
 
             if (pickupId > 0) {
@@ -512,9 +698,9 @@ public class PaymentActivity extends AppCompatActivity {
                                 for (vn.hcmute.busbooking.model.Location loc : response.body()) {
                                     if (loc != null && loc.getId() == pickupId) {
                                         String iso = loc.getEstimatedTime();
-                                        if (iso != null && !iso.isEmpty() && tvPickupTimeView != null) {
-                                            tvPickupTimeView.setText(formatDisplayTime(iso));
-                                            tvPickupTimeView.setVisibility(View.VISIBLE);
+                                        if (iso != null && !iso.isEmpty() && pickupTarget != null) {
+                                            pickupTarget.setText(formatDisplayTime(iso));
+                                            pickupTarget.setVisibility(View.VISIBLE);
                                         }
                                         break;
                                     }
@@ -535,9 +721,9 @@ public class PaymentActivity extends AppCompatActivity {
                                 for (vn.hcmute.busbooking.model.Location loc : response.body()) {
                                     if (loc != null && loc.getId() == dropoffId) {
                                         String iso = loc.getEstimatedTime();
-                                        if (iso != null && !iso.isEmpty() && tvDropoffTimeView != null) {
-                                            tvDropoffTimeView.setText(formatDisplayTime(iso));
-                                            tvDropoffTimeView.setVisibility(View.VISIBLE);
+                                        if (iso != null && !iso.isEmpty() && dropoffTarget != null) {
+                                            dropoffTarget.setText(formatDisplayTime(iso));
+                                            dropoffTarget.setVisibility(View.VISIBLE);
                                         }
                                         break;
                                     }
@@ -1053,6 +1239,30 @@ public class PaymentActivity extends AppCompatActivity {
         return -1;
     }
 
+    // New helper: detect timezone information from the ISO string. If the ISO contains
+    // an explicit timezone (Z or an offset like +07:00), return a matching TimeZone so
+    // formatting can preserve the original clock time instead of converting to device tz.
+    private java.util.TimeZone getTimeZoneFromIso(String iso) {
+        if (iso == null) return null;
+        String s = iso.trim();
+        if (s.isEmpty()) return null;
+        // Zulu (UTC)
+        if (s.endsWith("Z") || s.endsWith("z")) {
+            return java.util.TimeZone.getTimeZone("UTC");
+        }
+        // Match offsets like +07:00, -05:30, +0700, -0530 at the end of string
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("([+-]\\d{2}:?\\d{2})$").matcher(s);
+        if (m.find()) {
+            String off = m.group(1);
+            // Normalize to +HH:MM
+            if (!off.contains(":")) {
+                if (off.length() == 5) off = off.substring(0, 3) + ":" + off.substring(3);
+            }
+            return java.util.TimeZone.getTimeZone("GMT" + off);
+        }
+        return null;
+    }
+
     private String formatDisplayTime(String isoString) {
         if (isoString == null) return "";
         try {
@@ -1060,6 +1270,8 @@ public class PaymentActivity extends AppCompatActivity {
             if (millis <= 0) return "";
             Date date = new Date(millis);
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+            java.util.TimeZone tz = getTimeZoneFromIso(isoString);
+            if (tz != null) timeFormat.setTimeZone(tz);
             return timeFormat.format(date);
         } catch (Exception e) { return ""; }
     }
@@ -1072,6 +1284,11 @@ public class PaymentActivity extends AppCompatActivity {
             Date date = new Date(millis);
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
             SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+            java.util.TimeZone tz = getTimeZoneFromIso(isoString);
+            if (tz != null) {
+                timeFormat.setTimeZone(tz);
+                dateFormat.setTimeZone(tz);
+            }
             return timeFormat.format(date) + " • " + dateFormat.format(date);
         } catch (Exception e) { return ""; }
     }
@@ -1570,214 +1787,278 @@ public class PaymentActivity extends AppCompatActivity {
 
         Integer userId = sessionManager.getUserId();
 
-        Map<String, Object> bookingRequest = new HashMap<>();
-        if (userId != null) {
-            bookingRequest.put("user_id", userId);
-        }
-        bookingRequest.put("trip_id", trip.getId());
-        bookingRequest.put("seat_labels", seatLabels);
-        bookingRequest.put("passenger_name", fullName);
-        bookingRequest.put("passenger_phone", phoneNumber);
-        bookingRequest.put("passenger_email", email != null ? email : "");
-        bookingRequest.put("pickup_stop_id", pickupStopId);
-        bookingRequest.put("dropoff_stop_id", dropoffStopId);
+        // Build depart booking request
+        Map<String, Object> departRequest = new HashMap<>();
+        if (userId != null) departRequest.put("user_id", userId);
+        departRequest.put("trip_id", trip.getId());
+        departRequest.put("seat_labels", seatLabels);
+        departRequest.put("passenger_name", fullName);
+        departRequest.put("passenger_phone", phoneNumber);
+        departRequest.put("passenger_email", email != null ? email : "");
+        departRequest.put("pickup_stop_id", pickupStopId);
+        departRequest.put("dropoff_stop_id", dropoffStopId);
 
         if (appliedPromotionCode != null && !appliedPromotionCode.isEmpty()) {
-            bookingRequest.put("promotion_code", appliedPromotionCode);
+            departRequest.put("promotion_code", appliedPromotionCode);
         }
 
-        // Add coins usage information to booking request
+        // Add coins usage information to booking request (apply to first leg)
         if (usedCoinAmount > 0) {
-            bookingRequest.put("used_coins_amount", usedCoinAmount);
-            Log.d(TAG, "🪙 Adding coins to booking request: used_coins_amount=" + usedCoinAmount);
+            departRequest.put("used_coins_amount", usedCoinAmount);
+            Log.d(TAG, "🪙 Adding coins to depart booking request: used_coins_amount=" + usedCoinAmount);
         }
 
-        String selectedPaymentMethod = "offline";
-        try {
-            if (rbQrPayment != null && rbQrPayment.isChecked()) selectedPaymentMethod = "qr";
-            else if (rbCreditCard != null && rbCreditCard.isChecked()) selectedPaymentMethod = "card";
-        } catch (Exception ignored) {}
+        // Determine selected payment method in one expression so a final local variable
+        // is assigned exactly once (avoids compiler error about possible double assignment
+        // when using try/catch + assignments inside the try block).
+        final String selectedPaymentMethod = (rbQrPayment != null && rbQrPayment.isChecked()) ? "qr"
+                : (rbCreditCard != null && rbCreditCard.isChecked()) ? "card" : "offline";
 
-        bookingRequest.put("payment_method", selectedPaymentMethod);
+        departRequest.put("payment_method", selectedPaymentMethod);
 
-        Log.d(TAG, "Creating booking with payment_method: " + selectedPaymentMethod);
+        Log.d(TAG, "Creating depart booking with payment_method: " + selectedPaymentMethod);
 
-        apiService.createBooking(bookingRequest).enqueue(new Callback<Map<String, Object>>() {
-            @Override
-            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                setLoadingState(false);
-
-                if (response.isSuccessful() && response.body() != null) {
-                    Object bookingIdsObj = response.body().get("booking_ids");
-                    ArrayList<Integer> newBookingIds = new ArrayList<>();
-
-                    if (bookingIdsObj instanceof List) {
-                        for (Object id : (List<?>) bookingIdsObj) {
-                            if (id instanceof Number) {
-                                newBookingIds.add(((Number) id).intValue());
-                            } else if (id instanceof String) {
-                                try {
-                                    newBookingIds.add(Integer.parseInt((String) id));
-                                } catch (NumberFormatException ignored) {}
-                            }
-                        }
-                    }
-
-                    if (!newBookingIds.isEmpty()) {
-                        bookingIds = newBookingIds;
-                        Log.d(TAG, "Created bookings: " + bookingIds);
-
-                        // Extract total_amount from response and save it
-                        try {
-                            Object totalAmountObj = response.body().get("total_amount");
-                            if (totalAmountObj instanceof Number) {
-                                bookingTotalAmount = ((Number) totalAmountObj).doubleValue();
-                            } else if (totalAmountObj instanceof String) {
-                                bookingTotalAmount = Double.parseDouble((String) totalAmountObj);
-                            }
-                            Log.d(TAG, "Total amount from booking: " + bookingTotalAmount);
-                        } catch (Exception e) {
-                            Log.e(TAG, "Error parsing total_amount", e);
-                            bookingTotalAmount = 0.0;
-                        }
-
-                        // Mark as pending payment to prevent duplicate booking if user clicks confirm again
-                        isPendingPayment = true;
-
-                        String paymentMethod = (String) bookingRequest.get("payment_method");
-
-                        // Disable button to prevent duplicate booking clicks
-                        if (btnConfirmPayment != null) {
-                            btnConfirmPayment.setEnabled(false);
-                        }
-
-                        if ("qr".equals(paymentMethod)) {
-                            processPayosPayment(bookingIds);
-                        } else if ("card".equals(paymentMethod)) {
-                            confirmNextPayment(bookingIds, 0, "card");
-                        } else {
-                            // Offline payment - deduct coins immediately
-                            Log.d(TAG, "Offline payment - deducting coins (usedCoinAmount=" + usedCoinAmount + ")");
-
-                            Toast.makeText(PaymentActivity.this,
-                                    "Vé đã được đặt với thanh toán tại nhà xe. Vui lòng thanh toán trước khi lên xe.",
-                                    Toast.LENGTH_LONG).show();
-
-                            // Deduct coins if any were used
-                            if (usedCoinAmount > 0 && !bookingIds.isEmpty()) {
-                                int bookingId = bookingIds.get(0);
-                                Log.d(TAG, "Offline payment: deducting " + usedCoinAmount + " coins for booking " + bookingId);
-                                deductUserCoins(bookingId, () -> {
-                                    Log.d(TAG, "Offline payment: coins deducted, navigating to MyBookingsActivity");
-                                    navigateToMyBookings();
-                                });
-                            } else {
-                                Log.d(TAG, "Offline payment: no coins to deduct, navigating to MyBookingsActivity");
-                                navigateToMyBookings();
-                            }
-                        }
-                    } else {
-                        handlePaymentError("Không thể tạo đặt vé. Vui lòng thử lại.");
-                    }
-                } else {
+        // If there's no return trip, behave as before
+        if (returnTrip == null || returnSeatLabels == null || returnSeatLabels.isEmpty()) {
+            // Single-leg flow
+            apiService.createBooking(departRequest).enqueue(new Callback<Map<String, Object>>() {
+                @Override
+                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                     setLoadingState(false);
 
-                    // Handle specific error cases
-                    String errorMessage = "Lỗi khi tạo đặt vé: " + response.code();
-                    try {
-                        if (response.errorBody() != null) {
-                            String errorBody = response.errorBody().string();
-                            if (errorBody.contains("not available")) {
-                                showSeatNotAvailableDialog();
-                                return;
-                            }
-                            try {
-                                JSONObject errorJson = new JSONObject(errorBody);
-                                String message = errorJson.optString("message", errorMessage);
-                                if (message.contains("not available")) {
-                                    showSeatNotAvailableDialog();
-                                    return;
-                                }
-                                errorMessage = message;
-                            } catch (Exception ignored) {}
-                        }
-                    } catch (Exception ignored) {}
+                    if (response.isSuccessful() && response.body() != null) {
+                        Object bookingIdsObj = response.body().get("booking_ids");
+                        ArrayList<Integer> newBookingIds = new ArrayList<>();
 
-                    handlePaymentError(errorMessage);
+                        if (bookingIdsObj instanceof List) {
+                            for (Object id : (List<?>) bookingIdsObj) {
+                                if (id instanceof Number) {
+                                    newBookingIds.add(((Number) id).intValue());
+                                } else if (id instanceof String) {
+                                    try {
+                                        newBookingIds.add(Integer.parseInt((String) id));
+                                    } catch (NumberFormatException ignored) {}
+                                }
+                            }
+                        }
+
+                        if (!newBookingIds.isEmpty()) {
+                            bookingIds = newBookingIds;
+                            Log.d(TAG, "Created bookings: " + bookingIds);
+
+                            // Extract total_amount from response and save it
+                            try {
+                                Object totalAmountObj = response.body().get("total_amount");
+                                if (totalAmountObj instanceof Number) {
+                                    bookingTotalAmount = ((Number) totalAmountObj).doubleValue();
+                                } else if (totalAmountObj instanceof String) {
+                                    bookingTotalAmount = Double.parseDouble((String) totalAmountObj);
+                                }
+                                Log.d(TAG, "Total amount from booking: " + bookingTotalAmount);
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error parsing total_amount", e);
+                                bookingTotalAmount = 0.0;
+                            }
+
+                            // proceed to payment flow
+                            isPendingPayment = true;
+                            handlePostBookingFlow(selectedPaymentMethod);
+                        } else {
+                            handlePaymentError("Không thể tạo đặt vé. Vui lòng thử lại.");
+                        }
+                    } else {
+                        setLoadingState(false);
+                        handleCreateBookingError(response);
+                    }
                 }
+
+                @Override
+                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                    setLoadingState(false);
+                    handlePaymentError("Lỗi kết nối khi tạo đặt vé: " + t.getMessage());
+                    Log.e(TAG, "Error creating booking", t);
+                }
+            });
+            return;
+        }
+
+        // Round-trip flow: create depart then return booking sequentially
+        apiService.createBooking(departRequest).enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                if (!(response.isSuccessful() && response.body() != null)) {
+                    setLoadingState(false);
+                    handleCreateBookingError(response);
+                    return;
+                }
+
+                // collect depart booking ids and amount
+                ArrayList<Integer> combinedBookingIds = new ArrayList<>();
+                final double[] totalAmountSum = new double[]{0.0};
+                try {
+                    Object bookingIdsObj = response.body().get("booking_ids");
+                    if (bookingIdsObj instanceof List) {
+                        for (Object id : (List<?>) bookingIdsObj) {
+                            if (id instanceof Number) combinedBookingIds.add(((Number) id).intValue());
+                            else if (id instanceof String) try { combinedBookingIds.add(Integer.parseInt((String) id)); } catch (Exception ignored) {}
+                        }
+                    }
+                    Object tot = response.body().get("total_amount");
+                    if (tot instanceof Number) totalAmountSum[0] += ((Number) tot).doubleValue();
+                    else if (tot instanceof String) try { totalAmountSum[0] += Double.parseDouble((String) tot); } catch (Exception ignored) {}
+                } catch (Exception e) { Log.e(TAG, "Error parsing depart booking response", e); }
+
+                // Now create return booking
+                Map<String, Object> returnRequest = new HashMap<>();
+                if (userId != null) returnRequest.put("user_id", userId);
+                returnRequest.put("trip_id", returnTrip.getId());
+                returnRequest.put("seat_labels", returnSeatLabels);
+                returnRequest.put("passenger_name", fullName);
+                returnRequest.put("passenger_phone", phoneNumber);
+                returnRequest.put("passenger_email", email != null ? email : "");
+                returnRequest.put("pickup_stop_id", returnPickupStopId);
+                returnRequest.put("dropoff_stop_id", returnDropoffStopId);
+
+                if (appliedPromotionCode != null && !appliedPromotionCode.isEmpty()) {
+                    returnRequest.put("promotion_code", appliedPromotionCode);
+                }
+                // For simplicity, do not reapply coins to return leg (coins applied to first leg only)
+                returnRequest.put("payment_method", selectedPaymentMethod);
+
+                apiService.createBooking(returnRequest).enqueue(new Callback<Map<String, Object>>() {
+                    @Override
+                    public void onResponse(Call<Map<String, Object>> call2, Response<Map<String, Object>> response2) {
+                        setLoadingState(false);
+                        if (!(response2.isSuccessful() && response2.body() != null)) {
+                            // Return leg failed; show error but keep depart booking created
+                            handlePaymentError("Tạo vé chiều về không thành công. Vui lòng liên hệ hỗ trợ.");
+                            // Still populate whatever we have
+                            bookingIds = combinedBookingIds;
+                            bookingTotalAmount = totalAmountSum[0];
+                            isPendingPayment = true;
+                            return;
+                        }
+
+                        try {
+                            Object bookingIdsObj2 = response2.body().get("booking_ids");
+                            if (bookingIdsObj2 instanceof List) {
+                                for (Object id : (List<?>) bookingIdsObj2) {
+                                    if (id instanceof Number) combinedBookingIds.add(((Number) id).intValue());
+                                    else if (id instanceof String) try { combinedBookingIds.add(Integer.parseInt((String) id)); } catch (Exception ignored) {}
+                                }
+                            }
+                            Object tot2 = response2.body().get("total_amount");
+                            if (tot2 instanceof Number) totalAmountSum[0] += ((Number) tot2).doubleValue();
+                            else if (tot2 instanceof String) try { totalAmountSum[0] += Double.parseDouble((String) tot2); } catch (Exception ignored) {}
+                        } catch (Exception e) { Log.e(TAG, "Error parsing return booking response", e); }
+
+                        if (!combinedBookingIds.isEmpty()) {
+                            bookingIds = combinedBookingIds;
+                            bookingTotalAmount = totalAmountSum[0];
+                            Log.d(TAG, "Created round-trip bookings: " + bookingIds + ", totalAmount=" + bookingTotalAmount);
+                            isPendingPayment = true;
+                            handlePostBookingFlow(selectedPaymentMethod);
+                        } else {
+                            handlePaymentError("Không thể tạo đặt vé khứ hồi. Vui lòng thử lại.");
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<Map<String, Object>> call2, Throwable t) {
+                        setLoadingState(false);
+                        handlePaymentError("Lỗi kết nối khi tạo vé chiều về: " + t.getMessage());
+                    }
+                });
             }
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                 setLoadingState(false);
-                handlePaymentError("Lỗi kết nối khi tạo đặt vé: " + t.getMessage());
-                Log.e(TAG, "Error creating booking", t);
+                handlePaymentError("Lỗi kết nối khi tạo vé: " + t.getMessage());
+                Log.e(TAG, "Error creating depart booking", t);
             }
         });
     }
 
-    private void changePaymentMethodForBookings(int index, String newMethod, Runnable onSuccess) {
-        if (bookingIds == null || bookingIds.isEmpty()) {
-            setLoadingState(false);
-            if (onSuccess != null) onSuccess.run();
+    // Sequentially change payment method for all bookingIds starting from index
+    private void changePaymentMethodForBookings(int index, String newMethod, Runnable onComplete) {
+        if (bookingIds == null || index >= bookingIds.size()) {
+            if (onComplete != null) onComplete.run();
             return;
         }
-        if (index >= bookingIds.size()) {
-            setLoadingState(false);
-            if (onSuccess != null) onSuccess.run();
-            return;
-        }
-
-        int id = bookingIds.get(index);
+        Integer bookingId = bookingIds.get(index);
         Map<String, String> body = new HashMap<>();
         body.put("payment_method", newMethod);
-
-        apiService.changePaymentMethod(id, body).enqueue(new Callback<Map<String, Object>>() {
+        apiService.changePaymentMethod(bookingId, body).enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 if (response.isSuccessful()) {
-                    changePaymentMethodForBookings(index + 1, newMethod, onSuccess);
+                    // proceed to next
+                    changePaymentMethodForBookings(index + 1, newMethod, onComplete);
                 } else {
                     setLoadingState(false);
-                    handlePaymentError("Không thể đổi phương thức thanh toán.");
+                    handlePaymentError("Không thể thay đổi phương thức thanh toán: " + response.code());
                 }
             }
+
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                 setLoadingState(false);
-                handlePaymentError("Lỗi kết nối khi đổi phương thức thanh toán.");
+                handlePaymentError("Lỗi kết nối khi thay đổi phương thức: " + t.getMessage());
             }
         });
     }
 
-    private void navigateToMyBookings() {
-        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-            try {
-                Intent intent = new Intent(PaymentActivity.this, MyBookingsActivity.class);
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                startActivity(intent);
-            } catch (Exception e) {
-                Log.e(TAG, "Error navigating to MyBookingsActivity", e);
-            }
-            finish();
-        }, 2000);
+    private void handleCreateBookingError(Response<Map<String, Object>> response) {
+        setLoadingState(false);
+        String err = "Lỗi tạo vé";
+        try (okhttp3.ResponseBody eb = response.errorBody()) {
+            if (eb != null) err += ": " + eb.string();
+        } catch (Exception ignored) {}
+        handlePaymentError(err);
     }
 
-    private void showSeatNotAvailableDialog() {
-        setLoadingState(false);
-        new AlertDialog.Builder(this)
-                .setTitle("Ghế không còn trống")
-                .setMessage("Ghế bạn chọn đã được book bởi người khác. Vui lòng chọn ghế khác và thử lại.")
-                .setPositiveButton("Chọn ghế khác", (dialog, which) -> {
-                    // Go back to SeatSelectionActivity
-                    Intent intent = new Intent(PaymentActivity.this, SeatSelectionActivity.class);
-                    intent.putExtra("trip", trip);
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                    startActivity(intent);
-                    finish();
-                })
-                .setNegativeButton("Hủy", (dialog, which) -> dialog.dismiss())
-                .setIcon(android.R.drawable.ic_dialog_alert)
-                .show();
+    private void navigateToMyBookings() {
+        try {
+            Intent intent = new Intent(PaymentActivity.this, MyBookingsActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(intent);
+            finish();
+        } catch (Exception e) {
+            Log.e(TAG, "Error navigating to MyBookingsActivity", e);
+        }
+    }
+
+    // Handle what happens after bookings are created: process payment based on selected method
+    private void handlePostBookingFlow(String paymentMethod) {
+        try {
+            if (btnConfirmPayment != null) btnConfirmPayment.setEnabled(false);
+
+            if ("qr".equalsIgnoreCase(paymentMethod) || "vnpay".equalsIgnoreCase(paymentMethod) || "payos".equalsIgnoreCase(paymentMethod)) {
+                processPayosPayment(bookingIds);
+                return;
+            }
+
+            if ("card".equalsIgnoreCase(paymentMethod)) {
+                confirmNextPayment(bookingIds, 0, "card");
+                return;
+            }
+
+            // Default: offline/cash
+            Toast.makeText(PaymentActivity.this,
+                    "Vé đã được đặt với thanh toán tại nhà xe. Vui lòng thanh toán trước khi lên xe.",
+                    Toast.LENGTH_LONG).show();
+
+            // Deduct coins applied to first leg (if any)
+            if (usedCoinAmount > 0 && bookingIds != null && !bookingIds.isEmpty()) {
+                int bookingId = bookingIds.get(0);
+                deductUserCoins(bookingId, this::navigateToMyBookings);
+            } else {
+                navigateToMyBookings();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in handlePostBookingFlow", e);
+            handlePaymentError("Đã có lỗi trong quá trình xử lý sau khi tạo vé.");
+        }
     }
 }

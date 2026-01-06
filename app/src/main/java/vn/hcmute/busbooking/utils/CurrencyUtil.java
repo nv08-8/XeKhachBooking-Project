@@ -1,4 +1,4 @@
-package vn.hcmute.busbooking.util;
+package vn.hcmute.busbooking.utils;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;

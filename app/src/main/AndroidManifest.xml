@@ -29,7 +29,7 @@
         <activity android:name=".activity.OtpVerificationActivity" />
         <activity android:name=".activity.ResetPasswordActivity" />
         <activity android:name=".activity.TripListActivity" />
-        <activity android:name=".TripDetailActivity" />
+        <activity android:name=".activity.TripDetailActivity" />
         <activity android:name=".activity.SeatSelectionActivity" />
         <activity android:name=".activity.SelectPickupPointActivity" />
         <activity android:name=".activity.SelectDropoffPointActivity" />

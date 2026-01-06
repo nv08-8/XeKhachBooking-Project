@@ -78,6 +78,7 @@ public class TripListActivity extends AppCompatActivity implements FilterBottomS
 
     private boolean isReturn;
     private String origin, destination, travelDate;
+    private String returnDate = null; // optional return date in dd/MM/yyyy
 
     private float minPrice = 0, maxPrice = 2000000;
     private float minTime = 0, maxTime = 24;
@@ -119,7 +120,11 @@ public class TripListActivity extends AppCompatActivity implements FilterBottomS
         origin = getIntent().getStringExtra("origin");
         destination = getIntent().getStringExtra("destination");
         travelDate = getIntent().getStringExtra("date");
-        isReturn = getIntent().getBooleanExtra("isReturn", false);
+        // Prefer new key 'isRoundTrip' but accept legacy 'isReturn' for backward compatibility
+        isReturn = getIntent().getBooleanExtra("isRoundTrip", getIntent().getBooleanExtra("isReturn", false));
+        // read optional return date passed from previous activity (MainActivity / GuestHome)
+        String r = getIntent().getStringExtra("returnDate");
+        if (r != null && !r.isEmpty()) returnDate = r;
 
         if (origin == null) origin = "";
         if (destination == null) destination = "";
@@ -137,13 +142,40 @@ public class TripListActivity extends AppCompatActivity implements FilterBottomS
         rvTrips.setAdapter(tripAdapter);
 
         tripAdapter.setOnItemClickListener(trip -> {
-            Intent intent = new Intent(TripListActivity.this, vn.hcmute.busbooking.TripDetailActivity.class);
+            Intent intent = new Intent(TripListActivity.this, TripDetailActivity.class);
             intent.putExtra("trip_id", trip.getId()); // Fix: pass trip_id so detail activity can load data
             intent.putExtra("trip", trip);
-            intent.putExtra("isReturn", isReturn);
+            // Forward round-trip indicator (use 'isRoundTrip')
+            if (isReturn) intent.putExtra("isRoundTrip", true);
             intent.putExtra("returnOrigin", destination);
             intent.putExtra("returnDestination", origin);
-            intent.putExtra("returnDate", travelDate);
+            // Pass the actual return date (if set) instead of departure date
+            if (isReturn && returnDate != null && !returnDate.isEmpty()) {
+                intent.putExtra("returnDate", returnDate);
+            }
+
+            // If this TripList was launched as part of a round-trip "return selection" phase,
+            // forward any depart_* extras so downstream activities can assemble both legs.
+            try {
+                Intent src = getIntent();
+                boolean roundPhase = src.getBooleanExtra("round_trip_phase", false);
+                if (roundPhase) {
+                    // forward depart trip/seat/pickup/dropoff if present
+                    android.os.Parcelable departTrip = src.getParcelableExtra("depart_trip");
+                    java.util.ArrayList<String> departSeats = src.getStringArrayListExtra("depart_seat_labels");
+                    android.os.Parcelable departPickup = src.getParcelableExtra("depart_pickup_location");
+                    android.os.Parcelable departDropoff = src.getParcelableExtra("depart_dropoff_location");
+                    if (departTrip != null) intent.putExtra("depart_trip", departTrip);
+                    if (departSeats != null) intent.putStringArrayListExtra("depart_seat_labels", departSeats);
+                    if (departPickup != null) intent.putExtra("depart_pickup_location", departPickup);
+                    if (departDropoff != null) intent.putExtra("depart_dropoff_location", departDropoff);
+                    // keep the round trip phase flag in the chain
+                    intent.putExtra("round_trip_phase", true);
+                    // Also preserve high-level isRoundTrip indicator
+                    intent.putExtra("isRoundTrip", true);
+                }
+            } catch (Exception ignored) {}
+
             startActivity(intent);
         });
 
@@ -607,6 +639,7 @@ public class TripListActivity extends AppCompatActivity implements FilterBottomS
         AutoCompleteTextView etOrigin = sheetView.findViewById(R.id.etOrigin);
         AutoCompleteTextView etDestination = sheetView.findViewById(R.id.etDestination);
         TextView tvDateDialog = sheetView.findViewById(R.id.tvDate);
+        androidx.appcompat.widget.SwitchCompat switchReturn = sheetView.findViewById(R.id.switchReturn);
         MaterialButton btnSearch = sheetView.findViewById(R.id.btnSearchTrips);
         MaterialButton btnClose = sheetView.findViewById(R.id.btnCloseSearch);
         ImageView ivSwap = sheetView.findViewById(R.id.ivSwap);
@@ -633,33 +666,80 @@ public class TripListActivity extends AppCompatActivity implements FilterBottomS
         // Set current values
         etOrigin.setText(origin, false);
         etDestination.setText(destination, false);
-        tvDateDialog.setText(travelDate);
+        // Show departure or dep → ret if returnDate present
+        if (isReturn && returnDate != null && !returnDate.isEmpty()) {
+            tvDateDialog.setText(String.format(Locale.getDefault(), "%s → %s", travelDate, returnDate));
+            switchReturn.setChecked(true);
+        } else {
+            tvDateDialog.setText(travelDate);
+            switchReturn.setChecked(false);
+        }
 
-        // Setup date picker
-        Calendar calendar = Calendar.getInstance();
+        // Setup date handling
+        final Calendar departCal = Calendar.getInstance();
+        final Calendar retCal = Calendar.getInstance();
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+            Date d = sdf.parse(travelDate);
+            if (d != null) departCal.setTime(d);
+            if (returnDate != null && !returnDate.isEmpty()) {
+                Date rDate = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(returnDate);
+                if (rDate != null) retCal.setTime(rDate);
+            }
+        } catch (Exception ignored) {}
+
+        // When tvDateDialog clicked: pick departure date
         tvDateDialog.setOnClickListener(v -> {
-            DatePickerDialog datePickerDialog = new DatePickerDialog(
-                this,
-                (view, year, month, dayOfMonth) -> {
-                    calendar.set(year, month, dayOfMonth);
+            DatePickerDialog dp = new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
+                departCal.set(year, month, dayOfMonth);
+                // If return exists and is before depart, clear return
+                if (switchReturn.isChecked() && retCal.before(departCal)) {
+                    // invalid, clear return
+                    returnDate = null;
+                    // reset retCal to depart
+                    retCal.setTime(departCal.getTime());
+                    switchReturn.setChecked(false);
+                }
+                SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+                if (switchReturn.isChecked() && returnDate != null) tvDateDialog.setText(String.format(Locale.getDefault(), "%s → %s", sdf.format(departCal.getTime()), returnDate));
+                else tvDateDialog.setText(sdf.format(departCal.getTime()));
+            }, departCal.get(Calendar.YEAR), departCal.get(Calendar.MONTH), departCal.get(Calendar.DAY_OF_MONTH));
+            dp.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
+            dp.show();
+        });
+
+        // When switchReturn toggled, if turned on open return date picker immediately; if turned off clear return date
+        switchReturn.setOnCheckedChangeListener((buttonView, checked) -> {
+            if (checked) {
+                // open return date picker
+                DatePickerDialog rdr = new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
+                    retCal.set(year, month, dayOfMonth);
+                    // Ensure return not before depart
+                    if (retCal.before(departCal)) {
+                        Toast.makeText(TripListActivity.this, "Ngày về không thể trước ngày đi", Toast.LENGTH_LONG).show();
+                        returnDate = null;
+                        switchReturn.setChecked(false);
+                        tvDateDialog.setText(new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(departCal.getTime()));
+                        return;
+                    }
                     SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
-                    String selectedDate = sdf.format(calendar.getTime());
-                    tvDateDialog.setText(selectedDate);
-                },
-                calendar.get(Calendar.YEAR),
-                calendar.get(Calendar.MONTH),
-                calendar.get(Calendar.DAY_OF_MONTH)
-            );
-            datePickerDialog.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
-            datePickerDialog.show();
+                    returnDate = sdf.format(retCal.getTime());
+                    tvDateDialog.setText(String.format(Locale.getDefault(), "%s → %s", sdf.format(departCal.getTime()), returnDate));
+                }, retCal.get(Calendar.YEAR), retCal.get(Calendar.MONTH), retCal.get(Calendar.DAY_OF_MONTH));
+                rdr.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
+                rdr.show();
+            } else {
+                // clear return
+                returnDate = null;
+                SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+                tvDateDialog.setText(sdf.format(departCal.getTime()));
+            }
         });
 
         // Handle search button click
         btnSearch.setOnClickListener(v -> {
             String newOrigin = etOrigin.getText().toString().trim();
             String newDestination = etDestination.getText().toString().trim();
-            String newDate = tvDateDialog.getText().toString().trim();
-
             if (newOrigin.isEmpty() || newDestination.isEmpty()) {
                 Toast.makeText(this, "Vui lòng chọn điểm đi và điểm đến", Toast.LENGTH_SHORT).show();
                 return;
@@ -668,11 +748,20 @@ public class TripListActivity extends AppCompatActivity implements FilterBottomS
             // Update current values
             origin = newOrigin;
             destination = newDestination;
-            travelDate = newDate;
 
-            // Update UI - use the Activity's tvDate and tvRoute TextViews
-            tvRoute.setText(String.format(Locale.getDefault(), "%s → %s", origin, destination));
-            this.tvDate.setText(String.format(Locale.getDefault(), "Ngày: %s", travelDate));
+            // Update depart date from departCal
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+            travelDate = sdf.format(departCal.getTime());
+
+            // isReturn flag and returnDate already managed via switchReturn and returnDate variable
+            isReturn = switchReturn.isChecked();
+
+            // Update UI - show depart or dep → ret
+            if (isReturn && returnDate != null && !returnDate.isEmpty()) {
+                this.tvDate.setText(String.format(Locale.getDefault(), "Ngày: %s → %s", travelDate, returnDate));
+            } else {
+                this.tvDate.setText(String.format(Locale.getDefault(), "Ngày: %s", travelDate));
+            }
 
             // Fetch new trips
             fetchTrips(origin, destination, travelDate);

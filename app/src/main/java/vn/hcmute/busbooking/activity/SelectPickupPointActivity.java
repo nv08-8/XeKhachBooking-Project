@@ -33,7 +33,7 @@ import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.api.ApiService;
 import vn.hcmute.busbooking.model.Location;
 import vn.hcmute.busbooking.model.Trip;
-import vn.hcmute.busbooking.util.CurrencyUtil;
+import vn.hcmute.busbooking.utils.CurrencyUtil;
 
 public class SelectPickupPointActivity extends AppCompatActivity {
 
@@ -94,6 +94,37 @@ public class SelectPickupPointActivity extends AppCompatActivity {
             intent.putExtra("trip", trip);
             intent.putStringArrayListExtra("seat_labels", seatLabels);
             intent.putExtra("pickup_location", selectedPickup);
+
+            // forward round-trip extras if present
+            Intent src = getIntent();
+            // Prefer isRoundTrip but fall back to legacy isReturn for compatibility
+            boolean isRoundTrip = src.getBooleanExtra("isRoundTrip", src.getBooleanExtra("isReturn", false));
+            if (isRoundTrip) intent.putExtra("isRoundTrip", true);
+            String returnDate = src.getStringExtra("returnDate"); if (returnDate != null) intent.putExtra("returnDate", returnDate);
+            String returnOrigin = src.getStringExtra("returnOrigin"); if (returnOrigin != null) intent.putExtra("returnOrigin", returnOrigin);
+            String returnDestination = src.getStringExtra("returnDestination"); if (returnDestination != null) intent.putExtra("returnDestination", returnDestination);
+
+             // Normalize round_trip_phase value: accept boolean or string from caller, forward as boolean
+             boolean roundPhase = src.getBooleanExtra("round_trip_phase", false);
+             if (!roundPhase) {
+                 String phaseStr = src.getStringExtra("round_trip_phase");
+                 roundPhase = phaseStr != null && (phaseStr.equalsIgnoreCase("true") || phaseStr.equals("1"));
+             }
+             if (roundPhase) intent.putExtra("round_trip_phase", true);
+
+            // If this activity is the depart leg and we have depart_* keys, forward them for return selection flow
+            try {
+                android.os.Parcelable departTrip = src.getParcelableExtra("depart_trip");
+                java.util.ArrayList<String> departSeats = src.getStringArrayListExtra("depart_seat_labels");
+                android.os.Parcelable departPickup = src.getParcelableExtra("depart_pickup_location");
+                android.os.Parcelable departDropoff = src.getParcelableExtra("depart_dropoff_location");
+                if (departTrip != null) intent.putExtra("depart_trip", departTrip);
+                if (departSeats != null) intent.putStringArrayListExtra("depart_seat_labels", departSeats);
+                if (departPickup != null) intent.putExtra("depart_pickup_location", departPickup);
+                if (departDropoff != null) intent.putExtra("depart_dropoff_location", departDropoff);
+                if (roundPhase) intent.putExtra("round_trip_phase", true);
+            } catch (Exception ignored) {}
+
             startActivity(intent);
         });
     }
@@ -155,7 +186,7 @@ public class SelectPickupPointActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(VH holder, int position) {
-            int pos = holder.getAdapterPosition();
+            int pos = holder.getBindingAdapterPosition();
             if (pos == RecyclerView.NO_POSITION) return;
             Location loc = items.get(pos);
             String name = loc.getName();
@@ -200,7 +231,7 @@ public class SelectPickupPointActivity extends AppCompatActivity {
 
             // Click listener for the whole card
             holder.itemView.setOnClickListener(v -> {
-                int p = holder.getAdapterPosition();
+                int p = holder.getBindingAdapterPosition();
                 if (p == RecyclerView.NO_POSITION) return;
                 int old = selected;
                 selected = p;
