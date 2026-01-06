@@ -607,23 +607,23 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
     switch (groupBy) {
         case 'day':
         case 'date':
-            groupByClause = "DATE(b.paid_at + INTERVAL '7 hours')";
+            groupByClause = "DATE(b.paid_at)";
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
-                query += ` AND DATE(b.paid_at + INTERVAL '7 hours') >= $${params.length}::date`;
+                query += ` AND DATE(b.paid_at) >= $${params.length}::date`;
             }
             if (to_date) {
                 params.push(to_date);
-                query += ` AND DATE(b.paid_at + INTERVAL '7 hours') < ($${params.length}::date + INTERVAL '1 day')`;
+                query += ` AND DATE(b.paid_at) < ($${params.length}::date + INTERVAL '1 day')`;
             }
             break;
         case 'month':
-            groupByClause = "TO_CHAR(b.paid_at + INTERVAL '7 hours', 'YYYY-MM')";
+            groupByClause = "TO_CHAR(b.paid_at, 'YYYY-MM')";
             orderByClause = "group_key DESC";
             break;
         case 'year':
-            groupByClause = "EXTRACT(YEAR FROM b.paid_at + INTERVAL '7 hours')";
+            groupByClause = "EXTRACT(YEAR FROM b.paid_at)";
             orderByClause = "group_key DESC";
             break;
         case 'route':
@@ -714,39 +714,39 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
     switch (groupBy) {
         case 'day':
         case 'date':
-            groupByClause = "DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours')";
+            groupByClause = "DATE(COALESCE(b.paid_at, b.created_at))";
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
-                query += ` AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') >= $${params.length}::date`;
+                query += ` AND DATE(COALESCE(b.paid_at, b.created_at)) >= $${params.length}::date`;
             }
             if (to_date) {
                 params.push(to_date);
-                query += ` AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') < ($${params.length}::date + INTERVAL '1 day')`;
+                query += ` AND DATE(COALESCE(b.paid_at, b.created_at)) < ($${params.length}::date + INTERVAL '1 day')`;
             }
             break;
         case 'month':
-            groupByClause = "TO_CHAR(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours', 'YYYY-MM')";
+            groupByClause = "TO_CHAR(COALESCE(b.paid_at, b.created_at), 'YYYY-MM')";
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
-                query += ` AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') >= $${params.length}::date`;
+                query += ` AND DATE(COALESCE(b.paid_at, b.created_at)) >= $${params.length}::date`;
             }
             if (to_date) {
                 params.push(to_date);
-                query += ` AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') < ($${params.length}::date + INTERVAL '1 day')`;
+                query += ` AND DATE(COALESCE(b.paid_at, b.created_at)) < ($${params.length}::date + INTERVAL '1 day')`;
             }
             break;
         case 'year':
-            groupByClause = "EXTRACT(YEAR FROM COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours')";
+            groupByClause = "EXTRACT(YEAR FROM COALESCE(b.paid_at, b.created_at))";
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
-                query += ` AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') >= $${params.length}::date`;
+                query += ` AND DATE(COALESCE(b.paid_at, b.created_at)) >= $${params.length}::date`;
             }
             if (to_date) {
                 params.push(to_date);
-                query += ` AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') < ($${params.length}::date + INTERVAL '1 day')`;
+                query += ` AND DATE(COALESCE(b.paid_at, b.created_at)) < ($${params.length}::date + INTERVAL '1 day')`;
             }
             break;
         case 'route':
@@ -800,7 +800,7 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
       t.departure_time,
       b.seats_count AS ticket_count,
       b.total_amount AS total_price,
-      (b.paid_at + INTERVAL '7 hours') AS paid_at
+      b.paid_at
     FROM bookings b
     JOIN users u ON u.id = b.user_id
     JOIN trips t ON t.id = b.trip_id
@@ -824,14 +824,13 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
   if (group_by === "day" || group_by === "date") {
     params.push(value);
     params.push(value);
-    // Filter theo ngày đã cộng +7 tiếng (để hiển thị đúng theo múi giờ Việt Nam)
-    sql += ` AND DATE(b.paid_at + INTERVAL '7 hours') >= $${params.length - 1}::date AND DATE(b.paid_at + INTERVAL '7 hours') < ($${params.length}::date + INTERVAL '1 day')`;
+    sql += ` AND DATE(b.paid_at) >= $${params.length - 1}::date AND DATE(b.paid_at) < ($${params.length}::date + INTERVAL '1 day')`;
   } else if (group_by === "month") {
     params.push(value);
-    sql += ` AND TO_CHAR(b.paid_at + INTERVAL '7 hours', 'YYYY-MM') = $${params.length}`;
+    sql += ` AND TO_CHAR(b.paid_at, 'YYYY-MM') = $${params.length}`;
   } else if (group_by === "year") {
     params.push(value);
-    sql += ` AND EXTRACT(YEAR FROM b.paid_at + INTERVAL '7 hours') = $${params.length}`;
+    sql += ` AND EXTRACT(YEAR FROM b.paid_at) = $${params.length}`;
   } else if (group_by === "route") {
     // Assuming value is route_id
     params.push(value);
@@ -874,7 +873,7 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
         WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN 'user_cancelled'
         ELSE 'unknown'
       END AS refund_type,
-      (b.paid_at + INTERVAL '7 hours') AS paid_at
+      b.paid_at
     FROM bookings b
     LEFT JOIN users u ON u.id = b.user_id
     LEFT JOIN trips t ON t.id = b.trip_id
@@ -911,14 +910,13 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
   if (group_by === "day" || group_by === "date") {
     params.push(value);
     params.push(value);
-    // Include entire day from 00:00:00 to 23:59:59 in Vietnam timezone (với +7 tiếng)
-    sql += ` AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') >= $${params.length - 1}::date AND DATE(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') < ($${params.length}::date + INTERVAL '1 day')`;
+    sql += ` AND DATE(COALESCE(b.paid_at, b.created_at)) >= $${params.length - 1}::date AND DATE(COALESCE(b.paid_at, b.created_at)) < ($${params.length}::date + INTERVAL '1 day')`;
   } else if (group_by === "month") {
     params.push(value);
-    sql += ` AND TO_CHAR(COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours', 'YYYY-MM') = $${params.length}`;
+    sql += ` AND TO_CHAR(COALESCE(b.paid_at, b.created_at), 'YYYY-MM') = $${params.length}`;
   } else if (group_by === "year") {
     params.push(value);
-    sql += ` AND EXTRACT(YEAR FROM COALESCE(b.paid_at, b.created_at) + INTERVAL '7 hours') = $${params.length}`;
+    sql += ` AND EXTRACT(YEAR FROM COALESCE(b.paid_at, b.created_at)) = $${params.length}`;
   } else if (group_by === "route") {
     params.push(value);
     sql += ` AND t.route_id = $${params.length}`;
