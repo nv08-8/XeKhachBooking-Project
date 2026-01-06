@@ -10,6 +10,11 @@ const path = require('path');
 const fs = require('fs');
 const { runMigrations } = require("./migrations/run_migrations");
 
+// Security packages
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const morgan = require('morgan');
+
 const authRoutes = require("./routes/authRoutes");
 const tripRoutes = require("./routes/tripRoutes");
 const dataRoutes = require("./routes/dataRoutes");
@@ -28,6 +33,45 @@ const coinRoutes = require("./routes/coinRoutes"); // Import coin routes
 app.use(express.json());
 app.use(cors());
 
+// ==========================================
+// 1. HELMET: Bảo mật HTTP headers
+// ==========================================
+// Helmet giúp bảo vệ ứng dụng khỏi các lỗ hổng bảo mật phổ biến bằng cách thiết lập các HTTP header thích hợp.
+// Nó bao gồm nhiều middleware nhỏ, như:
+// - dnsPrefetchControl: Kiểm soát việc tìm nạp trước DNS.
+// - frameguard: Ngăn chặn clickjacking (X-Frame-Options).
+// - hidePoweredBy: Ẩn header X-Powered-By (không tiết lộ công nghệ đang sử dụng).
+// - hsts: Bảo mật kết nối HTTP Strict Transport Security (HSTS).
+// - ieNoOpen: Ngăn IE mở các file HTML không tin cậy.
+// - noSniff: Ngăn chặn trình duyệt đoán loại MIME (X-Content-Type-Options).
+// - xssFilter: Thêm bộ lọc XSS cho trình duyệt cũ.
+app.use(helmet({
+  crossOriginResourcePolicy: false, // Cho phép tải resource từ domain khác (cần cho API public ảnh)
+}));
+
+
+// Rate limiting giúp ngăn chặn các cuộc tấn công DDoS và Brute Force bằng cách giới hạn số lượng request từ một IP trong một khoảng thời gian.
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 phút
+  max: 100, // Giới hạn mỗi IP tối đa 100 request trong 15 phút
+  standardHeaders: true, // Trả về thông tin rate limit trong headers `RateLimit-*`
+  legacyHeaders: false, // Tắt headers `X-RateLimit-*` cũ
+  message: {
+    message: "Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau 15 phút."
+  }
+});
+
+// Áp dụng rate limiter cho tất cả các routes bắt đầu bằng /api/
+app.use('/api/', limiter);
+
+// ==========================================
+// 3. LOGGING: Ghi log request
+// ==========================================
+// Sử dụng Morgan để ghi lại log của các request HTTP.
+// Giúp theo dõi hoạt động của API, debug lỗi và phát hiện các hành vi bất thường.
+// 'combined' là định dạng log chuẩn Apache, chứa nhiều thông tin chi tiết.
+app.use(morgan('combined'));
+
 // Create uploads directory if it doesn't exist
 const uploadDir = path.join(__dirname, 'uploads', 'avatars');
 if (!fs.existsSync(uploadDir)) {
@@ -35,6 +79,7 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 // Serve static files from uploads directory
+// Cần cấu hình Cross-Origin-Resource-Policy để cho phép truy cập ảnh từ client
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Middleware UTF-8

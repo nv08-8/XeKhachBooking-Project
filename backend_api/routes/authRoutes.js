@@ -7,12 +7,38 @@ const upload = require("../utils/uploadConfig");
 const SALT_ROUNDS = 10;
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me';
+const { authenticateToken } = require("../utils/authMiddleware");
 
-router.post("/send-otp", async (req, res) => {
+// Import express-validator
+const { body, validationResult } = require('express-validator');
+
+// Rate limiting cho auth routes để ngăn chặn brute-force/DDoS
+const rateLimit = require('express-rate-limit');
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 phút
+    max: 20, // Giới hạn 20 request mỗi IP cho các route auth
+    message: { message: "Quá nhiều lần thử đăng nhập/đăng ký, vui lòng thử lại sau 15 phút." }
+});
+
+// ==========================================
+// PUBLIC ROUTES (No Token Required)
+// ==========================================
+
+// Validate email rules
+const emailValidation = [
+    body('email')
+        .isEmail().withMessage('Email không hợp lệ')
+        .normalizeEmail()
+];
+
+router.post("/send-otp", authLimiter, emailValidation, async (req, res) => {
+    // Check validation results
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { email } = req.body;
-
-    if (!email)
-        return res.status(400).json({ message: "Thiếu email!" });
 
     const otp = Math.floor(100000 + Math.random() * 900000);
 
@@ -44,8 +70,17 @@ router.post("/send-otp", async (req, res) => {
     }
 });
 
-router.post("/verify-otp", async (req, res) => {
+router.post("/verify-otp", authLimiter, emailValidation, async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { email, otp } = req.body;
+    
+    // Sanitize OTP just in case (though it should be number/string)
+    if (!otp) return res.status(400).json({ message: "Thiếu OTP" });
+
     try {
         const { rows } = await db.query(
             "SELECT id FROM users WHERE email=$1 AND otp_code=$2",
@@ -61,20 +96,26 @@ router.post("/verify-otp", async (req, res) => {
     }
 });
 
-router.post("/finish-register", async (req, res) => {
-    const { name, phone, email, password } = req.body;
-    if (!name || !phone || !email || !password)
-        return res.status(400).json({ message: "Thiếu thông tin!" });
+// Validation rules for registration
+const registerValidationRules = [
+    body('name').trim().escape().notEmpty().withMessage('Tên không được để trống'),
+    body('phone').trim().escape().matches(/^\d{9,11}$/).withMessage('Số điện thoại không hợp lệ'),
+    body('email').isEmail().withMessage('Email không hợp lệ').normalizeEmail(),
+    body('password').isLength({ min: 6 }).withMessage('Mật khẩu phải có ít nhất 6 ký tự')
+];
 
-    const phoneStr = phone.toString().trim();
-    if (!/^\d{9,11}$/.test(phoneStr)) {
-        return res.status(400).json({ message: "Số điện thoại không hợp lệ." });
+router.post("/finish-register", authLimiter, registerValidationRules, async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
     }
+
+    const { name, phone, email, password } = req.body;
 
     try {
         const { rows: phoneRows } = await db.query(
             "SELECT id FROM users WHERE phone=$1 AND status='active'",
-            [phoneStr]
+            [phone]
         );
         if (phoneRows.length > 0) {
             return res.status(400).json({ message: "Số điện thoại đã được sử dụng!" });
@@ -83,10 +124,10 @@ router.post("/finish-register", async (req, res) => {
         const hashed = await bcrypt.hash(password, SALT_ROUNDS);
         const { rowCount } = await db.query(
             "UPDATE users SET name=$1, phone=$2, password=$3, otp_code=NULL, status='active' WHERE email=$4",
-            [name, phoneStr, hashed, email]
+            [name, phone, hashed, email]
         );
         if (!rowCount) {
-            return res.status(404).json({ message: "Không tìm thấy tài khoản." });
+            return res.status(404).json({ message: "Không tìm thấy tài khoản (hoặc email chưa verify)." });
         }
 
         return res.json({ message: "Tạo tài khoản thành công!" });
@@ -96,7 +137,18 @@ router.post("/finish-register", async (req, res) => {
     }
 });
 
-router.post("/login", async (req, res) => {
+// Validation for login
+const loginValidation = [
+    body('email').isEmail().withMessage('Email không hợp lệ').normalizeEmail(),
+    body('password').notEmpty().withMessage('Mật khẩu không được để trống')
+];
+
+router.post("/login", authLimiter, loginValidation, async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { email, password } = req.body;
     try {
         const { rows } = await db.query(
@@ -123,6 +175,7 @@ router.post("/login", async (req, res) => {
 
         // Remove sensitive fields
         delete user.password;
+        delete user.otp_code; // Ensure OTP isn't sent back
 
         // Create JWT token (include minimal payload)
         const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' });
@@ -138,7 +191,10 @@ router.post("/login", async (req, res) => {
     }
 });
 
-router.post("/forgot-password", async (req, res) => {
+router.post("/forgot-password", authLimiter, emailValidation, async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
     const { email } = req.body;
     const otp = Math.floor(100000 + Math.random() * 900000);
     try {
@@ -158,7 +214,15 @@ router.post("/forgot-password", async (req, res) => {
     }
 });
 
-router.post("/reset-password", async (req, res) => {
+const resetPasswordValidation = [
+    body('email').isEmail().normalizeEmail(),
+    body('newPassword').isLength({ min: 6 }).withMessage('Mật khẩu mới phải có ít nhất 6 ký tự')
+];
+
+router.post("/reset-password", authLimiter, resetPasswordValidation, async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
     const { email, newPassword } = req.body;
     try {
         const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
@@ -176,11 +240,23 @@ router.post("/reset-password", async (req, res) => {
     }
 });
 
-router.get("/user/:id", async (req, res) => {
+// ==========================================
+// PROTECTED ROUTES (Token Required)
+// ==========================================
+
+// Get user profile - Secured
+router.get("/user/:id", authenticateToken, async (req, res) => {
     const { id } = req.params;
+    
+    // Authorization: Check if user is requesting their own data or is admin
+    // Note: req.user.id is number, params.id is string
+    if (req.user.id != id && req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Bạn không có quyền xem thông tin này!" });
+    }
+
     try {
         const { rows } = await db.query(
-            "SELECT id, name, email, phone, dob, gender, status, role FROM users WHERE id=$1 AND status='active'",
+            "SELECT id, name, email, phone, dob, gender, status, role, avatar FROM users WHERE id=$1",
             [id]
         );
         if (!rows.length) return res.status(404).json({ message: "User not found" });
@@ -191,16 +267,31 @@ router.get("/user/:id", async (req, res) => {
     }
 });
 
-router.post("/change-password", async (req, res) => {
+// Change password - Secured
+router.post("/change-password", authenticateToken, [
+    body('newPassword').isLength({ min: 6 }).withMessage('Mật khẩu mới quá ngắn')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
     const { email, currentPassword, newPassword } = req.body;
-    if (!email || !currentPassword || !newPassword) {
+    
+    // Allow using email from token if not provided in body (or force match)
+    const userEmail = email || req.user.email;
+    
+    // Security check: ensure the email matches the logged-in user
+    if (userEmail !== req.user.email && req.user.role !== 'admin') {
+         return res.status(403).json({ success: false, message: "Bạn không có quyền đổi mật khẩu cho tài khoản này!" });
+    }
+
+    if (!currentPassword || !newPassword) {
         return res.status(400).json({ success: false, message: "Thiếu thông tin!" });
     }
 
     try {
         const { rows } = await db.query(
             "SELECT id, password FROM users WHERE email=$1 AND status='active'",
-            [email]
+            [userEmail]
         );
         if (!rows.length) return res.status(404).json({ success: false, message: "User not found" });
 
@@ -222,8 +313,25 @@ router.post("/change-password", async (req, res) => {
     }
 });
 
-router.put("/user/:id", async (req, res) => {
+// Update user profile - Secured
+// Validation for update
+const updateProfileValidation = [
+    body('name').optional().trim().escape(),
+    body('phone').optional().trim().escape().matches(/^\d{9,11}$/).withMessage('Số điện thoại không hợp lệ'),
+    body('gender').optional().trim().escape().isIn(['Nam', 'Nữ', 'Khác', 'Male', 'Female', 'Other']).withMessage('Giới tính không hợp lệ')
+];
+
+router.put("/user/:id", authenticateToken, updateProfileValidation, async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
     const { id } = req.params;
+    
+    // Authorization
+    if (req.user.id != id && req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, message: "Bạn không có quyền cập nhật thông tin này!" });
+    }
+
     const { name, phone, dob, gender } = req.body;
 
     console.log("PUT /user/:id request:");
@@ -245,10 +353,7 @@ router.put("/user/:id", async (req, res) => {
 
     if (phone) {
         const phoneStr = phone.toString().trim();
-        if (!/^\d{9,11}$/.test(phoneStr)) {
-            return res.status(400).json({ success: false, message: "Số điện thoại không hợp lệ." });
-        }
-
+        // Check duplicate phone if changed
         try {
             const { rows } = await db.query(
                 "SELECT id FROM users WHERE phone=$1 AND id!=$2 AND status='active'",
@@ -283,133 +388,83 @@ router.put("/user/:id", async (req, res) => {
     const sql = `UPDATE users SET ${updateFields.join(", ")} WHERE id=${idPlaceholder} AND status='active'`;
 
     try {
-        console.log("  SQL:", sql);
-        console.log("  Values:", updateValues);
-
         const result = await db.query(sql, updateValues);
-        console.log("  Result rowCount:", result.rowCount);
 
         if (!result.rowCount) {
-            console.log("  Error: User not found or not active");
             return res.status(404).json({ success: false, message: "User not found" });
         }
 
-        console.log("  Success: Update completed");
         res.json({ success: true, message: "Cập nhật thông tin thành công!" });
     } catch (err) {
         console.error("  Database error:", err.message);
-        console.error("  Full error:", err);
-
+        
         // If it's a column doesn't exist error, try without dob/gender
         if (err.message && err.message.includes("column") && err.message.includes("does not exist")) {
-            console.log("  Retrying without dob/gender columns...");
-
-            // Rebuild query without dob/gender
-            const updateFields2 = [];
-            const updateValues2 = [];
-
-            if (name) {
-                updateFields2.push(`name=$${updateValues2.length + 1}`);
-                updateValues2.push(name);
-            }
-
-            if (phone) {
-                updateFields2.push(`phone=$${updateValues2.length + 1}`);
-                updateValues2.push(phone.toString().trim());
-            }
-
-            if (updateFields2.length === 0) {
-                return res.status(400).json({ success: false, message: "Không có thông tin để cập nhật!" });
-            }
-
-            const idPlaceholder2 = `$${updateValues2.length + 1}`;
-            updateValues2.push(id);
-            const sql2 = `UPDATE users SET ${updateFields2.join(", ")} WHERE id=${idPlaceholder2} AND status='active'`;
-
-            try {
-                const result2 = await db.query(sql2, updateValues2);
-                if (!result2.rowCount) {
-                    return res.status(404).json({ success: false, message: "User not found" });
-                }
-                res.json({ success: true, message: "Cập nhật thông tin thành công!" });
-            } catch (err2) {
-                console.error("Retry failed:", err2.message);
-                return res.status(500).json({ success: false, message: "Lỗi phía server: " + err2.message });
-            }
+            // ... (Retry logic maintained same as before)
+             // Rebuild query without dob/gender
+             const updateFields2 = [];
+             const updateValues2 = [];
+ 
+             if (name) {
+                 updateFields2.push(`name=$${updateValues2.length + 1}`);
+                 updateValues2.push(name);
+             }
+ 
+             if (phone) {
+                 updateFields2.push(`phone=$${updateValues2.length + 1}`);
+                 updateValues2.push(phone.toString().trim());
+             }
+ 
+             if (updateFields2.length === 0) {
+                 return res.status(400).json({ success: false, message: "Không có thông tin để cập nhật!" });
+             }
+ 
+             const idPlaceholder2 = `$${updateValues2.length + 1}`;
+             updateValues2.push(id);
+             const sql2 = `UPDATE users SET ${updateFields2.join(", ")} WHERE id=${idPlaceholder2} AND status='active'`;
+ 
+             try {
+                 const result2 = await db.query(sql2, updateValues2);
+                 if (!result2.rowCount) {
+                     return res.status(404).json({ success: false, message: "User not found" });
+                 }
+                 res.json({ success: true, message: "Cập nhật thông tin thành công!" });
+             } catch (err2) {
+                 console.error("Retry failed:", err2.message);
+                 return res.status(500).json({ success: false, message: "Lỗi phía server: " + err2.message });
+             }
         } else {
             return res.status(500).json({ success: false, message: "Lỗi phía server: " + err.message });
         }
     }
 });
 
-// Upload avatar endpoint
-router.post("/upload-avatar", upload.single('avatar'), async (req, res) => {
+// Upload avatar endpoint - Secured
+router.post("/upload-avatar", authenticateToken, upload.single('avatar'), async (req, res) => {
     try {
         console.log("uploadAvatar: Request received");
-        console.log("uploadAvatar: req.file =", req.file ? "exists" : "null");
-        console.log("uploadAvatar: headers =", req.headers);
-        console.log("uploadAvatar: user-id header =", req.headers['user-id']);
-
+        
         if (!req.file) {
             console.error("uploadAvatar: No file received");
             return res.status(400).json({ success: false, message: "Chưa chọn ảnh!" });
         }
 
-        let userId = req.headers['user-id'] || req.body.user_id;
-        console.log("uploadAvatar: userId (raw) =", userId);
-
-        // Convert userId to integer
-        userId = parseInt(userId, 10);
-        console.log("uploadAvatar: userId (parsed) =", userId);
-
-        if (!userId || isNaN(userId)) {
-            console.error("uploadAvatar: Invalid userId");
-            // Delete uploaded file if user-id not provided
-            try {
-                require('fs').unlinkSync(req.file.path);
-            } catch (e) {
-                console.error("uploadAvatar: Failed to delete file");
-            }
-            return res.status(400).json({ success: false, message: "Thiếu user-id hoặc user-id không hợp lệ!" });
-        }
-
-        // Check if user exists first
-        console.log("uploadAvatar: Checking if user exists...");
-        const userCheck = await db.query(
-            "SELECT id, status FROM users WHERE id=$1",
-            [userId]
-        );
-        console.log("uploadAvatar: User check result rows count =", userCheck.rows.length);
-
-        if (userCheck.rows.length > 0) {
-            console.log("uploadAvatar: User found - id=" + userCheck.rows[0].id + ", status=" + userCheck.rows[0].status);
-        } else {
-            console.error("uploadAvatar: User NOT found with id=" + userId);
-            // Delete uploaded file if user not found
-            try {
-                require('fs').unlinkSync(req.file.path);
-            } catch (e) {
-                console.error("uploadAvatar: Failed to delete file");
-            }
-            return res.status(404).json({ success: false, message: "Không tìm thấy người dùng với id=" + userId });
-        }
+        // Use ID from authenticated token instead of trusting header/body
+        const userId = req.user.id;
+        console.log("uploadAvatar: userId (from token) =", userId);
 
         // Construct the public URL for the uploaded image (relative path only)
         const imageUrl = `/uploads/avatars/${req.file.filename}`;
         console.log("uploadAvatar: imageUrl =", imageUrl);
 
         // Update user avatar in database
-        console.log("uploadAvatar: Updating database - UPDATE users SET avatar=$1 WHERE id=$2");
         const updateResult = await db.query(
             "UPDATE users SET avatar=$1 WHERE id=$2",
             [imageUrl, userId]
         );
 
-        console.log("uploadAvatar: Database update rowCount =", updateResult.rowCount);
-
         if (updateResult.rowCount === 0) {
             console.error("uploadAvatar: Update failed - no rows affected");
-            // Delete uploaded file if update failed
             try {
                 require('fs').unlinkSync(req.file.path);
             } catch (e) {
@@ -418,15 +473,8 @@ router.post("/upload-avatar", upload.single('avatar'), async (req, res) => {
             return res.status(500).json({ success: false, message: "Cập nhật database thất bại!" });
         }
 
-        // Verify update was successful
-        const verifyResult = await db.query(
-            "SELECT avatar FROM users WHERE id=$1",
-            [userId]
-        );
-        console.log("uploadAvatar: Verification - avatar in DB =", verifyResult.rows[0]?.avatar);
-
         // Return success response with the image URL
-        console.log("uploadAvatar: Upload successful, returning response");
+        console.log("uploadAvatar: Upload successful");
         const successResponse = {
             success: true,
             message: "Cập nhật ảnh đại diện thành công!",
@@ -435,12 +483,9 @@ router.post("/upload-avatar", upload.single('avatar'), async (req, res) => {
                 user_id: userId
             }
         };
-        console.log("uploadAvatar: Success response =", JSON.stringify(successResponse));
         return res.json(successResponse);
     } catch (err) {
         console.error("uploadAvatar: Error caught:", err);
-        console.error("uploadAvatar: Error message:", err.message);
-        console.error("uploadAvatar: Error stack:", err.stack);
 
         // Try to delete file if it exists
         if (req.file) {
