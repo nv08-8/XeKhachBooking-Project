@@ -493,8 +493,16 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
 
         for (int i = 0; i < revenueList.size(); i++) {
             Map<String, Object> revenue = revenueList.get(i);
-            float totalRevenue = getFloatFromMap(revenue, "total_revenue");
-            entries.add(new BarEntry(i, totalRevenue));
+            // ✅ Lấy đúng field dữ liệu tùy theo mode
+            float value;
+            if (isRefundMode) {
+                // Ở mode hoàn tiền, API trả về "refund_amount"
+                value = getFloatFromMap(revenue, "refund_amount");
+            } else {
+                // Ở mode doanh thu, API trả về "total_revenue"
+                value = getFloatFromMap(revenue, "total_revenue");
+            }
+            entries.add(new BarEntry(i, value));
 
             String groupBy = groupByValues[spinnerGroupBy.getSelectedItemPosition()];
             switch (groupBy) {
@@ -517,7 +525,9 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
             }
         }
 
-        BarDataSet dataSet = new BarDataSet(entries, "Doanh Thu");
+        // ✅ Hiển thị nhãn đúng tùy theo mode
+        String chartLabel = isRefundMode ? "Hoàn Tiền" : "Doanh Thu";
+        BarDataSet dataSet = new BarDataSet(entries, chartLabel);
         dataSet.setColors(ColorTemplate.MATERIAL_COLORS);
         dataSet.setValueTextSize(10f);
 
