@@ -79,7 +79,7 @@
                         android:layout_marginBottom="12dp"
                         app:cardCornerRadius="20dp"
                         app:cardElevation="2dp"
-                        app:cardBackgroundColor="#007AFF">
+                        app:cardBackgroundColor="@android:color/white">
 
                         <LinearLayout
                             android:layout_width="match_parent"
@@ -99,7 +99,7 @@
                                     android:layout_width="20dp"
                                     android:layout_height="20dp"
                                     android:src="@drawable/ic_bus_24"
-                                    app:tint="@android:color/white" />
+                                    app:tint="@color/colorPrimary" />
 
                                 <TextView
                                     android:id="@+id/tvBusType"
@@ -108,7 +108,7 @@
                                     android:layout_weight="1"
                                     android:layout_marginStart="8dp"
                                     android:text="Limousine 34 giường"
-                                    android:textColor="@android:color/white"
+                                    android:textColor="@android:color/black"
                                     android:textSize="14sp"
                                     android:textStyle="bold" />
 
@@ -132,7 +132,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Nhà xe Thành Bưởi"
-                                android:textColor="#FFFFFF"
+                                android:textColor="#666666"
                                 android:textSize="13sp"
                                 android:layout_marginBottom="12dp" />
 
@@ -146,14 +146,13 @@
 
                                 <TextView
                                     android:id="@+id/tvOrigin"
-                                    android:layout_width="0dp"
+                                    android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_weight="1"
                                     android:text="TP.HCM"
-                                    android:textColor="@android:color/white"
+                                    android:textColor="@android:color/black"
                                     android:textSize="24sp"
-                                    android:textStyle="bold"
-                                    android:gravity="center" />
+                                    android:textStyle="bold" />
 
                                 <ImageView
                                     android:layout_width="32dp"
@@ -161,18 +160,16 @@
                                     android:layout_marginStart="12dp"
                                     android:layout_marginEnd="12dp"
                                     android:src="@drawable/ic_arrow_forward_24"
-                                    app:tint="@android:color/white" />
+                                    app:tint="#007AFF" />
 
                                 <TextView
                                     android:id="@+id/tvDestination"
-                                    android:layout_width="0dp"
+                                    android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:layout_weight="1"
                                     android:text="Cần Thơ"
-                                    android:textColor="@android:color/white"
+                                    android:textColor="@android:color/black"
                                     android:textSize="24sp"
-                                    android:textStyle="bold"
-                                    android:gravity="center" />
+                                    android:textStyle="bold" />
                             </LinearLayout>
 
                             <TextView
@@ -180,7 +177,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="17:00 • 20/01/2026"
-                                android:textColor="#FFFFFF"
+                                android:textColor="#666666"
                                 android:textSize="14sp" />
 
                         </LinearLayout>
