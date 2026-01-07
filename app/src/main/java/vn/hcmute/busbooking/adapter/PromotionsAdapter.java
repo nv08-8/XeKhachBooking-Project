@@ -45,6 +45,26 @@ public class PromotionsAdapter extends RecyclerView.Adapter<PromotionsAdapter.Vi
         Promotion promotion = promotionList.get(position);
         holder.tvPromotionTitle.setText(promotion.getTitle());
         holder.tvPromotionDescription.setText(promotion.getDescription());
+
+        // Set min/max prices
+        if (holder.tvPromoMinPrice != null) {
+            double minPrice = promotion.getMin_price();
+            if (minPrice > 0) {
+                holder.tvPromoMinPrice.setText(formatPrice(minPrice));
+            } else {
+                holder.tvPromoMinPrice.setText("N/A");
+            }
+        }
+
+        if (holder.tvPromoMaxPrice != null) {
+            double maxPrice = promotion.getMax_discount();
+            if (maxPrice > 0) {
+                holder.tvPromoMaxPrice.setText(formatPrice(maxPrice));
+            } else {
+                holder.tvPromoMaxPrice.setText("N/A");
+            }
+        }
+
         int drawable = promotion.getBackgroundResource() != 0
                 ? promotion.getBackgroundResource()
                 : promotion.getImageResource();
@@ -106,16 +126,30 @@ public class PromotionsAdapter extends RecyclerView.Adapter<PromotionsAdapter.Vi
         }
     }
 
+    private String formatPrice(double price) {
+        if (price >= 1_000_000) {
+            return String.format("%.0fM", price / 1_000_000);
+        } else if (price >= 1_000) {
+            return String.format("%.0fK", price / 1_000);
+        } else {
+            return String.format("%.0f", price);
+        }
+    }
+
     public static class ViewHolder extends RecyclerView.ViewHolder {
         ImageView ivPromotionImage;
         TextView tvPromotionTitle;
         TextView tvPromotionDescription;
+        TextView tvPromoMinPrice;
+        TextView tvPromoMaxPrice;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
             ivPromotionImage = itemView.findViewById(R.id.ivPromotionImage);
             tvPromotionTitle = itemView.findViewById(R.id.tvPromotionTitle);
             tvPromotionDescription = itemView.findViewById(R.id.tvPromotionDescription);
+            tvPromoMinPrice = itemView.findViewById(R.id.tvPromoMinPrice);
+            tvPromoMaxPrice = itemView.findViewById(R.id.tvPromoMaxPrice);
         }
     }
 }
