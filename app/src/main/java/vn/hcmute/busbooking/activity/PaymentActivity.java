@@ -1317,6 +1317,7 @@ public class PaymentActivity extends AppCompatActivity {
 
     private void updatePricingUI() {
         try {
+            // Calculate original subtotal (before any discounts)
             double subtotal = (bookingTotalAmount != null) ? bookingTotalAmount : (trip != null ? trip.getPrice() * (seatLabels != null ? seatLabels.size() : 0) : 0);
 
             // Apply promotion discount first
@@ -1333,9 +1334,18 @@ public class PaymentActivity extends AppCompatActivity {
             // Final price after both discounts
             double finalPrice = Math.max(0, priceAfterPromo - coinDiscount);
 
-            if (tvSubtotal != null) tvSubtotal.setText(CurrencyUtil.formatVND(finalPrice));
+            // Display original subtotal (unchanged)
+            if (tvSubtotal != null) tvSubtotal.setText(CurrencyUtil.formatVND(subtotal));
+
+            // Display final total after all discounts
             if (tvTotal != null) tvTotal.setText(CurrencyUtil.formatVND(finalPrice));
             if (tvBottomTotal != null) tvBottomTotal.setText(CurrencyUtil.formatVND(finalPrice));
+
+            // Display discount details if promotion is applied
+            if (appliedDiscount > 0 && tvDiscountApplied != null) {
+                tvDiscountApplied.setVisibility(View.VISIBLE);
+                tvDiscountApplied.setText("-" + CurrencyUtil.formatVND(appliedDiscount));
+            }
         } catch (Exception ignored) {}
     }
 
