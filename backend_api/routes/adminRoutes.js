@@ -662,7 +662,14 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
         query += ` AND b.trip_id = $${params.length}`;
     }
 
-    query += ` GROUP BY ${groupByClause} ORDER BY ${orderByClause}`;
+    query += ` GROUP BY ${groupByClause}`;
+
+    // ✅ Khi lọc theo route hoặc trip, chỉ hiển thị những cái có booking (COUNT > 0)
+    if (groupBy === 'route' || groupBy === 'trip') {
+        query += ` HAVING COUNT(b.id) > 0`;
+    }
+
+    query += ` ORDER BY ${orderByClause}`;
 
     try {
         console.log(`📊 [Revenue Report] groupBy=${groupBy}, routeId=${route_id}, tripId=${trip_id}, params=${JSON.stringify(params)}`);
@@ -797,7 +804,14 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
         query += ` AND b.trip_id = $${params.length}`;
     }
 
-    query += ` GROUP BY ${groupByClause} ORDER BY ${orderByClause}`;
+    query += ` GROUP BY ${groupByClause}`;
+
+    // ✅ Khi lọc theo route hoặc trip, chỉ hiển thị những cái có refund
+    if (groupBy === 'route' || groupBy === 'trip') {
+        query += ` HAVING COALESCE(SUM(CASE WHEN b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0) / NULLIF(b.seats_count, 0) WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN COALESCE(b.total_amount, 0) / NULLIF(b.seats_count, 0) WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0) / NULLIF(b.seats_count, 0) ELSE 0 END), 0) > 0`;
+    }
+
+    query += ` ORDER BY ${orderByClause}`;
 
     try {
         console.log(`📊 [Refunds Report] refundType=${refundType}, groupBy=${groupBy}, Query: ${query}`);
