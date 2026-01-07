@@ -21,6 +21,7 @@ import java.util.TimeZone;
 
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.model.Feedback;
+import vn.hcmute.busbooking.utils.CurrencyUtil;
 
 public class FeedbackAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
@@ -61,7 +62,7 @@ public class FeedbackAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             PendingViewHolder vh = (PendingViewHolder) holder;
             vh.tvOperator.setText(feedback.getOperator() != null ? feedback.getOperator() : "");
             vh.tvVehicleType.setText(feedback.getVehicleType() != null ? feedback.getVehicleType() : "");
-            vh.tvPrice.setText(feedback.getPrice() != null ? feedback.getPrice() : "");
+            vh.tvPrice.setText(CurrencyUtil.formatVND(feedback.getTotalAmount()));
             vh.tvDepartureTime.setText(formatTime(feedback.getDepartureTime()));
             vh.tvOrigin.setText(feedback.getOrigin() != null ? feedback.getOrigin() : "");
             vh.tvArrivalTime.setText(formatTime(feedback.getArrivalTime()));
@@ -73,7 +74,7 @@ public class FeedbackAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             ReviewedViewHolder vh = (ReviewedViewHolder) holder;
             vh.tvOperator.setText(feedback.getOperator() != null ? feedback.getOperator() : "");
             vh.tvVehicleType.setText(feedback.getVehicleType() != null ? feedback.getVehicleType() : "");
-            vh.tvPrice.setText(feedback.getPrice() != null ? feedback.getPrice() : "");
+            vh.tvPrice.setText(CurrencyUtil.formatVND(feedback.getTotalAmount()));
             vh.tvDepartureTime.setText(formatTime(feedback.getDepartureTime()));
             vh.tvOrigin.setText(feedback.getOrigin() != null ? feedback.getOrigin() : "");
             vh.tvArrivalTime.setText(formatTime(feedback.getArrivalTime()));
