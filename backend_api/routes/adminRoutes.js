@@ -690,7 +690,7 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
 
     let query = `
         SELECT
-            %s AS group_key,
+            %s,
             COUNT(b.id) AS total_bookings,
             COALESCE(SUM(CASE
                 WHEN b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0) / NULLIF(b.seats_count, 0)
@@ -736,8 +736,8 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
         case 'day':
         case 'date':
             groupByClause = "DATE(COALESCE(b.paid_at, b.created_at))";
-            selectClause = "DATE(COALESCE(b.paid_at, b.created_at)) AS group_key";
-            orderByClause = "group_key DESC";
+            selectClause = "DATE(COALESCE(b.paid_at, b.created_at)) AS group_key, COALESCE(SUM(CASE WHEN b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0) / NULLIF(b.seats_count, 0) WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN COALESCE(b.total_amount, 0) / NULLIF(b.seats_count, 0) WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0) / NULLIF(b.seats_count, 0) ELSE 0 END), 0) AS refund_amount";
+            orderByClause = "refund_amount DESC NULLS LAST";
             if (from_date) {
                 params.push(from_date);
                 query += ` AND DATE(COALESCE(b.paid_at, b.created_at)) >= $${params.length}::date`;
@@ -749,8 +749,8 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
             break;
         case 'month':
             groupByClause = "TO_CHAR(COALESCE(b.paid_at, b.created_at), 'YYYY-MM')";
-            selectClause = "TO_CHAR(COALESCE(b.paid_at, b.created_at), 'YYYY-MM') AS group_key";
-            orderByClause = "group_key DESC";
+            selectClause = "TO_CHAR(COALESCE(b.paid_at, b.created_at), 'YYYY-MM') AS group_key, COALESCE(SUM(CASE WHEN b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0) / NULLIF(b.seats_count, 0) WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN COALESCE(b.total_amount, 0) / NULLIF(b.seats_count, 0) WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0) / NULLIF(b.seats_count, 0) ELSE 0 END), 0) AS refund_amount";
+            orderByClause = "refund_amount DESC NULLS LAST";
             if (from_date) {
                 params.push(from_date);
                 query += ` AND DATE(COALESCE(b.paid_at, b.created_at)) >= $${params.length}::date`;
