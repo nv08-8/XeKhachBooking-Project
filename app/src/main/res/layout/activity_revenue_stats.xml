@@ -261,59 +261,6 @@
                     android:entries="@array/refund_type_options" />
             </LinearLayout>
 
-            <!-- Routes Filter -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="12dp"
-                android:visibility="gone"
-                android:gravity="center_vertical"
-                android:id="@+id/routeFilterContainer">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.8"
-                    android:text="Tuyến:"
-                    android:textSize="12sp"
-                    android:textColor="@color/textSecondary"
-                    android:paddingStart="4dp" />
-
-                <Spinner
-                    android:id="@+id/spinnerRoutes"
-                    style="@style/Widget.AppCompat.Spinner.Underlined"
-                    android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_weight="2.5" />
-            </LinearLayout>
-
-            <!-- Trips Filter -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="12dp"
-                android:visibility="gone"
-                android:gravity="center_vertical"
-                android:id="@+id/tripFilterContainer">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.8"
-                    android:text="Chuyến:"
-                    android:textSize="12sp"
-                    android:textColor="@color/textSecondary"
-                    android:paddingStart="4dp" />
-
-                <Spinner
-                    android:id="@+id/spinnerTrips"
-                    style="@style/Widget.AppCompat.Spinner.Underlined"
-                    android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_weight="2.5" />
-            </LinearLayout>
 
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>

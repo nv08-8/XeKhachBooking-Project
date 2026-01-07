@@ -56,10 +56,10 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
     private ProgressBar progressRevenue;
     private RecyclerView rvRevenue;
     private TextView tvEmptyRevenue;
-    private Spinner spinnerGroupBy, spinnerRoutes, spinnerTrips, spinnerRefundType, spinnerPaymentMethod, spinnerOperator;
+    private Spinner spinnerGroupBy, spinnerRefundType, spinnerPaymentMethod, spinnerOperator;
     private Button btnApplyFilter;
     private EditText etStartDate, etEndDate;
-    private LinearLayout dateRangeFilter, refundTypeContainer, routeFilterContainer, tripFilterContainer;
+    private LinearLayout dateRangeFilter, refundTypeContainer;
     private BarChart barChart;
     private NestedScrollView scrollView;
     private MaterialToolbar toolbar;
@@ -73,15 +73,13 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
     private Calendar startCalendar = Calendar.getInstance();
     private Calendar endCalendar = Calendar.getInstance();
 
-    private final String[] groupByValues = {"day", "month", "year", "route", "trip"};
-    private final String[] groupByNames = {"Theo ngày", "Theo tháng", "Theo năm", "Theo tuyến", "Theo chuyến"};
+    private final String[] groupByValues = {"day", "month", "year"};
+    private final String[] groupByNames = {"Theo ngày", "Theo tháng", "Theo năm"};
     private final String[] refundTypeValues = {"", "admin_cancelled", "trip_cancelled", "user_cancelled"};
     // ✅ Thêm mảng payment method
     private final String[] paymentMethodValues = {"all", "qr", "card", "offline"};
     private final String[] paymentMethodNames = {"Tất cả", "QR Ngân hàng", "Thẻ tín dụng", "Thanh toán tại nhà xe"};
 
-    private List<Map<String, Object>> routeList = new ArrayList<>();
-    private List<Trip> tripList = new ArrayList<>();
     // ✅ Thêm operatorList
     private List<String> operatorList = new ArrayList<>();
 
@@ -110,8 +108,6 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         rvRevenue = findViewById(R.id.rvRevenue);
         tvEmptyRevenue = findViewById(R.id.tvEmptyRevenue);
         spinnerGroupBy = findViewById(R.id.spinnerGroupBy);
-        spinnerRoutes = findViewById(R.id.spinnerRoutes);
-        spinnerTrips = findViewById(R.id.spinnerTrips);
         spinnerRefundType = findViewById(R.id.spinnerRefundType);
         spinnerPaymentMethod = findViewById(R.id.spinnerPaymentMethod);
         // ✅ Thêm spinnerOperator
@@ -121,10 +117,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         etStartDate = findViewById(R.id.etStartDate);
         etEndDate = findViewById(R.id.etEndDate);
         dateRangeFilter = findViewById(R.id.dateRangeFilter);
-        // ✅ Thêm các container
         refundTypeContainer = findViewById(R.id.refundTypeContainer);
-        routeFilterContainer = findViewById(R.id.routeFilterContainer);
-        tripFilterContainer = findViewById(R.id.tripFilterContainer);
         barChart = findViewById(R.id.barChart);
         scrollView = findViewById(R.id.scrollView);
 
@@ -140,9 +133,15 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         setupFilterListeners();
 
         // Initial data fetch
-        fetchRoutes();
         // ✅ Fetch operators
         fetchOperators();
+
+        // ✅ Load initial data khi activity mới được tạo
+        // Delay một chút để đảm bảo tất cả setup đã hoàn thành
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
+            () -> fetchRevenueStats(),
+            500
+        );
     }
 
     // ✅ Thêm hàm setup groupBy spinner
@@ -229,10 +228,8 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
                 selectedRefundType = ""; // Reset refund type khi chuyển tab
                 spinnerRefundType.setSelection(0);
 
-                // Tải lại dữ liệu khi chuyển tab
-                if (spinnerGroupBy.getSelectedItemPosition() >= 0) {
-                    fetchRevenueStats();
-                }
+                // ✅ Tải lại dữ liệu khi chuyển tab hoặc lần đầu load
+                fetchRevenueStats();
             }
 
             @Override
@@ -259,23 +256,8 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String selectedGroupBy = groupByValues[position];
 
-                // ✅ Ẩn/hiện các filter containers
-                dateRangeFilter.setVisibility(selectedGroupBy.equals("day") ? View.VISIBLE : View.GONE);
-                routeFilterContainer.setVisibility((selectedGroupBy.equals("trip") || selectedGroupBy.equals("route")) ? View.VISIBLE : View.GONE);
-                tripFilterContainer.setVisibility(selectedGroupBy.equals("trip") ? View.VISIBLE : View.GONE);
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) { }
-        });
-
-        spinnerRoutes.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (routeList.isEmpty() || position < 0 || position >= routeList.size()) return;
-                Map<String, Object> selectedRoute = routeList.get(position);
-                int routeId = getIntFromMap(selectedRoute, "id");
-                fetchTripsForRoute(routeId);
+                // ✅ Luôn hiển thị dateRangeFilter cho day/month/year
+                dateRangeFilter.setVisibility(View.VISIBLE);
             }
 
             @Override
@@ -301,65 +283,6 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         return 0f;
     }
 
-    private void fetchRoutes() {
-        apiService.getRoutes(null, null, null).enqueue(new Callback<List<Map<String, Object>>>() {
-            @Override
-            public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    routeList.clear();
-                    routeList.addAll(response.body());
-                    List<String> routeNames = new ArrayList<>();
-                    for (Map<String, Object> route : routeList) {
-                        routeNames.add(route.get("origin") + " - " + route.get("destination"));
-                    }
-                    ArrayAdapter<String> routeAdapter = new ArrayAdapter<>(RevenueStatsActivity.this, android.R.layout.simple_spinner_item, routeNames);
-                    routeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                    spinnerRoutes.setAdapter(routeAdapter);
-
-                    // Fetch initial revenue stats after routes are loaded
-                    fetchRevenueStats();
-                } else {
-                    Toast.makeText(RevenueStatsActivity.this, "Lỗi khi tải danh sách tuyến", Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
-                Toast.makeText(RevenueStatsActivity.this, "Lỗi khi tải danh sách tuyến: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void fetchTripsForRoute(int routeId) {
-        apiService.getTrips(routeId, null, null, null).enqueue(new Callback<List<Map<String, Object>>>() {
-            @Override
-            public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    tripList.clear();
-                    for (Map<String, Object> tripMap : response.body()) {
-                        tripList.add(new Trip(tripMap));
-                    }
-
-                    List<String> tripNames = new ArrayList<>();
-                    for (Trip trip : tripList) {
-                        tripNames.add("Chuyến " + trip.getId() + " - " + trip.getDepartureTime());
-                    }
-                    ArrayAdapter<String> tripAdapter = new ArrayAdapter<>(RevenueStatsActivity.this, android.R.layout.simple_spinner_item, tripNames);
-                    tripAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                    spinnerTrips.setAdapter(tripAdapter);
-                } else {
-                    Toast.makeText(RevenueStatsActivity.this, "Lỗi khi tải danh sách chuyến", Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
-                Toast.makeText(RevenueStatsActivity.this, "Lỗi khi tải danh sách chuyến: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    // ✅ Thêm hàm fetchOperators
     private void fetchOperators() {
         apiService.getOperators().enqueue(new Callback<List<String>>() {
             @Override
@@ -413,52 +336,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         Integer routeId = null;
         Integer tripId = null;
 
-        int routePos = spinnerRoutes.getSelectedItemPosition();
-        if (spinnerRoutes.getVisibility() == View.VISIBLE && routePos >= 0 && routePos < routeList.size()) {
-            routeId = getIntFromMap(routeList.get(routePos), "id");
-            // ✅ Debug log
-            Map<String, Object> selectedRoute = routeList.get(routePos);
-            android.util.Log.d("RevenueStats", "Selected route pos=" + routePos +
-                ", id=" + routeId + ", origin=" + selectedRoute.get("origin") +
-                ", dest=" + selectedRoute.get("destination"));
-        }
 
-        int tripPos = spinnerTrips.getSelectedItemPosition();
-        if (spinnerTrips.getVisibility() == View.VISIBLE && tripPos >= 0 && tripPos < tripList.size()) {
-            Trip selectedTrip = tripList.get(tripPos);
-            tripId = selectedTrip.getId();
-            // ✅ Lấy route_id từ trip nếu chưa có
-            if (routeId == null || routeId == 0) {
-                routeId = selectedTrip.getRouteId();
-            }
-        }
-
-        // ✅ Validate: Khi lọc theo trip nhưng không chọn trip thì show message
-        if (groupBy.equals("trip")) {
-            if (tripId == null || tripId == 0) {
-                progressRevenue.setVisibility(View.GONE);
-                tvEmptyRevenue.setText("Vui lòng chọn một chuyến để xem báo cáo");
-                tvEmptyRevenue.setVisibility(View.VISIBLE);
-                return;
-            }
-            // ✅ Cũng validate route selection
-            if (routeId == null || routeId == 0) {
-                progressRevenue.setVisibility(View.GONE);
-                tvEmptyRevenue.setText("Vui lòng chọn tuyến để xem báo cáo");
-                tvEmptyRevenue.setVisibility(View.VISIBLE);
-                return;
-            }
-        }
-
-        // ✅ Validate: Khi lọc theo route nhưng không chọn route thì show message
-        if (groupBy.equals("route")) {
-            if (routeId == null || routeId == 0) {
-                progressRevenue.setVisibility(View.GONE);
-                tvEmptyRevenue.setText("Vui lòng chọn một tuyến để xem báo cáo");
-                tvEmptyRevenue.setVisibility(View.VISIBLE);
-                return;
-            }
-        }
 
         // Gọi API khác nhau tùy theo mode
         Call<List<Map<String, Object>>> call;
@@ -592,8 +470,13 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setDrawGridLines(false);
+        xAxis.setLabelRotationAngle(45f);
+        xAxis.setTextSize(9f);
+        xAxis.setLabelCount(labels.size(), false);
 
         barChart.getDescription().setEnabled(false);
+        barChart.getXAxis().setLabelRotationAngle(45);
+        barChart.setExtraOffsets(0, 0, 0, 30);
         barChart.animateY(1000);
         barChart.invalidate();
 
@@ -623,10 +506,11 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         Intent intent = new Intent(this, RevenueDetailsActivity.class);
         intent.putExtra("groupBy", groupBy);
         intent.putExtra("value", value);
-        intent.putExtra("isRefund", isRefundMode); // Truyền thêm mode để chi tiết biết là hoàn tiền
-        intent.putExtra("refundType", selectedRefundType); // Truyền loại hoàn tiền
-        intent.putExtra("paymentMethod", selectedPaymentMethod); // ✅ Truyền payment method
-        intent.putExtra("operator", selectedOperator); // ✅ Truyền operator
+        intent.putExtra("isRefund", isRefundMode);
+        intent.putExtra("refundType", selectedRefundType);
+        intent.putExtra("paymentMethod", selectedPaymentMethod);
+        intent.putExtra("operator", selectedOperator);
+
         startActivity(intent);
     }
 
