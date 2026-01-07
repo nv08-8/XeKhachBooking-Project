@@ -1674,13 +1674,6 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
   const { group_by, value, payment_method, operator, route_id, trip_id } = req.query;
 
   try {
-    // ✅ Convert route_id và trip_id sang int
-    const routeIdNum = parseInt(route_id) || 0;
-    const tripIdNum = parseInt(trip_id) || 0;
-
-    // ✅ Debug log
-    console.log(`📊 [Revenue Details] group_by=${group_by}, value=${value}, route_id=${routeIdNum}, trip_id=${tripIdNum}, payment_method=${payment_method}, operator=${operator}`);
-
     let query = `
       SELECT
         b.id AS booking_id,
@@ -1711,14 +1704,14 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
     }
 
     // ✅ Filter theo route_id
-    if (routeIdNum > 0) {
-      params.push(routeIdNum);
+    if (route_id && parseInt(route_id) > 0) {
+      params.push(parseInt(route_id));
       query += ` AND t.route_id = $${params.length}`;
     }
 
     // ✅ Filter theo trip_id
-    if (tripIdNum > 0) {
-      params.push(tripIdNum);
+    if (trip_id && parseInt(trip_id) > 0) {
+      params.push(parseInt(trip_id));
       query += ` AND b.trip_id = $${params.length}`;
     }
 
@@ -1736,8 +1729,8 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
 
     query += ` ORDER BY b.paid_at DESC`;
 
+    console.log(`📊 [Revenue Details] group_by=${group_by}, value=${value}, route_id=${route_id}, trip_id=${trip_id}`);
     console.log(`📊 [Revenue Details SQL] ${query}`);
-    console.log(`📊 [Revenue Details Params] ${JSON.stringify(params)}`);
     const result = await db.query(query, params);
     console.log(`📊 [Revenue Details Result] Found ${result.rows.length} bookings`);
     res.json(result.rows);
@@ -1752,12 +1745,7 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
   const { group_by, value, refundType, payment_method, operator, route_id, trip_id } = req.query;
 
   try {
-    // ✅ Convert route_id và trip_id sang int
-    const routeIdNum = parseInt(route_id) || 0;
-    const tripIdNum = parseInt(trip_id) || 0;
-
-    // ✅ Debug log
-    console.log(`📊 [Refund Details] group_by=${group_by}, value=${value}, route_id=${routeIdNum}, trip_id=${tripIdNum}, refundType=${refundType}, payment_method=${payment_method}, operator=${operator}`);
+    let query = `
       SELECT
         b.id AS booking_id,
         u.full_name AS user_name,
@@ -1805,14 +1793,14 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
     }
 
     // ✅ Filter theo route_id
-    if (routeIdNum > 0) {
-      params.push(routeIdNum);
+    if (route_id && parseInt(route_id) > 0) {
+      params.push(parseInt(route_id));
       query += ` AND t.route_id = $${params.length}`;
     }
 
     // ✅ Filter theo trip_id
-    if (tripIdNum > 0) {
-      params.push(tripIdNum);
+    if (trip_id && parseInt(trip_id) > 0) {
+      params.push(parseInt(trip_id));
       query += ` AND b.trip_id = $${params.length}`;
     }
 
