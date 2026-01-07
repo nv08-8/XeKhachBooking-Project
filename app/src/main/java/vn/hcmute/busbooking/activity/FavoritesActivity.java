@@ -51,6 +51,7 @@ public class FavoritesActivity extends AppCompatActivity {
     private SessionManager sessionManager;
     private RecyclerView rvFavorites;
     private TextView tvFavoritesEmpty;
+    private TextView tvPriceForDate;
     private TripAdapter tripAdapter;
     private AppBarLayout appBarLayout;
     private View statusBarScrim;
@@ -85,6 +86,7 @@ public class FavoritesActivity extends AppCompatActivity {
         dateTabsContainer = findViewById(R.id.dateTabsContainer);
         setupDateTabs();
 
+        tvPriceForDate = findViewById(R.id.tvPriceForDate);
         rvFavorites = findViewById(R.id.rvFavorites);
         if (rvFavorites != null) {
             rvFavorites.setLayoutManager(new LinearLayoutManager(this));
@@ -376,6 +378,22 @@ public class FavoritesActivity extends AppCompatActivity {
     }
 
     private void filterTripsByDate() {
+        if (tvPriceForDate != null) {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+            String dateStr = dateFormat.format(selectedDate.getTime());
+            String dayLabel = getDayLabel(selectedDate);
+            
+            String prefix = "Giá vé cho ";
+            String datePart = dayLabel + ", " + dateStr;
+            String fullText = prefix + datePart;
+            
+            android.text.SpannableString spannableString = new android.text.SpannableString(fullText);
+            spannableString.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 
+                prefix.length(), fullText.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            
+            tvPriceForDate.setText(spannableString);
+        }
+
         List<Trip> filteredTrips = new ArrayList<>();
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
         String selectedDateStr = dateFormat.format(selectedDate.getTime());
