@@ -1679,6 +1679,7 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
         b.id AS booking_id,
         u.full_name AS user_name,
         r.origin || ' - ' || r.destination AS route_info,
+        t.id AS trip_id,
         t.departure_time,
         b.seats_count AS ticket_count,
         b.total_amount AS total_price,
@@ -1750,6 +1751,7 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
         b.id AS booking_id,
         u.full_name AS user_name,
         r.origin || ' - ' || r.destination AS route_info,
+        t.id AS trip_id,
         t.departure_time,
         b.seats_count AS ticket_count,
         CASE
