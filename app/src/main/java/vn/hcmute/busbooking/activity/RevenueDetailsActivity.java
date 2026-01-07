@@ -2,6 +2,10 @@ package vn.hcmute.busbooking.activity;
 
 import android.os.Bundle;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -11,8 +15,10 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.MaterialToolbar;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -28,10 +34,17 @@ public class RevenueDetailsActivity extends AppCompatActivity {
     private RecyclerView rvBookingDetails;
     private TextView tvNoDetails;
     private TextView tvDetailsTitle;
+    private Spinner spinnerTrip;
+    private LinearLayout tripFilterContainer;
     private BookingDetailsAdapter adapter;
     private List<Map<String, Object>> bookingDetailsList = new ArrayList<>();
+    private List<Map<String, Object>> allBookingDetails = new ArrayList<>(); // Lưu tất cả dữ liệu gốc
     private SessionManager sessionManager;
     private boolean isRefund = false; // Biến để track xem có phải hoàn tiền không
+
+    private String currentGroupBy;
+    private String currentValue;
+    private String selectedTripId = null; // Biến để track trip được chọn
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,6 +60,8 @@ public class RevenueDetailsActivity extends AppCompatActivity {
         rvBookingDetails = findViewById(R.id.rvBookingDetails);
         tvNoDetails = findViewById(R.id.tvNoDetails);
         tvDetailsTitle = findViewById(R.id.tvDetailsTitle);
+        spinnerTrip = findViewById(R.id.spinnerTrip);
+        tripFilterContainer = findViewById(R.id.tripFilterContainer);
 
         rvBookingDetails.setLayoutManager(new LinearLayoutManager(this));
         adapter = new BookingDetailsAdapter(bookingDetailsList);
@@ -56,9 +71,92 @@ public class RevenueDetailsActivity extends AppCompatActivity {
         String value = getIntent().getStringExtra("value");
         isRefund = getIntent().getBooleanExtra("isRefund", false); // Lấy mode từ intent
 
+        currentGroupBy = groupBy;
+        currentValue = value;
+
         String titlePrefix = isRefund ? "Chi tiết hoàn tiền cho " : "Chi tiết doanh thu cho ";
         tvDetailsTitle.setText(titlePrefix + value);
+
+        // Setup spinner listener
+        setupTripSpinnerListener();
+
         fetchBookingDetails(groupBy, value);
+    }
+
+    private void setupTripSpinnerListener() {
+        spinnerTrip.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position == 0) {
+                    selectedTripId = null; // "Tất cả chuyến"
+                } else {
+                    selectedTripId = (String) parent.getItemAtPosition(position);
+                }
+                filterBookingDetails();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                selectedTripId = null;
+                filterBookingDetails();
+            }
+        });
+    }
+
+    private void filterBookingDetails() {
+        if (selectedTripId == null) {
+            // Hiển thị tất cả
+            bookingDetailsList.clear();
+            bookingDetailsList.addAll(allBookingDetails);
+        } else {
+            // Lọc theo chuyến được chọn
+            bookingDetailsList.clear();
+            for (Map<String, Object> booking : allBookingDetails) {
+                Object tripId = booking.get("trip_id");
+                if (tripId != null && tripId.toString().equals(selectedTripId)) {
+                    bookingDetailsList.add(booking);
+                }
+            }
+        }
+
+        if (bookingDetailsList.isEmpty()) {
+            tvNoDetails.setVisibility(View.VISIBLE);
+            tvNoDetails.setText("Không có chi tiết đặt vé cho chuyến này");
+            rvBookingDetails.setVisibility(View.GONE);
+        } else {
+            rvBookingDetails.setVisibility(View.VISIBLE);
+            tvNoDetails.setVisibility(View.GONE);
+        }
+
+        adapter.notifyDataSetChanged();
+    }
+
+    private void updateTripSpinner(List<Map<String, Object>> details) {
+        // Lấy danh sách trip_id duy nhất từ dữ liệu
+        Set<String> tripIds = new HashSet<>();
+        for (Map<String, Object> booking : details) {
+            Object tripId = booking.get("trip_id");
+            if (tripId != null) {
+                tripIds.add(tripId.toString());
+            }
+        }
+
+        // Tạo danh sách với "Tất cả chuyến" ở đầu
+        List<String> tripList = new ArrayList<>();
+        tripList.add("Tất cả chuyến");
+        tripList.addAll(new ArrayList<>(tripIds));
+
+        // Setup adapter cho spinner
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, tripList);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerTrip.setAdapter(adapter);
+
+        // Hiển thị spinner nếu có nhiều hơn 1 chuyến
+        if (tripList.size() > 1) {
+            tripFilterContainer.setVisibility(View.VISIBLE);
+        } else {
+            tripFilterContainer.setVisibility(View.GONE);
+        }
     }
 
     private void fetchBookingDetails(String groupBy, String value) {
@@ -87,9 +185,20 @@ public class RevenueDetailsActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
                 if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
-                    bookingDetailsList.clear();
-                    bookingDetailsList.addAll(response.body());
-                    adapter.notifyDataSetChanged();
+                    allBookingDetails.clear();
+                    allBookingDetails.addAll(response.body());
+
+                    // Reset spinner
+                    selectedTripId = null;
+                    if (spinnerTrip.getAdapter() != null) {
+                        spinnerTrip.setSelection(0);
+                    }
+
+                    // Update spinner với danh sách trip mới
+                    updateTripSpinner(allBookingDetails);
+
+                    // Hiển thị dữ liệu
+                    filterBookingDetails();
                     rvBookingDetails.setVisibility(View.VISIBLE);
                     tvNoDetails.setVisibility(View.GONE);
                 } else {

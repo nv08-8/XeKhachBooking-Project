@@ -838,6 +838,7 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
   let sql = `
     SELECT
       b.id AS booking_id,
+      b.trip_id,
       u.name AS user_name,
       r.origin || ' - ' || r.destination AS route_info,
       t.departure_time,
@@ -900,6 +901,7 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
   let sql = `
     SELECT
       b.id AS booking_id,
+      b.trip_id,
       u.name AS user_name,
       COALESCE(r.origin || ' - ' || r.destination, 'Chuyến bị hủy') AS route_info,
       t.departure_time,
@@ -1677,6 +1679,7 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
     let query = `
       SELECT
         b.id AS booking_id,
+        b.trip_id,
         u.full_name AS user_name,
         r.origin || ' - ' || r.destination AS route_info,
         t.departure_time,
@@ -1748,6 +1751,7 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
     let query = `
       SELECT
         b.id AS booking_id,
+        b.trip_id,
         u.full_name AS user_name,
         r.origin || ' - ' || r.destination AS route_info,
         t.departure_time,
