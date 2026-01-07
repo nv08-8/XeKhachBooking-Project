@@ -48,16 +48,19 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- TabLayout để chuyển đổi giữa Doanh thu, Hoàn tiền và Lợi nhuận App -->
+    <!-- TabLayout để chuyển đổi giữa Doanh thu, Lợi nhuận App và Hoàn tiền -->
+
+    <!-- ✅ Filter Card -->
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabRevenueType"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_constraintTop_toBottomOf="@id/divider"
-        app:tabMode="scrollable"
-        app:tabTextColor="@color/textSecondary"
+        app:tabIndicatorColor="@color/colorPrimary"
+        app:tabMode="fixed"
         app:tabSelectedTextColor="@color/colorPrimary"
-        app:tabIndicatorColor="@color/colorPrimary">
+        app:tabTextColor="@color/textSecondary"
+        tools:layout_editor_absoluteX="16dp">
 
         <com.google.android.material.tabs.TabItem
             android:layout_width="wrap_content"
@@ -67,15 +70,14 @@
         <com.google.android.material.tabs.TabItem
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="💸 Hoàn tiền" />
+            android:text="📊 Lợi nhuận App" />
 
         <com.google.android.material.tabs.TabItem
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="📊 Lợi nhuận App" />
+            android:text="💸 Hoàn tiền" />
     </com.google.android.material.tabs.TabLayout>
 
-    <!-- ✅ Filter Card -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/filterCard"
         android:layout_width="match_parent"

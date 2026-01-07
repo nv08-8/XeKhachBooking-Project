@@ -221,8 +221,8 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         tabRevenueType.addOnTabSelectedListener(new com.google.android.material.tabs.TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(com.google.android.material.tabs.TabLayout.Tab tab) {
-                isRefundMode = (tab.getPosition() == 1); // Tab 0 = doanh thu, Tab 1 = hoàn tiền
-                isAppProfitMode = (tab.getPosition() == 2); // ✅ Tab 2 = lợi nhuận app
+                isAppProfitMode = (tab.getPosition() == 1); // ✅ Tab 1 = lợi nhuận app
+                isRefundMode = (tab.getPosition() == 2); // ✅ Tab 2 = hoàn tiền (thay đổi từ 1 thành 2)
 
                 // Show/hide refund type filter
                 refundTypeContainer.setVisibility(isRefundMode ? View.VISIBLE : View.GONE);
