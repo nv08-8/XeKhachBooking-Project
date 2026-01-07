@@ -14,12 +14,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.MaterialToolbar;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import retrofit2.Call;
@@ -141,7 +137,8 @@ public class ManageRoutesActivity extends AppCompatActivity {
         rvRoutes.setVisibility(View.GONE);
         tvEmptyRoutes.setVisibility(View.GONE);
 
-        // 1. Fetch all routes
+        // Fetch all routes - the API now returns upstream_trip_count calculated server-side
+        // with proper timezone handling (UTC+7 for Vietnam)
         apiService.getRoutes(null, null, null).enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
             public void onResponse(Call<List<Map<String, Object>>> routesCall, Response<List<Map<String, Object>>> routesResponse) {
@@ -151,57 +148,9 @@ public class ManageRoutesActivity extends AppCompatActivity {
                     tvEmptyRoutes.setVisibility(View.VISIBLE);
                     return;
                 }
+                // Routes already contain upstream_trip_count from the backend
                 List<Map<String, Object>> routes = routesResponse.body();
-
-                // 2. Fetch all trips to calculate upcoming counts
-                apiService.getTrips(null, null, null, null).enqueue(new Callback<List<Map<String, Object>>>() {
-                    @Override
-                    public void onResponse(Call<List<Map<String, Object>>> tripsCall, Response<List<Map<String, Object>>> tripsResponse) {
-                        if (tripsResponse.isSuccessful() && tripsResponse.body() != null) {
-                            List<Map<String, Object>> allTrips = tripsResponse.body();
-                            Map<Double, Integer> upcomingTripCounts = new HashMap<>();
-                            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                            Date now = new Date();
-
-                            // 3a. Aggregate upcoming trip counts
-                            for (Map<String, Object> trip : allTrips) {
-                                try {
-                                    Object departureTimeObj = trip.get("departure_time");
-                                    if (departureTimeObj instanceof String) {
-                                        Date departureDate = sdf.parse((String) departureTimeObj);
-                                        if (departureDate != null && !departureDate.before(now)) {
-                                            Object routeIdObj = trip.get("route_id");
-                                            if (routeIdObj != null) {
-                                                Double routeId = Double.parseDouble(routeIdObj.toString());
-                                                upcomingTripCounts.put(routeId, upcomingTripCounts.getOrDefault(routeId, 0) + 1);
-                                            }
-                                        }
-                                    }
-                                } catch (Exception e) {
-                                    // Ignore trips with parsing errors
-                                }
-                            }
-
-                            // 3b. Enrich routes with the calculated counts
-                            for (Map<String, Object> route : routes) {
-                                Object routeIdObj = route.get("id");
-                                if (routeIdObj != null) {
-                                    try {
-                                        Double routeId = Double.parseDouble(routeIdObj.toString());
-                                        route.put("upcoming_trip_count", upcomingTripCounts.getOrDefault(routeId, 0));
-                                    } catch (NumberFormatException ignored) {}
-                                }
-                            }
-                        }
-                        updateRoutesList(routes);
-                    }
-
-                    @Override
-                    public void onFailure(Call<List<Map<String, Object>>> tripsCall, Throwable t) {
-                        // If trips call fails, just show routes without counts
-                        updateRoutesList(routes);
-                    }
-                });
+                updateRoutesList(routes);
             }
 
             @Override
