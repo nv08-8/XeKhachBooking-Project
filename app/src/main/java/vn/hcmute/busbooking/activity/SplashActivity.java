@@ -12,6 +12,7 @@ import vn.hcmute.busbooking.MainActivity;
 import vn.hcmute.busbooking.R;
 import vn.hcmute.busbooking.activity.admin.AdminHomeActivity;
 import vn.hcmute.busbooking.activity.guest.GuestHomeActivity;
+import vn.hcmute.busbooking.api.ApiClient;
 import vn.hcmute.busbooking.utils.SessionManager;
 
 public class SplashActivity extends AppCompatActivity {
@@ -25,6 +26,9 @@ public class SplashActivity extends AppCompatActivity {
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
+
+        // Initialize ApiClient with context to enable authentication interceptor
+        ApiClient.initialize(this);
 
         sessionManager = new SessionManager(this);
 

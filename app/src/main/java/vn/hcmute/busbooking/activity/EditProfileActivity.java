@@ -12,7 +12,6 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.text.SimpleDateFormat;
@@ -82,31 +81,6 @@ public class EditProfileActivity extends AppCompatActivity {
         edtDob.setOnClickListener(v -> new DatePickerDialog(EditProfileActivity.this,
                 date, myCalendar.get(Calendar.YEAR),
                 myCalendar.get(Calendar.MONTH), myCalendar.get(Calendar.DAY_OF_MONTH)).show());
-
-        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
-        if (bottomNav != null) {
-            bottomNav.setSelectedItemId(R.id.nav_account);
-            bottomNav.setOnItemSelectedListener(item -> {
-                int itemId = item.getItemId();
-                if (itemId == R.id.nav_home) {
-                    Intent intent = new Intent(this, vn.hcmute.busbooking.MainActivity.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                    startActivity(intent);
-                    return true;
-                } else if (itemId == R.id.nav_tickets) {
-                    Intent intent = new Intent(this, MyBookingsActivity.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-                    startActivity(intent);
-                    return true;
-                } else if (itemId == R.id.nav_account) {
-                    // Already in the account section, just finish this activity to go back
-                    finish();
-                    return true;
-                } else {
-                    return false;
-                }
-            });
-        }
     }
 
     private void loadUserInfo() {
