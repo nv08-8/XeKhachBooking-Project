@@ -1704,14 +1704,14 @@ router.get("/revenue/details", checkAdminRole, async (req, res) => {
     }
 
     // ✅ Filter theo route_id
-    if (route_id) {
-      params.push(route_id);
+    if (route_id && parseInt(route_id) > 0) {
+      params.push(parseInt(route_id));
       query += ` AND t.route_id = $${params.length}`;
     }
 
     // ✅ Filter theo trip_id
-    if (trip_id) {
-      params.push(trip_id);
+    if (trip_id && parseInt(trip_id) > 0) {
+      params.push(parseInt(trip_id));
       query += ` AND b.trip_id = $${params.length}`;
     }
 
@@ -1793,14 +1793,14 @@ router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
     }
 
     // ✅ Filter theo route_id
-    if (route_id) {
-      params.push(route_id);
+    if (route_id && parseInt(route_id) > 0) {
+      params.push(parseInt(route_id));
       query += ` AND t.route_id = $${params.length}`;
     }
 
     // ✅ Filter theo trip_id
-    if (trip_id) {
-      params.push(trip_id);
+    if (trip_id && parseInt(trip_id) > 0) {
+      params.push(parseInt(trip_id));
       query += ` AND b.trip_id = $${params.length}`;
     }
 
