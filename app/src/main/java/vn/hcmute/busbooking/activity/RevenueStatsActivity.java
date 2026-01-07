@@ -418,11 +418,49 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
 
         int tripPos = spinnerTrips.getSelectedItemPosition();
         if (spinnerTrips.getVisibility() == View.VISIBLE && tripPos >= 0 && tripPos < tripList.size()) {
-            tripId = tripList.get(tripPos).getId();
+            Trip selectedTrip = tripList.get(tripPos);
+            tripId = selectedTrip.getId();
+            // ✅ Lấy route_id từ trip nếu chưa có
+            if (routeId == null || routeId == 0) {
+                routeId = selectedTrip.getRouteId();
+            }
+        }
+
+        // ✅ Validate: Khi lọc theo trip nhưng không chọn trip thì show message
+        if (groupBy.equals("trip")) {
+            if (tripId == null || tripId == 0) {
+                progressRevenue.setVisibility(View.GONE);
+                tvEmptyRevenue.setText("Vui lòng chọn một chuyến để xem báo cáo");
+                tvEmptyRevenue.setVisibility(View.VISIBLE);
+                return;
+            }
+            // ✅ Cũng validate route selection
+            if (routeId == null || routeId == 0) {
+                progressRevenue.setVisibility(View.GONE);
+                tvEmptyRevenue.setText("Vui lòng chọn tuyến để xem báo cáo");
+                tvEmptyRevenue.setVisibility(View.VISIBLE);
+                return;
+            }
+        }
+
+        // ✅ Validate: Khi lọc theo route nhưng không chọn route thì show message
+        if (groupBy.equals("route")) {
+            if (routeId == null || routeId == 0) {
+                progressRevenue.setVisibility(View.GONE);
+                tvEmptyRevenue.setText("Vui lòng chọn một tuyến để xem báo cáo");
+                tvEmptyRevenue.setVisibility(View.VISIBLE);
+                return;
+            }
         }
 
         // Gọi API khác nhau tùy theo mode
         Call<List<Map<String, Object>>> call;
+
+        // ✅ Debug log
+        android.util.Log.d("RevenueStats", "Fetching revenue: groupBy=" + groupBy +
+            ", routeId=" + routeId + ", tripId=" + tripId +
+            ", paymentMethod=" + selectedPaymentMethod + ", operator=" + selectedOperator);
+
         if (isRefundMode) {
             // ✅ Thêm operator parameter
             call = apiService.getRevenueRefunds(sessionManager.getUserId(), groupBy, routeId, tripId, startDate, endDate, selectedRefundType, selectedOperator);
@@ -435,6 +473,8 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
             @Override
             public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
                 progressRevenue.setVisibility(View.GONE);
+                android.util.Log.d("RevenueStats", "Response code: " + response.code() + ", body size: " + (response.body() != null ? response.body().size() : 0));
+
                 if (!response.isSuccessful()) {
                     tvEmptyRevenue.setText("Không thể tải báo cáo (code=" + response.code() + ")");
                     tvEmptyRevenue.setVisibility(View.VISIBLE);

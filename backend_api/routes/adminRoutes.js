@@ -578,14 +578,14 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
 
     let query = `
         SELECT
-            %s AS group_key,
+            %s,
             COUNT(b.id) AS total_bookings,
-            SUM(b.total_amount) AS total_revenue,
-            SUM(b.seats_count) AS total_tickets
+            COALESCE(SUM(b.total_amount), 0) AS total_revenue,
+            COALESCE(SUM(b.seats_count), 0) AS total_tickets
         FROM bookings b
         JOIN trips t ON b.trip_id = t.id
         JOIN routes r ON t.route_id = r.id
-        WHERE b.status = 'confirmed' AND t.status != 'cancelled'
+        WHERE b.status = 'confirmed' AND t.status != 'cancelled' AND b.paid_at IS NOT NULL
     `;
     const params = [];
 
@@ -603,11 +603,13 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
 
     let groupByClause;
     let orderByClause;
+    let selectClause = "%s"; // Default placeholder
 
     switch (groupBy) {
         case 'day':
         case 'date':
             groupByClause = "DATE(b.paid_at)";
+            selectClause = "DATE(b.paid_at) AS group_key";
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
@@ -620,21 +622,23 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
             break;
         case 'month':
             groupByClause = "TO_CHAR(b.paid_at, 'YYYY-MM')";
+            selectClause = "TO_CHAR(b.paid_at, 'YYYY-MM') AS group_key";
             orderByClause = "group_key DESC";
             break;
         case 'year':
             groupByClause = "EXTRACT(YEAR FROM b.paid_at)";
+            selectClause = "EXTRACT(YEAR FROM b.paid_at) AS group_key";
             orderByClause = "group_key DESC";
             break;
         case 'route':
             groupByClause = "r.id, r.origin, r.destination";
+            selectClause = "r.id AS group_key, r.origin, r.destination";
             orderByClause = "total_revenue DESC NULLS LAST";
-            query = query.replace("%s", "r.id AS group_key, r.origin, r.destination");
             break;
         case 'trip':
             groupByClause = "t.id, t.departure_time, r.origin, r.destination";
+            selectClause = "t.id AS group_key, t.departure_time, r.origin, r.destination";
             orderByClause = "total_revenue DESC NULLS LAST";
-            query = query.replace("%s", "t.id AS group_key, t.departure_time, r.origin, r.destination");
             if (route_id) {
                 params.push(route_id);
                 query += ` AND t.route_id = $${params.length}`;
@@ -644,10 +648,10 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
             return res.status(400).json({ message: "Invalid groupBy value: " + groupBy });
     }
 
-    if (groupBy !== 'route' && groupBy !== 'trip') {
-        query = query.replace("%s", groupByClause);
-    }
+    // ✅ Thay thế %s bằng selectClause (đúng cách)
+    query = query.replace("%s", selectClause);
 
+    // ✅ Thêm filter theo trip_id nếu có
     if (trip_id) {
         params.push(trip_id);
         query += ` AND b.trip_id = $${params.length}`;
@@ -656,7 +660,10 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
     query += ` GROUP BY ${groupByClause} ORDER BY ${orderByClause}`;
 
     try {
+        console.log(`📊 [Revenue Report] groupBy=${groupBy}, routeId=${route_id}, tripId=${trip_id}, params=${JSON.stringify(params)}`);
+        console.log(`📊 [Revenue SQL] ${query}`);
         const result = await db.query(query, params);
+        console.log(`📊 [Revenue Result] Found ${result.rows.length} rows`);
         res.json(result.rows);
     } catch (err) {
         console.error(`Error fetching revenue by ${groupBy}:`, err);
@@ -710,11 +717,13 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
 
     let groupByClause;
     let orderByClause;
+    let selectClause = "%s"; // Default placeholder
 
     switch (groupBy) {
         case 'day':
         case 'date':
             groupByClause = "DATE(COALESCE(b.paid_at, b.created_at))";
+            selectClause = "DATE(COALESCE(b.paid_at, b.created_at)) AS group_key";
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
@@ -727,6 +736,7 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
             break;
         case 'month':
             groupByClause = "TO_CHAR(COALESCE(b.paid_at, b.created_at), 'YYYY-MM')";
+            selectClause = "TO_CHAR(COALESCE(b.paid_at, b.created_at), 'YYYY-MM') AS group_key";
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
@@ -739,6 +749,7 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
             break;
         case 'year':
             groupByClause = "EXTRACT(YEAR FROM COALESCE(b.paid_at, b.created_at))";
+            selectClause = "EXTRACT(YEAR FROM COALESCE(b.paid_at, b.created_at)) AS group_key";
             orderByClause = "group_key DESC";
             if (from_date) {
                 params.push(from_date);
@@ -751,13 +762,13 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
             break;
         case 'route':
             groupByClause = "r.id, r.origin, r.destination";
+            selectClause = "COALESCE(r.id, 0) AS group_key, COALESCE(r.origin, 'N/A') AS origin, COALESCE(r.destination, 'N/A') AS destination";
             orderByClause = "refund_amount DESC NULLS LAST";
-            query = query.replace("%s", "COALESCE(r.id, 0) AS group_key, COALESCE(r.origin, 'N/A') AS origin, COALESCE(r.destination, 'N/A') AS destination");
             break;
         case 'trip':
             groupByClause = "COALESCE(t.id, 0), COALESCE(t.departure_time, NOW()), COALESCE(r.origin, 'N/A'), COALESCE(r.destination, 'N/A')";
+            selectClause = "COALESCE(t.id, 0) AS group_key, COALESCE(t.departure_time, NOW()), COALESCE(r.origin, 'N/A'), COALESCE(r.destination, 'N/A')";
             orderByClause = "refund_amount DESC NULLS LAST";
-            query = query.replace("%s", "COALESCE(t.id, 0) AS group_key, COALESCE(t.departure_time, NOW()), COALESCE(r.origin, 'N/A'), COALESCE(r.destination, 'N/A')");
             if (route_id) {
                 params.push(route_id);
                 query += ` AND t.route_id = $${params.length}`;
@@ -767,10 +778,10 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
             return res.status(400).json({ message: "Invalid groupBy value: " + groupBy });
     }
 
-    if (groupBy !== 'route' && groupBy !== 'trip') {
-        query = query.replace("%s", groupByClause);
-    }
+    // ✅ Thay thế %s bằng selectClause (đúng cách)
+    query = query.replace("%s", selectClause);
 
+    // ✅ Thêm filter theo trip_id nếu có
     if (trip_id) {
         params.push(trip_id);
         query += ` AND b.trip_id = $${params.length}`;
