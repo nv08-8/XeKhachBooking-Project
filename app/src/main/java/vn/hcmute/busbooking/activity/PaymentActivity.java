@@ -1861,7 +1861,11 @@ public class PaymentActivity extends AppCompatActivity {
 
         // Build depart booking request
         Map<String, Object> departRequest = new HashMap<>();
-        if (userId != null) departRequest.put("user_id", userId);
+        if (userId != null) { departRequest.put("user_id", userId);
+        } else {
+            // Gửi 1 để báo đây là Guest (nếu server bắt buộc trường user_id)
+            departRequest.put("user_id", 1);
+        }
         departRequest.put("trip_id", trip.getId());
         departRequest.put("seat_labels", seatLabels);
         departRequest.put("passenger_name", fullName);

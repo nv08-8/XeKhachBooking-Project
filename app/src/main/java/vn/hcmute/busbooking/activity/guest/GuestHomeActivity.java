@@ -18,6 +18,7 @@ import android.widget.Toast;
 import android.util.TypedValue;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -56,11 +57,10 @@ public class GuestHomeActivity extends AppCompatActivity {
     private RecyclerView rvPopularRoutes, rvPromotions, rvTestimonials;
     private BottomNavigationView bottomNav;
     private View statusBarScrim;
-
+    private View mainLayout;
     private PopularRoutesAdapter popularRoutesAdapter;
     private PromotionsAdapter promotionsAdapter;
     private TestimonialsAdapter testimonialsAdapter;
-
     private ApiService apiService;
     private final Calendar myCalendar = Calendar.getInstance();
     private java.util.Calendar selectedDate = java.util.Calendar.getInstance();
@@ -71,10 +71,6 @@ public class GuestHomeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_guest_home);
-
-        statusBarScrim = findViewById(R.id.statusBarScrim);
-        View mainLayout = findViewById(R.id.contentScrollView);
-        handleWindowInsets(mainLayout);
 
         // --- Find Views ---
         tvLogin = findViewById(R.id.tvLogin);
@@ -88,6 +84,9 @@ public class GuestHomeActivity extends AppCompatActivity {
         rvTestimonials = findViewById(R.id.rvTestimonials);
         bottomNav = findViewById(R.id.bottom_navigation);
         tvDate = findViewById(R.id.tvDate);
+        statusBarScrim = findViewById(R.id.statusBarScrim);
+        mainLayout = findViewById(R.id.mainLayout);
+        handleWindowInsets();
 
         apiService = ApiClient.getClient().create(ApiService.class);
 
@@ -195,8 +194,6 @@ public class GuestHomeActivity extends AppCompatActivity {
 
         // Programmatically ensure dropdowns can extend outside the CardView / NestedScrollView
         try {
-            etOrigin.setDropDownAnchor(R.id.mainLayout);
-            etDestination.setDropDownAnchor(R.id.mainLayout);
             int screenWidth = getResources().getDisplayMetrics().widthPixels;
             int screenHeight = getResources().getDisplayMetrics().heightPixels;
             int horizontalMarginDp = 48; // leave some margin on both sides
@@ -353,7 +350,7 @@ public class GuestHomeActivity extends AppCompatActivity {
         }
     }
 
-    private void handleWindowInsets(View mainLayout) {
+    private void handleWindowInsets() {
         ViewCompat.setOnApplyWindowInsetsListener(mainLayout, (v, insets) -> {
             int statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top;
             ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
@@ -365,7 +362,7 @@ public class GuestHomeActivity extends AppCompatActivity {
                 scrimParams.height = statusBarHeight;
                 statusBarScrim.setLayoutParams(scrimParams);
                 statusBarScrim.setVisibility(statusBarHeight > 0 ? View.VISIBLE : View.GONE);
-                statusBarScrim.setBackgroundColor(androidx.core.content.ContextCompat.getColor(this, R.color.appBarBackground));
+                statusBarScrim.setBackgroundColor(ContextCompat.getColor(this, R.color.appBarBackground));
             }
             return insets;
         });
