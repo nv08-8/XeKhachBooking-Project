@@ -95,6 +95,26 @@
             <ImageView
                 android:layout_width="16dp"
                 android:layout_height="16dp"
+                android:src="@drawable/ic_bus"
+                app:tint="@color/textSecondary"
+                android:layout_marginEnd="8dp"/>
+            <TextView
+                android:id="@+id/tvTripId"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Chuyến: "
+                android:textColor="@color/textPrimary"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
                 android:src="@drawable/ic_time"
                 app:tint="@color/textSecondary"
                 android:layout_marginEnd="8dp"/>

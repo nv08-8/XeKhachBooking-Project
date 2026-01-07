@@ -53,6 +53,17 @@ public class BookingDetailsAdapter extends RecyclerView.Adapter<BookingDetailsAd
         }
     }
 
+    private String formatPrice(String priceStr) {
+        if (priceStr == null || priceStr.isEmpty()) return "0";
+        try {
+            double price = Double.parseDouble(priceStr);
+            // Format as integer to remove .00
+            return String.format(Locale.US, "%.0f", price);
+        } catch (Exception e) {
+            return priceStr;
+        }
+    }
+
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Map<String, Object> detail = bookingDetails.get(position);
@@ -62,6 +73,7 @@ public class BookingDetailsAdapter extends RecyclerView.Adapter<BookingDetailsAd
 
         // Null-safe getter helper
         String bookingId = detail.get("booking_id") != null ? detail.get("booking_id").toString() : "";
+        String tripId = detail.get("trip_id") != null ? detail.get("trip_id").toString() : "";
         String userName = detail.get("user_name") != null ? detail.get("user_name").toString() : "";
         String routeInfo = detail.get("route_info") != null ? detail.get("route_info").toString() : "";
         String departureTime = detail.get("departure_time") != null ? detail.get("departure_time").toString() : "";
@@ -75,6 +87,7 @@ public class BookingDetailsAdapter extends RecyclerView.Adapter<BookingDetailsAd
         holder.tvBookingId.setText("Mã đặt vé: #" + bookingId);
         holder.tvUserName.setText(userName);
         holder.tvRouteInfo.setText("Tuyến: " + routeInfo);
+        holder.tvTripId.setText("Chuyến: " + tripId);
         holder.tvDepartureTime.setText("Khởi hành: " + formatDateTime(departureTime));
 
         // Hiển thị số vé - convert về long để loại bỏ .0
@@ -91,7 +104,7 @@ public class BookingDetailsAdapter extends RecyclerView.Adapter<BookingDetailsAd
         // Dùng total_price nếu có, nếu không dùng refund_amount (cho hoàn tiền)
         // Nếu cả hai đều trống, hiển thị 0
         String priceDisplay = !totalPrice.isEmpty() ? totalPrice : (!refundAmount.isEmpty() ? refundAmount : "0");
-        holder.tvTotalPrice.setText("Tổng tiền: " + priceDisplay + " VNĐ");
+        holder.tvTotalPrice.setText("Tổng tiền: " + formatPrice(priceDisplay) + " VNĐ");
 
         // Hiển thị thời gian thanh toán
         if (!paidAt.isEmpty()) {
@@ -107,13 +120,14 @@ public class BookingDetailsAdapter extends RecyclerView.Adapter<BookingDetailsAd
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvBookingId, tvUserName, tvRouteInfo, tvDepartureTime, tvTicketCount, tvTotalPrice, tvPaymentTime;
+        TextView tvBookingId, tvUserName, tvRouteInfo, tvTripId, tvDepartureTime, tvTicketCount, tvTotalPrice, tvPaymentTime;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
             tvBookingId = itemView.findViewById(R.id.tvBookingId);
             tvUserName = itemView.findViewById(R.id.tvUserName);
             tvRouteInfo = itemView.findViewById(R.id.tvRouteInfo);
+            tvTripId = itemView.findViewById(R.id.tvTripId);
             tvDepartureTime = itemView.findViewById(R.id.tvDepartureTime);
             tvTicketCount = itemView.findViewById(R.id.tvTicketCount);
             tvTotalPrice = itemView.findViewById(R.id.tvTotalPrice);
