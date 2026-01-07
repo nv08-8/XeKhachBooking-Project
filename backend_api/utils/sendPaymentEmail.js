@@ -97,10 +97,8 @@ function formatPaidAtTime(date) {
  */
 async function sendPaymentConfirmationEmail(email, booking, trip, user) {
     try {
-        if (!email) {
-            console.error("❌ Email address is required");
-            return false;
-        }
+        // `email` parameter is optional. We'll resolve the recipient email from
+        // passenger_info, booking.email, user.email, or the function parameter.
 
         // Check if SendGrid service is initialized
         if (!sgMail) {
@@ -118,6 +116,53 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
         }
 
         console.log(`[sendPaymentEmail] Starting email send for booking ${booking.id}, email: ${email}`);
+
+        // --- New: extract passenger info (supports object, JSON string, or array) ---
+        let passenger = null;
+        try {
+            const pinfo = booking && booking.passenger_info;
+            if (pinfo) {
+                if (typeof pinfo === 'string') {
+                    // try parse JSON string
+                    try {
+                        const parsed = JSON.parse(pinfo);
+                        // parsed could be an array or object
+                        if (Array.isArray(parsed)) passenger = parsed[0] || null;
+                        else passenger = parsed;
+                    } catch (e) {
+                        // not JSON, ignore
+                        passenger = null;
+                    }
+                } else if (Array.isArray(pinfo)) {
+                    passenger = pinfo[0] || null;
+                } else if (typeof pinfo === 'object') {
+                    passenger = pinfo;
+                }
+            }
+        } catch (err) {
+            console.warn('[sendPaymentEmail] Failed to parse passenger_info:', err.message);
+            passenger = null;
+        }
+
+        // Prefer passenger email if present, otherwise fall back to provided email/booking/user
+        const passengerEmail = passenger && (passenger.email || passenger.email_address || passenger.mail) ? (passenger.email || passenger.email_address || passenger.mail) : null;
+        const recipientEmail = passengerEmail || email || booking.email || (user && user.email);
+
+        if (!recipientEmail) {
+            console.error("❌ No recipient email found (passenger_info, booking.email, user.email or function param)");
+            return {
+                success: false,
+                email: null,
+                error: "No recipient email found"
+            };
+        }
+
+         // Prepare passenger display fields (fall back to user fields)
+         const passengerName = (passenger && (passenger.name || passenger.full_name || passenger.username)) || (user && user.name) || 'Khách hàng';
+         const passengerPhone = (passenger && (passenger.phone || passenger.mobile || passenger.phone_number)) || (user && user.phone) || 'Chưa cập nhật';
+         const passengerEmailDisplay = passengerEmail || (user && user.email) || (booking && booking.email) || 'Chưa cập nhật';
+
+         console.log(`[sendPaymentEmail] Resolved recipient email: ${recipientEmail}`);
 
         // Format dates and prices
         const departureDate = new Date(trip.departure_time).toLocaleDateString('vi-VN', {
@@ -229,7 +274,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
 
                     <div class="content">
                         <div class="section">
-                            <p>Xin chào <span class="label">${user.name || 'Khách hàng'}</span>,</p>
+                            <p>Xin chào <span class="label">${passengerName}</span>,</p>
                             <p>Cảm ơn bạn đã đặt vé tại XeKhachBooking. Đơn đặt vé của bạn đã được xác nhận và thanh toán thành công.</p>
                         </div>
 
@@ -336,15 +381,15 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
                                 </tr>
                                 <tr>
                                     <td>Tên hành khách</td>
-                                    <td>${user.name || 'Chưa cập nhật'}</td>
+                                    <td>${passengerName}</td>
                                 </tr>
                                 <tr>
                                     <td>Số điện thoại</td>
-                                    <td>${user.phone || 'Chưa cập nhật'}</td>
+                                    <td>${passengerPhone}</td>
                                 </tr>
                                 <tr>
                                     <td>Email</td>
-                                    <td>${user.email}</td>
+                                    <td>${passengerEmailDisplay}</td>
                                 </tr>
                             </table>
                         </div>
@@ -371,7 +416,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
         `;
 
         const msg = {
-            to: email,
+            to: recipientEmail,
             from: {
                 email: process.env.TICKET_FROM || "dieulien2005@gmail.com",
                 name: "XeKhachBooking"
@@ -392,7 +437,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
             console.log("✅ QR code added as attachment");
         }
 
-        console.log(`[sendPaymentEmail] Preparing to send email to: ${email}`);
+        console.log(`[sendPaymentEmail] Preparing to send email to: ${recipientEmail}`);
         console.log(`[sendPaymentEmail] From: ${msg.from.email}`);
         console.log(`[sendPaymentEmail] Subject: ${msg.subject}`);
         console.log(`[sendPaymentEmail] Attachments: ${msg.attachments ? msg.attachments.length : 0}`);
@@ -401,11 +446,11 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
         console.log(`[sendPaymentEmail] Seat codes: ${booking.seat_codes || 'N/A'}`);
 
         const response = await sgMail.send(msg);
-        console.log("📧 Payment confirmation email sent to", email, "- Status:", response[0].statusCode);
+        console.log("📧 Payment confirmation email sent to", recipientEmail, "- Status:", response[0].statusCode);
         console.log(`[sendPaymentEmail] Success! Response status: ${response[0].statusCode}`);
         return {
             success: true,
-            email: email,
+            email: recipientEmail,
             status: response[0].statusCode,
             message: "Email sent successfully"
         };
@@ -416,7 +461,7 @@ async function sendPaymentConfirmationEmail(email, booking, trip, user) {
         }
         return {
             success: false,
-            email: email,
+            email: recipientEmail || email || null,
             error: error.message || "Unknown error",
             details: error.response?.body || error
         };
