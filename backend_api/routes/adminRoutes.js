@@ -581,6 +581,7 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
             %s,
             COUNT(b.id) AS total_bookings,
             COALESCE(SUM(b.total_amount), 0) AS total_revenue,
+            COALESCE(SUM(b.total_amount) * 0.08, 0) AS app_revenue,
             COALESCE(SUM(b.seats_count), 0) AS total_tickets
         FROM bookings b
         JOIN trips t ON b.trip_id = t.id

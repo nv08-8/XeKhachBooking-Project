@@ -109,13 +109,13 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
     }
 
     private String formatCurrency(Object amountObj) {
-        if (amountObj == null) return "0 VNĐ";
+        if (amountObj == null) return "0 VND";
         try {
             double amount = Double.parseDouble(amountObj.toString());
             DecimalFormat formatter = new DecimalFormat("#,###");
-            return formatter.format(amount) + " VNĐ";
+            return formatter.format(amount) + " VND";
         } catch (Exception e) {
-            return amountObj.toString() + " VNĐ";
+            return amountObj.toString() + " VND";
         }
     }
 
@@ -152,6 +152,11 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
         holder.tvRevenueTitle.setText(title);
         holder.tvRevenueDate.setText(date);
         holder.tvRevenueAmount.setText(formatCurrency(totalRev));
+
+        // ✅ Hiển thị doanh thu app (8% hoa hồng từ nhà xe)
+        Object appRev = revenue.get("app_revenue");
+        holder.tvAppRevenue.setText(formatCurrency(appRev));
+
         // Format tickets without .0 by casting to long
         long ticketCount = totalBookings != null ? getLongFromObject(totalBookings) : 0;
         holder.tvRevenueTickets.setText(ticketCount + " vé");
@@ -202,13 +207,14 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
     }
 
     public static class RevenueViewHolder extends RecyclerView.ViewHolder {
-        TextView tvRevenueTitle, tvRevenueDate, tvRevenueAmount, tvRevenueTickets, tvRevenueLabel, tvRefundType;
+        TextView tvRevenueTitle, tvRevenueDate, tvRevenueAmount, tvAppRevenue, tvRevenueTickets, tvRevenueLabel, tvRefundType;
 
         public RevenueViewHolder(View itemView) {
             super(itemView);
             tvRevenueTitle = itemView.findViewById(R.id.tvRevenueTitle);
             tvRevenueDate = itemView.findViewById(R.id.tvRevenueDate);
             tvRevenueAmount = itemView.findViewById(R.id.tvRevenueAmount);
+            tvAppRevenue = itemView.findViewById(R.id.tvAppRevenue);
             tvRevenueTickets = itemView.findViewById(R.id.tvRevenueTickets);
             tvRevenueLabel = itemView.findViewById(R.id.tvRevenueLabel);
             tvRefundType = itemView.findViewById(R.id.tvRefundType);

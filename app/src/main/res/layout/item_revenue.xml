@@ -92,10 +92,35 @@
                     android:id="@+id/tvRevenueAmount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="0 VNĐ"
+                    android:text="0 VND"
                     android:textSize="15sp"
                     android:textStyle="bold"
                     android:textColor="@color/colorPrimary"
+                    android:layout_marginTop="4dp" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Doanh thu App"
+                    android:textSize="12sp"
+                    android:textColor="@color/textSecondary" />
+
+                <TextView
+                    android:id="@+id/tvAppRevenue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0 VND"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="#FF9500"
                     android:layout_marginTop="4dp" />
 
             </LinearLayout>
