@@ -1669,5 +1669,165 @@ router.put("/deleted-users/:id/restore", checkAdminRole, async (req, res) => {
   }
 });
 
+// ✅ Chi tiết doanh thu - lọc theo group_by, value, route_id, trip_id
+router.get("/revenue/details", checkAdminRole, async (req, res) => {
+  const { group_by, value, payment_method, operator, route_id, trip_id } = req.query;
+
+  try {
+    let query = `
+      SELECT
+        b.id AS booking_id,
+        u.full_name AS user_name,
+        r.origin || ' - ' || r.destination AS route_info,
+        t.departure_time,
+        b.seats_count AS ticket_count,
+        b.total_amount AS total_price,
+        b.paid_at
+      FROM bookings b
+      JOIN users u ON b.user_id = u.id
+      JOIN trips t ON b.trip_id = t.id
+      JOIN routes r ON t.route_id = r.id
+      WHERE b.status = 'confirmed' AND b.paid_at IS NOT NULL
+    `;
+    const params = [];
+
+    // ✅ Filter theo group_by và value
+    if (group_by === 'day') {
+      params.push(value);
+      query += ` AND DATE(b.paid_at) = $${params.length}::date`;
+    } else if (group_by === 'month') {
+      params.push(value);
+      query += ` AND TO_CHAR(b.paid_at, 'YYYY-MM') = $${params.length}`;
+    } else if (group_by === 'year') {
+      params.push(value);
+      query += ` AND EXTRACT(YEAR FROM b.paid_at) = $${params.length}::int`;
+    }
+
+    // ✅ Filter theo route_id
+    if (route_id) {
+      params.push(route_id);
+      query += ` AND t.route_id = $${params.length}`;
+    }
+
+    // ✅ Filter theo trip_id
+    if (trip_id) {
+      params.push(trip_id);
+      query += ` AND b.trip_id = $${params.length}`;
+    }
+
+    // ✅ Filter theo payment_method
+    if (payment_method && payment_method.toLowerCase() !== 'all') {
+      params.push(payment_method);
+      query += ` AND b.payment_method = $${params.length}`;
+    }
+
+    // ✅ Filter theo operator
+    if (operator && operator.toLowerCase() !== 'null') {
+      params.push(operator);
+      query += ` AND t.operator = $${params.length}`;
+    }
+
+    query += ` ORDER BY b.paid_at DESC`;
+
+    console.log(`📊 [Revenue Details] group_by=${group_by}, value=${value}, route_id=${route_id}, trip_id=${trip_id}`);
+    console.log(`📊 [Revenue Details SQL] ${query}`);
+    const result = await db.query(query, params);
+    console.log(`📊 [Revenue Details Result] Found ${result.rows.length} bookings`);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching revenue details:", err.message);
+    res.status(500).json({ message: "Lỗi khi lấy chi tiết doanh thu" });
+  }
+});
+
+// ✅ Chi tiết hoàn tiền - lọc theo group_by, value, route_id, trip_id
+router.get("/revenue/refund-details", checkAdminRole, async (req, res) => {
+  const { group_by, value, refundType, payment_method, operator, route_id, trip_id } = req.query;
+
+  try {
+    let query = `
+      SELECT
+        b.id AS booking_id,
+        u.full_name AS user_name,
+        r.origin || ' - ' || r.destination AS route_info,
+        t.departure_time,
+        b.seats_count AS ticket_count,
+        CASE
+          WHEN b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0)
+          WHEN b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled' THEN COALESCE(b.total_amount, 0)
+          WHEN b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0 THEN COALESCE(b.price_paid, 0)
+          ELSE 0
+        END AS total_price,
+        b.paid_at
+      FROM bookings b
+      JOIN users u ON b.user_id = u.id
+      JOIN trips t ON b.trip_id = t.id
+      JOIN routes r ON t.route_id = r.id
+      WHERE (
+        (b.status = 'pending_refund' AND COALESCE(b.price_paid, 0) > 0)
+        OR (b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled')
+        OR (b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0)
+      )
+    `;
+    const params = [];
+
+    // ✅ Filter theo refundType
+    if (refundType === 'admin_cancelled') {
+      query += ` AND b.status = 'pending_refund'`;
+    } else if (refundType === 'trip_cancelled') {
+      query += ` AND b.status = 'confirmed' AND COALESCE(t.status, '') = 'cancelled'`;
+    } else if (refundType === 'user_cancelled') {
+      query += ` AND b.status = 'cancelled' AND COALESCE(b.price_paid, 0) > 0`;
+    }
+
+    // ✅ Filter theo group_by và value
+    if (group_by === 'day') {
+      params.push(value);
+      query += ` AND DATE(COALESCE(b.paid_at, b.created_at)) = $${params.length}::date`;
+    } else if (group_by === 'month') {
+      params.push(value);
+      query += ` AND TO_CHAR(COALESCE(b.paid_at, b.created_at), 'YYYY-MM') = $${params.length}`;
+    } else if (group_by === 'year') {
+      params.push(value);
+      query += ` AND EXTRACT(YEAR FROM COALESCE(b.paid_at, b.created_at)) = $${params.length}::int`;
+    }
+
+    // ✅ Filter theo route_id
+    if (route_id) {
+      params.push(route_id);
+      query += ` AND t.route_id = $${params.length}`;
+    }
+
+    // ✅ Filter theo trip_id
+    if (trip_id) {
+      params.push(trip_id);
+      query += ` AND b.trip_id = $${params.length}`;
+    }
+
+    // ✅ Filter theo payment_method
+    if (payment_method && payment_method.toLowerCase() !== 'all') {
+      params.push(payment_method);
+      query += ` AND b.payment_method = $${params.length}`;
+    }
+
+    // ✅ Filter theo operator
+    if (operator && operator.toLowerCase() !== 'null') {
+      params.push(operator);
+      query += ` AND t.operator = $${params.length}`;
+    }
+
+    query += ` ORDER BY COALESCE(b.paid_at, b.created_at) DESC`;
+
+    console.log(`📊 [Refund Details] group_by=${group_by}, value=${value}, route_id=${route_id}, trip_id=${trip_id}`);
+    console.log(`📊 [Refund Details SQL] ${query}`);
+    const result = await db.query(query, params);
+    console.log(`📊 [Refund Details Result] Found ${result.rows.length} refunds`);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching refund details:", err.message);
+    res.status(500).json({ message: "Lỗi khi lấy chi tiết hoàn tiền" });
+  }
+});
+
 module.exports = router;
 
