@@ -75,7 +75,7 @@
             android:orientation="horizontal">
 
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="169dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical">
@@ -85,20 +85,26 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Doanh thu"
-                    android:textSize="12sp"
-                    android:textColor="@color/textSecondary" />
+                    android:textColor="@color/textSecondary"
+                    android:textSize="12sp" />
 
                 <TextView
                     android:id="@+id/tvRevenueAmount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
                     android:text="0 VND"
-                    android:textSize="15sp"
-                    android:textStyle="bold"
                     android:textColor="@color/colorPrimary"
-                    android:layout_marginTop="4dp" />
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
 
             </LinearLayout>
+
+            <!-- ✅ Spacer để đẩy "Số vé" sang phải -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2" />
 
             <!-- ✅ Thêm lại cột "Loại" để hiển thị loại hoàn tiền -->
             <LinearLayout
