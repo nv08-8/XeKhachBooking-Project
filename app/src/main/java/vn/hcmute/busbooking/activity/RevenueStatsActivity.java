@@ -414,6 +414,11 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         int routePos = spinnerRoutes.getSelectedItemPosition();
         if (spinnerRoutes.getVisibility() == View.VISIBLE && routePos >= 0 && routePos < routeList.size()) {
             routeId = getIntFromMap(routeList.get(routePos), "id");
+            // ✅ Debug log
+            Map<String, Object> selectedRoute = routeList.get(routePos);
+            android.util.Log.d("RevenueStats", "Selected route pos=" + routePos +
+                ", id=" + routeId + ", origin=" + selectedRoute.get("origin") +
+                ", dest=" + selectedRoute.get("destination"));
         }
 
         int tripPos = spinnerTrips.getSelectedItemPosition();

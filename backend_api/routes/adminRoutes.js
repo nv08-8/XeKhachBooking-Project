@@ -634,6 +634,11 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
             groupByClause = "r.id, r.origin, r.destination";
             selectClause = "r.id AS group_key, r.origin, r.destination";
             orderByClause = "total_revenue DESC NULLS LAST";
+            // ✅ Nếu route_id được chỉ định, filter theo route đó
+            if (route_id) {
+                params.push(route_id);
+                query += ` AND r.id = $${params.length}`;
+            }
             break;
         case 'trip':
             groupByClause = "t.id, t.departure_time, r.origin, r.destination";
@@ -764,6 +769,11 @@ router.get("/revenue/refunds", checkAdminRole, async (req, res) => {
             groupByClause = "r.id, r.origin, r.destination";
             selectClause = "COALESCE(r.id, 0) AS group_key, COALESCE(r.origin, 'N/A') AS origin, COALESCE(r.destination, 'N/A') AS destination";
             orderByClause = "refund_amount DESC NULLS LAST";
+            // ✅ Nếu route_id được chỉ định, filter theo route đó
+            if (route_id) {
+                params.push(route_id);
+                query += ` AND t.route_id = $${params.length}`;
+            }
             break;
         case 'trip':
             groupByClause = "COALESCE(t.id, 0), COALESCE(t.departure_time, NOW()), COALESCE(r.origin, 'N/A'), COALESCE(r.destination, 'N/A')";
