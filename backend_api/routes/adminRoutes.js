@@ -658,6 +658,12 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
     // ✅ Thay thế %s bằng selectClause (đúng cách)
     query = query.replace("%s", selectClause);
 
+    // ✅ Thêm filter theo route_id nếu có (áp dụng cho TẤT CẢ groupBy)
+    if (route_id) {
+        params.push(route_id);
+        query += ` AND t.route_id = $${params.length}`;
+    }
+
     // ✅ Thêm filter theo trip_id CHỈ khi groupBy là route hoặc trip
     if ((groupBy === 'route' || groupBy === 'trip') && trip_id) {
         params.push(trip_id);
