@@ -576,6 +576,12 @@ router.delete("/users/:id", checkAdminRole, async (req, res) => {
 router.get("/revenue", checkAdminRole, async (req, res) => {
     const { groupBy, route_id, trip_id, from_date, to_date, payment_method, operator } = req.query;
 
+    // ✅ Khi lọc theo trip_id, tự động đổi groupBy thành 'trip'
+    let finalGroupBy = groupBy;
+    if (trip_id) {
+        finalGroupBy = 'trip';
+    }
+
     let query = `
         SELECT
             %s,
@@ -606,7 +612,7 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
     let orderByClause;
     let selectClause = "%s"; // Default placeholder
 
-    switch (groupBy) {
+    switch (finalGroupBy) {
         case 'day':
         case 'date':
             groupByClause = "DATE(b.paid_at)";
@@ -651,7 +657,7 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
             }
             break;
         default:
-            return res.status(400).json({ message: "Invalid groupBy value: " + groupBy });
+            return res.status(400).json({ message: "Invalid groupBy value: " + finalGroupBy });
     }
 
     // ✅ Thay thế %s bằng selectClause (đúng cách)
@@ -666,7 +672,7 @@ router.get("/revenue", checkAdminRole, async (req, res) => {
     query += ` GROUP BY ${groupByClause}`;
 
     // ✅ Khi lọc theo route hoặc trip, chỉ hiển thị những cái có booking (COUNT > 0)
-    if (groupBy === 'route' || groupBy === 'trip') {
+    if (finalGroupBy === 'route' || finalGroupBy === 'trip') {
         query += ` HAVING COUNT(b.id) > 0`;
     }
 
