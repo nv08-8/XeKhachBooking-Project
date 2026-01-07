@@ -883,7 +883,6 @@ public class PaymentActivity extends AppCompatActivity {
                     Toast.makeText(PaymentActivity.this, "Vui lòng nhập mã khuyến mãi", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                // call validation API to apply
                 validateAndApplyPromo(code);
             });
 
@@ -899,6 +898,7 @@ public class PaymentActivity extends AppCompatActivity {
             }
         } catch (Exception ignored) {}
     }
+
 
     private void fetchBookingDetailsAndInit(Integer bookingId) {
         if (bookingId == null) {
@@ -1139,14 +1139,21 @@ public class PaymentActivity extends AppCompatActivity {
                 Promotion p = list.get(position);
                 TextView title = holder.itemView.findViewById(R.id.tvPromoCode);
                 TextView desc = holder.itemView.findViewById(R.id.tvPromoDesc);
-                try { if (title != null) title.setText(p.getCode() != null ? p.getCode() : p.getTitle());
-                      if (desc != null) desc.setText(p.getDescription() != null ? p.getDescription() : ""); } catch (Exception ignored) {}
+                try {
+                    if (title != null) title.setText(p.getCode() != null ? p.getCode() : p.getTitle());
+                    if (desc != null) desc.setText(p.getDescription() != null ? p.getDescription() : "");
+                } catch (Exception ignored) {}
                 holder.itemView.setOnClickListener(v -> {
                     try {
                         String code = p.getCode() != null ? p.getCode() : (p.getTitle() != null ? p.getTitle() : "");
-                        if (etPromoCode != null) etPromoCode.setText(code);
+                        if (etPromoCode != null) {
+                            etPromoCode.setText(code);
+                        }
+                        // Automatically validate the selected promo code
                         validateAndApplyPromo(code);
-                    } catch (Exception e) { Log.e(TAG, "Error on promo item click", e); }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error on promo item click", e);
+                    }
                     try { dialog.dismiss(); } catch (Exception ignored) {}
                 });
             }
@@ -1337,15 +1344,30 @@ public class PaymentActivity extends AppCompatActivity {
             // Display original subtotal (unchanged)
             if (tvSubtotal != null) tvSubtotal.setText(CurrencyUtil.formatVND(subtotal));
 
+            // Show/Hide Promotion Discount layout
+            LinearLayout layoutPromoDiscount = findViewById(R.id.layoutPromoDiscount);
+            if (appliedDiscount > 0 && tvDiscountApplied != null) {
+                if (layoutPromoDiscount != null) layoutPromoDiscount.setVisibility(View.VISIBLE);
+                tvDiscountApplied.setText("-" + CurrencyUtil.formatVND(appliedDiscount));
+            } else {
+                if (layoutPromoDiscount != null) layoutPromoDiscount.setVisibility(View.GONE);
+            }
+
+            // Show/Hide Coin Discount layout
+            LinearLayout layoutCoinDiscount = findViewById(R.id.layoutCoinDiscount);
+            if (coinDiscount > 0) {
+                if (layoutCoinDiscount != null) layoutCoinDiscount.setVisibility(View.VISIBLE);
+                TextView tvCoinDiscount = findViewById(R.id.tvCoinDiscount);
+                if (tvCoinDiscount != null) {
+                    tvCoinDiscount.setText("-" + CurrencyUtil.formatVND(coinDiscount));
+                }
+            } else {
+                if (layoutCoinDiscount != null) layoutCoinDiscount.setVisibility(View.GONE);
+            }
+
             // Display final total after all discounts
             if (tvTotal != null) tvTotal.setText(CurrencyUtil.formatVND(finalPrice));
             if (tvBottomTotal != null) tvBottomTotal.setText(CurrencyUtil.formatVND(finalPrice));
-
-            // Display discount details if promotion is applied
-            if (appliedDiscount > 0 && tvDiscountApplied != null) {
-                tvDiscountApplied.setVisibility(View.VISIBLE);
-                tvDiscountApplied.setText("-" + CurrencyUtil.formatVND(appliedDiscount));
-            }
         } catch (Exception ignored) {}
     }
 

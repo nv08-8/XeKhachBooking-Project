@@ -752,6 +752,36 @@
                             android:clickable="true"
                             android:focusable="true" />
 
+
+                        <!-- Promo Code Input -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="12dp"
+                            android:visibility="visible">
+
+                            <EditText
+                                android:id="@+id/etPromoCode"
+                                android:layout_width="0dp"
+                                android:layout_height="48dp"
+                                android:layout_weight="1"
+                                android:hint="@string/hint_promo_code"
+                                android:background="@drawable/bg_edit_text"
+                                android:padding="12dp"
+                                android:inputType="text"
+                                android:autofillHints="none" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnApplyPromo"
+                                android:layout_width="wrap_content"
+                                android:layout_height="48dp"
+                                android:layout_marginStart="8dp"
+                                android:text="@string/apply_promo"
+                                app:cornerRadius="8dp" />
+                        </LinearLayout>
+
                         <View
                             android:layout_width="match_parent"
                             android:layout_height="1dp"
@@ -810,12 +840,74 @@
                             android:layout_height="1dp"
                             android:background="#F0F0F0" />
 
+                        <!-- Promotion Discount (shown only when promo applied) -->
+                        <LinearLayout
+                            android:id="@+id/layoutPromoDiscount"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginTop="12dp"
+                            android:layout_marginBottom="8dp"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Khuyến mãi"
+                                android:textColor="@color/textSecondary"
+                                android:textSize="13sp" />
+
+                            <TextView
+                                android:id="@+id/tvDiscountApplied"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text=""
+                                android:textColor="@android:color/holo_green_dark"
+                                android:textStyle="bold"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+
+                        <!-- Coin Discount (shown only when coins used) -->
+                        <LinearLayout
+                            android:id="@+id/layoutCoinDiscount"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="8dp"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Dùng xu"
+                                android:textColor="@color/textSecondary"
+                                android:textSize="13sp" />
+
+                            <TextView
+                                android:id="@+id/tvCoinDiscount"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text=""
+                                android:textColor="@android:color/holo_green_dark"
+                                android:textStyle="bold"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:orientation="horizontal"
                             android:gravity="center_vertical"
-                            android:layout_marginTop="12dp">
+                            android:layout_marginTop="12dp"
+                            android:id="@+id/layoutTotalClickable"
+                            android:clickable="true"
+                            android:focusable="true">
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -838,55 +930,6 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Promo Details & Discount Applied -->
-                <TextView
-                    android:id="@+id/tvPromoDetails"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/view_promo_details"
-                    android:textColor="@color/colorPrimary"
-                    android:visibility="gone"
-                    android:layout_marginBottom="8dp" />
-
-                <TextView
-                    android:id="@+id/tvDiscountApplied"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text=""
-                    android:textColor="@android:color/holo_green_dark"
-                    android:textStyle="bold"
-                    android:visibility="gone"
-                    android:layout_marginBottom="16dp" />
-
-                <!-- Promo Code Input -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="16dp"
-                    android:visibility="gone">
-
-                    <EditText
-                        android:id="@+id/etPromoCode"
-                        android:layout_width="0dp"
-                        android:layout_height="48dp"
-                        android:layout_weight="1"
-                        android:hint="@string/hint_promo_code"
-                        android:background="@drawable/bg_edit_text"
-                        android:padding="12dp"
-                        android:inputType="text"
-                        android:autofillHints="none" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnApplyPromo"
-                        android:layout_width="wrap_content"
-                        android:layout_height="48dp"
-                        android:layout_marginStart="8dp"
-                        android:text="@string/apply_promo"
-                        app:cornerRadius="8dp" />
-                </LinearLayout>
-
                 <!-- Payment Method Section -->
                 <TextView
                     android:layout_width="wrap_content"
@@ -895,7 +938,8 @@
                     android:textColor="@android:color/black"
                     android:textSize="18sp"
                     android:textStyle="bold"
-                    android:layout_marginBottom="16dp"/>
+                    android:layout_marginBottom="16dp"
+                    android:layout_marginTop="16dp"/>
 
                 <RadioGroup
                     android:id="@+id/rgPaymentMethods"
