@@ -48,13 +48,13 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- TabLayout để chuyển đổi giữa Doanh thu và Hoàn tiền -->
+    <!-- TabLayout để chuyển đổi giữa Doanh thu, Hoàn tiền và Lợi nhuận App -->
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabRevenueType"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_constraintTop_toBottomOf="@id/divider"
-        app:tabMode="fixed"
+        app:tabMode="scrollable"
         app:tabTextColor="@color/textSecondary"
         app:tabSelectedTextColor="@color/colorPrimary"
         app:tabIndicatorColor="@color/colorPrimary">
@@ -68,6 +68,11 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="💸 Hoàn tiền" />
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📊 Lợi nhuận App" />
     </com.google.android.material.tabs.TabLayout>
 
     <!-- ✅ Filter Card -->

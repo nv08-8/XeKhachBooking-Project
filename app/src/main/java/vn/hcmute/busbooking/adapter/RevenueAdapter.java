@@ -21,6 +21,7 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
     private List<Map<String, Object>> revenues;
     private OnItemClickListener listener;
     private boolean isRefund = false; // true = hoàn tiền, false = doanh thu
+    private boolean isAppProfit = false; // ✅ true = lợi nhuận app
 
     public interface OnItemClickListener {
         void onItemClick(Map<String, Object> revenue);
@@ -35,6 +36,14 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
         this.revenues = revenues;
         this.listener = listener;
         this.isRefund = isRefund;
+    }
+
+    // ✅ Constructor mới để hỗ trợ lợi nhuận app
+    public RevenueAdapter(List<Map<String, Object>> revenues, OnItemClickListener listener, boolean isRefund, boolean isAppProfit) {
+        this.revenues = revenues;
+        this.listener = listener;
+        this.isRefund = isRefund;
+        this.isAppProfit = isAppProfit;
     }
 
     @Override
@@ -145,26 +154,42 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
             }
         } else {
             // For date/month/year grouping, use group_key as title
-            title = isRefund ? "Báo cáo hoàn tiền" : "Báo cáo doanh thu";
+            if (isAppProfit) {
+                title = "Báo cáo lợi nhuận App"; // ✅ Lợi nhuận App
+            } else if (isRefund) {
+                title = "Báo cáo hoàn tiền";
+            } else {
+                title = "Báo cáo doanh thu";
+            }
             // date đã được set ở trên từ formatDateValue(groupKey)
         }
 
         holder.tvRevenueTitle.setText(title);
         holder.tvRevenueDate.setText(date);
-        holder.tvRevenueAmount.setText(formatCurrency(totalRev));
 
-        // ✅ Hiển thị doanh thu app (8% hoa hồng từ nhà xe)
-        Object appRev = revenue.get("app_revenue");
-        holder.tvAppRevenue.setText(formatCurrency(appRev));
+        // ✅ Hiển thị app_revenue khi isAppProfit, hoàn tiền khi isRefund, doanh thu bình thường
+        Object amountToDisplay = null;
+        if (isAppProfit) {
+            amountToDisplay = revenue.get("app_revenue"); // Hiển thị lợi nhuận app
+        } else if (isRefund) {
+            amountToDisplay = revenue.get("refund_amount"); // Hiển thị hoàn tiền
+        } else {
+            amountToDisplay = revenue.get("total_revenue"); // Hiển thị doanh thu
+        }
+        holder.tvRevenueAmount.setText(formatCurrency(amountToDisplay));
 
         // Format tickets without .0 by casting to long
         long ticketCount = totalBookings != null ? getLongFromObject(totalBookings) : 0;
         holder.tvRevenueTickets.setText(ticketCount + " vé");
 
-        // Update label to show "Hoàn tiền" or "Doanh thu"
-        holder.tvRevenueLabel.setText(isRefund ? "Hoàn tiền" : "Doanh thu");
+        // ✅ Update label to show "Lợi nhuận", "Hoàn tiền" or "Doanh thu"
+        if (isAppProfit) {
+            holder.tvRevenueLabel.setText("Lợi nhuận");
+        } else {
+            holder.tvRevenueLabel.setText(isRefund ? "Hoàn tiền" : "Doanh thu");
+        }
 
-        // Update refund type label if available (for refund reports)
+        // ✅ Hiển thị loại hoàn tiền khi là refund mode
         if (isRefund && revenue.containsKey("admin_cancelled_count") && revenue.containsKey("trip_cancelled_count")) {
             long adminCount = getLongFromObject(revenue.get("admin_cancelled_count"));
             long tripCount = getLongFromObject(revenue.get("trip_cancelled_count"));
@@ -180,7 +205,7 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
             }
             holder.tvRefundType.setText(refundTypeText);
         } else {
-            holder.tvRefundType.setText("");
+            holder.tvRefundType.setText("-");
         }
 
         holder.itemView.setOnClickListener(v -> {
@@ -207,14 +232,13 @@ public class RevenueAdapter extends RecyclerView.Adapter<RevenueAdapter.RevenueV
     }
 
     public static class RevenueViewHolder extends RecyclerView.ViewHolder {
-        TextView tvRevenueTitle, tvRevenueDate, tvRevenueAmount, tvAppRevenue, tvRevenueTickets, tvRevenueLabel, tvRefundType;
+        TextView tvRevenueTitle, tvRevenueDate, tvRevenueAmount, tvRevenueTickets, tvRevenueLabel, tvRefundType;
 
         public RevenueViewHolder(View itemView) {
             super(itemView);
             tvRevenueTitle = itemView.findViewById(R.id.tvRevenueTitle);
             tvRevenueDate = itemView.findViewById(R.id.tvRevenueDate);
             tvRevenueAmount = itemView.findViewById(R.id.tvRevenueAmount);
-            tvAppRevenue = itemView.findViewById(R.id.tvAppRevenue);
             tvRevenueTickets = itemView.findViewById(R.id.tvRevenueTickets);
             tvRevenueLabel = itemView.findViewById(R.id.tvRevenueLabel);
             tvRefundType = itemView.findViewById(R.id.tvRefundType);

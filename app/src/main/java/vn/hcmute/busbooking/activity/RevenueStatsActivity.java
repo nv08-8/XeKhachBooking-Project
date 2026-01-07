@@ -87,6 +87,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
 
     // Biến để track loại báo cáo hiện tại
     private boolean isRefundMode = false; // false = doanh thu, true = hoàn tiền
+    private boolean isAppProfitMode = false; // true = lợi nhuận app
     private String selectedRefundType = ""; // "", "admin_cancelled", "trip_cancelled"
     // ✅ Thêm biến selected payment method
     private String selectedPaymentMethod = "all"; // "all", "qr", "card", "offline"
@@ -221,6 +222,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
             @Override
             public void onTabSelected(com.google.android.material.tabs.TabLayout.Tab tab) {
                 isRefundMode = (tab.getPosition() == 1); // Tab 0 = doanh thu, Tab 1 = hoàn tiền
+                isAppProfitMode = (tab.getPosition() == 2); // ✅ Tab 2 = lợi nhuận app
 
                 // Show/hide refund type filter
                 refundTypeContainer.setVisibility(isRefundMode ? View.VISIBLE : View.GONE);
@@ -496,7 +498,7 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
                 } else {
                     revenueList.clear();
                     revenueList.addAll(revenues);
-                    adapter = new RevenueAdapter(revenueList, RevenueStatsActivity.this, isRefundMode);
+                    adapter = new RevenueAdapter(revenueList, RevenueStatsActivity.this, isRefundMode, isAppProfitMode);
                     rvRevenue.setAdapter(adapter);
                     scrollView.setVisibility(View.VISIBLE);
                     rvRevenue.setVisibility(View.VISIBLE);
@@ -537,7 +539,10 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
             Map<String, Object> revenue = revenueList.get(i);
             // ✅ Lấy đúng field dữ liệu tùy theo mode
             float value;
-            if (isRefundMode) {
+            if (isAppProfitMode) {
+                // Ở mode lợi nhuận app, lấy "app_revenue"
+                value = getFloatFromMap(revenue, "app_revenue");
+            } else if (isRefundMode) {
                 // Ở mode hoàn tiền, API trả về "refund_amount"
                 value = getFloatFromMap(revenue, "refund_amount");
             } else {
@@ -568,7 +573,14 @@ public class RevenueStatsActivity extends AppCompatActivity implements RevenueAd
         }
 
         // ✅ Hiển thị nhãn đúng tùy theo mode
-        String chartLabel = isRefundMode ? "Hoàn Tiền" : "Doanh Thu";
+        String chartLabel;
+        if (isAppProfitMode) {
+            chartLabel = "Lợi Nhuận";
+        } else if (isRefundMode) {
+            chartLabel = "Hoàn Tiền";
+        } else {
+            chartLabel = "Doanh Thu";
+        }
         BarDataSet dataSet = new BarDataSet(entries, chartLabel);
         dataSet.setColors(ColorTemplate.MATERIAL_COLORS);
         dataSet.setValueTextSize(10f);
