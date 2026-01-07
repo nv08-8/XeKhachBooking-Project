@@ -538,7 +538,7 @@ public class PaymentActivity extends AppCompatActivity {
 
         String phoneToShow = (phoneNumber != null) ? phoneNumber : sessionManager.getUserPhone();
         if (phoneToShow != null) {
-            tvPassengerPhone.setText(maskPhone(phoneToShow));
+            tvPassengerPhone.setText(phoneToShow);
         }
 
         // ============ TÍNH TỔNG TIỀN (BAO GỒM CẢ 2 CHIỀU) ============
@@ -612,6 +612,13 @@ public class PaymentActivity extends AppCompatActivity {
         TextView tvReturnDropoffLocation = findViewById(R.id.tvReturnDropoffLocation);
         TextView tvReturnDropoffAddress = findViewById(R.id.tvReturnDropoffAddress);
         TextView tvReturnSeatNumber = findViewById(R.id.tvSeatNumber); // reuse main seat text view for combined display
+
+        if (tvReturnPickupLocation != null && tvReturnPickupAddress != null) {
+            tvReturnPickupLocation.setTag(tvReturnPickupAddress);
+        }
+        if (tvReturnDropoffLocation != null && tvReturnDropoffAddress != null) {
+            tvReturnDropoffLocation.setTag(tvReturnDropoffAddress);
+        }
 
         try {
             if (tvReturnBusType != null) tvReturnBusType.setText(returnTrip.getBusType());
