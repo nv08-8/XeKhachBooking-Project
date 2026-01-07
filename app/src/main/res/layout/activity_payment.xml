@@ -117,7 +117,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="GoUTE"
-                                    android:textColor="@android:color/white"
+                                    android:textColor="@color/white"
                                     android:textSize="12sp"
                                     android:textStyle="bold"
                                     android:background="@drawable/bg_bus_type_badge"
@@ -141,7 +141,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:orientation="horizontal"
-                                android:gravity="center_vertical"
+                                android:gravity="center"
                                 android:layout_marginBottom="8dp">
 
                                 <TextView
@@ -149,6 +149,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_weight="1"
+                                    android:gravity="start"
                                     android:text="TP.HCM"
                                     android:textColor="@android:color/black"
                                     android:textSize="24sp"
@@ -166,6 +167,8 @@
                                     android:id="@+id/tvDestination"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:gravity="end"
                                     android:text="Cần Thơ"
                                     android:textColor="@android:color/black"
                                     android:textSize="24sp"
