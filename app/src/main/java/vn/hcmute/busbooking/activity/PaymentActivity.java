@@ -1146,10 +1146,34 @@ public class PaymentActivity extends AppCompatActivity {
                 Promotion p = list.get(position);
                 TextView title = holder.itemView.findViewById(R.id.tvPromoCode);
                 TextView desc = holder.itemView.findViewById(R.id.tvPromoDesc);
+                TextView minPrice = holder.itemView.findViewById(R.id.tvPromoMinPrice);
+                TextView maxPrice = holder.itemView.findViewById(R.id.tvPromoMaxPrice);
+
                 try {
                     if (title != null) title.setText(p.getCode() != null ? p.getCode() : p.getTitle());
                     if (desc != null) desc.setText(p.getDescription() != null ? p.getDescription() : "");
+
+                    // Display minimum price
+                    if (minPrice != null) {
+                        double min = p.getMin_price();
+                        if (min > 0) {
+                            minPrice.setText(CurrencyUtil.formatVND(min));
+                        } else {
+                            minPrice.setText("Không giới hạn");
+                        }
+                    }
+
+                    // Display maximum discount
+                    if (maxPrice != null) {
+                        double max = p.getMax_discount();
+                        if (max > 0) {
+                            maxPrice.setText(CurrencyUtil.formatVND(max));
+                        } else {
+                            maxPrice.setText("Không giới hạn");
+                        }
+                    }
                 } catch (Exception ignored) {}
+
                 holder.itemView.setOnClickListener(v -> {
                     try {
                         String code = p.getCode() != null ? p.getCode() : (p.getTitle() != null ? p.getTitle() : "");
